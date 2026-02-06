@@ -1,0 +1,565 @@
+import { mulberry32, clamp } from '../util/prng.js';
+import { simpleDrone } from '../util/audio.js';
+
+function pick(rand, a){ return a[(rand() * a.length) | 0]; }
+
+// Speculative museum placards for present-day objects.
+// Playful fiction: not a serious forecast.
+const ARTIFACTS = [
+  {
+    id: 'glass-slab',
+    title: 'Glass Slab Oracle',
+    era: 'Late Network Age',
+    material: 'Aluminosilicate glass / rare-earth traces',
+    kind: 'phone',
+    plaque: [
+      'Often found near sleeping areas, suggesting nocturnal consultation rituals.',
+      'Surface bears “finger constellations” — evidence of repeated divination attempts.',
+      'Many are discovered with depleted power cells: the oracle demanded offerings.',
+    ],
+  },
+  {
+    id: 'white-cord',
+    title: 'Serpent of Many Ends',
+    era: 'Transition to Universal Port',
+    material: 'Copper / polymer sheath',
+    kind: 'cable',
+    plaque: [
+      'This creature connects incompatible devices through gentle persuasion.',
+      'Tribes hoarded adapters like charms; none of them ever fit.',
+      'Twisted into knots — possibly a defensive posture when threatened.',
+    ],
+  },
+  {
+    id: 'steel-key',
+    title: 'Tiny Teeth of Authority',
+    era: 'Door-and-Handle Period',
+    material: 'Steel / nickel plating',
+    kind: 'keys',
+    plaque: [
+      'Carried in jingling clusters to broadcast status and access rights.',
+      'Worn smooth by anxious thumb-rubbing during decision ceremonies.',
+      'Frequently misplaced — a recurring theme in surviving literature.',
+    ],
+  },
+  {
+    id: 'mug',
+    title: 'Hot Beverage Shrine',
+    era: 'Caffeinated Productivity Epoch',
+    material: 'Ceramic / printed pigment',
+    kind: 'mug',
+    plaque: [
+      'Filled with bitter offerings to summon focus spirits ("Monday").',
+      'Inscribed with motivational spells to ward off fatigue.',
+      'Often chipped: evidence of workplace skirmishes and desk-edge impacts.',
+    ],
+  },
+  {
+    id: 'remote',
+    title: 'Channel Wand (Domestic)',
+    era: 'Streaming Wars',
+    material: 'Plastic / rubber domes',
+    kind: 'remote',
+    plaque: [
+      'A handheld device used to negotiate entertainment treaties with televisions.',
+      'Buttons show uneven wear: the "Volume" sect was dominant.',
+      'Batteries removed and replaced in cycles — a seasonal rite.',
+    ],
+  },
+  {
+    id: 'mask',
+    title: 'Breath Filter of Solidarity',
+    era: 'Great Indoor Air Reforms',
+    material: 'Nonwoven fabric',
+    kind: 'mask',
+    plaque: [
+      'Worn in public as both protection and social signal.',
+      'Elastic loops indicate rapid deployment, suggesting frequent alerts.',
+      'Recovered in vast quantities near pockets and car consoles.',
+    ],
+  },
+  {
+    id: 'spork',
+    title: 'Fork-Spoon Diplomatic Hybrid',
+    era: 'Single-Use Imperium',
+    material: 'Biopolymer / questionable optimism',
+    kind: 'spork',
+    plaque: [
+      'A compromise tool, invented to avoid carrying two distinct implements.',
+      'Ineffective at both stabbing and scooping — a masterclass in negotiation failure.',
+      'Frequently paired with packets of “mystery sauce”.',
+    ],
+  },
+  {
+    id: 'earbuds',
+    title: 'Paired Whisper Stones',
+    era: 'Private Audio Revolution',
+    material: 'Polymer / microelectronics',
+    kind: 'earbuds',
+    plaque: [
+      'Inserted to silence the world and summon curated noise.',
+      'Often lost individually, implying they escaped captivity.',
+      'Charging cases act as tiny sarcophagi for the pair.',
+    ],
+  },
+];
+
+export function createChannel({ seed, audio }){
+  const rand = mulberry32(seed);
+
+  let w = 0, h = 0;
+  let t = 0;
+
+  let font = 16;
+  let small = 12;
+
+  let current = null;
+  let next = null;
+
+  let cardT = 0;
+  let cardDur = 16;
+  let trans = 1; // 0..1
+
+  let motes = [];
+  let ambience = null;
+
+  function chooseDifferent(prev){
+    let a = pick(rand, ARTIFACTS);
+    if (!prev) return a;
+    for (let i = 0; i < 6 && a.id === prev.id; i++) a = pick(rand, ARTIFACTS);
+    return a;
+  }
+
+  function resetScene(width, height){
+    w = width; h = height;
+    t = 0;
+    font = Math.max(14, Math.floor(Math.min(w, h) / 34));
+    small = Math.max(11, Math.floor(font * 0.78));
+
+    // deterministic dust motes
+    motes = [];
+    const n = clamp(Math.floor((w * h) / 14_000), 18, 120);
+    for (let i = 0; i < n; i++){
+      motes.push({
+        x: rand() * w,
+        y: rand() * h,
+        r: 0.6 + rand() * 1.8,
+        a: 0.02 + rand() * 0.07,
+        s: 4 + rand() * 18,
+        ph: rand() * Math.PI * 2,
+      });
+    }
+
+    current = chooseDifferent(null);
+    next = chooseDifferent(current);
+    cardT = 0;
+    cardDur = 14 + rand() * 10;
+    trans = 1;
+  }
+
+  function init({ width, height }){
+    resetScene(width, height);
+  }
+
+  function onResize(width, height){
+    resetScene(width, height);
+  }
+
+  function onAudioOn(){
+    if (!audio.enabled) return;
+    const n = audio.noiseSource({ type: 'pink', gain: 0.004 });
+    n.start();
+    const d = simpleDrone(audio, { root: 55, detune: 0.9, gain: 0.03 });
+    ambience = {
+      stop(){
+        try { n.stop(); } catch {}
+        try { d.stop(); } catch {}
+      }
+    };
+    audio.setCurrent(ambience);
+  }
+
+  function onAudioOff(){
+    try { ambience?.stop?.(); } catch {}
+    ambience = null;
+  }
+
+  function destroy(){
+    onAudioOff();
+  }
+
+  function update(dt){
+    t += dt;
+    cardT += dt;
+
+    trans = clamp(trans + dt * 1.2, 0, 1);
+
+    if (cardT >= cardDur){
+      current = next;
+      next = chooseDifferent(current);
+      cardT = 0;
+      cardDur = 14 + rand() * 10;
+      trans = 0;
+
+      if (audio.enabled){
+        // little "gallery click"
+        const base = 360 + rand() * 90;
+        audio.beep({ freq: base, dur: 0.03, gain: 0.018, type: 'square' });
+        audio.beep({ freq: base * 1.7, dur: 0.02, gain: 0.010, type: 'triangle' });
+      }
+    }
+  }
+
+  function roundRect(ctx, x, y, ww, hh, r){
+    const rr = Math.min(r, ww / 2, hh / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + ww, y, x + ww, y + hh, rr);
+    ctx.arcTo(x + ww, y + hh, x, y + hh, rr);
+    ctx.arcTo(x, y + hh, x, y, rr);
+    ctx.arcTo(x, y, x + ww, y, rr);
+    ctx.closePath();
+  }
+
+  function wrapText(ctx, text, x, y, maxW, lineH){
+    const words = String(text).split(/\s+/g);
+    let line = '';
+    let yy = y;
+    for (let i = 0; i < words.length; i++){
+      const test = line ? (line + ' ' + words[i]) : words[i];
+      if (ctx.measureText(test).width > maxW && line){
+        ctx.fillText(line, x, yy);
+        line = words[i];
+        yy += lineH;
+      } else {
+        line = test;
+      }
+    }
+    if (line) ctx.fillText(line, x, yy);
+    return yy;
+  }
+
+  function drawArtifact(ctx, kind, x, y, s){
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.lineWidth = Math.max(2, Math.floor(s * 0.045));
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const stroke = 'rgba(240,245,255,0.90)';
+    ctx.strokeStyle = stroke;
+
+    if (kind === 'phone'){
+      roundRect(ctx, -s * 0.26, -s * 0.44, s * 0.52, s * 0.88, s * 0.10);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, -s * 0.36, s * 0.03, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.20, -s * 0.26);
+      ctx.lineTo(s * 0.20, -s * 0.26);
+      ctx.stroke();
+    } else if (kind === 'cable'){
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.42, -s * 0.04);
+      ctx.bezierCurveTo(-s * 0.20, -s * 0.30, s * 0.12, s * 0.30, s * 0.40, 0);
+      ctx.stroke();
+      // ends
+      roundRect(ctx, -s * 0.50, -s * 0.10, s * 0.14, s * 0.20, s * 0.05);
+      ctx.stroke();
+      roundRect(ctx, s * 0.36, -s * 0.10, s * 0.14, s * 0.20, s * 0.05);
+      ctx.stroke();
+    } else if (kind === 'keys'){
+      for (let i = 0; i < 3; i++){
+        const ox = (-0.16 + i * 0.16) * s;
+        ctx.beginPath();
+        ctx.arc(ox, -s * 0.10, s * 0.12, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(ox, 0);
+        ctx.lineTo(ox, s * 0.34);
+        ctx.lineTo(ox + s * 0.10, s * 0.34);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(0, -s * 0.30, s * 0.16, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (kind === 'mug'){
+      roundRect(ctx, -s * 0.24, -s * 0.30, s * 0.48, s * 0.58, s * 0.06);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(s * 0.28, -s * 0.10, s * 0.16, -0.8, 0.8);
+      ctx.stroke();
+      // steam
+      ctx.globalAlpha = 0.7;
+      for (let i = -1; i <= 1; i++){
+        ctx.beginPath();
+        ctx.moveTo(i * s * 0.10, -s * 0.34);
+        ctx.bezierCurveTo(i * s * 0.18, -s * 0.44, i * s * 0.02, -s * 0.54, i * s * 0.10, -s * 0.64);
+        ctx.stroke();
+      }
+    } else if (kind === 'remote'){
+      roundRect(ctx, -s * 0.18, -s * 0.44, s * 0.36, s * 0.88, s * 0.12);
+      ctx.stroke();
+      for (let r = 0; r < 5; r++){
+        for (let c = 0; c < 3; c++){
+          ctx.beginPath();
+          ctx.arc((-0.08 + c * 0.08) * s, (-0.20 + r * 0.12) * s, s * 0.025, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      ctx.beginPath();
+      ctx.arc(0, -s * 0.34, s * 0.04, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (kind === 'mask'){
+      // face curve
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.34, 0);
+      ctx.quadraticCurveTo(0, s * 0.18, s * 0.34, 0);
+      ctx.quadraticCurveTo(0, -s * 0.22, -s * 0.34, 0);
+      ctx.closePath();
+      ctx.stroke();
+      // pleats
+      ctx.globalAlpha = 0.7;
+      for (let i = -1; i <= 1; i++){
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.24, i * s * 0.08);
+        ctx.lineTo(s * 0.24, i * s * 0.08);
+        ctx.stroke();
+      }
+      // loops
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(-s * 0.38, 0, s * 0.10, -0.5, 0.5);
+      ctx.arc(s * 0.38, 0, s * 0.10, Math.PI - 0.5, Math.PI + 0.5);
+      ctx.stroke();
+    } else if (kind === 'spork'){
+      // handle
+      ctx.beginPath();
+      ctx.moveTo(0, s * 0.44);
+      ctx.lineTo(0, -s * 0.10);
+      ctx.stroke();
+      // spoon bowl
+      ctx.beginPath();
+      ctx.ellipse(0, -s * 0.22, s * 0.18, s * 0.22, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // tines
+      for (let i = -1; i <= 1; i++){
+        ctx.beginPath();
+        ctx.moveTo(i * s * 0.06, -s * 0.44);
+        ctx.lineTo(i * s * 0.06, -s * 0.30);
+        ctx.stroke();
+      }
+    } else if (kind === 'earbuds'){
+      // buds
+      for (let i = -1; i <= 1; i += 2){
+        ctx.beginPath();
+        ctx.arc(i * s * 0.14, -s * 0.06, s * 0.10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(i * s * 0.14, s * 0.04);
+        ctx.lineTo(i * s * 0.14, s * 0.34);
+        ctx.stroke();
+      }
+      // case
+      roundRect(ctx, -s * 0.22, s * 0.24, s * 0.44, s * 0.18, s * 0.08);
+      ctx.stroke();
+    } else {
+      // fallback: monolith
+      roundRect(ctx, -s * 0.14, -s * 0.44, s * 0.28, s * 0.88, s * 0.10);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function drawBackground(ctx){
+    // gallery room
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#05070c');
+    bg.addColorStop(0.55, '#070b12');
+    bg.addColorStop(1, '#020305');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    // floor sheen
+    ctx.save();
+    const floorY = h * 0.72;
+    const fg = ctx.createLinearGradient(0, floorY, 0, h);
+    fg.addColorStop(0, 'rgba(130,160,190,0.06)');
+    fg.addColorStop(1, 'rgba(0,0,0,0.70)');
+    ctx.fillStyle = fg;
+    ctx.fillRect(0, floorY, w, h - floorY);
+    ctx.restore();
+
+    // columns
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    for (let i = 0; i < 4; i++){
+      const x = w * (0.10 + i * 0.26);
+      roundRect(ctx, x, h * 0.10, w * 0.06, h * 0.70, 18);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // vignette
+    const vg = ctx.createRadialGradient(w * 0.52, h * 0.34, 0, w * 0.52, h * 0.34, Math.max(w, h) * 0.76);
+    vg.addColorStop(0, 'rgba(255,255,255,0.05)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.86)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, w, h);
+
+    // floating dust
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,1)';
+    for (const m of motes){
+      const yy = (m.y + Math.sin(t * 0.4 + m.ph) * m.s) % h;
+      const xx = (m.x + Math.cos(t * 0.3 + m.ph) * (m.s * 0.5)) % w;
+      ctx.globalAlpha = m.a;
+      ctx.beginPath();
+      ctx.arc(xx, yy, m.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawPedestal(ctx, cx, cy, s){
+    ctx.save();
+
+    // spotlight cone
+    ctx.save();
+    const cone = ctx.createRadialGradient(cx, h * 0.08, 0, cx, h * 0.08, h * 0.82);
+    cone.addColorStop(0, 'rgba(210,230,255,0.18)');
+    cone.addColorStop(0.35, 'rgba(210,230,255,0.06)');
+    cone.addColorStop(1, 'rgba(210,230,255,0.00)');
+    ctx.fillStyle = cone;
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 0.95, cy);
+    ctx.lineTo(cx + s * 0.95, cy);
+    ctx.lineTo(cx + s * 0.30, h * 0.10);
+    ctx.lineTo(cx - s * 0.30, h * 0.10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // pedestal body
+    const pw = s * 0.95;
+    const ph = s * 0.56;
+    const x = cx - pw / 2;
+    const y = cy + s * 0.22;
+
+    const pg = ctx.createLinearGradient(x, y, x + pw, y + ph);
+    pg.addColorStop(0, 'rgba(245,248,255,0.16)');
+    pg.addColorStop(0.45, 'rgba(245,248,255,0.08)');
+    pg.addColorStop(1, 'rgba(0,0,0,0.20)');
+
+    ctx.fillStyle = pg;
+    roundRect(ctx, x, y, pw, ph, 18);
+    ctx.fill();
+
+    // base shadow
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.beginPath();
+    ctx.ellipse(cx, y + ph + s * 0.16, pw * 0.65, s * 0.14, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawPlacard(ctx, artifact, { alpha = 1, dx = 0 } = {}){
+    const pad = Math.floor(font * 1.15);
+    const cw = Math.min(w * 0.84, 1020);
+    const ch = Math.min(h * 0.30, 320);
+    const x = (w - cw) / 2 + dx;
+    const y = h * 0.67;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // plate
+    ctx.save();
+    ctx.globalAlpha *= 0.85;
+    ctx.fillStyle = 'rgba(240,245,255,0.10)';
+    roundRect(ctx, x, y, cw, ch, 16);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(240,245,255,0.20)';
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, cw, ch, 16);
+    ctx.stroke();
+    ctx.restore();
+
+    // header
+    ctx.fillStyle = 'rgba(240,245,255,0.86)';
+    ctx.font = `700 ${Math.floor(font * 1.25)}px ui-sans-serif, system-ui, -apple-system, Segoe UI`;
+    ctx.fillText(artifact.title, x + pad, y + pad * 1.15);
+
+    ctx.fillStyle = 'rgba(240,245,255,0.62)';
+    ctx.font = `${Math.floor(small * 1.02)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.fillText(`ERA: ${artifact.era.toUpperCase()}`, x + pad, y + pad * 1.95);
+    ctx.fillText(`MATERIAL: ${artifact.material.toUpperCase()}`, x + pad, y + pad * 2.55);
+
+    // notes
+    ctx.fillStyle = 'rgba(240,245,255,0.70)';
+    ctx.font = `${Math.floor(font * 0.98)}px ui-sans-serif, system-ui`;
+    const lineH = Math.floor(font * 1.40);
+    let yy = y + pad * 3.40;
+    const maxW = cw - pad * 2;
+    for (const line of artifact.plaque){
+      yy = wrapText(ctx, '• ' + line, x + pad, yy, maxW, lineH) + Math.floor(font * 0.40);
+    }
+
+    ctx.restore();
+  }
+
+  function render(ctx){
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    drawBackground(ctx);
+
+    // subtle camera drift
+    const driftX = Math.sin(t * 0.12) * w * 0.008;
+    const driftY = Math.cos(t * 0.10) * h * 0.006;
+
+    const cx = w * 0.5 + driftX;
+    const cy = h * 0.42 + driftY;
+
+    // pedestal + artifact
+    const s = Math.min(w, h) * 0.38;
+    drawPedestal(ctx, cx, cy, s);
+
+    // artifact crossfade + slide
+    const slide = (1 - trans);
+    const dx = slide * (w * 0.06);
+
+    if (next && trans < 1){
+      ctx.save();
+      ctx.globalAlpha = 0.20 * (1 - trans);
+      drawArtifact(ctx, next.kind, cx - dx * 0.6, cy - s * 0.10, s * 0.45);
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalAlpha = 1;
+    drawArtifact(ctx, current.kind, cx + dx, cy - s * 0.10, s * 0.50);
+    ctx.restore();
+
+    // placard
+    drawPlacard(ctx, current, { alpha: 1, dx: dx * 0.55 });
+
+    // channel label
+    ctx.save();
+    ctx.fillStyle = 'rgba(231,238,246,0.76)';
+    ctx.font = `${Math.floor(h / 28)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.fillText('FUTURE ARCHAEOLOGY', w * 0.05, h * 0.12);
+    ctx.fillStyle = 'rgba(231,238,246,0.52)';
+    ctx.font = `${Math.floor(h / 36)}px ui-sans-serif, system-ui`;
+    ctx.fillText('A museum tour of us, interpreted badly (affectionately).', w * 0.05, h * 0.16);
+    ctx.restore();
+  }
+
+  return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
+}

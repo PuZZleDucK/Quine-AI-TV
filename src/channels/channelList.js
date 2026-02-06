@@ -25,5 +25,6 @@ export const CHANNELS = [
   { id: 'traveldesk', name: 'The Tiny Travel Desk', module: m('./traveldesk.js') },
   { id: 'fixit', name: 'Fix-It ASMR', module: m('./fixit.js') },
   { id: 'patents', name: "History's Weird Patents", module: m('./weirdpatents.js') },
+  { id: 'futurearch', name: 'Future Archaeology', module: m('./futurearch.js') },
   { id: 'speedcook', name: 'Speed-Run Cooking', module: m('./speedcook.js') },
 ];
