@@ -4,6 +4,7 @@ export const CHANNELS = [
   { id: 'synthwave', name: 'Synthwave Drive', module: m('./synthwave.js') },
   { id: 'aquarium', name: 'Midnight Aquarium', module: m('./aquarium.js') },
   { id: 'radar', name: 'Weather Radar', module: m('./radar.js') },
+  { id: 'weatherfactory', name: 'Weather Factory', module: m('./weatherfactory.js') },
   { id: 'lava', name: 'Lava Lamp', module: m('./lava.js') },
   { id: 'news', name: '24/7 Odd News', module: m('./news.js') },
   { id: 'musictheory', name: 'The 3-Minute Music Theory', module: m('./musictheory.js') },
