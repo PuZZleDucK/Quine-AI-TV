@@ -1,0 +1,611 @@
+import { mulberry32 } from '../util/prng.js';
+import { simpleDrone } from '../util/audio.js';
+
+const pick = (rand, a) => a[(rand() * a.length) | 0];
+
+const DESTINATIONS = [
+  {
+    city: 'Lisbon',
+    country: 'Portugal',
+    region: 'Atlantic Hills',
+    vibe: 'tram-lines, tiles, salted air',
+    food: 'Pastel de nata',
+    fact: 'Built on seven hills; trams still climb them like clockwork.',
+    palette: { sky0: '#0b1a2b', sky1: '#2a3f69', accent: '#f4d06f', ink: '#1a1a1a' },
+    speed: 38,
+  },
+  {
+    city: 'Kyoto',
+    country: 'Japan',
+    region: 'Old Capitals',
+    vibe: 'lanterns, alleys, quiet steps',
+    food: 'Yudōfu (tofu hot pot)',
+    fact: 'A thousand years of capital-life left the city layered, not replaced.',
+    palette: { sky0: '#0b0f16', sky1: '#1f2b33', accent: '#ffb703', ink: '#121212' },
+    speed: 30,
+  },
+  {
+    city: 'Marrakesh',
+    country: 'Morocco',
+    region: 'Red Cities',
+    vibe: 'souks, courtyards, warm dust',
+    food: 'Tagine',
+    fact: 'The medina is a living maze: commerce as architecture.',
+    palette: { sky0: '#190a0a', sky1: '#5b1b1b', accent: '#ffd166', ink: '#120909' },
+    speed: 42,
+  },
+  {
+    city: 'Reykjavík',
+    country: 'Iceland',
+    region: 'North Atlantic',
+    vibe: 'geothermal steam, neon on wet streets',
+    food: 'Skyr + berries',
+    fact: 'Hot water under the city turns cold nights into a soft hiss.',
+    palette: { sky0: '#06131f', sky1: '#12324a', accent: '#90e0ef', ink: '#0b0f12' },
+    speed: 34,
+  },
+  {
+    city: 'Mexico City',
+    country: 'Mexico',
+    region: 'High Basins',
+    vibe: 'street food, murals, traffic rhythms',
+    food: 'Tacos al pastor',
+    fact: 'A modern city built atop lakebeds and older cities — still settling.',
+    palette: { sky0: '#0c0b1b', sky1: '#2e2a6b', accent: '#ff4d6d', ink: '#130f16' },
+    speed: 48,
+  },
+  {
+    city: 'Hanoi',
+    country: 'Vietnam',
+    region: 'River Deltas',
+    vibe: 'scooters, tea, tangled wires',
+    food: 'Phở',
+    fact: 'French boulevards and old quarters interleave like two stories at once.',
+    palette: { sky0: '#081117', sky1: '#1b3946', accent: '#80ed99', ink: '#0c0f10' },
+    speed: 50,
+  },
+  {
+    city: 'Istanbul',
+    country: 'Türkiye',
+    region: 'Straits & Bridges',
+    vibe: 'ferries, calls, tiled shadows',
+    food: 'Simit',
+    fact: 'A city split by water, stitched by bridges and boats.',
+    palette: { sky0: '#070b18', sky1: '#253c7a', accent: '#fca311', ink: '#121220' },
+    speed: 40,
+  },
+  {
+    city: 'Edinburgh',
+    country: 'Scotland',
+    region: 'Volcanic Ridges',
+    vibe: 'stone closes, wind, bookstores',
+    food: 'Shortbread + tea',
+    fact: 'The old town clings to a ridge like a story refusing to be edited.',
+    palette: { sky0: '#070a0d', sky1: '#232a33', accent: '#9bf6ff', ink: '#0f1215' },
+    speed: 28,
+  },
+  {
+    city: 'New Orleans',
+    country: 'USA',
+    region: 'Delta Cities',
+    vibe: 'brass echoes, balconies, humid nights',
+    food: 'Beignets',
+    fact: 'Built at the edge of water and swamp; the city learns to float.',
+    palette: { sky0: '#070510', sky1: '#2a145d', accent: '#f72585', ink: '#120b19' },
+    speed: 36,
+  },
+  {
+    city: 'Copenhagen',
+    country: 'Denmark',
+    region: 'Canals & Bicycles',
+    vibe: 'harbour lights, clean lines, cold air',
+    food: 'Smørrebrød',
+    fact: 'A working port turned into a calm living room for the sea.',
+    palette: { sky0: '#061018', sky1: '#184a5a', accent: '#ffd60a', ink: '#0d1216' },
+    speed: 32,
+  },
+];
+
+function roundedRect(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function makeCoast(rand, cx, cy, r){
+  const pts = [];
+  const n = 18 + ((rand() * 14) | 0);
+  for (let i = 0; i < n; i++){
+    const a = (i / n) * Math.PI * 2;
+    const wob = 0.65 + rand() * 0.65;
+    const rr = r * wob * (0.85 + 0.25 * Math.sin(a * 3 + rand() * 6));
+    pts.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr });
+  }
+  return pts;
+}
+
+function makeStreet(rand, ww, hh){
+  const horizon = hh * (0.45 + rand() * 0.18);
+  const layers = [0.4, 0.7, 1.0].map((depth, i) => {
+    const b = [];
+    let x = -ww * 0.2;
+    while (x < ww * 1.3){
+      const bw = (30 + rand() * 90) * (0.9 + 0.25 * (1 / depth));
+      const bh = (hh * (0.18 + rand() * 0.55)) * depth;
+      b.push({ x, w: bw, h: bh, seed: rand() * 999, hue: 210 + i * 10 });
+      x += bw + (10 + rand() * 40);
+    }
+    return { depth, buildings: b };
+  });
+
+  return { horizon, layers };
+}
+
+export function createChannel({ seed, audio }){
+  let w = 0, h = 0;
+  let t = 0;
+
+  const SEG_DUR = 52; // seconds per destination
+  let segIx = 0;
+  let segT = 0;
+  let dest = DESTINATIONS[0];
+  let coast = [];
+  let coast2 = [];
+  let street = null;
+
+  let bed = null;
+
+  function setSegment(i){
+    segIx = i;
+    segT = 0;
+    const r = mulberry32((seed ^ (i * 0x9e3779b9)) >>> 0);
+    dest = pick(r, DESTINATIONS);
+
+    // map blobs (desk-map fiction, not real geography)
+    const mx = w * 0.27;
+    const my = h * 0.40;
+    const rr = Math.min(w, h) * (0.18 + r() * 0.04);
+    coast = makeCoast(r, mx + r() * w * 0.06, my + r() * h * 0.05, rr);
+    coast2 = makeCoast(r, mx + w * 0.12 + r() * w * 0.05, my + h * 0.07 + r() * h * 0.05, rr * 0.75);
+
+    // street footage in a small "screen"
+    street = makeStreet(r, w * 0.34, h * 0.24);
+  }
+
+  function init({ width, height }){
+    w = width; h = height; t = 0;
+    segIx = 0;
+    setSegment(0);
+  }
+
+  function onResize(width, height){
+    init({ width, height });
+  }
+
+  function onAudioOn(){
+    if (!audio.enabled) return;
+    const d = simpleDrone(audio, { root: 92, detune: 0.85, gain: 0.032 });
+    const n = audio.noiseSource({ type: 'pink', gain: 0.007 });
+    n.start();
+    bed = { stop(){ try { d.stop(); } catch {} try { n.stop(); } catch {} } };
+    audio.setCurrent(bed);
+  }
+
+  function onAudioOff(){
+    try { bed?.stop?.(); } catch {}
+    bed = null;
+  }
+
+  function destroy(){
+    onAudioOff();
+  }
+
+  function update(dt){
+    t += dt;
+    segT += dt;
+    if (segT >= SEG_DUR){
+      setSegment(segIx + 1);
+    }
+  }
+
+  function drawDesk(ctx){
+    // wood-ish gradient
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#120b07');
+    g.addColorStop(0.45, '#23130a');
+    g.addColorStop(1, '#0a0604');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    // subtle grain
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    for (let i = 0; i < 46; i++){
+      const y = (i / 46) * h;
+      const a = 0.35 + 0.35 * Math.sin(i * 0.9 + t * 0.15);
+      ctx.fillStyle = `rgba(0,0,0,${a})`;
+      ctx.fillRect(0, y, w, Math.max(1, h / 240));
+    }
+    ctx.restore();
+  }
+
+  function drawMap(ctx){
+    const pad = Math.floor(Math.min(w, h) * 0.05);
+    const mw = Math.floor(w * 0.54);
+    const mh = Math.floor(h * 0.68);
+    const mx = pad;
+    const my = Math.floor(h * 0.16);
+    const r = Math.floor(Math.min(w, h) * 0.02);
+
+    // shadow
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    roundedRect(ctx, mx + 10, my + 14, mw, mh, r);
+    ctx.fill();
+    ctx.restore();
+
+    // paper
+    ctx.save();
+    ctx.globalAlpha = 0.98;
+    ctx.fillStyle = 'rgba(242, 233, 214, 0.98)';
+    roundedRect(ctx, mx, my, mw, mh, r);
+    ctx.fill();
+
+    // grid
+    ctx.globalAlpha = 0.08;
+    ctx.strokeStyle = 'rgba(20,20,20,1)';
+    ctx.lineWidth = 1;
+    const step = Math.max(22, Math.floor(mw / 18));
+    for (let x = mx + step; x < mx + mw; x += step){
+      ctx.beginPath();
+      ctx.moveTo(x, my);
+      ctx.lineTo(x, my + mh);
+      ctx.stroke();
+    }
+    for (let y = my + step; y < my + mh; y += step){
+      ctx.beginPath();
+      ctx.moveTo(mx, y);
+      ctx.lineTo(mx + mw, y);
+      ctx.stroke();
+    }
+
+    // coastline scribble
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = 'rgba(40,35,28,0.85)';
+    ctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) / 420));
+
+    function strokeCoast(pts){
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+      ctx.stroke();
+
+      ctx.save();
+      ctx.globalAlpha *= 0.08;
+      ctx.fillStyle = 'rgba(20,30,40,1)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    strokeCoast(coast);
+    strokeCoast(coast2);
+
+    // route highlight (animated)
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = 'rgba(196, 65, 42, 0.65)';
+    ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) / 240));
+    ctx.setLineDash([8, 10]);
+    ctx.lineDashOffset = -t * 28;
+    ctx.beginPath();
+    ctx.moveTo(mx + mw * 0.2, my + mh * 0.75);
+    ctx.bezierCurveTo(mx + mw * 0.35, my + mh * 0.55, mx + mw * 0.45, my + mh * 0.52, mx + mw * 0.62, my + mh * 0.35);
+    ctx.stroke();
+
+    // destination pin
+    const px = mx + mw * 0.62;
+    const py = my + mh * 0.35;
+    const pr = Math.max(5, Math.floor(Math.min(w, h) * 0.012));
+    const pulse = 0.55 + 0.45 * Math.sin(t * 2.2);
+    ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(196, 65, 42, ${0.75 + 0.2 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(px, py, pr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = 'rgba(196, 65, 42, 1)';
+    ctx.beginPath();
+    ctx.arc(px, py, pr * 2.2 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // header text
+    const font = Math.max(14, Math.floor(Math.min(w, h) / 36));
+    ctx.font = `bold ${Math.floor(font * 1.05)}px ui-sans-serif, system-ui`;
+    ctx.fillStyle = 'rgba(20, 18, 16, 0.75)';
+    ctx.textBaseline = 'top';
+    ctx.fillText('THE TINY TRAVEL DESK', mx + Math.floor(mw * 0.05), my + Math.floor(font * 0.8));
+
+    ctx.font = `${Math.floor(font * 0.9)}px ui-sans-serif, system-ui`;
+    ctx.fillStyle = 'rgba(20, 18, 16, 0.55)';
+    ctx.fillText('desk-based travel • maps • street footage • food • history', mx + Math.floor(mw * 0.05), my + Math.floor(font * 2.1));
+
+    ctx.restore();
+
+    return { mx, my, mw, mh, font };
+  }
+
+  function drawStreetScreen(ctx, layout){
+    const sw = Math.floor(w * 0.38);
+    const sh = Math.floor(h * 0.28);
+    const sx = Math.floor(w * 0.58);
+    const sy = Math.floor(h * 0.18);
+    const r = Math.floor(Math.min(w, h) * 0.02);
+
+    // frame shadow
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    roundedRect(ctx, sx + 10, sy + 12, sw, sh, r);
+    ctx.fill();
+    ctx.restore();
+
+    // frame
+    ctx.save();
+    ctx.fillStyle = 'rgba(18, 20, 26, 0.92)';
+    roundedRect(ctx, sx, sy, sw, sh, r);
+    ctx.fill();
+
+    // screen area
+    const pad = Math.floor(sw * 0.06);
+    const ix = sx + pad;
+    const iy = sy + pad;
+    const iw = sw - pad * 2;
+    const ih = sh - pad * 2;
+
+    // sky
+    const g = ctx.createLinearGradient(ix, iy, ix, iy + ih);
+    g.addColorStop(0, dest.palette.sky0);
+    g.addColorStop(1, dest.palette.sky1);
+    ctx.fillStyle = g;
+    ctx.fillRect(ix, iy, iw, ih);
+
+    // parallax street
+    const sp = (dest.speed || 36) * (w / 960);
+    const off = -((t * sp) % iw);
+
+    // horizon glow
+    ctx.save();
+    const hz = iy + street.horizon;
+    const hg = ctx.createLinearGradient(ix, hz - ih * 0.15, ix, hz + ih * 0.2);
+    hg.addColorStop(0, 'rgba(255,255,255,0)');
+    hg.addColorStop(1, `rgba(255,255,255,0.08)`);
+    ctx.fillStyle = hg;
+    ctx.fillRect(ix, iy, iw, ih);
+    ctx.restore();
+
+    for (const layer of street.layers){
+      const a = 0.18 + 0.55 * layer.depth;
+      for (const b of layer.buildings){
+        for (let rep = 0; rep < 2; rep++){
+          const bx = ix + b.x + off * (0.3 + 0.8 * layer.depth) + rep * iw;
+          const by = iy + street.horizon - b.h;
+          if (bx + b.w < ix || bx > ix + iw) continue;
+          ctx.fillStyle = `rgba(0,0,0,${a})`;
+          ctx.fillRect(bx, by, b.w, b.h);
+
+          // windows flicker
+          const cols = Math.max(2, Math.floor(b.w / 20));
+          const rows = Math.max(2, Math.floor(b.h / 26));
+          const ww = b.w / (cols + 1);
+          const wh = b.h / (rows + 1);
+          for (let r0 = 1; r0 <= rows; r0++){
+            for (let c0 = 1; c0 <= cols; c0++){
+              const tw = Math.sin(t * 0.7 + b.seed + r0 * 0.6 + c0 * 0.9);
+              if (tw < 0.9) continue;
+              ctx.fillStyle = `rgba(255, 210, 140, ${0.08 + 0.1 * layer.depth})`;
+              ctx.fillRect(bx + c0 * ww, by + r0 * wh, ww * 0.35, wh * 0.35);
+            }
+          }
+        }
+      }
+    }
+
+    // scanlines
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    const sl = Math.max(2, Math.floor(ih / 80));
+    for (let y = 0; y < ih; y += sl){
+      if ((y / sl) % 2 === 0) ctx.fillRect(ix, iy + y, iw, 1);
+    }
+    // moving tape-glitch bar
+    const gy = iy + ((t * 48) % (ih + 40)) - 40;
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = 'rgba(255,255,255,1)';
+    ctx.fillRect(ix, gy, iw, 18);
+    ctx.restore();
+
+    // caption
+    const font = layout.font;
+    ctx.save();
+    ctx.font = `bold ${Math.floor(font * 0.95)}px ui-sans-serif, system-ui`;
+    ctx.fillStyle = 'rgba(235, 240, 245, 0.82)';
+    ctx.textBaseline = 'top';
+    ctx.fillText('STREET FEED', sx + Math.floor(sw * 0.08), sy + Math.floor(sh * 0.06));
+    ctx.font = `${Math.floor(font * 0.78)}px ui-sans-serif, system-ui`;
+    ctx.fillStyle = 'rgba(235, 240, 245, 0.62)';
+    ctx.fillText(`${dest.city.toUpperCase()} • ${dest.vibe}`, sx + Math.floor(sw * 0.08), sy + Math.floor(sh * 0.13));
+    ctx.restore();
+
+    ctx.restore();
+
+    return { sx, sy, sw, sh };
+  }
+
+  function drawPostcard(ctx, layout){
+    const pw = Math.floor(w * 0.38);
+    const ph = Math.floor(h * 0.30);
+    const px = Math.floor(w * 0.58);
+    const py = Math.floor(h * 0.53);
+    const r = Math.floor(Math.min(w, h) * 0.02);
+
+    // shadow
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    roundedRect(ctx, px + 10, py + 14, pw, ph, r);
+    ctx.fill();
+    ctx.restore();
+
+    // card
+    ctx.save();
+    ctx.fillStyle = 'rgba(248, 244, 234, 0.98)';
+    roundedRect(ctx, px, py, pw, ph, r);
+    ctx.fill();
+
+    // divider line
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px + pw * 0.55, py + ph * 0.10);
+    ctx.lineTo(px + pw * 0.55, py + ph * 0.92);
+    ctx.stroke();
+
+    // stamp box
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = 'rgba(140, 50, 40, 1)';
+    ctx.lineWidth = 2;
+    const sx = px + pw * 0.72;
+    const sy = py + ph * 0.12;
+    const sw = pw * 0.20;
+    const sh = ph * 0.22;
+    roundedRect(ctx, sx, sy, sw, sh, Math.floor(r * 0.7));
+    ctx.stroke();
+
+    // stamp "ink"
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = 'rgba(140, 50, 40, 1)';
+    ctx.font = `bold ${Math.floor(layout.font * 0.9)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.textBaseline = 'top';
+    ctx.fillText('AIR', sx + sw * 0.18, sy + sh * 0.18);
+    ctx.fillText('MAIL', sx + sw * 0.12, sy + sh * 0.55);
+
+    // left note
+    ctx.globalAlpha = 0.78;
+    ctx.fillStyle = 'rgba(10,10,10,0.75)';
+    ctx.font = `bold ${Math.floor(layout.font * 1.05)}px ui-sans-serif, system-ui`;
+    ctx.fillText(`${dest.city}, ${dest.country}`, px + pw * 0.08, py + ph * 0.16);
+
+    ctx.font = `${Math.floor(layout.font * 0.92)}px ui-sans-serif, system-ui`;
+    ctx.globalAlpha = 0.62;
+    ctx.fillText(`Region: ${dest.region}`, px + pw * 0.08, py + ph * 0.30);
+
+    // info bullets (highlighted by phase)
+    const phase = (segT / SEG_DUR);
+    const hi = Math.min(3, Math.floor(phase * 4));
+    const items = [
+      { k: 'MAP', v: dest.region },
+      { k: 'STREET', v: dest.vibe },
+      { k: 'FOOD', v: dest.food },
+      { k: 'HISTORY', v: dest.fact },
+    ];
+
+    let y = py + ph * 0.44;
+    const x = px + pw * 0.08;
+    for (let i = 0; i < items.length; i++){
+      const it = items[i];
+      const a = i === hi ? 0.86 : 0.50;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = i === hi ? `rgba(0,0,0,0.82)` : `rgba(0,0,0,0.72)`;
+      ctx.font = `${Math.floor(layout.font * 0.84)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.fillText(`${it.k}:`, x, y);
+
+      ctx.font = `${Math.floor(layout.font * 0.84)}px ui-sans-serif, system-ui`;
+      const tx = x + pw * 0.16;
+      // wrap-ish: split long history into two lines
+      const text = String(it.v);
+      const maxW = pw * 0.44;
+      const words = text.split(' ');
+      let line = '';
+      const lines = [];
+      for (const wd of words){
+        const next = line ? (line + ' ' + wd) : wd;
+        if (ctx.measureText(next).width > maxW && line){
+          lines.push(line);
+          line = wd;
+        } else {
+          line = next;
+        }
+      }
+      if (line) lines.push(line);
+      const maxLines = it.k === 'HISTORY' ? 2 : 1;
+      for (let li = 0; li < Math.min(maxLines, lines.length); li++){
+        ctx.fillText(lines[li], tx, y + li * Math.floor(layout.font * 0.98));
+      }
+      y += Math.floor(layout.font * 1.22) + (it.k === 'HISTORY' ? Math.floor(layout.font * 0.70) : 0);
+    }
+
+    // tiny coffee steam (desk ambience)
+    ctx.save();
+    const cx = px + pw * 0.90;
+    const cy = py + ph * 0.78;
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+    ctx.lineWidth = Math.max(2, Math.floor(layout.font * 0.12));
+    for (let i = 0; i < 3; i++){
+      const ox = (i - 1) * layout.font * 0.22;
+      ctx.beginPath();
+      for (let k = 0; k < 22; k++){
+        const p = k / 21;
+        const xx = cx + ox + Math.sin(t * 1.2 + p * 6 + i) * layout.font * 0.10;
+        const yy = cy - p * layout.font * (1.6 + 0.3 * i);
+        if (k === 0) ctx.moveTo(xx, yy);
+        else ctx.lineTo(xx, yy);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  function render(ctx){
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    drawDesk(ctx);
+    const layout = drawMap(ctx);
+    drawStreetScreen(ctx, layout);
+    drawPostcard(ctx, layout);
+
+    // gentle vignette
+    ctx.save();
+    const vg = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.55, Math.max(w, h) * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+
+    // small status strip
+    ctx.save();
+    const font = layout.font;
+    ctx.font = `${Math.floor(font * 0.78)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.fillStyle = 'rgba(245, 240, 230, 0.45)';
+    ctx.textBaseline = 'bottom';
+    const eta = Math.max(0, Math.ceil(SEG_DUR - segT));
+    ctx.fillText(`DESTINATION ROTATES IN ${eta}s`, Math.floor(w * 0.05), Math.floor(h * 0.95));
+    ctx.restore();
+  }
+
+  return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
+}

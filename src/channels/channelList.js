@@ -21,4 +21,5 @@ export const CHANNELS = [
   { id: 'duckdebug', name: 'Rubber Duck Debugging', module: m('./rubberduck.js') },
   { id: 'onetool', name: 'One Tool, Ten Uses', module: m('./onetool.js') },
   { id: 'micromyst', name: 'Micro-Mysteries', module: m('./micromystery.js') },
+  { id: 'traveldesk', name: 'The Tiny Travel Desk', module: m('./traveldesk.js') },
 ];
