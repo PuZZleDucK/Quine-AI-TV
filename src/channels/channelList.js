@@ -8,6 +8,7 @@ export const CHANNELS = [
   { id: 'news', name: '24/7 Odd News', module: m('./news.js') },
   { id: 'musictheory', name: 'The 3-Minute Music Theory', module: m('./musictheory.js') },
   { id: 'minutemuseum', name: 'Minute Museum', module: m('./minutemuseum.js') },
+  { id: 'bonsai', name: 'Bonsai Time Machine', module: m('./bonsai.js') },
   { id: 'matrix', name: 'Terminal Rain', module: m('./matrix.js') },
   { id: 'orbits', name: 'Orbital Desktoy', module: m('./orbits.js') },
   { id: 'city', name: 'Pixel City Nights', module: m('./city.js') },
