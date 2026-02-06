@@ -17,4 +17,5 @@ export const CHANNELS = [
   { id: 'shop', name: 'HyperMall Live', module: m('./shop.js') },
   { id: 'cctv', name: 'CCTV Night Watch', module: m('./cctv.js') },
   { id: 'slime', name: 'Slime Lab', module: m('./slime.js') },
+  { id: 'duckdebug', name: 'Rubber Duck Debugging', module: m('./rubberduck.js') },
 ];
