@@ -22,4 +22,5 @@ export const CHANNELS = [
   { id: 'onetool', name: 'One Tool, Ten Uses', module: m('./onetool.js') },
   { id: 'micromyst', name: 'Micro-Mysteries', module: m('./micromystery.js') },
   { id: 'traveldesk', name: 'The Tiny Travel Desk', module: m('./traveldesk.js') },
+  { id: 'fixit', name: 'Fix-It ASMR', module: m('./fixit.js') },
 ];
