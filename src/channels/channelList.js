@@ -30,4 +30,5 @@ export const CHANNELS = [
   { id: 'speedcook', name: 'Speed-Run Cooking', module: m('./speedcook.js') },
   { id: 'rainradio', name: 'Rainy Window Radio', module: m('./rainradio.js') },
   { id: 'ufohotline', name: 'Small Town UFO Hotline', module: m('./ufohotline.js') },
+  { id: 'origami', name: 'Origami After Hours', module: m('./origami.js') },
 ];
