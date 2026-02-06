@@ -20,4 +20,5 @@ export const CHANNELS = [
   { id: 'kitchen', name: 'Kitchen Science Club', module: m('./kitchenscience.js') },
   { id: 'duckdebug', name: 'Rubber Duck Debugging', module: m('./rubberduck.js') },
   { id: 'onetool', name: 'One Tool, Ten Uses', module: m('./onetool.js') },
+  { id: 'micromyst', name: 'Micro-Mysteries', module: m('./micromystery.js') },
 ];
