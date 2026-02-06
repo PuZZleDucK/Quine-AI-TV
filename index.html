@@ -20,8 +20,9 @@
               <div class="pill" id="osd-chan">CH 01</div>
               <div class="pill" id="osd-name">—</div>
               <div class="pill" id="osd-audio">AUDIO: OFF</div>
+              <div class="pill" id="osd-scan">SCAN: OFF</div>
             </div>
-            <div class="osd-hint" id="osd-hint">Space: Power · ↑/↓: Channel · 0–9: Tune · A: Audio · I: Info · G: Guide</div>
+            <div class="osd-hint" id="osd-hint">Space: Power · ↑/↓: Channel · 0–9: Tune · A: Audio · S: Scan · I: Info · G: Guide</div>
           </div>
 
           <div class="guide hidden" id="guide" aria-label="Channel guide" aria-live="polite"></div>
@@ -42,6 +43,7 @@
           <div class="btn-row">
             <button class="btn" id="btn-ch-up" title="Channel up (↑)">CH ▲</button>
             <button class="btn" id="btn-ch-down" title="Channel down (↓)">CH ▼</button>
+            <button class="btn" id="btn-scan" title="Channel scan (S)">Scan</button>
           </div>
 
           <div class="keypad" aria-label="Numeric keypad">
@@ -80,6 +82,7 @@
           <li><b>↑/↓</b> channel</li>
           <li><b>0–9</b> tune; <b>Enter</b> confirm</li>
           <li><b>A</b> audio on/off</li>
+          <li><b>S</b> scan (auto channel change)</li>
           <li><b>I</b> toggle overlay</li>
           <li><b>G</b> channel guide</li>
         </ul>

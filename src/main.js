@@ -12,6 +12,7 @@ const osdPower = document.getElementById('osd-power');
 const osdChan = document.getElementById('osd-chan');
 const osdName = document.getElementById('osd-name');
 const osdAudio = document.getElementById('osd-audio');
+const osdScan = document.getElementById('osd-scan');
 
 const statusTune = document.getElementById('status-tune');
 const statusSeed = document.getElementById('status-seed');
@@ -24,6 +25,10 @@ const audio = new AudioManager();
 let powered = false;
 let showOsd = true;
 let showGuide = false;
+let scanning = false;
+let scanTimer = null;
+const SCAN_PERIOD_MS = 30_000;
+
 let currentIndex = 0;
 let current = null; // channel instance
 let lastTs = performance.now();
@@ -37,6 +42,7 @@ $('btn-audio').addEventListener('click', () => toggleAudio());
 $('btn-info').addEventListener('click', () => { showOsd = !showOsd; osd.classList.toggle('hidden', !showOsd); });
 $('btn-ch-up').addEventListener('click', () => channelStep(+1));
 $('btn-ch-down').addEventListener('click', () => channelStep(-1));
+$('btn-scan')?.addEventListener('click', () => toggleScan());
 $('btn-close-help').addEventListener('click', () => (help.hidden = true));
 
 // keypad
@@ -58,6 +64,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'Backspace') { backspaceTune(); }
   else if (/^[0-9]$/.test(e.key)) { addDigit(e.key); }
   else if (e.key.toLowerCase() === 'a') { toggleAudio(); }
+  else if (e.key.toLowerCase() === 's') { toggleScan(); }
   else if (e.key.toLowerCase() === 'i') { showOsd = !showOsd; osd.classList.toggle('hidden', !showOsd); }
   else if (e.key.toLowerCase() === 'g') {
     showGuide = !showGuide;
@@ -87,6 +94,7 @@ function setOsd(){
   osdChan.textContent = `CH ${chNum}`;
   osdName.textContent = CHANNELS[currentIndex]?.name || '—';
   osdAudio.textContent = `AUDIO: ${audio.enabled ? 'ON' : 'OFF'}`;
+  if (osdScan) osdScan.textContent = `SCAN: ${scanning ? 'ON' : 'OFF'}`;
   statusTune.textContent = tuneBuffer ? tuneBuffer : `CH ${chNum} ${CHANNELS[currentIndex]?.id}`;
 }
 
@@ -146,10 +154,10 @@ function confirmTune(){
   setOsd();
 }
 
-function channelStep(dir){
+async function channelStep(dir){
   if (!powered) return;
   const next = (currentIndex + dir + CHANNELS.length) % CHANNELS.length;
-  switchTo(next);
+  await switchTo(next);
 }
 
 function flashOsd(){
@@ -157,6 +165,35 @@ function flashOsd(){
   showOsd = true;
   clearTimeout(flashOsd._t);
   flashOsd._t = setTimeout(() => { if (!showOsd) osd.classList.add('hidden'); }, 1200);
+}
+
+function disarmScan(){
+  if (scanTimer){
+    clearTimeout(scanTimer);
+    scanTimer = null;
+  }
+}
+
+function armScan(){
+  // schedule the next scan step from "now"; any manual tuning/channel change resets the timer.
+  disarmScan();
+  if (!(scanning && powered)) return;
+  scanTimer = setTimeout(() => {
+    scanTimer = null;
+    if (!(scanning && powered)) return;
+    channelStep(+1);
+    // next arm happens when the channel switch completes (switchTo())
+  }, SCAN_PERIOD_MS);
+}
+
+function toggleScan(){
+  scanning = !scanning;
+  if (audio.enabled){
+    audio.beep({freq: scanning ? 880 : 220, dur: 0.06, gain: 0.04, type: 'square'});
+  }
+  armScan();
+  setOsd();
+  flashOsd();
 }
 
 async function toggleAudio(){
@@ -175,6 +212,7 @@ async function togglePower(){
   if (powered){
     await switchTo(currentIndex, {boot:true});
   } else {
+    disarmScan();
     audio.stopCurrent();
     current?.destroy?.();
     current = null;
@@ -224,6 +262,9 @@ async function switchTo(idx, {boot=false}={}){
 
   // tuning beep
   if (audio.enabled) audio.beep({freq: 620, dur: 0.05, gain: 0.05});
+
+  // reset scan timer on any successful channel switch
+  armScan();
 }
 
 function noiseBurst(ms=520){
@@ -258,6 +299,7 @@ function drawNoise(nctx, w, h, alpha=1){
 
 // main loop
 function tick(now){
+
   const dt = Math.min(0.05, (now - lastTs) / 1000);
   lastTs = now;
 
