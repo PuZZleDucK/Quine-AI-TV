@@ -18,6 +18,7 @@ export const CHANNELS = [
   { id: 'flow', name: 'Flow Field', module: m('./flowfield.js') },
   { id: 'signalgarden', name: 'Analog Signal Garden', module: m('./signalgarden.js') },
   { id: 'lostmanual', name: 'The Lost Instruction Manual', module: m('./lostmanual.js') },
+  { id: 'midnightlibrary', name: 'Midnight Library Index', module: m('./midnightlibrary.js') },
   { id: 'sports', name: 'Sportsboard 3000', module: m('./sports.js') },
   { id: 'kaleido', name: 'Kaleidoscope', module: m('./kaleido.js') },
   { id: 'spacecam', name: 'Deep Space Cam', module: m('./spacecam.js') },
