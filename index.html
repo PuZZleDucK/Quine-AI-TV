@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quine TV</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <div class="tv" id="tv" aria-label="Virtual TV">
+      <div class="bezel">
+        <div class="screen-wrap">
+          <canvas id="screen" width="960" height="540" aria-label="TV screen"></canvas>
+          <canvas id="noise" width="960" height="540" aria-hidden="true"></canvas>
+          <div class="crt" aria-hidden="true"></div>
+          <div class="osd" id="osd" aria-live="polite">
+            <div class="osd-row">
+              <div class="pill" id="osd-power">OFF</div>
+              <div class="pill" id="osd-chan">CH 01</div>
+              <div class="pill" id="osd-name">—</div>
+              <div class="pill" id="osd-audio">AUDIO: OFF</div>
+            </div>
+            <div class="osd-hint" id="osd-hint">Space: Power · ↑/↓: Channel · 0–9: Tune · A: Audio · I: Info · G: Guide</div>
+          </div>
+
+          <div class="guide hidden" id="guide" aria-label="Channel guide" aria-live="polite"></div>
+        </div>
+
+        <div class="controls">
+          <div class="brand">
+            <div class="brand-name">QUINE</div>
+            <div class="brand-sub">Hyperlocal Broadcast Division</div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn" id="btn-power" title="Power (Space)">Power</button>
+            <button class="btn" id="btn-audio" title="Enable audio (A)">Audio</button>
+            <button class="btn" id="btn-info" title="Toggle overlay (I)">Info</button>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn" id="btn-ch-up" title="Channel up (↑)">CH ▲</button>
+            <button class="btn" id="btn-ch-down" title="Channel down (↓)">CH ▼</button>
+          </div>
+
+          <div class="keypad" aria-label="Numeric keypad">
+            <button class="key" data-digit="1">1</button>
+            <button class="key" data-digit="2">2</button>
+            <button class="key" data-digit="3">3</button>
+            <button class="key" data-digit="4">4</button>
+            <button class="key" data-digit="5">5</button>
+            <button class="key" data-digit="6">6</button>
+            <button class="key" data-digit="7">7</button>
+            <button class="key" data-digit="8">8</button>
+            <button class="key" data-digit="9">9</button>
+            <button class="key wide" data-action="enter">ENT</button>
+            <button class="key" data-digit="0">0</button>
+            <button class="key wide" data-action="back">⌫</button>
+          </div>
+
+          <div class="status" id="status">
+            <div><span class="label">Tuning:</span> <span id="status-tune">—</span></div>
+            <div><span class="label">Seed:</span> <span id="status-seed">—</span></div>
+          </div>
+
+          <div class="footer">
+            <div class="tiny">Tip: first click enables audio (browser policy). Press <b>A</b> after powering on.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="help" hidden>
+      <div class="panel-card">
+        <h2>Quine TV</h2>
+        <p>Keyboard:</p>
+        <ul>
+          <li><b>Space</b> power</li>
+          <li><b>↑/↓</b> channel</li>
+          <li><b>0–9</b> tune; <b>Enter</b> confirm</li>
+          <li><b>A</b> audio on/off</li>
+          <li><b>I</b> toggle overlay</li>
+          <li><b>G</b> channel guide</li>
+        </ul>
+        <button class="btn" id="btn-close-help">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

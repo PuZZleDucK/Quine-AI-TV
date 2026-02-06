@@ -1,0 +1,8 @@
+{
+  "name": "quine-tv",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 5176"
+  }
+}

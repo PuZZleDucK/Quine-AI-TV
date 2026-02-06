@@ -1,0 +1,20 @@
+const m = (p) => new URL(p, import.meta.url).href;
+
+export const CHANNELS = [
+  { id: 'synthwave', name: 'Synthwave Drive', module: m('./synthwave.js') },
+  { id: 'aquarium', name: 'Midnight Aquarium', module: m('./aquarium.js') },
+  { id: 'radar', name: 'Weather Radar', module: m('./radar.js') },
+  { id: 'lava', name: 'Lava Lamp', module: m('./lava.js') },
+  { id: 'news', name: '24/7 Odd News', module: m('./news.js') },
+  { id: 'matrix', name: 'Terminal Rain', module: m('./matrix.js') },
+  { id: 'orbits', name: 'Orbital Desktoy', module: m('./orbits.js') },
+  { id: 'city', name: 'Pixel City Nights', module: m('./city.js') },
+  { id: 'fire', name: 'Cozy Fireplace', module: m('./fireplace.js') },
+  { id: 'flow', name: 'Flow Field', module: m('./flowfield.js') },
+  { id: 'sports', name: 'Sportsboard 3000', module: m('./sports.js') },
+  { id: 'kaleido', name: 'Kaleidoscope', module: m('./kaleido.js') },
+  { id: 'spacecam', name: 'Deep Space Cam', module: m('./spacecam.js') },
+  { id: 'shop', name: 'HyperMall Live', module: m('./shop.js') },
+  { id: 'cctv', name: 'CCTV Night Watch', module: m('./cctv.js') },
+  { id: 'slime', name: 'Slime Lab', module: m('./slime.js') },
+];
