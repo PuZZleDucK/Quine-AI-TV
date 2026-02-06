@@ -29,4 +29,5 @@ export const CHANNELS = [
   { id: 'circsafari', name: 'Circuit Safari', module: m('./circuitsafari.js') },
   { id: 'speedcook', name: 'Speed-Run Cooking', module: m('./speedcook.js') },
   { id: 'rainradio', name: 'Rainy Window Radio', module: m('./rainradio.js') },
+  { id: 'ufohotline', name: 'Small Town UFO Hotline', module: m('./ufohotline.js') },
 ];
