@@ -23,7 +23,8 @@ python3 -m http.server
 - 0–9: type a channel number, Enter to tune
 - Backspace: edit tuning
 - A: audio on/off (first click is required to allow audio)
-- I: toggle overlay
+- I: toggle info overlay (OSD)
+- G: toggle channel guide
 - H / ?: help
 
 ## Notes
