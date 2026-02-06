@@ -34,5 +34,6 @@ export const CHANNELS = [
   { id: 'rainradio', name: 'Rainy Window Radio', module: m('./rainradio.js') },
   { id: 'ufohotline', name: 'Small Town UFO Hotline', module: m('./ufohotline.js') },
   { id: 'origami', name: 'Origami After Hours', module: m('./origami.js') },
+  { id: 'tidydesk', name: 'Tidy Desk Reset', module: m('./tidydesk.js') },
   { id: 'subwaystories', name: 'Subway Map Stories', module: m('./subwaystories.js') },
 ];
