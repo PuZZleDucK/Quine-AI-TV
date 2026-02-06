@@ -10,6 +10,7 @@ export const CHANNELS = [
   { id: 'minutemuseum', name: 'Minute Museum', module: m('./minutemuseum.js') },
   { id: 'bonsai', name: 'Bonsai Time Machine', module: m('./bonsai.js') },
   { id: 'matrix', name: 'Terminal Rain', module: m('./matrix.js') },
+  { id: 'retroboot', name: 'Retro Boot Sequence', module: m('./retroboot.js') },
   { id: 'orbits', name: 'Orbital Desktoy', module: m('./orbits.js') },
   { id: 'city', name: 'Pixel City Nights', module: m('./city.js') },
   { id: 'fire', name: 'Cozy Fireplace', module: m('./fireplace.js') },
