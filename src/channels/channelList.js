@@ -23,4 +23,5 @@ export const CHANNELS = [
   { id: 'micromyst', name: 'Micro-Mysteries', module: m('./micromystery.js') },
   { id: 'traveldesk', name: 'The Tiny Travel Desk', module: m('./traveldesk.js') },
   { id: 'fixit', name: 'Fix-It ASMR', module: m('./fixit.js') },
+  { id: 'patents', name: "History's Weird Patents", module: m('./weirdpatents.js') },
 ];
