@@ -56,5 +56,6 @@ export const CHANNELS = [
   { id: 'miniworlds', name: 'Found Footage: Miniature Worlds', file: 'miniworlds.js' },
   { id: 'packetsfm', name: 'Packet Sniffer FM', file: 'packetsnifferfm.js' },
   { id: 'cloudchamber', name: 'Cloud Chamber Live', file: 'cloudchamber.js' },
+  { id: 'sandtable', name: 'Sand Table Cartography', file: 'sandtable.js' },
   { id: 'nightsignals', name: 'Night Signals', file: 'nightsignals.js' },
 ];
