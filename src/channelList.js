@@ -58,5 +58,6 @@ export const CHANNELS = [
   { id: 'cloudchamber', name: 'Cloud Chamber Live', file: 'cloudchamber.js' },
   { id: 'sandtable', name: 'Sand Table Cartography', file: 'sandtable.js' },
   { id: 'analogdarkroom', name: 'Analog Photo Darkroom', file: 'analogdarkroom.js' },
+  { id: 'candlechess', name: 'Candlelit Chess Engine', file: 'candlechess.js' },
   { id: 'nightsignals', name: 'Night Signals', file: 'nightsignals.js' },
 ];
