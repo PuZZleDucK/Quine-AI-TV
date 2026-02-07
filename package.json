@@ -3,11 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "python3 -m http.server 5176",
+    "dev": "vite --host 0.0.0.0 --port 5176 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 5176 --strictPort",
     "screenshots": "node ./scripts/capture-channel-screenshots.mjs",
     "screenshots:install": "playwright install chromium"
   },
   "devDependencies": {
-    "playwright": "^1.58.2"
+    "playwright": "^1.58.2",
+    "vite": "^7.3.1"
   }
 }

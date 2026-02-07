@@ -58,7 +58,7 @@ try {
   await page.waitForSelector('#btn-power', { timeout: 10_000 });
 
   let channels = await page.evaluate(async () => {
-    const mod = await import('./src/channels/channelList.js');
+    const mod = await import('./src/channelList.js');
     return mod.CHANNELS.map((ch, i) => ({
       number: i + 1,
       id: ch.id,
@@ -67,7 +67,7 @@ try {
   });
 
   if (CHANNEL_LIMIT > 0) channels = channels.slice(0, CHANNEL_LIMIT);
-  if (!channels.length) throw new Error('No channels found from src/channels/channelList.js');
+  if (!channels.length) throw new Error('No channels found from src/channelList.js');
 
   async function waitForChannelReady(ch) {
     const num = String(ch.number).padStart(2, '0');

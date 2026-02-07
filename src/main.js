@@ -1,6 +1,8 @@
-import { CHANNELS } from './channels/channelList.js';
+import { CHANNELS } from './channelList.js';
 import { hashStringToSeed, clamp } from './util/prng.js';
 import { AudioManager } from './util/audio.js';
+
+const CHANNEL_MODULES = import.meta.glob('./channels/*.js');
 
 const screen = document.getElementById('screen');
 const noise = document.getElementById('noise');
@@ -249,10 +251,12 @@ async function switchTo(idx, {boot=false}={}){
   flashOsd();
   if (showGuide) renderGuide();
 
-  // dynamic import
-  const mod = await import(ch.module);
+  // dynamic import through Vite's module graph so channel chunks are hashed in production.
+  const loader = CHANNEL_MODULES[`./channels/${ch.file}`];
+  if (!loader) throw new Error(`Channel module not found: ${ch.file}`);
+  const mod = await loader();
   const factory = mod?.createChannel;
-  if (typeof factory !== 'function') throw new Error(`Channel module missing createChannel: ${ch.module}`);
+  if (typeof factory !== 'function') throw new Error(`Channel module missing createChannel: ${ch.file}`);
 
   current = factory({ seed, audio });
   resize();

@@ -4,18 +4,41 @@ HTML5 virtual TV: a CRT-ish shell UI + a pile of animated channels.
 
 ## Run
 
-Option A (recommended):
+Development:
 ```bash
 cd ~/x/quine-tv
 npm run dev
 # open http://localhost:5176
 ```
 
-Option B:
+Run dev server in background:
 ```bash
 cd ~/x/quine-tv
-python3 -m http.server
+nohup npm run dev > /tmp/quine-tv-dev.log 2>&1 &
 ```
+
+Persistent background service (recommended):
+```bash
+systemctl --user enable --now quine-tv-dev.service
+systemctl --user status quine-tv-dev.service
+```
+
+Service management:
+```bash
+systemctl --user restart quine-tv-dev.service
+systemctl --user stop quine-tv-dev.service
+journalctl --user -u quine-tv-dev.service -n 100 --no-pager
+```
+
+Production build (hashed assets):
+```bash
+cd ~/x/quine-tv
+npm run build
+npm run preview
+# open http://localhost:5176
+```
+
+The build output is written to `dist/` with hashed files in `dist/assets/`.
 
 ## Controls
 - Space: power
@@ -30,9 +53,11 @@ python3 -m http.server
 ## Notes
 - Each channel is a module in `src/channels/`.
 - Audio is optional per-channel and only starts after user gesture.
+- For deploys, serve `index.html` as revalidating (`no-cache`) and hashed assets as immutable.
+- Do not use `python -m http.server`; the app uses Vite-only module features during development.
 
 ## Channel Screenshots
-Generate one screenshot per channel (discovered dynamically from `src/channels/channelList.js`):
+Generate one screenshot per channel (discovered dynamically from `src/channelList.js`):
 
 ```bash
 cd ~/x/quine-tv
