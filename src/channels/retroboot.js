@@ -501,7 +501,7 @@ export function createChannel({ seed, audio }){
       drawTyped(bctx, { x: pad, y: pad*1.8, lineH: Math.floor(font*1.35), lines: linuxLines, t: segT, cps: 58, cursor: true });
 
       // a little "progress" spinner
-      const sp = ['|','/','-','\'][(Math.floor(segT*8))%4];
+      const sp = ['|','/','-','\\'][(Math.floor(segT*8))%4];
       bctx.fillStyle = 'rgba(255,255,255,0.22)';
       bctx.fillText(sp, w - pad*1.4, pad*1.2);
     }

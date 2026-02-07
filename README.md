@@ -30,3 +30,25 @@ python3 -m http.server
 ## Notes
 - Each channel is a module in `src/channels/`.
 - Audio is optional per-channel and only starts after user gesture.
+
+## Channel Screenshots
+Generate one screenshot per channel (discovered dynamically from `src/channels/channelList.js`):
+
+```bash
+cd ~/x/quine-tv
+npm run screenshots:install   # first time only
+npm run screenshots
+```
+
+Output goes to `screenshots/channels-YYYYMMDD-HHMMSS/` with:
+- one PNG per channel (for example `01-synthwave.png`)
+- `report.json` (captures + console/page errors)
+
+Optional env vars:
+- `BASE_URL` (default `http://localhost:5176`)
+- `OUT_DIR` (custom output folder)
+- `WAIT_MS` (default `1200`, wait after tune input)
+- `SETTLE_MS` (default `500`, extra wait after transition noise clears)
+- `CHANNEL_LIMIT` (default `0`, capture first N channels only)
+- `SHOT_SCOPE` (`screen-wrap` | `screen` | `page`)
+- `FAIL_ON_ERRORS=1` (exit non-zero if runtime errors are detected)
