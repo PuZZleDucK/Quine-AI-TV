@@ -77,4 +77,5 @@ export const CHANNELS = [
   { id: 'dominofactory', name: 'Domino Factory Floor', file: 'dominofactory.js' },
   { id: 'kintsugi', name: 'Kintsugi Clinic', file: 'kintsugiclinic.js' },
   { id: 'switchboard', name: 'Telephone Switchboard Nights', file: 'switchboardnights.js' },
+  { id: 'containerport', name: 'Container Port Logistics', file: 'containerport.js' },
 ];
