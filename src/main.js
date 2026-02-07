@@ -24,10 +24,12 @@ const guide = document.getElementById('guide');
 
 const audio = new AudioManager();
 
-let powered = false;
+// Default boot state: TV ON and SCAN enabled.
+// (Audio remains OFF until user gesture, due to browser autoplay policies.)
+let powered = true;
 let showOsd = true;
 let showGuide = false;
-let scanning = false;
+let scanning = true;
 let scanTimer = null;
 const SCAN_PERIOD_MS = 30_000;
 
@@ -333,6 +335,10 @@ function tick(now){
 // boot
 resize();
 setOsd();
+// If we're starting powered-on, load the initial channel immediately.
+if (powered) {
+  switchTo(currentIndex, { boot: true }).catch((err) => console.error(err));
+}
 requestAnimationFrame(tick);
 
 // initial help hint
