@@ -63,4 +63,5 @@ export const CHANNELS = [
   { id: 'pencilgeo', name: 'Mechanical Pencil Geometry', file: 'pencilgeometry.js' },
   { id: 'dreamreceipt', name: 'Dream Receipt Printer', file: 'dreamreceipt.js' },
   { id: 'volcanoobs', name: 'Tiny Volcano Observatory', file: 'volcanoobservatory.js' },
+  { id: 'bookbind', name: 'Bookbinding Bench ASMR', file: 'bookbindingbench.js' },
 ];
