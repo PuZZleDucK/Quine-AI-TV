@@ -65,4 +65,5 @@ export const CHANNELS = [
   { id: 'volcanoobs', name: 'Tiny Volcano Observatory', file: 'volcanoobservatory.js' },
   { id: 'bookbind', name: 'Bookbinding Bench ASMR', file: 'bookbindingbench.js' },
   { id: 'glassblower', name: "Glassblower's Studio Loop", file: 'glassblower.js' },
+  { id: 'postoffice', name: 'Post Office Sorting Desk', file: 'postoffice.js' },
 ];
