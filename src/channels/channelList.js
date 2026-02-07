@@ -41,5 +41,6 @@ export const CHANNELS = [
   { id: 'ufohotline', name: 'Small Town UFO Hotline', module: m('./ufohotline.js') },
   { id: 'origami', name: 'Origami After Hours', module: m('./origami.js') },
   { id: 'tidydesk', name: 'Tidy Desk Reset', module: m('./tidydesk.js') },
+  { id: 'workclock', name: 'Minimalist Workout Clock', module: m('./workoutclock.js') },
   { id: 'subwaystories', name: 'Subway Map Stories', module: m('./subwaystories.js') },
 ];
