@@ -67,4 +67,5 @@ export const CHANNELS = [
   { id: 'glassblower', name: "Glassblower's Studio Loop", file: 'glassblower.js' },
   { id: 'postoffice', name: 'Post Office Sorting Desk', file: 'postoffice.js' },
   { id: 'nightmarket', name: 'Neon Night Market Ledger', file: 'nightmarket.js' },
+  { id: 'lighthouse', name: 'Tiny Lighthouse Watch', file: 'lighthousewatch.js' },
 ];
