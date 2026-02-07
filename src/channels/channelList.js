@@ -45,5 +45,6 @@ export const CHANNELS = [
   { id: 'workclock', name: 'Minimalist Workout Clock', module: m('./workoutclock.js') },
   { id: 'robotzoo', name: 'Robot Petting Zoo', module: m('./robotzoo.js') },
   { id: 'foleylab', name: 'Studio Foley Lab', module: m('./foleylab.js') },
+  { id: 'timetable', name: 'Railway Timetable ASMR', module: m('./timetable.js') },
   { id: 'subwaystories', name: 'Subway Map Stories', module: m('./subwaystories.js') },
 ];
