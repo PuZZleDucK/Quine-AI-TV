@@ -54,4 +54,5 @@ export const CHANNELS = [
   { id: 'foleylab', name: 'Studio Foley Lab', module: m('./foleylab.js') },
   { id: 'timetable', name: 'Railway Timetable ASMR', module: m('./timetable.js') },
   { id: 'subwaystories', name: 'Subway Map Stories', module: m('./subwaystories.js') },
+  { id: 'miniworlds', name: 'Found Footage: Miniature Worlds', module: m('./miniworlds.js') },
 ];
