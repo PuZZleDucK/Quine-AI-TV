@@ -54,4 +54,5 @@ export const CHANNELS = [
   { id: 'timetable', name: 'Railway Timetable ASMR', file: 'timetable.js' },
   { id: 'subwaystories', name: 'Subway Map Stories', file: 'subwaystories.js' },
   { id: 'miniworlds', name: 'Found Footage: Miniature Worlds', file: 'miniworlds.js' },
+  { id: 'nightsignals', name: 'Night Signals', file: 'nightsignals.js' },
 ];
