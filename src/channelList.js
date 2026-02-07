@@ -62,4 +62,5 @@ export const CHANNELS = [
   { id: 'nightsignals', name: 'Night Signals', file: 'nightsignals.js' },
   { id: 'pencilgeo', name: 'Mechanical Pencil Geometry', file: 'pencilgeometry.js' },
   { id: 'dreamreceipt', name: 'Dream Receipt Printer', file: 'dreamreceipt.js' },
+  { id: 'volcanoobs', name: 'Tiny Volcano Observatory', file: 'volcanoobservatory.js' },
 ];
