@@ -18,6 +18,7 @@ export const CHANNELS = [
   { id: 'bonsai', name: 'Bonsai Time Machine', module: m('./bonsai.js') },
   { id: 'matrix', name: 'Terminal Rain', module: m('./matrix.js') },
   { id: 'retroboot', name: 'Retro Boot Sequence', module: m('./retroboot.js') },
+  { id: 'obsoletemedia', name: 'Museum of Obsolete Media', module: m('./obsoletemedia.js') },
   { id: 'orbits', name: 'Orbital Desktoy', module: m('./orbits.js') },
   { id: 'planetpost', name: 'Planetarium Postcards', module: m('./planetpostcards.js') },
   { id: 'oceanpost', name: 'Ocean Floor Postcards', module: m('./oceanpostcards.js') },
