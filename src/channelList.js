@@ -68,4 +68,5 @@ export const CHANNELS = [
   { id: 'postoffice', name: 'Post Office Sorting Desk', file: 'postoffice.js' },
   { id: 'nightmarket', name: 'Neon Night Market Ledger', file: 'nightmarket.js' },
   { id: 'lighthouse', name: 'Tiny Lighthouse Watch', file: 'lighthousewatch.js' },
+  { id: 'baggagecarousel', name: 'Airport Baggage Carousel Cam', file: 'baggagecarousel.js' },
 ];
