@@ -76,4 +76,5 @@ export const CHANNELS = [
   { id: 'semaphore', name: 'Semaphore Signal School', file: 'semaphore.js' },
   { id: 'dominofactory', name: 'Domino Factory Floor', file: 'dominofactory.js' },
   { id: 'kintsugi', name: 'Kintsugi Clinic', file: 'kintsugiclinic.js' },
+  { id: 'switchboard', name: 'Telephone Switchboard Nights', file: 'switchboardnights.js' },
 ];
