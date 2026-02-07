@@ -75,4 +75,5 @@ export const CHANNELS = [
   { id: 'papercity', name: 'Paper City Fold-Out', file: 'papercity.js' },
   { id: 'semaphore', name: 'Semaphore Signal School', file: 'semaphore.js' },
   { id: 'dominofactory', name: 'Domino Factory Floor', file: 'dominofactory.js' },
+  { id: 'kintsugi', name: 'Kintsugi Clinic', file: 'kintsugiclinic.js' },
 ];
