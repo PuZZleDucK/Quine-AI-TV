@@ -60,4 +60,5 @@ export const CHANNELS = [
   { id: 'analogdarkroom', name: 'Analog Photo Darkroom', file: 'analogdarkroom.js' },
   { id: 'candlechess', name: 'Candlelit Chess Engine', file: 'candlechess.js' },
   { id: 'nightsignals', name: 'Night Signals', file: 'nightsignals.js' },
+  { id: 'pencilgeo', name: 'Mechanical Pencil Geometry', file: 'pencilgeometry.js' },
 ];
