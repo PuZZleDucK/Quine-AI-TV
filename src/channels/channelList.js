@@ -44,5 +44,6 @@ export const CHANNELS = [
   { id: 'tidydesk', name: 'Tidy Desk Reset', module: m('./tidydesk.js') },
   { id: 'workclock', name: 'Minimalist Workout Clock', module: m('./workoutclock.js') },
   { id: 'robotzoo', name: 'Robot Petting Zoo', module: m('./robotzoo.js') },
+  { id: 'foleylab', name: 'Studio Foley Lab', module: m('./foleylab.js') },
   { id: 'subwaystories', name: 'Subway Map Stories', module: m('./subwaystories.js') },
 ];
