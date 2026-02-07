@@ -8,6 +8,7 @@ export const CHANNELS = [
   { id: 'pocketplanet', name: 'Pocket Planet Weather', module: m('./pocketplanet.js') },
   { id: 'mechanisms', name: 'Satisfying Mechanisms', module: m('./mechanisms.js') },
   { id: 'bughotel', name: 'Bug Hotel Live', module: m('./bughotel.js') },
+  { id: 'typespecimen', name: 'Type Specimen Theatre', module: m('./typespecimen.js') },
   { id: 'lava', name: 'Lava Lamp', module: m('./lava.js') },
   { id: 'news', name: '24/7 Odd News', module: m('./news.js') },
   { id: 'musictheory', name: 'The 3-Minute Music Theory', module: m('./musictheory.js') },
