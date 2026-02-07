@@ -42,5 +42,6 @@ export const CHANNELS = [
   { id: 'origami', name: 'Origami After Hours', module: m('./origami.js') },
   { id: 'tidydesk', name: 'Tidy Desk Reset', module: m('./tidydesk.js') },
   { id: 'workclock', name: 'Minimalist Workout Clock', module: m('./workoutclock.js') },
+  { id: 'robotzoo', name: 'Robot Petting Zoo', module: m('./robotzoo.js') },
   { id: 'subwaystories', name: 'Subway Map Stories', module: m('./subwaystories.js') },
 ];
