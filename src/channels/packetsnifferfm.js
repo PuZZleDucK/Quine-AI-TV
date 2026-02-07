@@ -1,0 +1,610 @@
+import { mulberry32 } from '../util/prng.js';
+
+// Packet Sniffer FM
+// Turn network packets into a neon spectrum: tune TCP/UDP/ICMP “stations” with bursts, waterfalls, and protocol IDs.
+
+const STATIONS = [
+  { key: 'TCP', name: 'TCP MAINLINE', freq: 97.3, hue: 190, rate: 28, tone: { root: 55, lpf: 980 } },
+  { key: 'UDP', name: 'UDP SPRAY', freq: 101.9, hue: 305, rate: 34, tone: { root: 73.4, lpf: 1250 } },
+  { key: 'ICMP', name: 'ICMP ECHO', freq: 88.7, hue: 120, rate: 18, tone: { root: 41.2, lpf: 820 } },
+];
+
+function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+
+function roundRect(ctx, x, y, w, h, r){
+  r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+export function createChannel({ seed, audio }){
+  const rand = mulberry32(seed);
+
+  let w = 0, h = 0, t = 0;
+
+  // layout
+  let wfX = 0, wfY = 0, wfW = 0, wfH = 0;
+  let dialX = 0, dialY = 0, dialW = 0, dialH = 0;
+
+  // station state
+  let stationIdx = 0;
+  let stationTimer = 0;
+  let tuneFx = 0;
+
+  // events
+  let bigFlash = 0;
+  let nextBigAt = 0;
+
+  // spectrum / waterfall
+  const BINS = 64;
+  const energy = new Float32Array(BINS);
+  const peaks = new Float32Array(BINS);
+  let pktAcc = 0;
+
+  let wfCanvas = null;
+  let wfCtx = null;
+  let wfImg = null;
+  let wfRowData = null;
+  let wfRows = 160;
+
+  // floating labels
+  let labels = [];
+
+  // audio
+  let ah = null;
+
+  function pick(arr){ return arr[(rand() * arr.length) | 0]; }
+
+  function init({ width, height }){
+    w = width; h = height; t = 0;
+
+    // layout: waterfall left, dial bottom-right
+    const pad = Math.max(14, Math.floor(Math.min(w, h) * 0.02));
+    wfX = pad;
+    wfY = pad;
+    wfW = Math.floor(w * 0.70);
+    wfH = h - pad * 2;
+
+    dialW = Math.max(240, Math.floor(w * 0.26));
+    dialH = Math.max(120, Math.floor(h * 0.18));
+    dialX = w - pad - dialW;
+    dialY = h - pad - dialH;
+
+    stationIdx = (seed >>> 0) % STATIONS.length;
+    stationTimer = 22 + rand() * 16;
+    tuneFx = 0.0;
+
+    bigFlash = 0;
+    nextBigAt = 6 + rand() * 10;
+
+    for (let i = 0; i < BINS; i++) { energy[i] = 0; peaks[i] = 0; }
+    pktAcc = 0;
+
+    labels = [];
+
+    // waterfall backing store: small canvas, scaled up when drawn
+    wfRows = Math.max(120, Math.min(220, Math.floor(h * 0.28)));
+    wfCanvas = document.createElement('canvas');
+    wfCanvas.width = BINS;
+    wfCanvas.height = wfRows;
+    wfCtx = wfCanvas.getContext('2d');
+    wfCtx.imageSmoothingEnabled = false;
+
+    wfImg = wfCtx.createImageData(BINS, 1);
+    wfRowData = wfImg.data;
+
+    // clear
+    wfCtx.fillStyle = 'rgba(0,0,0,1)';
+    wfCtx.fillRect(0, 0, BINS, wfRows);
+  }
+
+  function onResize(width, height){
+    init({ width, height });
+  }
+
+  function switchStation(nextIdx){
+    stationIdx = (nextIdx + STATIONS.length) % STATIONS.length;
+    stationTimer = 22 + rand() * 16;
+    tuneFx = 1.05;
+
+    // chirp + click
+    if (audio.enabled){
+      audio.beep({ freq: 420 + rand() * 420, dur: 0.032, gain: 0.035, type: 'square' });
+      audio.beep({ freq: 120 + rand() * 80, dur: 0.028, gain: 0.02, type: 'triangle' });
+    }
+
+    if (audio.enabled && ah?.setTone){
+      ah.setTone(STATIONS[stationIdx].tone);
+    }
+
+    // leave a little protocol tag
+    labels.push({
+      text: STATIONS[stationIdx].key,
+      x: wfX + wfW * (0.15 + rand() * 0.7),
+      y: wfY + wfH * (0.15 + rand() * 0.7),
+      a: 0.9,
+      life: 1.2,
+      vx: (-10 + rand() * 20),
+      vy: (-24 - rand() * 26),
+    });
+  }
+
+  function makeAudioHandle(){
+    const ctx = audio.ensure();
+
+    const out = ctx.createGain();
+    out.gain.value = 0.95;
+    out.connect(audio.master);
+
+    // Pink-ish noise into a lowpass: radio bed.
+    const n = audio.noiseSource({ type: 'pink', gain: 0.06 });
+
+    const lpf = ctx.createBiquadFilter();
+    lpf.type = 'lowpass';
+    lpf.frequency.value = STATIONS[stationIdx].tone.lpf;
+    lpf.Q.value = 0.8;
+
+    // a subtle “carrier” tone that shifts by station
+    const carrier = ctx.createOscillator();
+    carrier.type = 'triangle';
+    carrier.frequency.value = STATIONS[stationIdx].tone.root;
+
+    const cg = ctx.createGain();
+    cg.gain.value = 0.0;
+
+    const t0 = ctx.currentTime;
+    cg.gain.setValueAtTime(0.0001, t0);
+    cg.gain.exponentialRampToValueAtTime(0.022, t0 + 0.35);
+
+    // flutter (very subtle)
+    const flutter = ctx.createOscillator();
+    flutter.type = 'sine';
+    flutter.frequency.value = 0.23;
+
+    const flutterGain = ctx.createGain();
+    flutterGain.gain.value = 80;
+    flutter.connect(flutterGain);
+    flutterGain.connect(lpf.frequency);
+
+    // connect
+    try { n.gain.disconnect(); } catch {}
+    n.gain.connect(lpf);
+
+    carrier.connect(cg);
+    cg.connect(lpf);
+
+    lpf.connect(out);
+
+    n.start();
+    carrier.start();
+    flutter.start();
+
+    function setTone({ root, lpf: f }){
+      const now = ctx.currentTime;
+      try {
+        carrier.frequency.setTargetAtTime(root, now, 0.12);
+        lpf.frequency.setTargetAtTime(f, now, 0.10);
+      } catch {}
+    }
+
+    return {
+      setTone,
+      stop(){
+        const now = ctx.currentTime;
+        try { out.gain.setTargetAtTime(0.0001, now, 0.08); } catch {}
+        try { n.stop(); } catch {}
+        try { carrier.stop(now + 0.2); } catch {}
+        try { flutter.stop(now + 0.2); } catch {}
+      },
+    };
+  }
+
+  function onAudioOn(){
+    if (!audio.enabled) return;
+    ah = makeAudioHandle();
+    audio.setCurrent(ah);
+  }
+
+  function onAudioOff(){
+    try { ah?.stop?.(); } catch {}
+    ah = null;
+  }
+
+  function destroy(){ onAudioOff(); }
+
+  function spawnPacket(intensity = 1){
+    // map a synthetic packet “size” to a frequency bin (log-ish)
+    const size = 40 + rand() * 1460;
+    const norm = Math.log(size) / Math.log(1500);
+    const idx = Math.max(0, Math.min(BINS - 1, (norm * (BINS - 1)) | 0));
+
+    const v = (0.28 + 0.85 * intensity) * (0.7 + rand() * 0.6);
+    energy[idx] = Math.min(1.2, energy[idx] + v);
+    peaks[idx] = Math.max(peaks[idx], 0.35 + v * 0.65);
+
+    // occasional protocol label
+    if (rand() < 0.06 * intensity){
+      labels.push({
+        text: STATIONS[stationIdx].key,
+        x: wfX + wfW * (0.05 + rand() * 0.9),
+        y: wfY + wfH * (0.10 + rand() * 0.8),
+        a: 0.65,
+        life: 0.9 + rand() * 0.6,
+        vx: (-18 + rand() * 36),
+        vy: (-22 - rand() * 30),
+      });
+    }
+
+    // light packet “tick”
+    if (audio.enabled && rand() < 0.045 * intensity){
+      audio.beep({ freq: 540 + rand() * 480, dur: 0.012 + rand() * 0.01, gain: 0.012 + intensity * 0.006, type: pick(['square', 'triangle']) });
+    }
+  }
+
+  function updateWaterfall(){
+    if (!wfCtx) return;
+
+    // shift down 1 px
+    wfCtx.globalCompositeOperation = 'copy';
+    wfCtx.drawImage(wfCanvas, 0, 1);
+
+    // paint new row at y=0
+    const s = STATIONS[stationIdx];
+    const hueBase = s.hue;
+
+    for (let i = 0; i < BINS; i++){
+      const e = clamp01(energy[i]);
+      const p = clamp01(peaks[i]);
+      const lum = 10 + e * 60 + p * 18;
+      const sat = 85;
+      const hue = hueBase + (i / (BINS - 1) - 0.5) * 28;
+
+      // convert HSL-ish to RGB quickly with canvas? keep simple: use pre-baked palette via hsl string per-pixel is too slow.
+      // Instead: approximate using a small triad based on hue offsets.
+      const a = clamp01(0.06 + e * 0.85);
+
+      // cheap neon RGB-ish mapping (not true HSL, but looks “spectral”)
+      const r = Math.max(0, Math.min(255, (40 + 220 * clamp01(Math.sin((hue + 30) * 0.017) * 0.5 + 0.5)) * (0.35 + e * 0.75)) | 0);
+      const g = Math.max(0, Math.min(255, (40 + 220 * clamp01(Math.sin((hue + 150) * 0.017) * 0.5 + 0.5)) * (0.25 + e * 0.85)) | 0);
+      const b = Math.max(0, Math.min(255, (50 + 220 * clamp01(Math.sin((hue + 270) * 0.017) * 0.5 + 0.5)) * (0.35 + e * 0.75)) | 0);
+
+      const k = i * 4;
+      wfRowData[k + 0] = r;
+      wfRowData[k + 1] = g;
+      wfRowData[k + 2] = b;
+      wfRowData[k + 3] = (a * 255) | 0;
+
+      // decay for next frame
+      energy[i] = Math.max(0, energy[i] - 0.75 * (0.016 + 0.008 * (i / BINS)));
+      peaks[i] = Math.max(0, peaks[i] - 0.085);
+
+      // subtle “breathing” for movement
+      energy[i] = Math.max(0, energy[i] + 0.004 * Math.sin(t * 1.25 + i * 0.22));
+    }
+
+    // tuning/static overlay
+    if (tuneFx > 0){
+      const a = clamp01(tuneFx / 1.05);
+      for (let i = 0; i < BINS; i++){
+        if (rand() < 0.24 * a){
+          const k = i * 4;
+          const v = (120 + rand() * 120) | 0;
+          wfRowData[k + 0] = v;
+          wfRowData[k + 1] = v;
+          wfRowData[k + 2] = v;
+          wfRowData[k + 3] = (40 + rand() * 90) | 0;
+        }
+      }
+    }
+
+    wfCtx.putImageData(wfImg, 0, 0);
+    wfCtx.globalCompositeOperation = 'source-over';
+  }
+
+  function update(dt){
+    t += dt;
+
+    if (tuneFx > 0) tuneFx = Math.max(0, tuneFx - dt);
+    bigFlash = Math.max(0, bigFlash - dt * 1.6);
+
+    stationTimer -= dt;
+    if (stationTimer <= 0){
+      switchStation(stationIdx + 1);
+    }
+
+    // big “event” flashes
+    if (t >= nextBigAt){
+      bigFlash = 1.0;
+      nextBigAt = t + 8 + rand() * 14;
+      for (let k = 0; k < 10 + (rand() * 10 | 0); k++) spawnPacket(1.35);
+
+      if (audio.enabled){
+        audio.beep({ freq: 980 + rand() * 520, dur: 0.05, gain: 0.03, type: 'sawtooth' });
+      }
+
+      labels.push({
+        text: 'BIG EVENT',
+        x: wfX + wfW * (0.12 + rand() * 0.76),
+        y: wfY + wfH * (0.16 + rand() * 0.68),
+        a: 0.9,
+        life: 1.1,
+        vx: (-14 + rand() * 28),
+        vy: (-30 - rand() * 20),
+      });
+    }
+
+    // packet field: Poisson-ish using an accumulator
+    const s = STATIONS[stationIdx];
+    const rate = s.rate * (0.78 + 0.44 * (0.5 + 0.5 * Math.sin(t * 0.35 + stationIdx)));
+    const burst = (tuneFx > 0 ? 0.55 : 1.0) * (0.92 + 0.20 * bigFlash);
+
+    pktAcc += rate * dt * burst;
+    while (pktAcc >= 1.0){
+      spawnPacket(1.0 + bigFlash * 0.6);
+      pktAcc -= 1.0;
+
+      // sometimes a micro-burst (deterministic)
+      if (rand() < 0.12 + bigFlash * 0.25){
+        spawnPacket(1.15 + bigFlash * 0.5);
+      }
+    }
+
+    // update labels
+    for (const L of labels){
+      L.x += L.vx * dt;
+      L.y += L.vy * dt;
+      L.life -= dt;
+      L.a = Math.max(0, L.a - dt * 0.8);
+    }
+    labels = labels.filter(L => L.life > 0 && L.a > 0.02);
+
+    // waterfall line update roughly at ~60fps; stable even if dt spikes
+    updateWaterfall();
+  }
+
+  function drawBackground(ctx){
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#030312');
+    g.addColorStop(0.55, '#06001a');
+    g.addColorStop(1, '#02020a');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+
+    // faint grid
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.strokeStyle = 'rgba(160,200,255,0.25)';
+    ctx.lineWidth = 1;
+    const step = Math.max(18, Math.floor(Math.min(w, h) * 0.04));
+    for (let x = 0; x <= w; x += step){
+      ctx.beginPath();
+      ctx.moveTo(x + 0.5, 0);
+      ctx.lineTo(x + 0.5, h);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= h; y += step){
+      ctx.beginPath();
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(w, y + 0.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // vignette
+    ctx.save();
+    const v = ctx.createRadialGradient(w * 0.5, h * 0.5, Math.min(w, h) * 0.15, w * 0.5, h * 0.5, Math.max(w, h) * 0.7);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  function drawWaterfall(ctx){
+    // panel
+    ctx.save();
+    roundRect(ctx, wfX - 2, wfY - 2, wfW + 4, wfH + 4, 16);
+    ctx.fillStyle = 'rgba(6, 8, 18, 0.88)';
+    ctx.fill();
+    ctx.clip();
+
+    // draw scaled waterfall band (bottom third)
+    const bandH = Math.floor(wfH * 0.36);
+    const bandY = wfY + wfH - bandH;
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalAlpha = 0.95;
+    ctx.drawImage(wfCanvas, wfX, bandY, wfW, bandH);
+
+    // spectrum bars above
+    const sY = wfY + Math.floor(wfH * 0.10);
+    const sH = Math.floor(wfH * 0.45);
+    const barW = wfW / BINS;
+
+    const s = STATIONS[stationIdx];
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < BINS; i++){
+      const e = clamp01(energy[i]);
+      const p = clamp01(peaks[i]);
+      const hh = (e * e) * sH;
+      const x0 = wfX + i * barW;
+      const hue = s.hue + (i / (BINS - 1) - 0.5) * 24;
+
+      ctx.fillStyle = `hsla(${hue}, 95%, ${52 + p * 14}%, ${0.18 + e * 0.55})`;
+      ctx.fillRect(x0, sY + (sH - hh), Math.max(1, barW * 0.95), hh);
+
+      if (p > 0.02){
+        ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${0.12 + p * 0.22})`;
+        ctx.fillRect(x0, sY + (sH - (p * sH)), Math.max(1, barW * 0.95), 2);
+      }
+    }
+    ctx.restore();
+
+    // scanline / waterfall gloss
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    const sheen = ctx.createLinearGradient(wfX, wfY, wfX + wfW, wfY + wfH);
+    sheen.addColorStop(0, 'rgba(120,220,255,0.00)');
+    sheen.addColorStop(0.45, 'rgba(120,220,255,0.06)');
+    sheen.addColorStop(1, 'rgba(255,90,220,0.00)');
+    ctx.fillStyle = sheen;
+    ctx.fillRect(wfX, wfY, wfW, wfH);
+    ctx.restore();
+
+    // big event flash
+    if (bigFlash > 0){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = `rgba(255,255,255,${0.08 + bigFlash * 0.22})`;
+      ctx.fillRect(wfX, wfY, wfW, wfH);
+      ctx.restore();
+    }
+
+    ctx.restore();
+
+    // border
+    ctx.save();
+    roundRect(ctx, wfX - 2, wfY - 2, wfW + 4, wfH + 4, 16);
+    ctx.strokeStyle = 'rgba(180,210,255,0.18)';
+    ctx.lineWidth = Math.max(1, h / 520);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawLabels(ctx){
+    if (!labels.length) return;
+    const s = STATIONS[stationIdx];
+
+    ctx.save();
+    ctx.font = `${Math.max(14, Math.floor(h * 0.024))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+    ctx.textBaseline = 'middle';
+
+    for (const L of labels){
+      const a = clamp01(L.a);
+      ctx.globalAlpha = a;
+
+      const glow = 0.35 + a * 0.5;
+      ctx.shadowColor = `hsla(${s.hue}, 100%, 70%, ${glow})`;
+      ctx.shadowBlur = 10 + a * 18;
+      ctx.fillStyle = `hsla(${s.hue}, 95%, 62%, ${0.8})`;
+      ctx.fillText(L.text, L.x, L.y);
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = `rgba(255,255,255,${0.10 + a * 0.12})`;
+      ctx.fillText(L.text, L.x + 1, L.y + 1);
+    }
+    ctx.restore();
+  }
+
+  function drawDial(ctx){
+    const s = STATIONS[stationIdx];
+
+    // panel
+    ctx.save();
+    roundRect(ctx, dialX, dialY, dialW, dialH, 16);
+    ctx.fillStyle = 'rgba(10, 12, 22, 0.92)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(180,210,255,0.18)';
+    ctx.lineWidth = Math.max(1, h / 560);
+    ctx.stroke();
+
+    // header
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    const head = ctx.createLinearGradient(dialX, dialY, dialX + dialW, dialY);
+    head.addColorStop(0, `hsla(${s.hue}, 90%, 60%, 0.25)`);
+    head.addColorStop(0.6, 'rgba(120,220,255,0.06)');
+    head.addColorStop(1, `hsla(${s.hue + 40}, 90%, 60%, 0.18)`);
+    ctx.fillStyle = head;
+    ctx.fillRect(dialX + 1, dialY + 1, dialW - 2, Math.max(26, dialH * 0.26));
+    ctx.restore();
+
+    const px = dialX + 18;
+    const py = dialY + 20;
+
+    ctx.fillStyle = 'rgba(220,240,255,0.88)';
+    ctx.font = `700 ${Math.max(14, Math.floor(h * 0.024))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+    ctx.fillText('PACKET SNIFFER FM', px, py);
+
+    ctx.fillStyle = 'rgba(220,240,255,0.74)';
+    ctx.font = `600 ${Math.max(12, Math.floor(h * 0.020))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+    ctx.fillText(`${s.key}  •  ${s.name}`, px, py + 22);
+
+    // frequency + tuning knob
+    const fx = dialX + dialW - 18;
+    const fy = dialY + 22;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = `hsla(${s.hue}, 95%, 68%, 0.95)`;
+    ctx.font = `800 ${Math.max(16, Math.floor(h * 0.030))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+    ctx.fillText(`${s.freq.toFixed(1)}`, fx, fy);
+
+    ctx.fillStyle = 'rgba(220,240,255,0.60)';
+    ctx.font = `600 ${Math.max(11, Math.floor(h * 0.018))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+    ctx.fillText('MHz', fx, fy + 18);
+
+    // knob
+    const kx = dialX + dialW - 56;
+    const ky = dialY + dialH - 46;
+    const kr = 18;
+
+    const knobRot = (t * 0.6 + stationIdx * 0.9) + (tuneFx > 0 ? (1 - tuneFx / 1.05) * 2.2 : 0);
+
+    ctx.save();
+    ctx.translate(kx, ky);
+
+    const kg = ctx.createRadialGradient(0, 0, 2, 0, 0, kr * 1.5);
+    kg.addColorStop(0, 'rgba(255,255,255,0.12)');
+    kg.addColorStop(0.55, 'rgba(110,140,190,0.10)');
+    kg.addColorStop(1, 'rgba(0,0,0,0.35)');
+
+    ctx.fillStyle = kg;
+    ctx.beginPath();
+    ctx.arc(0, 0, kr, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(220,240,255,0.18)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.rotate(knobRot);
+    ctx.strokeStyle = `hsla(${s.hue}, 100%, 70%, ${0.55 + (tuneFx > 0 ? 0.25 : 0)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(kr * 0.85, 0);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // tuning static hint
+    if (tuneFx > 0){
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(220,240,255,0.58)';
+      ctx.font = `700 ${Math.max(11, Math.floor(h * 0.018))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      ctx.fillText('TUNING…', dialX + 18, dialY + dialH - 22);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  function render(ctx){
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    drawBackground(ctx);
+    drawWaterfall(ctx);
+    drawLabels(ctx);
+    drawDial(ctx);
+  }
+
+  return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
+}
