@@ -5,6 +5,7 @@ export const CHANNELS = [
   { id: 'weatherfactory', name: 'Weather Factory', file: 'weatherfactory.js' },
   { id: 'pocketplanet', name: 'Pocket Planet Weather', file: 'pocketplanet.js' },
   { id: 'snowglobe', name: 'Snow Globe Weather Lab', file: 'snowglobe.js' },
+  { id: 'weatherballoon', name: 'Weather Balloon Ascent', file: 'weatherballoon.js' },
   { id: 'mechanisms', name: 'Satisfying Mechanisms', file: 'mechanisms.js' },
   { id: 'bughotel', name: 'Bug Hotel Live', file: 'bughotel.js' },
   { id: 'typespecimen', name: 'Type Specimen Theatre', file: 'typespecimen.js' },
