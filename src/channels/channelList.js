@@ -43,6 +43,7 @@ export const CHANNELS = [
   { id: 'futurearch', name: 'Future Archaeology', module: m('./futurearch.js') },
   { id: 'circsafari', name: 'Circuit Safari', module: m('./circuitsafari.js') },
   { id: 'speedcook', name: 'Speed-Run Cooking', module: m('./speedcook.js') },
+  { id: 'coffeetimer', name: 'Coffee Timer Radio', module: m('./coffeetimer.js') },
   { id: 'rainradio', name: 'Rainy Window Radio', module: m('./rainradio.js') },
   { id: 'ufohotline', name: 'Small Town UFO Hotline', module: m('./ufohotline.js') },
   { id: 'origami', name: 'Origami After Hours', module: m('./origami.js') },
