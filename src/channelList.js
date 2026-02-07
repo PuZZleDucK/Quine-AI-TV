@@ -61,4 +61,5 @@ export const CHANNELS = [
   { id: 'candlechess', name: 'Candlelit Chess Engine', file: 'candlechess.js' },
   { id: 'nightsignals', name: 'Night Signals', file: 'nightsignals.js' },
   { id: 'pencilgeo', name: 'Mechanical Pencil Geometry', file: 'pencilgeometry.js' },
+  { id: 'dreamreceipt', name: 'Dream Receipt Printer', file: 'dreamreceipt.js' },
 ];
