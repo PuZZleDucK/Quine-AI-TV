@@ -69,4 +69,5 @@ export const CHANNELS = [
   { id: 'nightmarket', name: 'Neon Night Market Ledger', file: 'nightmarket.js' },
   { id: 'lighthouse', name: 'Tiny Lighthouse Watch', file: 'lighthousewatch.js' },
   { id: 'baggagecarousel', name: 'Airport Baggage Carousel Cam', file: 'baggagecarousel.js' },
+  { id: 'mushroomlab', name: 'Subterranean Mushroom Lab', file: 'mushroomlab.js' },
 ];
