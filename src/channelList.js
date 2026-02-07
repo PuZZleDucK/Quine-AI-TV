@@ -32,6 +32,7 @@ export const CHANNELS = [
   { id: 'sports', name: 'Sportsboard 3000', file: 'sports.js' },
   { id: 'kaleido', name: 'Kaleidoscope', file: 'kaleido.js' },
   { id: 'spacecam', name: 'Deep Space Cam', file: 'spacecam.js' },
+  { id: 'stargazerlog', name: "Stargazer's Logbook", file: 'stargazerlogbook.js' },
   { id: 'shop', name: 'HyperMall Live', file: 'shop.js' },
   { id: 'cctv', name: 'CCTV Night Watch', file: 'cctv.js' },
   { id: 'slime', name: 'Slime Lab', file: 'slime.js' },
