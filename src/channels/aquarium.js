@@ -18,8 +18,30 @@ export function createChannel({ seed, audio }){
     sand = makeSand();
   }
 
+  function pickFishKind(){
+    // Weighted rarity. Keep rare fish uncommon enough to feel special.
+    // common: 85%, uncommon: 13%, rare: 2%
+    const r = randSim();
+    if (r < 0.02) return 'rare';
+    if (r < 0.15) return 'uncommon';
+    return 'common';
+  }
+
   function makeFish(i, spawnOnscreen=false){
     const dir = randSim() < 0.5 ? 1 : -1;
+    const kind = pickFishKind();
+    const sizeBase = (h/540);
+    const kindSize =
+      kind === 'rare' ? (24 + randSim()*46) * sizeBase :
+      kind === 'uncommon' ? (16 + randSim()*40) * sizeBase :
+      (12 + randSim()*36) * sizeBase;
+
+    // Color: keep common fish in the teal->violet family, but let rare fish
+    // drift toward brighter cyan/pink.
+    const hue =
+      kind === 'rare' ? (185 + randSim()*150) :
+      (170 + randSim()*120);
+
     return {
       x: spawnOnscreen ? (randSim()*w) : (dir>0 ? -randSim()*w*0.6 : w + randSim()*w*0.6),
       y: h*(0.18 + randSim()*0.72),
@@ -27,8 +49,11 @@ export function createChannel({ seed, audio }){
       sp: (0.25+randSim()*0.9) * (w/800),
       amp: (12+randSim()*40) * (h/540),
       ph: randSim()*Math.PI*2,
-      hue: 170 + randSim()*120,
-      size: (12+randSim()*36) * (h/540),
+      hue,
+      size: kindSize,
+      kind,
+      // Per-fish style variation (patterns/fins) without needing more RNG during render.
+      variant: randSim(),
     };
   }
 
@@ -169,32 +194,91 @@ export function createChannel({ seed, audio }){
     ctx.scale(f.dir, 1);
     ctx.rotate(sway*0.08);
 
+    const kind = f.kind || 'common';
+
+    // Rare fish: subtle bioluminescent halo to make them pop without being neon.
+    if (kind === 'rare'){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      const r = f.size * (1.6 + 0.2*Math.sin(t*1.2 + f.ph));
+      const gg = ctx.createRadialGradient(0, 0, f.size*0.2, 0, 0, r);
+      gg.addColorStop(0, `hsla(${(f.hue+10)%360}, 95%, 70%, 0.26)`);
+      gg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Shape params vary by kind.
+    const bodyX = f.size * (kind === 'uncommon' ? 1.25 : 1.1);
+    const bodyY = f.size * (kind === 'uncommon' ? 0.78 : 0.65);
+
     // body
     const body = ctx.createLinearGradient(-f.size,0,f.size,0);
-    body.addColorStop(0, `hsla(${f.hue},85%,60%,0.9)`);
-    body.addColorStop(1, `hsla(${(f.hue+40)%360},90%,55%,0.85)`);
+    body.addColorStop(0, `hsla(${f.hue},85%,${kind === 'rare' ? 66 : 60}%,0.92)`);
+    body.addColorStop(1, `hsla(${(f.hue+40)%360},90%,${kind === 'rare' ? 60 : 55}%,0.86)`);
     ctx.fillStyle = body;
     ctx.beginPath();
-    ctx.ellipse(0,0,f.size*1.1,f.size*0.65,0,0,Math.PI*2);
+    ctx.ellipse(0,0, bodyX, bodyY,0,0,Math.PI*2);
     ctx.fill();
 
+    // uncommon: add a soft vertical stripe pattern (stable via f.variant)
+    if (kind === 'uncommon'){
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = `hsla(${(f.hue+160)%360}, 70%, 70%, 0.7)`;
+      const stripes = 3 + ((f.variant * 3)|0);
+      for (let i = 0; i < stripes; i++){
+        const x = (-f.size*0.75) + (i/(stripes-1))*f.size*1.2;
+        ctx.beginPath();
+        ctx.ellipse(x, 0, f.size*0.11, f.size*0.62, 0, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
     // tail
-    ctx.fillStyle = `hsla(${(f.hue+20)%360},90%,55%,0.75)`;
+    ctx.fillStyle = `hsla(${(f.hue+20)%360},90%,55%,0.78)`;
     ctx.beginPath();
-    ctx.moveTo(-f.size*1.1,0);
-    ctx.lineTo(-f.size*1.7, -f.size*0.45);
-    ctx.lineTo(-f.size*1.65, f.size*0.45);
+    ctx.moveTo(-bodyX,0);
+    if (kind === 'rare'){
+      // forked tail
+      ctx.lineTo(-f.size*1.85, -f.size*0.55);
+      ctx.lineTo(-f.size*1.45, 0);
+      ctx.lineTo(-f.size*1.85, f.size*0.55);
+    } else {
+      ctx.lineTo(-f.size*1.7, -f.size*0.45);
+      ctx.lineTo(-f.size*1.65, f.size*0.45);
+    }
     ctx.closePath();
     ctx.fill();
 
-    // fin
+    // dorsal fin / wing fin
     ctx.globalAlpha = 0.65;
     ctx.fillStyle = `hsla(${(f.hue+80)%360},80%,60%,0.6)`;
     ctx.beginPath();
-    ctx.moveTo(-f.size*0.1,0);
-    ctx.quadraticCurveTo(f.size*0.2, -f.size*0.9, f.size*0.55, -f.size*0.2);
-    ctx.quadraticCurveTo(f.size*0.2, -f.size*0.1, -f.size*0.1,0);
+    if (kind === 'uncommon'){
+      // taller fin silhouette
+      ctx.moveTo(-f.size*0.15, -f.size*0.1);
+      ctx.quadraticCurveTo(f.size*0.1, -f.size*1.15, f.size*0.65, -f.size*0.25);
+      ctx.quadraticCurveTo(f.size*0.25, -f.size*0.25, -f.size*0.15, -f.size*0.1);
+    } else {
+      ctx.moveTo(-f.size*0.1,0);
+      ctx.quadraticCurveTo(f.size*0.2, -f.size*0.9, f.size*0.55, -f.size*0.2);
+      ctx.quadraticCurveTo(f.size*0.2, -f.size*0.1, -f.size*0.1,0);
+    }
     ctx.fill();
+
+    // rare: tiny lure dot near the head
+    if (kind === 'rare'){
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = `hsla(${(f.hue+30)%360}, 95%, 72%, 0.85)`;
+      ctx.beginPath();
+      ctx.arc(f.size*0.95, -f.size*0.55, f.size*0.09, 0, Math.PI*2);
+      ctx.fill();
+    }
 
     // eye
     ctx.globalAlpha = 1;

@@ -337,6 +337,12 @@ export function createChannel({ seed, audio }){
     rebuildGeometry();
   }
 
+  function init({ width, height, dpr: _dpr }){
+    // main.js may not call onResize() on channel switch if the canvas size didn't change.
+    // This channel depends on geometry rebuilt from w/h, so do it here unconditionally.
+    onResize(width, height, _dpr);
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
     drone = simpleDrone(audio, { root: 62 + rand() * 10, detune: 1.1, gain: 0.035 });
@@ -692,12 +698,17 @@ export function createChannel({ seed, audio }){
     drawHUD(ctx);
   }
 
+  function render(ctx){
+    draw(ctx);
+  }
+
   return {
+    init,
     onResize,
     onAudioOn,
     onAudioOff,
     update,
-    draw,
+    render,
     destroy,
   };
 }
