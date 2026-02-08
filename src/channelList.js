@@ -93,4 +93,5 @@ export const CHANNELS = [
   { id: 'rooftoptank', name: 'Rooftop Water Tank Nights', file: 'rooftoptank.js' },
   { id: 'dioramarest', name: 'Museum Diorama Restoration', file: 'dioramarestoration.js' },
   { id: 'mailroomtube', name: 'Mailroom Tube Network', file: 'mailroomtube.js' },
+  { id: 'radiotelescope', name: 'Desert Radio Telescope Array', file: 'radiotelescope.js' },
 ];
