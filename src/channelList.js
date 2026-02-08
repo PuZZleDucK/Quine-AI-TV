@@ -80,4 +80,5 @@ export const CHANNELS = [
   { id: 'kintsugi', name: 'Kintsugi Clinic', file: 'kintsugiclinic.js' },
   { id: 'switchboard', name: 'Telephone Switchboard Nights', file: 'switchboardnights.js' },
   { id: 'containerport', name: 'Container Port Logistics', file: 'containerport.js' },
+  { id: 'hauntedplan', name: 'Haunted Floorplan Tour', file: 'hauntedfloorplan.js' },
 ];
