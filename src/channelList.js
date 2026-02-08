@@ -100,4 +100,5 @@ export const CHANNELS = [
   { id: 'robotarmballet', name: 'Robotic Arm Ballet', file: 'robotarmballet.js' },
   { id: 'neonrepair', name: 'Neon Sign Repair Bench', file: 'neonsignrepair.js' },
   { id: 'cryptidstation', name: 'Mythical Creature Field Station', file: 'mythicalfieldstation.js' },
+  { id: 'shipbottle', name: 'Ship-in-a-Bottle Workshop', file: 'shipinabottle.js' },
 ];
