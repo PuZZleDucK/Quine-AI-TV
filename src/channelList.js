@@ -18,6 +18,7 @@ export const CHANNELS = [
   { id: 'bonsai', name: 'Bonsai Time Machine', file: 'bonsai.js' },
   { id: 'matrix', name: 'Terminal Rain', file: 'matrix.js' },
   { id: 'retroboot', name: 'Retro Boot Sequence', file: 'retroboot.js' },
+  { id: 'arcadeattract', name: 'Arcade Attract Mode Archives', file: 'arcadeattract.js' },
   { id: 'obsoletemedia', name: 'Museum of Obsolete Media', file: 'obsoletemedia.js' },
   { id: 'orbits', name: 'Orbital Desktoy', file: 'orbits.js' },
   { id: 'planetpost', name: 'Planetarium Postcards', file: 'planetpostcards.js' },
