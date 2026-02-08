@@ -113,4 +113,5 @@ export const CHANNELS = [
   { id: 'cipherwheel', name: 'Cipher Wheel Classroom', file: 'cipherwheel.js' },
   { id: 'streetlightcrew', name: 'Streetlight Night Repair Crew', file: 'streetlightcrew.js' },
   { id: 'beehivespectrum', name: 'Beehive Spectrum Radio', file: 'beehivespectrum.js' },
+  { id: 'musicbox', name: 'Mechanical Music Box Workshop', file: 'musicbox.js' },
 ];
