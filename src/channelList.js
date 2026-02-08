@@ -97,4 +97,5 @@ export const CHANNELS = [
   { id: 'vendoracle', name: 'Vending Machine Oracle', file: 'vendingoracle.js' },
   { id: 'dungeoncarto', name: "Dungeon Cartographer's Desk", file: 'dungeoncartographer.js' },
   { id: 'robotarmballet', name: 'Robotic Arm Ballet', file: 'robotarmballet.js' },
+  { id: 'neonrepair', name: 'Neon Sign Repair Bench', file: 'neonsignrepair.js' },
 ];
