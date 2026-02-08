@@ -87,4 +87,5 @@ export const CHANNELS = [
   { id: 'deepseasonar', name: 'Deep Sea Sonar Survey', file: 'deepseasonar.js' },
   { id: 'modelrail', name: 'Model Railway Control Room', file: 'modelrail.js' },
   { id: 'timekeeper', name: "Timekeeper's Bench ASMR", file: 'timekeeperbench.js' },
+  { id: 'antfarm', name: 'Ant Farm Transit Authority', file: 'antfarmtransit.js' },
 ];
