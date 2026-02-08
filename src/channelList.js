@@ -88,4 +88,5 @@ export const CHANNELS = [
   { id: 'modelrail', name: 'Model Railway Control Room', file: 'modelrail.js' },
   { id: 'timekeeper', name: "Timekeeper's Bench ASMR", file: 'timekeeperbench.js' },
   { id: 'antfarm', name: 'Ant Farm Transit Authority', file: 'antfarmtransit.js' },
+  { id: 'subseacable', name: 'Subsea Cable Pulse Monitor', file: 'subseacable.js' },
 ];
