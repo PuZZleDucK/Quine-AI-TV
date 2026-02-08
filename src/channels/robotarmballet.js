@@ -612,10 +612,19 @@ export function createChannel({ seed, audio }){
     drawHUD(ctx, phase, cycBeat);
   }
 
+  function render(ctx){
+    draw(ctx);
+  }
+
+  function init({ width, height, dpr: _dpr }={}){
+    if (width && height) onResize(width, height, _dpr || 1);
+  }
+
   return {
+    init,
     onResize,
     update,
-    draw,
+    render,
     destroy,
     onAudioOn,
     onAudioOff,
