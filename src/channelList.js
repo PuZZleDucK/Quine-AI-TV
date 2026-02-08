@@ -74,6 +74,7 @@ export const CHANNELS = [
   { id: 'baggagecarousel', name: 'Airport Baggage Carousel Cam', file: 'baggagecarousel.js' },
   { id: 'mushroomlab', name: 'Subterranean Mushroom Lab', file: 'mushroomlab.js' },
   { id: 'gumballecon', name: 'Gumball Machine Economics', file: 'gumballecon.js' },
+  { id: 'papermarble', name: 'Paper Marbling Studio', file: 'papermarbling.js' },
   { id: 'papercity', name: 'Paper City Fold-Out', file: 'papercity.js' },
   { id: 'semaphore', name: 'Semaphore Signal School', file: 'semaphore.js' },
   { id: 'dominofactory', name: 'Domino Factory Floor', file: 'dominofactory.js' },
