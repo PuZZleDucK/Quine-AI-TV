@@ -26,6 +26,7 @@ const SHOT_SCOPE = process.env.SHOT_SCOPE || 'screen-wrap'; // screen-wrap | scr
 const FRAMES = Math.max(1, Number(process.env.FRAMES || 1));
 const FRAME_GAP_MS = Math.max(0, Number(process.env.FRAME_GAP_MS || 350));
 const FAIL_ON_ERRORS = process.env.FAIL_ON_ERRORS === '1';
+const REQUIRE_READY = process.env.REQUIRE_READY !== '0';
 const OUT_DIR = process.env.OUT_DIR || path.join('screenshots', `channels-${timestamp()}`);
 const CLEAN_OUT_DIR = process.env.CLEAN_OUT_DIR === '1';
 
@@ -93,18 +94,21 @@ try {
 
   async function waitForChannelReady(ch) {
     const num = String(ch.number).padStart(2, '0');
-    try {
-      await page.waitForFunction(
-        ({ expectedNum, expectedName }) => {
-          const chan = document.getElementById('osd-chan');
-          const name = document.getElementById('osd-name');
-          if (!chan || !name) return false;
-          return chan.textContent === `CH ${expectedNum}` && name.textContent === expectedName;
-        },
-        { expectedNum: num, expectedName: ch.name },
-        { timeout: 4_000 }
-      );
-    } catch {}
+    const waitOsd = page.waitForFunction(
+      ({ expectedNum, expectedName }) => {
+        const chan = document.getElementById('osd-chan');
+        const name = document.getElementById('osd-name');
+        if (!chan || !name) return false;
+        return chan.textContent === `CH ${expectedNum}` && name.textContent === expectedName;
+      },
+      { expectedNum: num, expectedName: ch.name },
+      { timeout: 10_000 }
+    );
+    if (REQUIRE_READY) {
+      await waitOsd;
+    } else {
+      await waitOsd.catch(() => {});
+    }
 
     try {
       await page.waitForFunction(() => {
@@ -144,6 +148,8 @@ try {
   }
 
   async function tuneToChannel(ch) {
+    // Ensure keyboard events go to the app.
+    await page.click('.screen-wrap', { position: { x: 20, y: 20 } }).catch(() => {});
     await clearTuneBuffer();
     for (const c of String(ch.number)) await page.keyboard.press(c);
     await page.keyboard.press('Enter');
