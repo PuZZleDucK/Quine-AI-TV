@@ -99,4 +99,5 @@ export const CHANNELS = [
   { id: 'dungeoncarto', name: "Dungeon Cartographer's Desk", file: 'dungeoncartographer.js' },
   { id: 'robotarmballet', name: 'Robotic Arm Ballet', file: 'robotarmballet.js' },
   { id: 'neonrepair', name: 'Neon Sign Repair Bench', file: 'neonsignrepair.js' },
+  { id: 'cryptidstation', name: 'Mythical Creature Field Station', file: 'mythicalfieldstation.js' },
 ];
