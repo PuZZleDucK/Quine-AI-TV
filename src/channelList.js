@@ -117,4 +117,5 @@ export const CHANNELS = [
   { id: 'musicbox', name: 'Mechanical Music Box Workshop', file: 'musicbox.js' },
   { id: 'domescheduler', name: 'Observatory Dome Scheduler', file: 'observatorydome.js' },
   { id: 'locksmith', name: "Locksmith's Pin‑Tumbler Bench", file: 'locksmithbench.js' },
+  { id: 'cargomanifest', name: 'Starship Cargo Manifest', file: 'cargomanifest.js' },
 ];
