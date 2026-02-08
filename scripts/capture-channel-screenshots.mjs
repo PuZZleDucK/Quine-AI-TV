@@ -25,6 +25,12 @@ const CHANNEL_NUM = Number(process.env.CHANNEL_NUM || 0);
 const SHOT_SCOPE = process.env.SHOT_SCOPE || 'screen-wrap'; // screen-wrap | screen | page
 const FRAMES = Math.max(1, Number(process.env.FRAMES || 1));
 const FRAME_GAP_MS = Math.max(0, Number(process.env.FRAME_GAP_MS || 350));
+const OFFSETS_MS = String(process.env.OFFSETS_MS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+  .map((s) => Number(s))
+  .filter((n) => Number.isFinite(n) && n >= 0);
 const FAIL_ON_ERRORS = process.env.FAIL_ON_ERRORS === '1';
 const REQUIRE_READY = process.env.REQUIRE_READY !== '0';
 const OUT_DIR = process.env.OUT_DIR || path.join('screenshots', `channels-${timestamp()}`);
@@ -142,17 +148,20 @@ try {
   });
 
   async function clearTuneBuffer() {
-    // The UI only exposes Backspace + an auto-clear timer. Do a few backspaces so we
-    // don't depend on that timer for automation.
-    for (let i = 0; i < 4; i++) await page.keyboard.press('Backspace');
+    // Avoid Backspace key (can trigger browser navigation). Use the on-screen key instead.
+    for (let i = 0; i < 4; i++) {
+      await page.click('.keypad .key[data-action="back"]').catch(() => {});
+    }
   }
 
   async function tuneToChannel(ch) {
     // Ensure keyboard events go to the app.
     await page.click('.screen-wrap', { position: { x: 20, y: 20 } }).catch(() => {});
     await clearTuneBuffer();
-    for (const c of String(ch.number)) await page.keyboard.press(c);
-    await page.keyboard.press('Enter');
+    for (const c of String(ch.number)) {
+      await page.click(`.keypad .key[data-digit="${c}"]`);
+    }
+    await page.click('.keypad .key[data-action="enter"]');
     await page.waitForTimeout(WAIT_MS);
     await waitForChannelReady(ch);
   }
@@ -164,15 +173,8 @@ try {
     await tuneToChannel(ch);
     const tunedAt = Date.now();
 
-    for (let frame = 0; frame < FRAMES; frame++) {
-      if (frame > 0) await page.waitForTimeout(FRAME_GAP_MS);
-
-      const file =
-        FRAMES === 1
-          ? `${num}-${slugify(ch.id)}.png`
-          : `${num}-${slugify(ch.id)}-f${String(frame + 1).padStart(2, '0')}.png`;
+    async function captureToFile(file) {
       const outFile = path.join(OUT_DIR, file);
-
       if (SHOT_SCOPE === 'screen') {
         await page.locator('#screen').screenshot({ path: outFile });
       } else if (SHOT_SCOPE === 'page') {
@@ -180,16 +182,50 @@ try {
       } else {
         await page.locator('.screen-wrap').screenshot({ path: outFile });
       }
+    }
 
-      captures.push({
-        number: ch.number,
-        id: ch.id,
-        name: ch.name,
-        frame: frame + 1,
-        tMs: Date.now() - tunedAt,
-        file,
-      });
-      process.stdout.write(`captured CH ${num} ${ch.id} frame ${frame + 1}/${FRAMES}\n`);
+    if (OFFSETS_MS.length) {
+      const offsets = [...new Set(OFFSETS_MS)].sort((a, b) => a - b);
+      for (const offsetMs of offsets) {
+        const elapsed = Date.now() - tunedAt;
+        const wait = Math.max(0, offsetMs - elapsed);
+        if (wait) await page.waitForTimeout(wait);
+
+        const secs = Math.round(offsetMs / 1000);
+        const file = `${num}-${slugify(ch.id)}-t${String(secs).padStart(3, '0')}s.png`;
+        await captureToFile(file);
+
+        captures.push({
+          number: ch.number,
+          id: ch.id,
+          name: ch.name,
+          tMs: Date.now() - tunedAt,
+          offsetMs,
+          file,
+        });
+        process.stdout.write(`captured CH ${num} ${ch.id} t=${secs}s\n`);
+      }
+    } else {
+      for (let frame = 0; frame < FRAMES; frame++) {
+        if (frame > 0) await page.waitForTimeout(FRAME_GAP_MS);
+
+        const file =
+          FRAMES === 1
+            ? `${num}-${slugify(ch.id)}.png`
+            : `${num}-${slugify(ch.id)}-f${String(frame + 1).padStart(2, '0')}.png`;
+
+        await captureToFile(file);
+
+        captures.push({
+          number: ch.number,
+          id: ch.id,
+          name: ch.name,
+          frame: frame + 1,
+          tMs: Date.now() - tunedAt,
+          file,
+        });
+        process.stdout.write(`captured CH ${num} ${ch.id} frame ${frame + 1}/${FRAMES}\n`);
+      }
     }
   }
 
@@ -199,6 +235,7 @@ try {
     outDir: OUT_DIR,
     count: captures.length,
     framesPerChannel: FRAMES,
+    offsetsMs: OFFSETS_MS.length ? OFFSETS_MS : undefined,
     captures,
     errors,
     warnings,
