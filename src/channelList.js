@@ -91,4 +91,5 @@ export const CHANNELS = [
   { id: 'antfarm', name: 'Ant Farm Transit Authority', file: 'antfarmtransit.js' },
   { id: 'subseacable', name: 'Subsea Cable Pulse Monitor', file: 'subseacable.js' },
   { id: 'rooftoptank', name: 'Rooftop Water Tank Nights', file: 'rooftoptank.js' },
+  { id: 'dioramarest', name: 'Museum Diorama Restoration', file: 'dioramarestoration.js' },
 ];
