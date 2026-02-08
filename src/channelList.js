@@ -92,4 +92,5 @@ export const CHANNELS = [
   { id: 'subseacable', name: 'Subsea Cable Pulse Monitor', file: 'subseacable.js' },
   { id: 'rooftoptank', name: 'Rooftop Water Tank Nights', file: 'rooftoptank.js' },
   { id: 'dioramarest', name: 'Museum Diorama Restoration', file: 'dioramarestoration.js' },
+  { id: 'mailroomtube', name: 'Mailroom Tube Network', file: 'mailroomtube.js' },
 ];
