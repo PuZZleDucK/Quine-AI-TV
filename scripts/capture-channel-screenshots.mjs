@@ -23,8 +23,20 @@ const CHANNEL_LIMIT = Number(process.env.CHANNEL_LIMIT || 0);
 const SHOT_SCOPE = process.env.SHOT_SCOPE || 'screen-wrap'; // screen-wrap | screen | page
 const FAIL_ON_ERRORS = process.env.FAIL_ON_ERRORS === '1';
 const OUT_DIR = process.env.OUT_DIR || path.join('screenshots', `channels-${timestamp()}`);
+const CLEAN_OUT_DIR = process.env.CLEAN_OUT_DIR === '1';
 
 await fs.mkdir(OUT_DIR, { recursive: true });
+
+if (CLEAN_OUT_DIR) {
+  // When refreshing a stable folder like screenshots/all, remove stale captures first
+  // so channel re-ordering doesn't leave behind misleading PNGs.
+  const entries = await fs.readdir(OUT_DIR).catch(() => []);
+  await Promise.all(
+    entries
+      .filter((f) => f.endsWith('.png') || f === 'report.json')
+      .map((f) => fs.rm(path.join(OUT_DIR, f), { force: true }))
+  );
+}
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
@@ -95,8 +107,31 @@ try {
     await page.waitForTimeout(Math.max(0, SETTLE_MS));
   }
 
-  await page.click('#btn-power');
-  await page.waitForTimeout(Math.max(900, WAIT_MS));
+  // Ensure TV is powered on (boot state may be ON or OFF depending on src/main.js defaults).
+  const isPoweredOn = async () => {
+    return await page.evaluate(() => {
+      const el = document.getElementById('osd-power');
+      return (el?.textContent || '').trim().toUpperCase() === 'ON';
+    });
+  };
+
+  if (!(await isPoweredOn())) {
+    await page.click('#btn-power');
+    await page.waitForTimeout(Math.max(900, WAIT_MS));
+  }
+
+  // Disable scan for deterministic captures (optional, but keeps OSD consistent).
+  await page.evaluate(() => {
+    const el = document.getElementById('osd-scan');
+    const isOn = (el?.textContent || '').toUpperCase().includes('ON');
+    if (isOn) document.getElementById('btn-scan')?.click();
+  });
+
+  // Tune to CH 01 so captures start from a known point even if defaults change.
+  await page.keyboard.press('0');
+  await page.keyboard.press('1');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(WAIT_MS);
   await waitForChannelReady(channels[0]);
 
   const captures = [];

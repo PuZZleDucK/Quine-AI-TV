@@ -72,8 +72,14 @@ Output goes to `screenshots/channels-YYYYMMDD-HHMMSS/` with:
 Optional env vars:
 - `BASE_URL` (default `http://localhost:5176`)
 - `OUT_DIR` (custom output folder)
+- `CLEAN_OUT_DIR=1` (delete existing PNGs + `report.json` in `OUT_DIR` before capturing)
 - `WAIT_MS` (default `1200`, wait after tune input)
 - `SETTLE_MS` (default `500`, extra wait after transition noise clears)
 - `CHANNEL_LIMIT` (default `0`, capture first N channels only)
 - `SHOT_SCOPE` (`screen-wrap` | `screen` | `page`)
 - `FAIL_ON_ERRORS=1` (exit non-zero if runtime errors are detected)
+
+To refresh the checked-in set under `screenshots/all/`:
+```bash
+npm run screenshots:all
+```

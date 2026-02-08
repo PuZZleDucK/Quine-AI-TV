@@ -1,0 +1,562 @@
+{
+  "baseUrl": "http://localhost:5176",
+  "generatedAt": "2026-02-08T06:32:32.645Z",
+  "outDir": "screenshots/all",
+  "count": 92,
+  "captures": [
+    {
+      "number": 1,
+      "id": "synthwave",
+      "name": "Synthwave Drive",
+      "file": "01-synthwave.png"
+    },
+    {
+      "number": 2,
+      "id": "aquarium",
+      "name": "Midnight Aquarium",
+      "file": "02-aquarium.png"
+    },
+    {
+      "number": 3,
+      "id": "radar",
+      "name": "Weather Radar",
+      "file": "03-radar.png"
+    },
+    {
+      "number": 4,
+      "id": "weatherfactory",
+      "name": "Weather Factory",
+      "file": "04-weatherfactory.png"
+    },
+    {
+      "number": 5,
+      "id": "pocketplanet",
+      "name": "Pocket Planet Weather",
+      "file": "05-pocketplanet.png"
+    },
+    {
+      "number": 6,
+      "id": "snowglobe",
+      "name": "Snow Globe Weather Lab",
+      "file": "06-snowglobe.png"
+    },
+    {
+      "number": 7,
+      "id": "weatherballoon",
+      "name": "Weather Balloon Ascent",
+      "file": "07-weatherballoon.png"
+    },
+    {
+      "number": 8,
+      "id": "weatherfax",
+      "name": "Weatherfax Terminal",
+      "file": "08-weatherfax.png"
+    },
+    {
+      "number": 9,
+      "id": "mechanisms",
+      "name": "Satisfying Mechanisms",
+      "file": "09-mechanisms.png"
+    },
+    {
+      "number": 10,
+      "id": "bughotel",
+      "name": "Bug Hotel Live",
+      "file": "10-bughotel.png"
+    },
+    {
+      "number": 11,
+      "id": "typespecimen",
+      "name": "Type Specimen Theatre",
+      "file": "11-typespecimen.png"
+    },
+    {
+      "number": 12,
+      "id": "cozycompiler",
+      "name": "The Cozy Compiler",
+      "file": "12-cozycompiler.png"
+    },
+    {
+      "number": 13,
+      "id": "lava",
+      "name": "Lava Lamp",
+      "file": "13-lava.png"
+    },
+    {
+      "number": 14,
+      "id": "news",
+      "name": "24/7 Odd News",
+      "file": "14-news.png"
+    },
+    {
+      "number": 15,
+      "id": "musictheory",
+      "name": "The 3-Minute Music Theory",
+      "file": "15-musictheory.png"
+    },
+    {
+      "number": 16,
+      "id": "tinyorch",
+      "name": "Tiny Orchestra Workshop",
+      "file": "16-tinyorch.png"
+    },
+    {
+      "number": 17,
+      "id": "minutemuseum",
+      "name": "Minute Museum",
+      "file": "17-minutemuseum.png"
+    },
+    {
+      "number": 18,
+      "id": "bonsai",
+      "name": "Bonsai Time Machine",
+      "file": "18-bonsai.png"
+    },
+    {
+      "number": 19,
+      "id": "matrix",
+      "name": "Terminal Rain",
+      "file": "19-matrix.png"
+    },
+    {
+      "number": 20,
+      "id": "retroboot",
+      "name": "Retro Boot Sequence",
+      "file": "20-retroboot.png"
+    },
+    {
+      "number": 21,
+      "id": "arcadeattract",
+      "name": "Arcade Attract Mode Archives",
+      "file": "21-arcadeattract.png"
+    },
+    {
+      "number": 22,
+      "id": "obsoletemedia",
+      "name": "Museum of Obsolete Media",
+      "file": "22-obsoletemedia.png"
+    },
+    {
+      "number": 23,
+      "id": "orbits",
+      "name": "Orbital Desktoy",
+      "file": "23-orbits.png"
+    },
+    {
+      "number": 24,
+      "id": "planetpost",
+      "name": "Planetarium Postcards",
+      "file": "24-planetpost.png"
+    },
+    {
+      "number": 25,
+      "id": "oceanpost",
+      "name": "Ocean Floor Postcards",
+      "file": "25-oceanpost.png"
+    },
+    {
+      "number": 26,
+      "id": "city",
+      "name": "Pixel City Nights",
+      "file": "26-city.png"
+    },
+    {
+      "number": 27,
+      "id": "fire",
+      "name": "Cozy Fireplace",
+      "file": "27-fire.png"
+    },
+    {
+      "number": 28,
+      "id": "flow",
+      "name": "Flow Field",
+      "file": "28-flow.png"
+    },
+    {
+      "number": 29,
+      "id": "signalgarden",
+      "name": "Analog Signal Garden",
+      "file": "29-signalgarden.png"
+    },
+    {
+      "number": 30,
+      "id": "lostmanual",
+      "name": "The Lost Instruction Manual",
+      "file": "30-lostmanual.png"
+    },
+    {
+      "number": 31,
+      "id": "midnightlibrary",
+      "name": "Midnight Library Index",
+      "file": "31-midnightlibrary.png"
+    },
+    {
+      "number": 32,
+      "id": "weatheredatlas",
+      "name": "Mapmaker's Weathered Atlas",
+      "file": "32-weatheredatlas.png"
+    },
+    {
+      "number": 33,
+      "id": "botblueprint",
+      "name": "Botanical Blueprint Studio",
+      "file": "33-botblueprint.png"
+    },
+    {
+      "number": 34,
+      "id": "sports",
+      "name": "Sportsboard 3000",
+      "file": "34-sports.png"
+    },
+    {
+      "number": 35,
+      "id": "kaleido",
+      "name": "Kaleidoscope",
+      "file": "35-kaleido.png"
+    },
+    {
+      "number": 36,
+      "id": "spacecam",
+      "name": "Deep Space Cam",
+      "file": "36-spacecam.png"
+    },
+    {
+      "number": 37,
+      "id": "stargazerlog",
+      "name": "Stargazer's Logbook",
+      "file": "37-stargazerlog.png"
+    },
+    {
+      "number": 38,
+      "id": "shop",
+      "name": "HyperMall Live",
+      "file": "38-shop.png"
+    },
+    {
+      "number": 39,
+      "id": "cctv",
+      "name": "CCTV Night Watch",
+      "file": "39-cctv.png"
+    },
+    {
+      "number": 40,
+      "id": "slime",
+      "name": "Slime Lab",
+      "file": "40-slime.png"
+    },
+    {
+      "number": 41,
+      "id": "kitchen",
+      "name": "Kitchen Science Club",
+      "file": "41-kitchen.png"
+    },
+    {
+      "number": 42,
+      "id": "duckdebug",
+      "name": "Rubber Duck Debugging",
+      "file": "42-duckdebug.png"
+    },
+    {
+      "number": 43,
+      "id": "onetool",
+      "name": "One Tool, Ten Uses",
+      "file": "43-onetool.png"
+    },
+    {
+      "number": 44,
+      "id": "micromyst",
+      "name": "Micro-Mysteries",
+      "file": "44-micromyst.png"
+    },
+    {
+      "number": 45,
+      "id": "traveldesk",
+      "name": "The Tiny Travel Desk",
+      "file": "45-traveldesk.png"
+    },
+    {
+      "number": 46,
+      "id": "fixit",
+      "name": "Fix-It ASMR",
+      "file": "46-fixit.png"
+    },
+    {
+      "number": 47,
+      "id": "patents",
+      "name": "History's Weird Patents",
+      "file": "47-patents.png"
+    },
+    {
+      "number": 48,
+      "id": "futurearch",
+      "name": "Future Archaeology",
+      "file": "48-futurearch.png"
+    },
+    {
+      "number": 49,
+      "id": "circsafari",
+      "name": "Circuit Safari",
+      "file": "49-circsafari.png"
+    },
+    {
+      "number": 50,
+      "id": "speedcook",
+      "name": "Speed-Run Cooking",
+      "file": "50-speedcook.png"
+    },
+    {
+      "number": 51,
+      "id": "coffeetimer",
+      "name": "Coffee Timer Radio",
+      "file": "51-coffeetimer.png"
+    },
+    {
+      "number": 52,
+      "id": "rainradio",
+      "name": "Rainy Window Radio",
+      "file": "52-rainradio.png"
+    },
+    {
+      "number": 53,
+      "id": "ufohotline",
+      "name": "Small Town UFO Hotline",
+      "file": "53-ufohotline.png"
+    },
+    {
+      "number": 54,
+      "id": "origami",
+      "name": "Origami After Hours",
+      "file": "54-origami.png"
+    },
+    {
+      "number": 55,
+      "id": "tidydesk",
+      "name": "Tidy Desk Reset",
+      "file": "55-tidydesk.png"
+    },
+    {
+      "number": 56,
+      "id": "workclock",
+      "name": "Minimalist Workout Clock",
+      "file": "56-workclock.png"
+    },
+    {
+      "number": 57,
+      "id": "robotzoo",
+      "name": "Robot Petting Zoo",
+      "file": "57-robotzoo.png"
+    },
+    {
+      "number": 58,
+      "id": "foleylab",
+      "name": "Studio Foley Lab",
+      "file": "58-foleylab.png"
+    },
+    {
+      "number": 59,
+      "id": "timetable",
+      "name": "Railway Timetable ASMR",
+      "file": "59-timetable.png"
+    },
+    {
+      "number": 60,
+      "id": "subwaystories",
+      "name": "Subway Map Stories",
+      "file": "60-subwaystories.png"
+    },
+    {
+      "number": 61,
+      "id": "miniworlds",
+      "name": "Found Footage: Miniature Worlds",
+      "file": "61-miniworlds.png"
+    },
+    {
+      "number": 62,
+      "id": "packetsfm",
+      "name": "Packet Sniffer FM",
+      "file": "62-packetsfm.png"
+    },
+    {
+      "number": 63,
+      "id": "cloudchamber",
+      "name": "Cloud Chamber Live",
+      "file": "63-cloudchamber.png"
+    },
+    {
+      "number": 64,
+      "id": "sandtable",
+      "name": "Sand Table Cartography",
+      "file": "64-sandtable.png"
+    },
+    {
+      "number": 65,
+      "id": "analogdarkroom",
+      "name": "Analog Photo Darkroom",
+      "file": "65-analogdarkroom.png"
+    },
+    {
+      "number": 66,
+      "id": "candlechess",
+      "name": "Candlelit Chess Engine",
+      "file": "66-candlechess.png"
+    },
+    {
+      "number": 67,
+      "id": "nightsignals",
+      "name": "Night Signals",
+      "file": "67-nightsignals.png"
+    },
+    {
+      "number": 68,
+      "id": "pencilgeo",
+      "name": "Mechanical Pencil Geometry",
+      "file": "68-pencilgeo.png"
+    },
+    {
+      "number": 69,
+      "id": "dreamreceipt",
+      "name": "Dream Receipt Printer",
+      "file": "69-dreamreceipt.png"
+    },
+    {
+      "number": 70,
+      "id": "volcanoobs",
+      "name": "Tiny Volcano Observatory",
+      "file": "70-volcanoobs.png"
+    },
+    {
+      "number": 71,
+      "id": "bookbind",
+      "name": "Bookbinding Bench ASMR",
+      "file": "71-bookbind.png"
+    },
+    {
+      "number": 72,
+      "id": "glassblower",
+      "name": "Glassblower's Studio Loop",
+      "file": "72-glassblower.png"
+    },
+    {
+      "number": 73,
+      "id": "postoffice",
+      "name": "Post Office Sorting Desk",
+      "file": "73-postoffice.png"
+    },
+    {
+      "number": 74,
+      "id": "nightmarket",
+      "name": "Neon Night Market Ledger",
+      "file": "74-nightmarket.png"
+    },
+    {
+      "number": 75,
+      "id": "lighthouse",
+      "name": "Tiny Lighthouse Watch",
+      "file": "75-lighthouse.png"
+    },
+    {
+      "number": 76,
+      "id": "baggagecarousel",
+      "name": "Airport Baggage Carousel Cam",
+      "file": "76-baggagecarousel.png"
+    },
+    {
+      "number": 77,
+      "id": "mushroomlab",
+      "name": "Subterranean Mushroom Lab",
+      "file": "77-mushroomlab.png"
+    },
+    {
+      "number": 78,
+      "id": "gumballecon",
+      "name": "Gumball Machine Economics",
+      "file": "78-gumballecon.png"
+    },
+    {
+      "number": 79,
+      "id": "papermarble",
+      "name": "Paper Marbling Studio",
+      "file": "79-papermarble.png"
+    },
+    {
+      "number": 80,
+      "id": "papercity",
+      "name": "Paper City Fold-Out",
+      "file": "80-papercity.png"
+    },
+    {
+      "number": 81,
+      "id": "semaphore",
+      "name": "Semaphore Signal School",
+      "file": "81-semaphore.png"
+    },
+    {
+      "number": 82,
+      "id": "dominofactory",
+      "name": "Domino Factory Floor",
+      "file": "82-dominofactory.png"
+    },
+    {
+      "number": 83,
+      "id": "kintsugi",
+      "name": "Kintsugi Clinic",
+      "file": "83-kintsugi.png"
+    },
+    {
+      "number": 84,
+      "id": "switchboard",
+      "name": "Telephone Switchboard Nights",
+      "file": "84-switchboard.png"
+    },
+    {
+      "number": 85,
+      "id": "containerport",
+      "name": "Container Port Logistics",
+      "file": "85-containerport.png"
+    },
+    {
+      "number": 86,
+      "id": "hauntedplan",
+      "name": "Haunted Floorplan Tour",
+      "file": "86-hauntedplan.png"
+    },
+    {
+      "number": 87,
+      "id": "deepseasonar",
+      "name": "Deep Sea Sonar Survey",
+      "file": "87-deepseasonar.png"
+    },
+    {
+      "number": 88,
+      "id": "modelrail",
+      "name": "Model Railway Control Room",
+      "file": "88-modelrail.png"
+    },
+    {
+      "number": 89,
+      "id": "timekeeper",
+      "name": "Timekeeper's Bench ASMR",
+      "file": "89-timekeeper.png"
+    },
+    {
+      "number": 90,
+      "id": "antfarm",
+      "name": "Ant Farm Transit Authority",
+      "file": "90-antfarm.png"
+    },
+    {
+      "number": 91,
+      "id": "subseacable",
+      "name": "Subsea Cable Pulse Monitor",
+      "file": "91-subseacable.png"
+    },
+    {
+      "number": 92,
+      "id": "rooftoptank",
+      "name": "Rooftop Water Tank Nights",
+      "file": "92-rooftoptank.png"
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}

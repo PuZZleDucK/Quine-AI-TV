@@ -7,6 +7,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5176 --strictPort",
     "screenshots": "node ./scripts/capture-channel-screenshots.mjs",
+    "screenshots:all": "OUT_DIR=screenshots/all CLEAN_OUT_DIR=1 FAIL_ON_ERRORS=1 node ./scripts/capture-channel-screenshots.mjs",
     "screenshots:install": "playwright install chromium"
   },
   "devDependencies": {

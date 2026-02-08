@@ -1,3 +1,5 @@
 node_modules/
-screenshots/
+screenshots/*
+!screenshots/all/
+!screenshots/all/**
 dist/
