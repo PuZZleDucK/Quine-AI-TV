@@ -83,4 +83,5 @@ export const CHANNELS = [
   { id: 'switchboard', name: 'Telephone Switchboard Nights', file: 'switchboardnights.js' },
   { id: 'containerport', name: 'Container Port Logistics', file: 'containerport.js' },
   { id: 'hauntedplan', name: 'Haunted Floorplan Tour', file: 'hauntedfloorplan.js' },
+  { id: 'deepseasonar', name: 'Deep Sea Sonar Survey', file: 'deepseasonar.js' },
 ];
