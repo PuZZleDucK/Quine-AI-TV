@@ -80,6 +80,7 @@ export const CHANNELS = [
   { id: 'papermarble', name: 'Paper Marbling Studio', file: 'papermarbling.js' },
   { id: 'papercity', name: 'Paper City Fold-Out', file: 'papercity.js' },
   { id: 'semaphore', name: 'Semaphore Signal School', file: 'semaphore.js' },
+  { id: 'exposuretriangle', name: 'Exposure Triangle School', file: 'exposuretriangle.js' },
   { id: 'dominofactory', name: 'Domino Factory Floor', file: 'dominofactory.js' },
   { id: 'kintsugi', name: 'Kintsugi Clinic', file: 'kintsugiclinic.js' },
   { id: 'switchboard', name: 'Telephone Switchboard Nights', file: 'switchboardnights.js' },
