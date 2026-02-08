@@ -95,4 +95,5 @@ export const CHANNELS = [
   { id: 'mailroomtube', name: 'Mailroom Tube Network', file: 'mailroomtube.js' },
   { id: 'radiotelescope', name: 'Desert Radio Telescope Array', file: 'radiotelescope.js' },
   { id: 'vendoracle', name: 'Vending Machine Oracle', file: 'vendingoracle.js' },
+  { id: 'dungeoncarto', name: "Dungeon Cartographer's Desk", file: 'dungeoncartographer.js' },
 ];
