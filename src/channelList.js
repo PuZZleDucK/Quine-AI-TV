@@ -112,4 +112,5 @@ export const CHANNELS = [
   { id: 'reeltoreel', name: 'Reel-to-Reel Tape Splicing Desk', file: 'reeltoreel.js' },
   { id: 'cipherwheel', name: 'Cipher Wheel Classroom', file: 'cipherwheel.js' },
   { id: 'streetlightcrew', name: 'Streetlight Night Repair Crew', file: 'streetlightcrew.js' },
+  { id: 'beehivespectrum', name: 'Beehive Spectrum Radio', file: 'beehivespectrum.js' },
 ];
