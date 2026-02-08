@@ -106,4 +106,5 @@ export const CHANNELS = [
   { id: 'forgeanvil', name: 'Forge & Anvil Rhythm', file: 'forgeanvil.js' },
   { id: 'swatchfactory', name: 'Miniature Paint Swatch Factory', file: 'swatchfactory.js' },
   { id: 'polarmicro', name: "Geologist's Polarized Microscope", file: 'polarmicro.js' },
+  { id: 'lasercutfile', name: 'Laser Cutter Cutfile Studio', file: 'lasercutfile.js' },
 ];
