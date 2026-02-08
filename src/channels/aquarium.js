@@ -8,6 +8,8 @@ export function createChannel({ seed, audio }){
   let w=0,h=0,t=0;
   let fish=[], bubbles=[];
   let sand = [];
+  let seaweed = [];
+  let coral = [];
   let noiseHandle=null;
 
   function init({width,height}){
@@ -16,6 +18,8 @@ export function createChannel({ seed, audio }){
     fish = Array.from({length: 10}, (_,i)=>makeFish(i, i < 6));
     bubbles = Array.from({length: 90}, ()=>makeBubble(true));
     sand = makeSand();
+    seaweed = makeSeaweed();
+    coral = makeCoral();
   }
 
   function pickFishKind(){
@@ -82,9 +86,49 @@ export function createChannel({ seed, audio }){
     });
   }
 
+  function makeSeaweed(){
+    const randStatic = mulberry32((staticSeed ^ 0x2c1b3c6d) >>> 0);
+    const top = h*0.86;
+    const count = 10 + ((randStatic() * 6) | 0);
+    const items = [];
+    for (let i = 0; i < count; i++){
+      const x = randStatic()*w;
+      const y = top + (randStatic()*h*0.12);
+      const len = (h * (0.08 + randStatic()*0.18));
+      const thick = Math.max(1, h * (0.0022 + randStatic()*0.0018));
+      const sway = 0.8 + randStatic()*1.6;
+      const ph = randStatic()*Math.PI*2;
+      const hue = 145 + randStatic()*55; // green/teal family
+      const a = 0.18 + randStatic()*0.16;
+      items.push({ x, y, len, thick, sway, ph, hue, a });
+    }
+    return items;
+  }
+
+  function makeCoral(){
+    const randStatic = mulberry32((staticSeed ^ 0x7f4a7c15) >>> 0);
+    const top = h*0.86;
+    const count = 4 + ((randStatic() * 4) | 0);
+    const items = [];
+    for (let i = 0; i < count; i++){
+      const x = w * (0.12 + randStatic()*0.78);
+      const y = top + (randStatic()*h*0.10);
+      const r = h * (0.010 + randStatic()*0.018);
+      const hue = 330 + randStatic()*40; // pink/orange coral
+      const light = 56 + randStatic()*12;
+      const a = 0.22 + randStatic()*0.18;
+      const bumps = 5 + ((randStatic()*6) | 0);
+      const spread = 2.0 + randStatic()*2.2;
+      items.push({ x, y, r, hue, light, a, bumps, spread, ph: randStatic()*Math.PI*2 });
+    }
+    return items;
+  }
+
   function onResize(width,height){
     w=width; h=height;
     sand = makeSand();
+    seaweed = makeSeaweed();
+    coral = makeCoral();
   }
 
   function onAudioOn(){
@@ -150,6 +194,10 @@ export function createChannel({ seed, audio }){
       ctx.fillRect(s.x, s.y, 1, 1);
     }
     ctx.restore();
+
+    // coral + seaweed (background elements sitting on the seabed)
+    drawCoral(ctx);
+    drawSeaweed(ctx);
 
     // fish
     for (const f of fish){
@@ -287,6 +335,77 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = 'rgba(0,0,0,0.75)';
     ctx.beginPath(); ctx.arc(f.size*0.58, -f.size*0.1, f.size*0.06,0,Math.PI*2); ctx.fill();
 
+    ctx.restore();
+  }
+
+  function drawSeaweed(ctx){
+    const top = h*0.86;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (const s of seaweed){
+      const bend = Math.sin(t*0.55*s.sway + s.ph);
+      const x0 = s.x;
+      const y0 = s.y;
+      const y1 = y0 - s.len;
+      const x1 = x0 + bend * (s.len * 0.10);
+
+      // Two control points for a smooth stalk.
+      const cx1 = x0 + bend * (s.len * 0.06);
+      const cy1 = y0 - s.len * 0.35;
+      const cx2 = x0 + bend * (s.len * 0.12);
+      const cy2 = y0 - s.len * 0.72;
+
+      ctx.lineWidth = s.thick;
+      ctx.strokeStyle = `hsla(${s.hue}, 60%, 55%, ${s.a})`;
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.bezierCurveTo(cx1, cy1, cx2, cy2, x1, y1);
+      ctx.stroke();
+
+      // a faint highlight line for depth
+      ctx.lineWidth = Math.max(1, s.thick * 0.55);
+      ctx.strokeStyle = `hsla(${(s.hue+25)%360}, 65%, 62%, ${s.a*0.55})`;
+      ctx.beginPath();
+      ctx.moveTo(x0 + s.thick*0.35, y0);
+      ctx.bezierCurveTo(cx1 + s.thick*0.35, cy1, cx2 + s.thick*0.35, cy2, x1 + s.thick*0.2, y1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawCoral(ctx){
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (const c of coral){
+      const pulse = 0.5 + 0.5*Math.sin(t*0.25 + c.ph);
+      const a0 = c.a * (0.75 + 0.25*pulse);
+      ctx.fillStyle = `hsla(${c.hue%360}, 70%, ${c.light}%, ${a0})`;
+
+      // base blob
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, c.r*1.2, 0, Math.PI*2);
+      ctx.fill();
+
+      // bumps/branches
+      for (let i = 0; i < c.bumps; i++){
+        const ang = (i / c.bumps) * Math.PI*2;
+        const rr = c.r * (0.65 + 0.65*Math.sin(i*1.7 + c.ph)*0.2);
+        const dx = Math.cos(ang) * c.r * c.spread;
+        const dy = Math.sin(ang) * c.r * (c.spread*0.6);
+        ctx.beginPath();
+        ctx.arc(c.x + dx, c.y + dy, rr, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // soft glow underneath
+      const gg = ctx.createRadialGradient(c.x, c.y, c.r*0.5, c.x, c.y, c.r*4.2);
+      gg.addColorStop(0, `hsla(${c.hue%360}, 85%, ${Math.min(80, c.light+10)}%, ${a0*0.24})`);
+      gg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, c.r*4.2, 0, Math.PI*2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
