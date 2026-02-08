@@ -31,6 +31,7 @@ export const CHANNELS = [
   { id: 'lostmanual', name: 'The Lost Instruction Manual', file: 'lostmanual.js' },
   { id: 'midnightlibrary', name: 'Midnight Library Index', file: 'midnightlibrary.js' },
   { id: 'weatheredatlas', name: "Mapmaker's Weathered Atlas", file: 'weatheredatlas.js' },
+  { id: 'botblueprint', name: 'Botanical Blueprint Studio', file: 'botanicalblueprint.js' },
   { id: 'sports', name: 'Sportsboard 3000', file: 'sports.js' },
   { id: 'kaleido', name: 'Kaleidoscope', file: 'kaleido.js' },
   { id: 'spacecam', name: 'Deep Space Cam', file: 'spacecam.js' },
