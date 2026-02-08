@@ -119,4 +119,5 @@ export const CHANNELS = [
   { id: 'locksmith', name: "Locksmith's Pin‑Tumbler Bench", file: 'locksmithbench.js' },
   { id: 'cargomanifest', name: 'Starship Cargo Manifest', file: 'cargomanifest.js' },
   { id: 'seedvault', name: 'Seed Vault Inventory', file: 'seedvault.js' },
+  { id: 'kilncurve', name: 'Ceramic Kiln Firing Curve', file: 'kilncurve.js' },
 ];
