@@ -105,4 +105,5 @@ export const CHANNELS = [
   { id: 'windtunnel', name: 'Wind Tunnel Toy Lab', file: 'windtunnel.js' },
   { id: 'forgeanvil', name: 'Forge & Anvil Rhythm', file: 'forgeanvil.js' },
   { id: 'swatchfactory', name: 'Miniature Paint Swatch Factory', file: 'swatchfactory.js' },
+  { id: 'polarmicro', name: "Geologist's Polarized Microscope", file: 'polarmicro.js' },
 ];
