@@ -20,7 +20,11 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:5176';
 const WAIT_MS = Number(process.env.WAIT_MS || 1200);
 const SETTLE_MS = Number(process.env.SETTLE_MS || 500);
 const CHANNEL_LIMIT = Number(process.env.CHANNEL_LIMIT || 0);
+const CHANNEL_ID = process.env.CHANNEL_ID || '';
+const CHANNEL_NUM = Number(process.env.CHANNEL_NUM || 0);
 const SHOT_SCOPE = process.env.SHOT_SCOPE || 'screen-wrap'; // screen-wrap | screen | page
+const FRAMES = Math.max(1, Number(process.env.FRAMES || 1));
+const FRAME_GAP_MS = Math.max(0, Number(process.env.FRAME_GAP_MS || 350));
 const FAIL_ON_ERRORS = process.env.FAIL_ON_ERRORS === '1';
 const OUT_DIR = process.env.OUT_DIR || path.join('screenshots', `channels-${timestamp()}`);
 const CLEAN_OUT_DIR = process.env.CLEAN_OUT_DIR === '1';
@@ -78,6 +82,12 @@ try {
     }));
   });
 
+  if (CHANNEL_ID) {
+    channels = channels.filter((ch) => ch.id === CHANNEL_ID);
+  } else if (CHANNEL_NUM > 0) {
+    channels = channels.filter((ch) => ch.number === CHANNEL_NUM);
+  }
+
   if (CHANNEL_LIMIT > 0) channels = channels.slice(0, CHANNEL_LIMIT);
   if (!channels.length) throw new Error('No channels found from src/channelList.js');
 
@@ -127,38 +137,54 @@ try {
     if (isOn) document.getElementById('btn-scan')?.click();
   });
 
-  // Tune to CH 01 so captures start from a known point even if defaults change.
-  await page.keyboard.press('0');
-  await page.keyboard.press('1');
-  await page.keyboard.press('Enter');
-  await page.waitForTimeout(WAIT_MS);
-  await waitForChannelReady(channels[0]);
+  async function clearTuneBuffer() {
+    // The UI only exposes Backspace + an auto-clear timer. Do a few backspaces so we
+    // don't depend on that timer for automation.
+    for (let i = 0; i < 4; i++) await page.keyboard.press('Backspace');
+  }
+
+  async function tuneToChannel(ch) {
+    await clearTuneBuffer();
+    for (const c of String(ch.number)) await page.keyboard.press(c);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(WAIT_MS);
+    await waitForChannelReady(ch);
+  }
 
   const captures = [];
-  for (let i = 0; i < channels.length; i++) {
-    const ch = channels[i];
+  for (const ch of channels) {
     active = { number: ch.number, id: ch.id, name: ch.name };
     const num = String(ch.number).padStart(2, '0');
-    const file = `${num}-${slugify(ch.id)}.png`;
-    const outFile = path.join(OUT_DIR, file);
+    await tuneToChannel(ch);
+    const tunedAt = Date.now();
 
-    // TV powers on to CH 01. For subsequent captures, step channel-up once.
-    if (i > 0) {
-      await page.click('#btn-ch-up');
-      await page.waitForTimeout(WAIT_MS);
-      await waitForChannelReady(ch);
+    for (let frame = 0; frame < FRAMES; frame++) {
+      if (frame > 0) await page.waitForTimeout(FRAME_GAP_MS);
+
+      const file =
+        FRAMES === 1
+          ? `${num}-${slugify(ch.id)}.png`
+          : `${num}-${slugify(ch.id)}-f${String(frame + 1).padStart(2, '0')}.png`;
+      const outFile = path.join(OUT_DIR, file);
+
+      if (SHOT_SCOPE === 'screen') {
+        await page.locator('#screen').screenshot({ path: outFile });
+      } else if (SHOT_SCOPE === 'page') {
+        await page.screenshot({ path: outFile, fullPage: true });
+      } else {
+        await page.locator('.screen-wrap').screenshot({ path: outFile });
+      }
+
+      captures.push({
+        number: ch.number,
+        id: ch.id,
+        name: ch.name,
+        frame: frame + 1,
+        tMs: Date.now() - tunedAt,
+        file,
+      });
+      process.stdout.write(`captured CH ${num} ${ch.id} frame ${frame + 1}/${FRAMES}\n`);
     }
-
-    if (SHOT_SCOPE === 'screen') {
-      await page.locator('#screen').screenshot({ path: outFile });
-    } else if (SHOT_SCOPE === 'page') {
-      await page.screenshot({ path: outFile, fullPage: true });
-    } else {
-      await page.locator('.screen-wrap').screenshot({ path: outFile });
-    }
-
-    captures.push({ number: ch.number, id: ch.id, name: ch.name, file });
-    process.stdout.write(`captured CH ${num} ${ch.id}\n`);
   }
 
   const report = {
@@ -166,6 +192,7 @@ try {
     generatedAt: new Date().toISOString(),
     outDir: OUT_DIR,
     count: captures.length,
+    framesPerChannel: FRAMES,
     captures,
     errors,
     warnings,

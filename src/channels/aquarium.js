@@ -1,44 +1,66 @@
 import { mulberry32, clamp } from '../util/prng.js';
 
 export function createChannel({ seed, audio }){
-  const rand = mulberry32(seed);
+  const randSim = mulberry32(seed);
+  // Use a separate RNG stream for any precomputed/static visuals so render()
+  // doesn't consume simulation randomness (keeps behavior stable across FPS / capture timing).
+  const staticSeed = (seed ^ 0x9e3779b9) >>> 0;
   let w=0,h=0,t=0;
   let fish=[], bubbles=[];
+  let sand = [];
   let noiseHandle=null;
 
   function init({width,height}){
     w=width; h=height; t=0;
-    fish = Array.from({length: 10}, (_,i)=>makeFish(i));
+    // Spawn some fish on-screen so screenshots are less empty right after tuning.
+    fish = Array.from({length: 10}, (_,i)=>makeFish(i, i < 6));
     bubbles = Array.from({length: 90}, ()=>makeBubble(true));
+    sand = makeSand();
   }
 
-  function makeFish(i){
-    const dir = rand() < 0.5 ? 1 : -1;
+  function makeFish(i, spawnOnscreen=false){
+    const dir = randSim() < 0.5 ? 1 : -1;
     return {
-      x: dir>0 ? -rand()*w*0.6 : w + rand()*w*0.6,
-      y: h*(0.18 + rand()*0.72),
+      x: spawnOnscreen ? (randSim()*w) : (dir>0 ? -randSim()*w*0.6 : w + randSim()*w*0.6),
+      y: h*(0.18 + randSim()*0.72),
       dir,
-      sp: (0.25+rand()*0.9) * (w/800),
-      amp: (12+rand()*40) * (h/540),
-      ph: rand()*Math.PI*2,
-      hue: 170 + rand()*120,
-      size: (12+rand()*36) * (h/540),
+      sp: (0.25+randSim()*0.9) * (w/800),
+      amp: (12+randSim()*40) * (h/540),
+      ph: randSim()*Math.PI*2,
+      hue: 170 + randSim()*120,
+      size: (12+randSim()*36) * (h/540),
     };
   }
 
   function makeBubble(reset=false){
     return {
-      x: rand()*w,
-      y: reset ? h + rand()*h : rand()*h,
-      r: (1.5+rand()*6) * (h/540),
-      sp: (14+rand()*60) * (h/540),
-      drift: (rand()*2-1) * 0.6,
-      wob: rand()*10,
-      a: 0.08 + rand()*0.25,
+      x: randSim()*w,
+      y: reset ? h + randSim()*h : randSim()*h,
+      r: (1.5+randSim()*6) * (h/540),
+      sp: (14+randSim()*60) * (h/540),
+      drift: (randSim()*2-1) * 0.6,
+      wob: randSim()*10,
+      a: 0.08 + randSim()*0.25,
     };
   }
 
-  function onResize(width,height){ w=width; h=height; }
+  function makeSand(){
+    const randStatic = mulberry32(staticSeed);
+    const top = h*0.86;
+    const height = h*0.14;
+    // Precompute specks (position + style) so they don't flicker.
+    return Array.from({length: 420}, () => {
+      const x = (randStatic()*w)|0;
+      const y = (top + randStatic()*height)|0;
+      const a = 0.08 + randStatic()*0.2;
+      return { x, y, style: `rgba(210,200,160,${a})` };
+    });
+  }
+
+  function onResize(width,height){
+    w=width; h=height;
+    sand = makeSand();
+  }
 
   function onAudioOn(){
     if (!audio.enabled) return;
@@ -98,11 +120,9 @@ export function createChannel({ seed, audio }){
     // sand specks
     ctx.save();
     ctx.globalAlpha=0.35;
-    for (let i=0;i<420;i++){
-      const x = (rand()*w)|0;
-      const y = (h*0.86 + rand()*h*0.14)|0;
-      ctx.fillStyle = `rgba(210,200,160,${0.08+rand()*0.2})`;
-      ctx.fillRect(x,y,1,1);
+    for (const s of sand){
+      ctx.fillStyle = s.style;
+      ctx.fillRect(s.x, s.y, 1, 1);
     }
     ctx.restore();
 
@@ -132,13 +152,13 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = vg;
     ctx.fillRect(0,0,w,h);
 
-    // label
+    // label (kept subtle and away from the OSD area)
     ctx.save();
-    ctx.font = `${Math.floor(h/20)}px ui-serif, Georgia, serif`;
-    ctx.fillStyle = 'rgba(210,255,250,0.75)';
-    ctx.shadowColor = 'rgba(0,0,0,0.6)';
-    ctx.shadowBlur = 8;
-    ctx.fillText('MIDNIGHT AQUARIUM', w*0.05, h*0.12);
+    ctx.font = `${Math.floor(h/34)}px ui-serif, Georgia, serif`;
+    ctx.fillStyle = 'rgba(210,255,250,0.35)';
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = 6;
+    ctx.fillText('Midnight Aquarium', w*0.05, h*0.83);
     ctx.restore();
   }
 

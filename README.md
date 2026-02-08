@@ -76,10 +76,19 @@ Optional env vars:
 - `WAIT_MS` (default `1200`, wait after tune input)
 - `SETTLE_MS` (default `500`, extra wait after transition noise clears)
 - `CHANNEL_LIMIT` (default `0`, capture first N channels only)
+- `CHANNEL_ID` (capture a single channel by id, e.g. `aquarium`)
+- `CHANNEL_NUM` (capture a single channel by number, e.g. `2`)
+- `FRAMES` (default `1`, capture multiple frames per channel)
+- `FRAME_GAP_MS` (default `350`, delay between frames when `FRAMES > 1`)
 - `SHOT_SCOPE` (`screen-wrap` | `screen` | `page`)
 - `FAIL_ON_ERRORS=1` (exit non-zero if runtime errors are detected)
 
 To refresh the checked-in set under `screenshots/all/`:
 ```bash
 npm run screenshots:all
+```
+
+To review animation/flicker for a single channel:
+```bash
+OUT_DIR=screenshots/aquarium-frames CHANNEL_ID=aquarium FRAMES=12 FRAME_GAP_MS=200 npm run screenshots
 ```

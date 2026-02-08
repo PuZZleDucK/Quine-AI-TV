@@ -83,7 +83,11 @@ body{
   border: 1px solid rgba(255,255,255,.12);
   backdrop-filter: blur(10px);
 }
-.osd-hint{font-size:12px; color:rgba(231,238,246,.8); text-shadow:0 1px 0 rgba(0,0,0,.5)}
+.osd-hint{
+  font-size:11px;
+  color:rgba(231,238,246,.58);
+  text-shadow:0 1px 0 rgba(0,0,0,.55);
+}
 
 .guide{
   position:absolute;
