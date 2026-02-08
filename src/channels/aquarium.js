@@ -90,12 +90,13 @@ export function createChannel({ seed, audio }){
     const randStatic = mulberry32((staticSeed ^ 0x2c1b3c6d) >>> 0);
     const top = h*0.86;
     // Two layers: lots of thin background strands + fewer thicker foreground stalks.
-    const count = 18 + ((randStatic() * 10) | 0);
+    const count = 30 + ((randStatic() * 18) | 0);
     const items = [];
     for (let i = 0; i < count; i++){
       const x = randStatic()*w;
       const y = top + (randStatic()*h*0.12);
-      const layer = randStatic() < 0.72 ? 'back' : 'front';
+      // Bias toward the thin "classic" seaweed look.
+      const layer = randStatic() < 0.84 ? 'back' : 'front';
       const len = layer === 'back'
         ? (h * (0.06 + randStatic()*0.16))
         : (h * (0.10 + randStatic()*0.22));
@@ -110,7 +111,7 @@ export function createChannel({ seed, audio }){
         ? (150 + randStatic()*45) // green/teal family
         : (135 + randStatic()*70); // slightly broader range
       const a = layer === 'back'
-        ? (0.10 + randStatic()*0.12)
+        ? (0.08 + randStatic()*0.12)
         : (0.14 + randStatic()*0.16);
       items.push({ x, y, len, thick, sway, ph, hue, a, layer });
     }
