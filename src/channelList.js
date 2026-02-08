@@ -84,4 +84,5 @@ export const CHANNELS = [
   { id: 'containerport', name: 'Container Port Logistics', file: 'containerport.js' },
   { id: 'hauntedplan', name: 'Haunted Floorplan Tour', file: 'hauntedfloorplan.js' },
   { id: 'deepseasonar', name: 'Deep Sea Sonar Survey', file: 'deepseasonar.js' },
+  { id: 'modelrail', name: 'Model Railway Control Room', file: 'modelrail.js' },
 ];
