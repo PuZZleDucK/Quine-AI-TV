@@ -111,4 +111,5 @@ export const CHANNELS = [
   { id: 'bookreturns', name: 'Book Return Sorting Machine', file: 'bookreturnsorter.js' },
   { id: 'reeltoreel', name: 'Reel-to-Reel Tape Splicing Desk', file: 'reeltoreel.js' },
   { id: 'cipherwheel', name: 'Cipher Wheel Classroom', file: 'cipherwheel.js' },
+  { id: 'streetlightcrew', name: 'Streetlight Night Repair Crew', file: 'streetlightcrew.js' },
 ];
