@@ -120,4 +120,5 @@ export const CHANNELS = [
   { id: 'cargomanifest', name: 'Starship Cargo Manifest', file: 'cargomanifest.js' },
   { id: 'seedvault', name: 'Seed Vault Inventory', file: 'seedvault.js' },
   { id: 'kilncurve', name: 'Ceramic Kiln Firing Curve', file: 'kilncurve.js' },
+  { id: 'elevatorpanel', name: 'Elevator Control Panel Dreams', file: 'elevatorpanel.js' },
 ];
