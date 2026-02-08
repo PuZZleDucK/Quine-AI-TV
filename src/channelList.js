@@ -103,4 +103,5 @@ export const CHANNELS = [
   { id: 'shipbottle', name: 'Ship-in-a-Bottle Workshop', file: 'shipinabottle.js' },
   { id: 'stitchalong', name: 'Constellation Stitch‑Along', file: 'constellationstitch.js' },
   { id: 'windtunnel', name: 'Wind Tunnel Toy Lab', file: 'windtunnel.js' },
+  { id: 'forgeanvil', name: 'Forge & Anvil Rhythm', file: 'forgeanvil.js' },
 ];
