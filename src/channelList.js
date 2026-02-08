@@ -96,4 +96,5 @@ export const CHANNELS = [
   { id: 'radiotelescope', name: 'Desert Radio Telescope Array', file: 'radiotelescope.js' },
   { id: 'vendoracle', name: 'Vending Machine Oracle', file: 'vendingoracle.js' },
   { id: 'dungeoncarto', name: "Dungeon Cartographer's Desk", file: 'dungeoncartographer.js' },
+  { id: 'robotarmballet', name: 'Robotic Arm Ballet', file: 'robotarmballet.js' },
 ];
