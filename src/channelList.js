@@ -85,4 +85,5 @@ export const CHANNELS = [
   { id: 'hauntedplan', name: 'Haunted Floorplan Tour', file: 'hauntedfloorplan.js' },
   { id: 'deepseasonar', name: 'Deep Sea Sonar Survey', file: 'deepseasonar.js' },
   { id: 'modelrail', name: 'Model Railway Control Room', file: 'modelrail.js' },
+  { id: 'timekeeper', name: "Timekeeper's Bench ASMR", file: 'timekeeperbench.js' },
 ];
