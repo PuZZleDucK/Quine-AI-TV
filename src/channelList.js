@@ -21,6 +21,7 @@ export const CHANNELS = [
   { id: 'retroboot', name: 'Retro Boot Sequence', file: 'retroboot.js' },
   { id: 'arcadeattract', name: 'Arcade Attract Mode Archives', file: 'arcadeattract.js' },
   { id: 'obsoletemedia', name: 'Museum of Obsolete Media', file: 'obsoletemedia.js' },
+  { id: 'microfilm', name: 'Microfilm Archive Reader', file: 'microfilm.js' },
   { id: 'orbits', name: 'Orbital Desktoy', file: 'orbits.js' },
   { id: 'planetpost', name: 'Planetarium Postcards', file: 'planetpostcards.js' },
   { id: 'oceanpost', name: 'Ocean Floor Postcards', file: 'oceanpostcards.js' },
