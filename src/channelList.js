@@ -94,4 +94,5 @@ export const CHANNELS = [
   { id: 'dioramarest', name: 'Museum Diorama Restoration', file: 'dioramarestoration.js' },
   { id: 'mailroomtube', name: 'Mailroom Tube Network', file: 'mailroomtube.js' },
   { id: 'radiotelescope', name: 'Desert Radio Telescope Array', file: 'radiotelescope.js' },
+  { id: 'vendoracle', name: 'Vending Machine Oracle', file: 'vendingoracle.js' },
 ];
