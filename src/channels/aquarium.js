@@ -89,18 +89,30 @@ export function createChannel({ seed, audio }){
   function makeSeaweed(){
     const randStatic = mulberry32((staticSeed ^ 0x2c1b3c6d) >>> 0);
     const top = h*0.86;
-    const count = 10 + ((randStatic() * 6) | 0);
+    // Two layers: lots of thin background strands + fewer thicker foreground stalks.
+    const count = 18 + ((randStatic() * 10) | 0);
     const items = [];
     for (let i = 0; i < count; i++){
       const x = randStatic()*w;
       const y = top + (randStatic()*h*0.12);
-      const len = (h * (0.08 + randStatic()*0.18));
-      const thick = Math.max(1, h * (0.0022 + randStatic()*0.0018));
-      const sway = 0.8 + randStatic()*1.6;
+      const layer = randStatic() < 0.72 ? 'back' : 'front';
+      const len = layer === 'back'
+        ? (h * (0.06 + randStatic()*0.16))
+        : (h * (0.10 + randStatic()*0.22));
+      const thick = layer === 'back'
+        ? Math.max(1, h * (0.0018 + randStatic()*0.0014))
+        : Math.max(1, h * (0.0026 + randStatic()*0.0022));
+      const sway = layer === 'back'
+        ? (0.9 + randStatic()*2.0)
+        : (0.7 + randStatic()*1.4);
       const ph = randStatic()*Math.PI*2;
-      const hue = 145 + randStatic()*55; // green/teal family
-      const a = 0.18 + randStatic()*0.16;
-      items.push({ x, y, len, thick, sway, ph, hue, a });
+      const hue = layer === 'back'
+        ? (150 + randStatic()*45) // green/teal family
+        : (135 + randStatic()*70); // slightly broader range
+      const a = layer === 'back'
+        ? (0.10 + randStatic()*0.12)
+        : (0.14 + randStatic()*0.16);
+      items.push({ x, y, len, thick, sway, ph, hue, a, layer });
     }
     return items;
   }
@@ -108,18 +120,53 @@ export function createChannel({ seed, audio }){
   function makeCoral(){
     const randStatic = mulberry32((staticSeed ^ 0x7f4a7c15) >>> 0);
     const top = h*0.86;
-    const count = 4 + ((randStatic() * 4) | 0);
+    const count = 6 + ((randStatic() * 7) | 0);
     const items = [];
+
+    function coralHue(){
+      // Mix a few coral palettes so it doesn't read as stamped clones.
+      const r = randStatic();
+      if (r < 0.38) return 330 + randStatic()*50; // magenta/pink
+      if (r < 0.70) return 12 + randStatic()*48;  // orange/red
+      return 265 + randStatic()*60;               // violet
+    }
+
     for (let i = 0; i < count; i++){
       const x = w * (0.12 + randStatic()*0.78);
       const y = top + (randStatic()*h*0.10);
       const r = h * (0.010 + randStatic()*0.018);
-      const hue = 330 + randStatic()*40; // pink/orange coral
-      const light = 56 + randStatic()*12;
-      const a = 0.22 + randStatic()*0.18;
-      const bumps = 5 + ((randStatic()*6) | 0);
-      const spread = 2.0 + randStatic()*2.2;
-      items.push({ x, y, r, hue, light, a, bumps, spread, ph: randStatic()*Math.PI*2 });
+      const hue = coralHue();
+      const light = 50 + randStatic()*18;
+      const a = 0.18 + randStatic()*0.20;
+      const ph = randStatic()*Math.PI*2;
+      const kindRoll = randStatic();
+      const kind =
+        kindRoll < 0.45 ? 'boulder' :
+        kindRoll < 0.72 ? 'tubes' :
+        kindRoll < 0.90 ? 'fan' :
+        'branch';
+
+      if (kind === 'boulder'){
+        const bumps = 4 + ((randStatic()*8) | 0);
+        const spread = 1.5 + randStatic()*3.2;
+        const ax = 0.85 + randStatic()*0.65;
+        const ay = 0.75 + randStatic()*0.75;
+        items.push({ kind, x, y, r, hue, light, a, bumps, spread, ax, ay, ph });
+      } else if (kind === 'tubes'){
+        const tubes = 4 + ((randStatic()*7) | 0);
+        const height = r * (2.8 + randStatic()*5.0);
+        const width = r * (0.9 + randStatic()*1.2);
+        items.push({ kind, x, y, r, hue, light, a, tubes, height, width, ph });
+      } else if (kind === 'fan'){
+        const radius = r * (5.0 + randStatic()*8.0);
+        const arc = (Math.PI * (0.55 + randStatic()*0.25));
+        const spokes = 8 + ((randStatic()*14) | 0);
+        items.push({ kind, x, y, r, hue, light, a, radius, arc, spokes, ph });
+      } else {
+        const branches = 3 + ((randStatic()*5) | 0);
+        const height = r * (5.0 + randStatic()*9.0);
+        items.push({ kind, x, y, r, hue, light, a, branches, height, ph });
+      }
     }
     return items;
   }
@@ -362,49 +409,153 @@ export function createChannel({ seed, audio }){
       ctx.bezierCurveTo(cx1, cy1, cx2, cy2, x1, y1);
       ctx.stroke();
 
-      // a faint highlight line for depth
-      ctx.lineWidth = Math.max(1, s.thick * 0.55);
-      ctx.strokeStyle = `hsla(${(s.hue+25)%360}, 65%, 62%, ${s.a*0.55})`;
-      ctx.beginPath();
-      ctx.moveTo(x0 + s.thick*0.35, y0);
-      ctx.bezierCurveTo(cx1 + s.thick*0.35, cy1, cx2 + s.thick*0.35, cy2, x1 + s.thick*0.2, y1);
-      ctx.stroke();
+      // a faint highlight line for depth (skip in back layer to reduce clutter)
+      if (s.layer !== 'back'){
+        ctx.lineWidth = Math.max(1, s.thick * 0.55);
+        ctx.strokeStyle = `hsla(${(s.hue+25)%360}, 65%, 62%, ${s.a*0.55})`;
+        ctx.beginPath();
+        ctx.moveTo(x0 + s.thick*0.35, y0);
+        ctx.bezierCurveTo(cx1 + s.thick*0.35, cy1, cx2 + s.thick*0.35, cy2, x1 + s.thick*0.2, y1);
+        ctx.stroke();
+      }
     }
     ctx.restore();
   }
 
   function drawCoral(ctx){
     ctx.save();
-    ctx.globalCompositeOperation = 'screen';
+    // Mostly paint as "real objects" (source-over), then add a small glow pass.
+    ctx.globalCompositeOperation = 'source-over';
     for (const c of coral){
       const pulse = 0.5 + 0.5*Math.sin(t*0.25 + c.ph);
       const a0 = c.a * (0.75 + 0.25*pulse);
-      ctx.fillStyle = `hsla(${c.hue%360}, 70%, ${c.light}%, ${a0})`;
+      const hue = c.hue % 360;
 
-      // base blob
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, c.r*1.2, 0, Math.PI*2);
-      ctx.fill();
-
-      // bumps/branches
-      for (let i = 0; i < c.bumps; i++){
-        const ang = (i / c.bumps) * Math.PI*2;
-        const rr = c.r * (0.65 + 0.65*Math.sin(i*1.7 + c.ph)*0.2);
-        const dx = Math.cos(ang) * c.r * c.spread;
-        const dy = Math.sin(ang) * c.r * (c.spread*0.6);
+      if (c.kind === 'tubes'){
+        const tubes = c.tubes;
+        for (let i = 0; i < tubes; i++){
+          const tt = (i / Math.max(1, tubes - 1));
+          const dx = (tt - 0.5) * c.width * 3.0 + Math.sin(c.ph + i*1.4)*c.r*0.7;
+          const hh = c.height * (0.55 + 0.55*Math.sin(c.ph*0.7 + i*0.9 + 1.0));
+          const ww = c.width * (0.85 + 0.30*Math.sin(c.ph + i));
+          const x = c.x + dx;
+          const y = c.y;
+          // tube body
+          const body = ctx.createLinearGradient(x, y - hh, x, y);
+          body.addColorStop(0, `hsla(${hue}, 72%, ${c.light+12}%, ${a0*0.90})`);
+          body.addColorStop(1, `hsla(${(hue+10)%360}, 70%, ${c.light-6}%, ${a0*0.90})`);
+          ctx.fillStyle = body;
+          ctx.beginPath();
+          ctx.roundRect?.(x - ww*0.5, y - hh, ww, hh, ww*0.45);
+          if (!ctx.roundRect){
+            ctx.rect(x - ww*0.5, y - hh, ww, hh);
+          }
+          ctx.fill();
+          // tube opening
+          ctx.fillStyle = `rgba(0,0,0,${0.18 + 0.10*pulse})`;
+          ctx.beginPath();
+          ctx.ellipse(x, y - hh + ww*0.55, ww*0.35, ww*0.22, 0, 0, Math.PI*2);
+          ctx.fill();
+          ctx.fillStyle = `hsla(${(hue+25)%360}, 85%, ${Math.min(78, c.light+18)}%, ${a0*0.22})`;
+          ctx.beginPath();
+          ctx.ellipse(x, y - hh + ww*0.50, ww*0.42, ww*0.26, 0, 0, Math.PI*2);
+          ctx.fill();
+        }
+      } else if (c.kind === 'fan'){
+        const ang0 = -Math.PI/2 - c.arc*0.5;
+        const ang1 = -Math.PI/2 + c.arc*0.5;
+        // fan fill
+        const fan = ctx.createRadialGradient(c.x, c.y, c.r*0.6, c.x, c.y, c.radius);
+        fan.addColorStop(0, `hsla(${hue}, 70%, ${c.light+10}%, ${a0*0.70})`);
+        fan.addColorStop(1, `hsla(${(hue+15)%360}, 70%, ${c.light-6}%, ${a0*0.10})`);
+        ctx.fillStyle = fan;
         ctx.beginPath();
-        ctx.arc(c.x + dx, c.y + dy, rr, 0, Math.PI*2);
+        ctx.moveTo(c.x, c.y);
+        ctx.arc(c.x, c.y, c.radius, ang0, ang1);
+        ctx.closePath();
+        ctx.fill();
+
+        // spokes
+        ctx.save();
+        ctx.globalAlpha = a0 * 0.55;
+        ctx.strokeStyle = `hsla(${(hue+25)%360}, 78%, ${Math.min(78, c.light+18)}%, 0.8)`;
+        ctx.lineWidth = Math.max(1, h/900);
+        for (let i = 0; i < c.spokes; i++){
+          const tt = i / Math.max(1, c.spokes - 1);
+          const a = ang0 + (ang1 - ang0) * tt;
+          const rr = c.radius * (0.35 + 0.65*(0.6 + 0.4*Math.sin(c.ph + i*0.7)));
+          ctx.beginPath();
+          ctx.moveTo(c.x, c.y);
+          ctx.lineTo(c.x + Math.cos(a)*rr, c.y + Math.sin(a)*rr);
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else if (c.kind === 'branch'){
+        ctx.save();
+        ctx.globalAlpha = a0 * 0.95;
+        ctx.strokeStyle = `hsla(${hue}, 68%, ${c.light}%, 0.9)`;
+        ctx.lineCap = 'round';
+        for (let i = 0; i < c.branches; i++){
+          const baseAng = -Math.PI/2 + (i - (c.branches-1)/2) * 0.38;
+          const sway = Math.sin(t*0.18 + c.ph + i) * 0.10;
+          const ang = baseAng + sway;
+          const len = c.height * (0.55 + 0.55*Math.sin(c.ph*0.7 + i*1.3));
+          const x0 = c.x + (i - (c.branches-1)/2) * c.r * 1.2;
+          const y0 = c.y;
+          const x1 = x0 + Math.cos(ang) * len;
+          const y1 = y0 + Math.sin(ang) * len;
+          const cx = x0 + Math.cos(ang-0.35) * len * 0.55;
+          const cy = y0 + Math.sin(ang-0.35) * len * 0.55;
+          ctx.lineWidth = Math.max(1, c.r * (0.40 + 0.30*Math.sin(c.ph + i)));
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.quadraticCurveTo(cx, cy, x1, y1);
+          ctx.stroke();
+          // tip bloom
+          ctx.fillStyle = `hsla(${(hue+18)%360}, 75%, ${Math.min(78, c.light+18)}%, ${a0*0.45})`;
+          ctx.beginPath();
+          ctx.arc(x1, y1, c.r*(0.50 + 0.20*Math.sin(c.ph+i)), 0, Math.PI*2);
+          ctx.fill();
+        }
+        ctx.restore();
+      } else {
+        // boulder
+        ctx.fillStyle = `hsla(${hue}, 70%, ${c.light}%, ${a0})`;
+        // base blob
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y, c.r*1.3*c.ax, c.r*1.1*c.ay, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        // bumps
+        for (let i = 0; i < c.bumps; i++){
+          const ang = (i / c.bumps) * Math.PI*2 + Math.sin(c.ph + i)*0.25;
+          const rr = c.r * (0.55 + 0.55*(0.6 + 0.4*Math.sin(i*1.7 + c.ph)));
+          const dx = Math.cos(ang) * c.r * c.spread * (0.6 + 0.7*Math.sin(c.ph + i*0.9)*0.2);
+          const dy = Math.sin(ang) * c.r * (c.spread*0.55);
+          ctx.fillStyle = `hsla(${(hue + 8 + i*3)%360}, 70%, ${c.light + 4}%, ${a0*0.85})`;
+          ctx.beginPath();
+          ctx.ellipse(c.x + dx, c.y + dy, rr*c.ax, rr*c.ay, 0, 0, Math.PI*2);
+          ctx.fill();
+        }
+
+        // darker underside shadow to ground it
+        ctx.fillStyle = `rgba(0,0,0,${0.12 + 0.08*pulse})`;
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y + c.r*0.55, c.r*2.1*c.ax, c.r*0.7*c.ay, 0, 0, Math.PI*2);
         ctx.fill();
       }
 
-      // soft glow underneath
-      const gg = ctx.createRadialGradient(c.x, c.y, c.r*0.5, c.x, c.y, c.r*4.2);
-      gg.addColorStop(0, `hsla(${c.hue%360}, 85%, ${Math.min(80, c.light+10)}%, ${a0*0.24})`);
+      // soft glow
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      const gg = ctx.createRadialGradient(c.x, c.y, c.r*0.5, c.x, c.y, c.r*6.0);
+      gg.addColorStop(0, `hsla(${hue}, 85%, ${Math.min(82, c.light+14)}%, ${a0*0.18})`);
       gg.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = gg;
       ctx.beginPath();
-      ctx.arc(c.x, c.y, c.r*4.2, 0, Math.PI*2);
+      ctx.arc(c.x, c.y, c.r*6.0, 0, Math.PI*2);
       ctx.fill();
+      ctx.restore();
     }
     ctx.restore();
   }
