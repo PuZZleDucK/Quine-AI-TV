@@ -109,4 +109,5 @@ export const CHANNELS = [
   { id: 'polarmicro', name: "Geologist's Polarized Microscope", file: 'polarmicro.js' },
   { id: 'lasercutfile', name: 'Laser Cutter Cutfile Studio', file: 'lasercutfile.js' },
   { id: 'bookreturns', name: 'Book Return Sorting Machine', file: 'bookreturnsorter.js' },
+  { id: 'reeltoreel', name: 'Reel-to-Reel Tape Splicing Desk', file: 'reeltoreel.js' },
 ];
