@@ -75,6 +75,7 @@ export const CHANNELS = [
   { id: 'nightmarket', name: 'Neon Night Market Ledger', file: 'nightmarket.js' },
   { id: 'lighthouse', name: 'Tiny Lighthouse Watch', file: 'lighthousewatch.js' },
   { id: 'baggagecarousel', name: 'Airport Baggage Carousel Cam', file: 'baggagecarousel.js' },
+  { id: 'towerstrips', name: 'Airport Tower Strip Board', file: 'airporttowerstrips.js' },
   { id: 'mushroomlab', name: 'Subterranean Mushroom Lab', file: 'mushroomlab.js' },
   { id: 'gumballecon', name: 'Gumball Machine Economics', file: 'gumballecon.js' },
   { id: 'papermarble', name: 'Paper Marbling Studio', file: 'papermarbling.js' },
