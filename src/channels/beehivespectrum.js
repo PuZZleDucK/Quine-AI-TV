@@ -1,6 +1,7 @@
 import { mulberry32 } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-10
 // Beehive Spectrum Radio
 // Honeycomb parallax + waggle-dance traces rendered as a spectrum/waterfall.
 
