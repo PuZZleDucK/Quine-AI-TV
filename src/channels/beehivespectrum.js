@@ -94,6 +94,7 @@ export function createChannel({ seed, audio }){
   let wfImg = null;
   let wfRowData = null;
   let wfRows = 160;
+  let wfScrollAcc = 0;
 
   // special moments
   let queenPulse = 0;
@@ -148,6 +149,8 @@ export function createChannel({ seed, audio }){
 
   function initWaterfall(){
     wfRows = Math.max(120, Math.min(240, Math.floor(h * 0.32)));
+    wfScrollAcc = 0;
+
     wfCanvas = document.createElement('canvas');
     wfCanvas.width = BINS;
     wfCanvas.height = wfRows;
@@ -288,52 +291,73 @@ export function createChannel({ seed, audio }){
     }
   }
 
-  function updateWaterfall(){
+  function updateWaterfall(dt){
     if (!wfCtx) return;
 
-    // shift down 1px
-    wfCtx.globalCompositeOperation = 'copy';
-    wfCtx.drawImage(wfCanvas, 0, 1);
+    // dt-based decay/breathing so pacing stays stable across FPS.
+    // Rates chosen to match the previous ~60fps-tuned constants.
+    const energyDecayBase = 0.7488; // per second
+    const energyDecaySlope = 0.468; // per second (scaled by bin index)
+    const peakDecayPerSec = 5.4;
+    const breatheAmpPerSec = 0.24;
+
+    for (let i = 0; i < BINS; i++){
+      const x = i / BINS;
+      energy[i] = Math.max(0, energy[i] - (energyDecayBase + energyDecaySlope * x) * dt);
+      peaks[i] = Math.max(0, peaks[i] - peakDecayPerSec * dt);
+      energy[i] = Math.max(0, energy[i] + breatheAmpPerSec * dt * Math.sin(t * 1.35 + i * 0.18));
+    }
+
+    // dt-based scroll (rows/sec) scaled to viewport so the waterfall “fills” in a roughly constant time.
+    const scrollRowsPerSec = wfRows / 2.7;
+    wfScrollAcc += scrollRowsPerSec * dt;
+
+    let rows = wfScrollAcc | 0;
+    if (rows <= 0) return;
+
+    wfScrollAcc -= rows;
+    rows = Math.min(rows, wfRows - 1);
 
     const band = BANDS[bandIdx];
     const hueBase = band.hue;
 
-    // new row at y=0
-    for (let i = 0; i < BINS; i++){
-      const e = clamp01(energy[i]);
-      const p = clamp01(peaks[i]);
-      const hue = hueBase + (i / (BINS - 1) - 0.5) * 38;
-      const a = clamp01(0.05 + e * 0.90);
+    // Render one or more new rows at y=0.
+    // If dt is large we may emit multiple rows to keep time-consistent scroll.
+    for (let r = 0; r < rows; r++){
+      // shift down 1px
+      wfCtx.globalCompositeOperation = 'copy';
+      wfCtx.drawImage(wfCanvas, 0, 1);
 
-      // warm spectral mapping (cheap but punchy)
-      const rr = Math.max(0, Math.min(255, (40 + 220 * clamp01(Math.sin((hue + 10) * 0.017) * 0.5 + 0.5)) * (0.35 + e * 0.85)) | 0);
-      const gg = Math.max(0, Math.min(255, (30 + 220 * clamp01(Math.sin((hue + 140) * 0.017) * 0.5 + 0.5)) * (0.20 + e * 0.95)) | 0);
-      const bb = Math.max(0, Math.min(255, (15 + 190 * clamp01(Math.sin((hue + 250) * 0.017) * 0.5 + 0.5)) * (0.18 + e * 0.70)) | 0);
+      for (let i = 0; i < BINS; i++){
+        const e = clamp01(energy[i]);
+        const p = clamp01(peaks[i]);
+        const hue = hueBase + (i / (BINS - 1) - 0.5) * 38;
+        const a = clamp01(0.05 + e * 0.90 + p * 0.12);
 
-      const k = i * 4;
-      wfRowData[k + 0] = rr;
-      wfRowData[k + 1] = gg;
-      wfRowData[k + 2] = bb;
-      wfRowData[k + 3] = (a * 255) | 0;
+        // warm spectral mapping (cheap but punchy)
+        const rr = Math.max(0, Math.min(255, (40 + 220 * clamp01(Math.sin((hue + 10) * 0.017) * 0.5 + 0.5)) * (0.35 + e * 0.85)) | 0);
+        const gg = Math.max(0, Math.min(255, (30 + 220 * clamp01(Math.sin((hue + 140) * 0.017) * 0.5 + 0.5)) * (0.20 + e * 0.95)) | 0);
+        const bb = Math.max(0, Math.min(255, (15 + 190 * clamp01(Math.sin((hue + 250) * 0.017) * 0.5 + 0.5)) * (0.18 + e * 0.70)) | 0);
 
-      // decay
-      energy[i] = Math.max(0, energy[i] - 0.78 * (0.016 + 0.010 * (i / BINS)));
-      peaks[i] = Math.max(0, peaks[i] - 0.09);
+        const k = i * 4;
+        wfRowData[k + 0] = rr;
+        wfRowData[k + 1] = gg;
+        wfRowData[k + 2] = bb;
+        wfRowData[k + 3] = (a * 255) | 0;
 
-      // breathe
-      energy[i] = Math.max(0, energy[i] + 0.004 * Math.sin(t * 1.35 + i * 0.18));
-
-      // tuning/static overlay
-      if (tuneFx > 0 && rand() < 0.16 * (tuneFx / 1.05)){
-        const v = (140 + rand() * 90) | 0;
-        wfRowData[k + 0] = v;
-        wfRowData[k + 1] = v;
-        wfRowData[k + 2] = v;
-        wfRowData[k + 3] = (30 + rand() * 70) | 0;
+        // tuning/static overlay
+        if (tuneFx > 0 && rand() < 0.16 * (tuneFx / 1.05)){
+          const v = (140 + rand() * 90) | 0;
+          wfRowData[k + 0] = v;
+          wfRowData[k + 1] = v;
+          wfRowData[k + 2] = v;
+          wfRowData[k + 3] = (30 + rand() * 70) | 0;
+        }
       }
+
+      wfCtx.putImageData(wfImg, 0, 0);
     }
 
-    wfCtx.putImageData(wfImg, 0, 0);
     wfCtx.globalCompositeOperation = 'source-over';
   }
 
@@ -450,7 +474,7 @@ export function createChannel({ seed, audio }){
     for (const tr of trails){ tr.life -= dt; }
     trails = trails.filter(tr => tr.life > 0.02);
 
-    updateWaterfall();
+    updateWaterfall(dt);
   }
 
   function drawBackground(ctx){
