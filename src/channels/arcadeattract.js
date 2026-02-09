@@ -1,5 +1,6 @@
 import { mulberry32 } from '../util/prng.js';
 
+// REVIEWED: 2026-02-10
 // Arcade Attract Mode Archives
 // CRT arcade attract loops with high-score initials, demo play, coin-in flashes,
 // and rotating cabinet art cards.
