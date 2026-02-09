@@ -19,6 +19,8 @@ function roundedRect(ctx, x, y, w, h, r){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  // Separate PRNG for precomputed textures so we don't perturb simulation randomness.
+  const texRand = mulberry32((seed ^ 0x9e3779b9) >>> 0);
 
   let w = 0;
   let h = 0;
@@ -84,6 +86,16 @@ export function createChannel({ seed, audio }){
     dpr: 1,
   };
 
+  // Visual polish: subtle camera layer (scanlines + grain). Cached on resize.
+  const camCache = {
+    dirty: true,
+    scan: null, // CanvasImageSource | false | null
+    noise: null, // CanvasImageSource | false | null
+    w: 0,
+    h: 0,
+    dpr: 1,
+  };
+
   // sim
   let beltSpeed = 0.7;
   let phaseIndex = -1;
@@ -112,13 +124,15 @@ export function createChannel({ seed, audio }){
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
   function regenLayout(){
+    // Slightly tighter composition (bigger carousel) while keeping OSD clear.
     cx = w * (0.56 + Math.sin(seed * 0.00001) * 0.02);
-    cy = h * 0.60;
-    rx = w * 0.30;
-    ry = h * 0.20;
+    cy = h * 0.62;
+    rx = w * 0.335;
+    ry = h * 0.225;
     beltThick = Math.max(12, Math.floor(Math.min(w, h) * 0.045));
     gradCache.dirty = true;
     floorCache.dirty = true;
+    camCache.dirty = true;
   }
 
   function reset(){
@@ -364,6 +378,98 @@ export function createChannel({ seed, audio }){
     mg.addColorStop(0.5, 'rgba(235,245,255,0.24)');
     mg.addColorStop(1, 'rgba(235,245,255,0.07)');
     gradCache.post = mg;
+  }
+
+  function ensureCameraLayers(){
+    if (!camCache.dirty && camCache.w === w && camCache.h === h && camCache.dpr === dpr) return;
+
+    camCache.dirty = false;
+    camCache.w = w;
+    camCache.h = h;
+    camCache.dpr = dpr;
+
+    // Scanlines layer (2px wide, stretched across the frame).
+    {
+      const scan = makeCanvas(2, h);
+      if (!scan) camCache.scan = false;
+      else {
+        const g = scan.getContext('2d');
+        g.clearRect(0, 0, 2, h);
+
+        // Dark lines + occasional brighter "sync" line.
+        g.fillStyle = 'rgba(0,0,0,0.18)';
+        for (let y = 0; y < h; y += 2) g.fillRect(0, y, 2, 1);
+
+        g.fillStyle = 'rgba(255,255,255,0.03)';
+        for (let y = 0; y < h; y += 12) g.fillRect(0, y, 2, 1);
+
+        camCache.scan = scan;
+      }
+    }
+
+    // Grain layer (small noise tile, drawn a few times per frame).
+    {
+      const ns = 256;
+      const noise = makeCanvas(ns, ns);
+      if (!noise) camCache.noise = false;
+      else {
+        const g = noise.getContext('2d', { willReadFrequently: true });
+        const img = g.createImageData(ns, ns);
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4){
+          const v = (texRand() * 255) | 0;
+          d[i + 0] = v;
+          d[i + 1] = v;
+          d[i + 2] = v;
+          d[i + 3] = 255;
+        }
+        g.putImageData(img, 0, 0);
+        camCache.noise = noise;
+      }
+    }
+  }
+
+  function drawCameraFX(ctx){
+    ensureCameraLayers();
+
+    ctx.save();
+
+    // Gentle exposure breathing (kept subtle so OSD stays readable).
+    const ex = 0.5 + 0.5 * Math.sin(t * 0.18 + seed * 0.0003);
+    if (ex < 0.5){
+      ctx.globalAlpha = 0.06 * (0.5 - ex) * 2;
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, w, h);
+    } else {
+      ctx.globalAlpha = 0.03 * (ex - 0.5) * 2;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // Grain: tile a small noise canvas with a slow drift.
+    if (camCache.noise){
+      const tile = 256 * 2;
+      const ox = -((t * 42) % tile);
+      const oy = -((t * 27) % tile);
+
+      ctx.globalAlpha = 0.045;
+      ctx.imageSmoothingEnabled = false;
+
+      for (let x = ox; x < w; x += tile){
+        for (let y = oy; y < h; y += tile){
+          ctx.drawImage(camCache.noise, x, y, tile, tile);
+        }
+      }
+    }
+
+    // Scanlines.
+    if (camCache.scan){
+      ctx.globalAlpha = 0.085;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(camCache.scan, 0, 0, w, h);
+    }
+
+    ctx.restore();
   }
 
   function drawFloor(ctx){
@@ -654,6 +760,9 @@ export function createChannel({ seed, audio }){
       if (b.pres <= 0.01) continue;
       drawBag(ctx, b);
     }
+
+    // Subtle CCTV-ish camera layer.
+    drawCameraFX(ctx);
 
     drawOverlay(ctx);
   }
