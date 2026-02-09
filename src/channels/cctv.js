@@ -12,8 +12,39 @@ export function createChannel({ seed, audio }){
   let audioHandle=null; // {stop()}
   let nextMotion=0;
 
+  // Perf: avoid per-frame gradient allocation by using a cached radial "light" sprite.
+  const LIGHT_SPRITE_SIZE = 256;
+  let lightSprite = null; // CanvasImageSource | false | null
+  function ensureLightSprite(){
+    if (lightSprite !== null) return;
+    const S = LIGHT_SPRITE_SIZE;
+
+    let c = null;
+    if (typeof OffscreenCanvas !== 'undefined') c = new OffscreenCanvas(S,S);
+    else if (typeof document !== 'undefined'){
+      const el = document.createElement('canvas');
+      el.width = S; el.height = S;
+      c = el;
+    } else {
+      // Headless/non-DOM environment: skip the light overlay rather than crashing.
+      lightSprite = false;
+      return;
+    }
+
+    const g = c.getContext('2d');
+    const cx = S/2, cy = S/2;
+    const grad = g.createRadialGradient(cx,cy,0,cx,cy,S/2);
+    grad.addColorStop(0,'rgba(120,255,160,0.10)');
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    g.clearRect(0,0,S,S);
+    g.fillStyle = grad;
+    g.fillRect(0,0,S,S);
+    lightSprite = c;
+  }
+
   function init({width,height}){
     w=width; h=height; t=0;
+    ensureLightSprite();
     cams = Array.from({length: 4}, (_,i)=>({
       id:i,
       ph: rand()*10,
@@ -104,21 +135,22 @@ export function createChannel({ seed, audio }){
     // fake scene: moving light + noise
     ctx.save();
     ctx.globalAlpha = 0.25;
+    ctx.fillStyle = 'rgba(200,255,210,0.12)';
     for (let i=0;i<120;i++){
       const px = x + ((i*97 + t*120) % cw);
       const py = y + ((i*53 + t*70) % ch);
-      ctx.fillStyle = 'rgba(200,255,210,0.12)';
       ctx.fillRect(px, py, 1, 1);
     }
     ctx.restore();
 
-    const lx = x + cw*(0.2 + 0.6*(0.5+0.5*Math.sin(t*0.4+cam.ph)));
-    const ly = y + ch*(0.2 + 0.6*(0.5+0.5*Math.cos(t*0.33+cam.ph)));
-    const lg = ctx.createRadialGradient(lx,ly,0,lx,ly, cw*0.6);
-    lg.addColorStop(0,'rgba(120,255,160,0.10)');
-    lg.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle = lg;
-    ctx.fillRect(x,y,cw,ch);
+    // cached "light" (no per-frame gradients)
+    ensureLightSprite();
+    if (lightSprite){
+      const lx = x + cw*(0.2 + 0.6*(0.5+0.5*Math.sin(t*0.4+cam.ph)));
+      const ly = y + ch*(0.2 + 0.6*(0.5+0.5*Math.cos(t*0.33+cam.ph)));
+      const diam = Math.max(1, cw*1.2);
+      ctx.drawImage(lightSprite, lx - diam/2, ly - diam/2, diam, diam);
+    }
 
     // boxes
     ctx.save();
