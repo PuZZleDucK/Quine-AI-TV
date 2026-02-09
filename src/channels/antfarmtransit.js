@@ -181,6 +181,107 @@ export function createChannel({ seed, audio }){
   // Audio
   let ambience = null;
 
+  // Perf: cache background gradients + speckle texture + vignette on resize/init.
+  const bgCache = {
+    soil: null,     // CanvasImageSource | false | null
+    vignette: null, // CanvasImageSource | false | null
+    farm: null,     // CanvasImageSource | false | null
+    farmW: 0,
+    farmH: 0,
+  };
+
+  function makeCanvas(W, H){
+    if (!(W > 0 && H > 0)) return null;
+    const wI = Math.max(1, Math.floor(W));
+    const hI = Math.max(1, Math.floor(H));
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(wI, hI);
+    if (typeof document !== 'undefined'){
+      const c = document.createElement('canvas');
+      c.width = wI;
+      c.height = hI;
+      return c;
+    }
+    return null;
+  }
+
+  function rebuildBackgroundCaches(){
+    // soil gradient layer
+    {
+      const c = makeCanvas(w, h);
+      if (!c){
+        bgCache.soil = false;
+      } else {
+        const g = c.getContext('2d');
+        const grad = g.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, '#080506');
+        grad.addColorStop(1, '#020102');
+        g.fillStyle = grad;
+        g.fillRect(0, 0, w, h);
+        bgCache.soil = c;
+      }
+    }
+
+    // farm glass + speckle layer (relative coords; can be blitted at farm.x/y even if it drifts)
+    {
+      const fw = Math.max(1, Math.ceil(farm.w));
+      const fh = Math.max(1, Math.ceil(farm.h));
+      bgCache.farmW = fw;
+      bgCache.farmH = fh;
+
+      const c = makeCanvas(fw, fh);
+      if (!c){
+        bgCache.farm = false;
+      } else {
+        const g = c.getContext('2d');
+        g.clearRect(0, 0, fw, fh);
+
+        const glass = g.createLinearGradient(0, 0, 0, fh);
+        glass.addColorStop(0, 'rgba(70,60,55,0.55)');
+        glass.addColorStop(1, 'rgba(25,18,16,0.72)');
+        g.fillStyle = glass;
+        roundedRect(g, 0, 0, fw, fh, 26);
+        g.fill();
+
+        // deterministic speckle dots (no RNG usage in hot path)
+        g.save();
+        g.globalAlpha = 0.16;
+        g.fillStyle = 'rgba(255,230,200,0.06)';
+        const dots = 380;
+        for (let i = 0; i < dots; i++){
+          const fx = (Math.sin((i + 1) * 12.9898 + seed) * 43758.5453) % 1;
+          const fy = (Math.sin((i + 7) * 78.233 + seed * 0.3) * 23421.631) % 1;
+          const x = ((fx + 1) % 1) * fw;
+          const y = ((fy + 1) % 1) * fh;
+          const r = 0.7 + (((i * 97) % 11) / 11) * 1.6;
+          g.fillRect(x, y, r, r);
+        }
+        g.restore();
+
+        bgCache.farm = c;
+      }
+    }
+
+    // vignette layer
+    {
+      const c = makeCanvas(w, h);
+      if (!c){
+        bgCache.vignette = false;
+      } else {
+        const g = c.getContext('2d');
+        g.clearRect(0, 0, w, h);
+        const vg = g.createRadialGradient(
+          w * 0.55, h * 0.55, Math.min(w, h) * 0.22,
+          w * 0.55, h * 0.55, Math.max(w, h) * 0.82
+        );
+        vg.addColorStop(0, 'rgba(0,0,0,0)');
+        vg.addColorStop(1, 'rgba(0,0,0,0.64)');
+        g.fillStyle = vg;
+        g.fillRect(0, 0, w, h);
+        bgCache.vignette = c;
+      }
+    }
+  }
+
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
   function edgePoint(edge, u){
@@ -401,6 +502,8 @@ export function createChannel({ seed, audio }){
 
     farm = { x: w * 0.06, y: h * 0.12, w: w * 0.88, h: h * 0.84 };
 
+    rebuildBackgroundCaches();
+
     lines = makeNetwork();
     resetAnts();
 
@@ -609,14 +712,18 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBackground(ctx){
-    // soil gradient
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#080506');
-    g.addColorStop(1, '#020102');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
+    // soil gradient (cached)
+    if (bgCache.soil && bgCache.soil !== false){
+      ctx.drawImage(bgCache.soil, 0, 0);
+    } else {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#080506');
+      g.addColorStop(1, '#020102');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    }
 
-    // farm tank shadow
+    // farm tank shadow (depends on current farm.x drift)
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.7)';
     ctx.shadowBlur = 30;
@@ -625,33 +732,40 @@ export function createChannel({ seed, audio }){
     ctx.fill();
     ctx.restore();
 
-    // farm glass
-    const glass = ctx.createLinearGradient(farm.x, farm.y, farm.x, farm.y + farm.h);
-    glass.addColorStop(0, 'rgba(70,60,55,0.55)');
-    glass.addColorStop(1, 'rgba(25,18,16,0.72)');
-    ctx.fillStyle = glass;
-    roundedRect(ctx, farm.x, farm.y, farm.w, farm.h, 26);
-    ctx.fill();
+    // farm glass + speckle (cached)
+    if (bgCache.farm && bgCache.farm !== false){
+      ctx.drawImage(bgCache.farm, farm.x, farm.y);
+    } else {
+      const glass = ctx.createLinearGradient(farm.x, farm.y, farm.x, farm.y + farm.h);
+      glass.addColorStop(0, 'rgba(70,60,55,0.55)');
+      glass.addColorStop(1, 'rgba(25,18,16,0.72)');
+      ctx.fillStyle = glass;
+      roundedRect(ctx, farm.x, farm.y, farm.w, farm.h, 26);
+      ctx.fill();
 
-    // speckle texture (cheap, no image)
-    ctx.save();
-    ctx.globalAlpha = 0.16;
-    ctx.fillStyle = 'rgba(255,230,200,0.06)';
-    const dots = 380;
-    for (let i=0;i<dots;i++){
-      const x = farm.x + (Math.sin((i+1)*12.9898 + seed) * 43758.5453 % 1 + 1) % 1 * farm.w;
-      const y = farm.y + (Math.sin((i+7)*78.233 + seed*0.3) * 23421.631 % 1 + 1) % 1 * farm.h;
-      const r = 0.7 + (((i*97) % 11) / 11) * 1.6;
-      ctx.fillRect(x, y, r, r);
+      ctx.save();
+      ctx.globalAlpha = 0.16;
+      ctx.fillStyle = 'rgba(255,230,200,0.06)';
+      const dots = 380;
+      for (let i=0;i<dots;i++){
+        const x = farm.x + (Math.sin((i+1)*12.9898 + seed) * 43758.5453 % 1 + 1) % 1 * farm.w;
+        const y = farm.y + (Math.sin((i+7)*78.233 + seed*0.3) * 23421.631 % 1 + 1) % 1 * farm.h;
+        const r = 0.7 + (((i*97) % 11) / 11) * 1.6;
+        ctx.fillRect(x, y, r, r);
+      }
+      ctx.restore();
     }
-    ctx.restore();
 
-    // subtle vignette
-    const vg = ctx.createRadialGradient(w*0.55, h*0.55, Math.min(w,h)*0.22, w*0.55, h*0.55, Math.max(w,h)*0.82);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.64)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0,0,w,h);
+    // vignette (cached)
+    if (bgCache.vignette && bgCache.vignette !== false){
+      ctx.drawImage(bgCache.vignette, 0, 0);
+    } else {
+      const vg = ctx.createRadialGradient(w*0.55, h*0.55, Math.min(w,h)*0.22, w*0.55, h*0.55, Math.max(w,h)*0.82);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.64)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0,0,w,h);
+    }
   }
 
   function drawTunnels(ctx){
