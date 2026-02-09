@@ -205,6 +205,35 @@ export function createChannel({ seed, audio }){
     return null;
   }
 
+  // Perf polish: pre-render the print grain once per new print and blit it during develop.
+  function preparePrint(p){
+    const bw = Math.max(1, Math.floor(paper.w * (1 - 2 * p.border)));
+    const bh = Math.max(1, Math.floor(paper.h * (1 - 2 * p.border)));
+
+    const c = makeCanvas(bw, bh);
+    if (!c){
+      p.grainLayer = false;
+      return;
+    }
+
+    const g = c.getContext('2d');
+    g.clearRect(0, 0, bw, bh);
+    g.fillStyle = '#2a1712';
+
+    // Deterministic "fixed" grain dots (no RNG usage in hot path).
+    const dots = 140;
+    for (let i = 0; i < dots; i++){
+      const x = (((i * 97) % 997) / 997) * bw;
+      const y = (((i * 193) % 991) / 991) * bh;
+      const r = 0.7 + (((i * 29) % 13) * 0.08);
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    p.grainLayer = c;
+  }
+
   function rebuildCaches(){
     // Background + vignette baked together.
     {
@@ -370,6 +399,7 @@ export function createChannel({ seed, audio }){
     phaseIdx = 0;
     phaseT = 0;
     print = genPrint(rand);
+    preparePrint(print);
 
     leak = 0;
     nextLeakAt = 4 + rand() * 8;
@@ -439,6 +469,7 @@ export function createChannel({ seed, audio }){
       if (phaseIdx === 0){
         // new print each cycle
         print = genPrint(rand);
+        preparePrint(print);
       }
       // tiny confirmation click
       safeBeep({ freq: 480 + rand() * 160, dur: 0.016, gain: 0.008, type: 'square' });
@@ -575,15 +606,22 @@ export function createChannel({ seed, audio }){
     // grain + edge fog
     ctx.globalCompositeOperation = 'multiply';
     ctx.globalAlpha = (0.08 + print.grain * 0.12) * devAmt;
-    ctx.fillStyle = '#2a1712';
-    const dots = 140;
-    for (let i = 0; i < dots; i++){
-      const x = bx + ((i * 97) % 997) / 997 * bw;
-      const y = by + ((i * 193) % 991) / 991 * bh;
-      const r = 0.7 + ((i * 29) % 13) * 0.08;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
+
+    if (print.grainLayer && print.grainLayer !== false){
+      // Single blit per frame.
+      ctx.drawImage(print.grainLayer, bx, by, bw, bh);
+    } else {
+      // Fallback path (no offscreen canvas support).
+      ctx.fillStyle = '#2a1712';
+      const dots = 140;
+      for (let i = 0; i < dots; i++){
+        const x = bx + ((i * 97) % 997) / 997 * bw;
+        const y = by + ((i * 193) % 991) / 991 * bh;
+        const r = 0.7 + ((i * 29) % 13) * 0.08;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     ctx.restore();
