@@ -13,6 +13,119 @@ export function createChannel({ seed, audio }){
   let coral = [];
   let noiseHandle=null;
 
+  // Special moments (rare): bioluminescent plankton bloom or passing silhouette.
+  const randEvents = mulberry32((seed ^ 0x27d4eb2d) >>> 0);
+  let specialEvent = null;
+  let nextEventAt = 0;
+
+  function eventFade01(u){
+    u = clamp(u, 0, 1);
+    return Math.sin(Math.PI * u);
+  }
+
+  function spawnSpecialEvent(now){
+    if (w <= 0 || h <= 0) return;
+
+    const kind = randEvents() < 0.62 ? 'bloom' : 'silhouette';
+    if (kind === 'bloom'){
+      const dur = 10 + randEvents()*10;
+      const hue = (165 + randEvents()*90) % 360;
+      const count = 48 + ((randEvents()*28) | 0);
+      const parts = [];
+      const sizeMul = (h/540);
+      for (let i = 0; i < count; i++){
+        const x = randEvents()*w;
+        const y = h*(0.25 + randEvents()*0.60);
+        const sp = (10 + randEvents()*32) * sizeMul;
+        const r = (0.7 + randEvents()*1.9) * sizeMul;
+        const ph = randEvents()*Math.PI*2;
+        const drift = (6 + randEvents()*26) * sizeMul;
+        const hh = (hue + (randEvents()*24 - 12) + 360) % 360;
+        const light = 62 + randEvents()*18;
+        parts.push({ x, y, sp, r, ph, drift, color: `hsla(${hh}, 95%, ${light}%, 0.9)` });
+      }
+      specialEvent = { kind, t0: now, dur, hue, parts };
+      return;
+    }
+
+    // Silhouette pass: a big gentle shape drifting through the tank.
+    const dur = 8 + randEvents()*7;
+    const size = h*(0.10 + randEvents()*0.16);
+    const y = h*(0.22 + randEvents()*0.46);
+    const dir = randEvents() < 0.5 ? 1 : -1;
+    const x0 = dir > 0 ? (-size*2) : (w + size*2);
+    const x1 = dir > 0 ? (w + size*2) : (-size*2);
+    const wob = 0.6 + randEvents()*1.2;
+    specialEvent = { kind, t0: now, dur, x0, x1, y, size, wob };
+  }
+
+  function drawSpecialMoments(ctx){
+    const e = specialEvent;
+    if (!e) return;
+
+    const tt = t - e.t0;
+    const u = tt / Math.max(0.001, e.dur);
+    const fade = eventFade01(u);
+    if (fade <= 0) return;
+
+    if (e.kind === 'bloom'){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.16 * fade;
+      ctx.shadowColor = `hsla(${e.hue}, 90%, 70%, 0.9)`;
+      ctx.shadowBlur = 14 * fade;
+      for (const p of e.parts){
+        const yy = p.y - tt * p.sp;
+        if (yy < -40) continue;
+        const xx = p.x + Math.sin(tt*0.7 + p.ph) * p.drift;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(xx, yy, p.r, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
+
+    // silhouette
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 0.22 * fade;
+
+    const x = e.x0 + (e.x1 - e.x0) * clamp(u, 0, 1);
+    const y = e.y + Math.sin(tt*e.wob) * e.size*0.05;
+    const s = e.size;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.9)';
+    // bell
+    ctx.beginPath();
+    ctx.ellipse(x, y, s*0.56, s*0.42, 0, Math.PI, Math.PI*2);
+    ctx.lineTo(x + s*0.56, y);
+    ctx.ellipse(x, y, s*0.56, s*0.42, 0, 0, Math.PI);
+    ctx.closePath();
+    ctx.fill();
+
+    // tentacles
+    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.lineWidth = Math.max(1, s*0.02);
+    for (let i = 0; i < 6; i++){
+      const k = (i - 2.5) / 2.5;
+      const tx = x + k * s*0.34;
+      const len = s*(0.95 + 0.25*Math.sin(e.t0*0.001 + i*1.7));
+      ctx.beginPath();
+      ctx.moveTo(tx, y + s*0.04);
+      ctx.quadraticCurveTo(
+        tx + Math.sin(tt*1.2 + i) * s*0.08,
+        y + len*0.55,
+        tx + Math.sin(tt*1.6 + i*0.7) * s*0.12,
+        y + len
+      );
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
   // Time-structure: calm → schooling → deep-glow (deterministic per seed).
   const randStruct = mulberry32((seed ^ 0x85ebca6b) >>> 0);
   const phasePlan = (() => {
@@ -195,6 +308,10 @@ export function createChannel({ seed, audio }){
     sand = makeSand();
     seaweed = makeSeaweed();
     coral = makeCoral();
+
+    // Occasional special moments (deterministic per seed).
+    specialEvent = null;
+    nextEventAt = 25 + randEvents()*75;
   }
 
   function pickFishKind(){
@@ -364,6 +481,10 @@ export function createChannel({ seed, audio }){
     sand = makeSand();
     seaweed = makeSeaweed();
     coral = makeCoral();
+
+    // Keep event visuals in-bounds after resize.
+    specialEvent = null;
+    nextEventAt = 18 + randEvents()*85;
   }
 
   function onAudioOn(){
@@ -412,6 +533,16 @@ export function createChannel({ seed, audio }){
       f.y = clamp(yy, h*0.12, h*0.88);
 
       if (f.x > w + 120 || f.x < -120) fish[i] = makeFish(i);
+    }
+
+    // special moments (rare)
+    if (specialEvent && (t - specialEvent.t0) > specialEvent.dur){
+      specialEvent = null;
+    }
+    if (!specialEvent && nextEventAt > 0 && t >= nextEventAt){
+      spawnSpecialEvent(t);
+      // Next event in ~45–140s so it stays occasional / non-distracting.
+      nextEventAt = t + (45 + randEvents()*95);
     }
   }
 
@@ -466,6 +597,9 @@ export function createChannel({ seed, audio }){
     // coral + seaweed (background elements sitting on the seabed)
     drawCoral(ctx);
     drawSeaweed(ctx);
+
+    // occasional special moments (kept subtle, behind fish)
+    drawSpecialMoments(ctx);
 
     // fish
     for (const f of fish){
