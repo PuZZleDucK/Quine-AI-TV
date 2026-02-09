@@ -431,22 +431,29 @@ export function createChannel({ seed, audio }){
     ctx.ellipse(cx, cy, rx + beltThick*0.95, ry + beltThick*0.7, 0, 0, Math.PI*2);
     ctx.stroke();
 
-    // moving belt ticks
+    // moving belt ticks (perf: set strokeStyle once; modulate intensity via globalAlpha)
     const marks = 46;
     const off = (t * beltSpeed * 0.65) % (Math.PI*2);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgb(210,240,255)';
+    ctx.lineWidth = Math.max(1, Math.floor(dpr));
+
     for (let i=0;i<marks;i++){
       const a = (i / marks) * Math.PI * 2 + off;
       const x = cx + Math.cos(a) * (rx + beltThick*0.52);
       const y = cy + Math.sin(a) * (ry + beltThick*0.40);
       const nx = Math.cos(a);
       const ny = Math.sin(a);
-      ctx.strokeStyle = `rgba(210,240,255,${0.035 + 0.045*(0.5+0.5*Math.sin(a*2 + t*0.6))})`;
-      ctx.lineWidth = Math.max(1, Math.floor(dpr));
+
+      ctx.globalAlpha = 0.035 + 0.045*(0.5+0.5*Math.sin(a*2 + t*0.6));
       ctx.beginPath();
       ctx.moveTo(x - nx*6, y - ny*6);
       ctx.lineTo(x + nx*6, y + ny*6);
       ctx.stroke();
     }
+
+    ctx.restore();
 
     // metal post
     const postW = gradCache.postW;
