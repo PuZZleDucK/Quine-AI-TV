@@ -144,28 +144,37 @@ export function createChannel({ seed, audio }){
   function onAudioOn(){
     if (!audio.enabled) return;
 
+    // Defensive hygiene: avoid stacking sources if called twice while audio is on.
+    onAudioOff();
+
     const n = audio.noiseSource({ type: 'brown', gain: 0.0042 });
     n.start();
     const d = simpleDrone(audio, { root: 47 + rand()*12, detune: 0.65, gain: 0.012 });
 
-    ambience = {
+    const handle = {
       stop(){
-        try { n.stop(); } catch {}
-        try { d.stop(); } catch {}
-      }
+        try { n.stop?.(); } catch {}
+        try { d.stop?.(); } catch {}
+      },
     };
 
-    audio.setCurrent(ambience);
+    ambience = handle;
+    audio.setCurrent(handle);
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
+    const handle = ambience;
     ambience = null;
+
+    try {
+      if (audio.current === handle) audio.stopCurrent();
+      else handle?.stop?.();
+    } catch {
+      try { handle?.stop?.(); } catch {}
+    }
   }
 
-  function destroy(){
-    onAudioOff();
-  }
+  function destroy(){ onAudioOff(); }
 
   function phaseParams(p){
     if (p === 0) return { speed: 0.62, target: 8, label: 'BAGGAGE CLAIM — ARRIVALS' };
