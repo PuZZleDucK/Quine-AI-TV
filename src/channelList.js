@@ -125,4 +125,5 @@ export const CHANNELS = [
   { id: 'streetmapfold', name: 'Street Map Folding Gym', file: 'streetmapfold.js' },
   { id: 'nanobotrepair', name: 'Nanobot Repair Swarm', file: 'nanobotrepair.js' },
   { id: 'icecorelab', name: 'Ice Core Analysis Lab', file: 'icecorelab.js' },
+  { id: 'marbledispatch', name: 'Marble Run Dispatch', file: 'marblerundispatch.js' },
 ];
