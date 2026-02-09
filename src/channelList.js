@@ -131,4 +131,5 @@ export const CHANNELS = [
   { id: 'cavetorch', name: 'Cave Torch Storyboard', file: 'cavetorch.js' },
   { id: 'vinylpress', name: 'Vinyl Pressing Plant', file: 'vinylpress.js' },
   { id: 'sushiconveyor', name: 'Sushi Conveyor Night Shift', file: 'sushiconveyor.js' },
+  { id: 'minigreenhouse', name: 'Mini Greenhouse Climate Console', file: 'minigreenhouse.js' },
 ];
