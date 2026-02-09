@@ -12,6 +12,11 @@ export function createChannel({ seed, audio }){
   let audioHandle=null; // {stop()}
   let nextMotion=0;
 
+  // Time structure (quiet → patrol → busy) over a 2–4 min seeded cycle.
+  let phasePlan=null; // {cycle:number, phases:[{name,dur,motion:[min,max], boxes:[min,max]}]}
+  let patrolCam=0;
+  let nextPatrolSwitch=0;
+
   // Perf: avoid per-frame gradient allocation by using a cached radial "light" sprite.
   const LIGHT_SPRITE_SIZE = 256;
   let lightSprite = null; // CanvasImageSource | false | null
@@ -42,16 +47,65 @@ export function createChannel({ seed, audio }){
     lightSprite = c;
   }
 
+  function makePhasePlan(){
+    const cycle = 120 + rand()*120; // 2–4 minutes
+
+    // Seeded variation in how long the channel stays calm vs active.
+    const quietFrac = 0.34 + rand()*0.12;
+    const patrolFrac = 0.28 + rand()*0.12;
+    const busyFrac = Math.max(0.15, 1 - quietFrac - patrolFrac);
+
+    const phases = [
+      { name:'QUIET',  dur: cycle*quietFrac,  motion:[1.8,3.6],  boxes:[1,2] },
+      { name:'PATROL', dur: cycle*patrolFrac, motion:[0.9,2.2],  boxes:[1,3] },
+      { name:'BUSY',   dur: cycle*busyFrac,   motion:[0.35,1.1], boxes:[2,5] },
+    ];
+
+    return { cycle, phases };
+  }
+
+  function getPhaseAtTime(tt){
+    if (!phasePlan) return { name:'PATROL', motion:[0.7,2.5], boxes:[1,3], idx:0, u:0 };
+
+    const plan = phasePlan;
+    let x = ((tt % plan.cycle) + plan.cycle) % plan.cycle;
+    let acc = 0;
+
+    for (let i=0;i<plan.phases.length;i++){
+      const p = plan.phases[i];
+      if (x < acc + p.dur){
+        const u = p.dur > 0 ? (x - acc)/p.dur : 0;
+        return { ...p, idx:i, u };
+      }
+      acc += p.dur;
+    }
+
+    const p = plan.phases[plan.phases.length-1];
+    return { ...p, idx: plan.phases.length-1, u: 1 };
+  }
+
+  function pickIn([min,max]){
+    return min + rand()*(max-min);
+  }
+
   function init({width,height}){
     w=width; h=height; t=0;
     ensureLightSprite();
+
+    // Phase plan needs to be constructed before we schedule events.
+    phasePlan = makePhasePlan();
+    patrolCam = (rand()*4) | 0;
+    nextPatrolSwitch = 2 + rand()*4;
+
     cams = Array.from({length: 4}, (_,i)=>({
       id:i,
       ph: rand()*10,
       boxes: [],
       msg: 'IDLE',
     }));
-    nextMotion = 0.6 + rand()*2.0;
+
+    const phase = getPhaseAtTime(0);
+    nextMotion = pickIn(phase.motion);
   }
 
   function onResize(width,height){ w=width; h=height; }
@@ -90,8 +144,11 @@ export function createChannel({ seed, audio }){
 
   function destroy(){ onAudioOff(); }
 
-  function spawnMotion(cam){
-    cam.boxes = Array.from({length: 1 + (rand()*3)|0}, ()=>({
+  function spawnMotion(cam, { boxRange } = {}){
+    const [minB,maxB] = boxRange ?? [1,3];
+    const count = minB + ((rand()*(maxB - minB + 1)) | 0);
+
+    cam.boxes = Array.from({length: count}, ()=>({
       x: rand()*0.7,
       y: rand()*0.6,
       w: 0.15 + rand()*0.25,
@@ -99,21 +156,47 @@ export function createChannel({ seed, audio }){
       life: 0.25 + rand()*0.8,
       max: 0.25 + rand()*0.8,
     }));
+
     cam.msg = rand()<0.5 ? 'MOTION' : 'TRACK';
     if (audio.enabled) audio.beep({freq: 260 + rand()*60, dur: 0.03, gain: 0.02, type:'square'});
   }
 
   function update(dt){
     t += dt;
+    const phase = getPhaseAtTime(t);
+
     for (const cam of cams){
       cam.boxes = cam.boxes.filter(b => (b.life -= dt) > 0);
       if (cam.boxes.length === 0) cam.msg = 'IDLE';
     }
 
+    // Patrol phase gently "scans" between cameras.
+    if (phase.name === 'PATROL'){
+      nextPatrolSwitch -= dt;
+      if (nextPatrolSwitch <= 0){
+        nextPatrolSwitch = 4 + rand()*6;
+        patrolCam = (patrolCam + 1 + ((rand()*3)|0)) % cams.length;
+      }
+    } else {
+      // Allow quick acquisition when re-entering patrol.
+      nextPatrolSwitch = Math.min(nextPatrolSwitch, 0.5);
+    }
+
     nextMotion -= dt;
     if (nextMotion <= 0){
-      nextMotion = 0.7 + rand()*2.5;
-      spawnMotion(cams[(rand()*cams.length)|0]);
+      nextMotion = pickIn(phase.motion);
+
+      let cam = null;
+      if (phase.name === 'PATROL' && rand() < 0.75) cam = cams[patrolCam];
+      else cam = cams[(rand()*cams.length)|0];
+
+      spawnMotion(cam, { boxRange: phase.boxes });
+
+      // In BUSY windows, occasionally trigger a second camera too.
+      if (phase.name === 'BUSY' && rand() < 0.22){
+        const other = cams[(cam.id + 1 + ((rand()*3)|0)) % cams.length];
+        spawnMotion(other, { boxRange: [phase.boxes[0], Math.max(phase.boxes[0], phase.boxes[1]-1)] });
+      }
     }
   }
 
@@ -186,6 +269,7 @@ export function createChannel({ seed, audio }){
     const cw = (w - pad*3)/2;
     const ch = (h - pad*3)/2;
     const ts = formatClock(clockBaseSeconds + (t|0));
+    const phase = getPhaseAtTime(t);
 
     renderCam(ctx, cams[0], pad, pad, cw, ch, ts);
     renderCam(ctx, cams[1], pad*2 + cw, pad, cw, ch, ts);
@@ -198,7 +282,7 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(0,0,w, Math.floor(h*0.12));
     ctx.fillStyle = 'rgba(231,238,246,0.85)';
     ctx.font = `${Math.floor(h/18)}px ui-sans-serif, system-ui`;
-    ctx.fillText('CCTV NIGHT WATCH', w*0.05, h*0.09);
+    ctx.fillText(`CCTV NIGHT WATCH — ${phase.name}`, w*0.05, h*0.09);
     ctx.restore();
   }
 
