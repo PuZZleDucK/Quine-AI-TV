@@ -5,7 +5,8 @@ export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
   let w=0,h=0,t=0;
   let sparks=[];
-  let crackle=null;
+  let noiseHandle=null; // audio.noiseSource handle
+  let audioHandle=null; // {stop()}
   let nextPop=0;
 
   function init({width,height}){
@@ -32,12 +33,36 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
-    const n = audio.noiseSource({type:'brown', gain:0.02});
-    n.start();
-    crackle = {stop(){n.stop();}};
-    audio.setCurrent(crackle);
+
+    // Defensive hygiene: if called twice while audio is on, avoid stacking sources.
+    onAudioOff();
+
+    const hdl = audio.noiseSource({type:'brown', gain:0.02});
+    hdl.start();
+    noiseHandle = hdl;
+
+    audioHandle = {
+      stop(){
+        try { hdl.stop?.(); } catch {}
+        if (noiseHandle === hdl) noiseHandle = null;
+      },
+    };
+    audio.setCurrent(audioHandle);
   }
-  function onAudioOff(){ try{crackle?.stop?.();}catch{} crackle=null; }
+
+  function onAudioOff(){
+    // Stop the source we started.
+    try { noiseHandle?.stop?.(); } catch {}
+    noiseHandle = null;
+
+    // If our handle is still registered as current, clear it.
+    try {
+      if (audio.current === audioHandle) audio.stopCurrent();
+      else audioHandle?.stop?.();
+    } catch {}
+    audioHandle = null;
+  }
+
   function destroy(){ onAudioOff(); }
 
   function update(dt){
