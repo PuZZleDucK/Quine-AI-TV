@@ -2,9 +2,52 @@ import { mulberry32 } from '../util/prng.js';
 
 // REVIEWED: 2026-02-10 (screenshots: screenshots/review-fire)
 export function createChannel({ seed, audio }){
-  const rand = mulberry32(seed);
+  const seedU = (seed == null ? 1 : seed) >>> 0;
+  const rand = mulberry32(seedU);
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const smoothstep = (a, b, x) => {
+    const t = clamp((x - a) / (b - a), 0, 1);
+    return t * t * (3 - 2 * t);
+  };
+
+  // Time-structure (calm → roaring → embers), deterministic per seed.
+  // Use a separate PRNG so we don't perturb the channel's other randomness.
+  const phaseCfg = (() => {
+    const r = mulberry32((seedU ^ 0x00f1a5e) >>> 0);
+    const total = 120 + r() * 120; // 2–4 minutes
+    const w1 = 0.8 + r() * 0.7; // calm
+    const w2 = 1.0 + r() * 0.9; // roaring
+    const w3 = 0.6 + r() * 0.7; // embers
+    const sum = w1 + w2 + w3;
+    const calm = total * (w1 / sum);
+    const roar = total * (w2 / sum);
+    const embers = Math.max(15, total - calm - roar);
+    const roarPeak = 1.0 + r() * 0.25;
+    return { calm, roar, embers, total: calm + roar + embers, roarPeak };
+  })();
+
+  function phaseState(time){
+    const u = ((time % phaseCfg.total) + phaseCfg.total) % phaseCfg.total;
+    if (u < phaseCfg.calm) return { name: 'calm', p: u / phaseCfg.calm };
+    if (u < phaseCfg.calm + phaseCfg.roar) return { name: 'roar', p: (u - phaseCfg.calm) / phaseCfg.roar };
+    return { name: 'embers', p: (u - phaseCfg.calm - phaseCfg.roar) / phaseCfg.embers };
+  }
+
+  function heatAt(time){
+    const { name, p } = phaseState(time);
+    if (name === 'calm') return lerp(0.35, 0.55, smoothstep(0, 1, p));
+    if (name === 'roar') return lerp(0.80, phaseCfg.roarPeak, smoothstep(0, 0.35, p));
+    return lerp(0.50, 0.18, smoothstep(0, 1, p));
+  }
+
+  const MAX_SPARKS = 240;
+
   let w=0,h=0,t=0;
   let sparks=[];
+  let activeSparks=0;
+  let prevActiveSparks=0;
   let noiseHandle=null; // audio.noiseSource handle
   let audioHandle=null; // {stop()}
   let nextPop=0;
@@ -14,6 +57,12 @@ export function createChannel({ seed, audio }){
   let staticLayer=null; // CanvasImageSource | false | null
   let logSprites=null; // [{c,w,h,angle}] | null
   let sparkSprites=null; // Map<radiusPx:number, CanvasImageSource> | null
+
+  function sparkCountForHeat(heat){
+    const u = clamp(heat / phaseCfg.roarPeak, 0, 1);
+    const min = Math.max(24, Math.round(MAX_SPARKS * 0.25));
+    return clamp(Math.round(lerp(min, MAX_SPARKS, u)), min, MAX_SPARKS);
+  }
 
   function makeCanvas(W,H){
     let c = null;
@@ -117,21 +166,31 @@ export function createChannel({ seed, audio }){
     w=width; h=height; t=0;
     rebuildStatic();
     clearSparkSprites();
-    sparks = Array.from({length: 240}, () => makeSpark(true));
+
+    const heat0 = heatAt(0);
+    sparks = Array.from({length: MAX_SPARKS}, () => makeSpark(true, heat0));
+    activeSparks = sparkCountForHeat(heat0);
+    prevActiveSparks = activeSparks;
+
     warmSparkSprites();
     nextPop = 0.6;
   }
 
-  function makeSpark(reset=false){
+  function makeSpark(reset=false, heat=0.6){
+    const hn = clamp(heat / phaseCfg.roarPeak, 0, 1);
+    const kVy = lerp(0.75, 1.25, hn);
+    const kR = lerp(0.85, 1.15, hn);
+    const kLife = lerp(0.9, 1.1, hn);
+
     const baseX = w*0.5 + (rand()*2-1)*w*0.12;
     return {
       x: baseX,
       y: reset ? h*(0.86 + rand()*0.1) : rand()*h,
       vx: (rand()*2-1)*40*(w/960),
-      vy: -(60+rand()*260)*(h/540),
-      r: (1+rand()*4)*(h/540),
-      life: 0.3 + rand()*1.2,
-      max: 0.3 + rand()*1.2,
+      vy: -(60+rand()*260)*(h/540)*kVy,
+      r: (1+rand()*4)*(h/540)*kR,
+      life: (0.3 + rand()*1.2)*kLife,
+      max: (0.3 + rand()*1.2)*kLife,
       hue: 20 + rand()*40,
     };
   }
@@ -174,20 +233,29 @@ export function createChannel({ seed, audio }){
 
   function update(dt){
     t += dt;
-    for (let i=0;i<sparks.length;i++){
+
+    const heat = heatAt(t);
+    activeSparks = sparkCountForHeat(heat);
+    if (activeSparks > prevActiveSparks){
+      for (let i=prevActiveSparks; i<activeSparks; i++) sparks[i] = makeSpark(true, heat);
+    }
+    prevActiveSparks = activeSparks;
+
+    for (let i=0;i<activeSparks;i++){
       const s = sparks[i];
       s.life -= dt;
       s.x += s.vx*dt;
       s.y += s.vy*dt;
       s.vy += 220*dt*(h/540);
       if (s.life <= 0 || s.y < h*0.2){
-        sparks[i] = makeSpark(true);
+        sparks[i] = makeSpark(true, heat);
       }
     }
 
     nextPop -= dt;
     if (nextPop <= 0){
-      nextPop = 0.25 + rand()*0.8;
+      const hn = clamp(heat / phaseCfg.roarPeak, 0, 1);
+      nextPop = (0.25 + rand()*0.8) * lerp(1.15, 0.65, hn);
       if (audio.enabled) audio.beep({freq: 120 + rand()*200, dur: 0.03, gain: 0.015, type:'square'});
     }
   }
@@ -195,6 +263,9 @@ export function createChannel({ seed, audio }){
   function render(ctx){
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
+
+    const heat = heatAt(t);
+    const hn = clamp(heat / phaseCfg.roarPeak, 0, 1);
 
     // background + hearth (cached layer)
     if (staticLayer && staticLayer !== false) ctx.drawImage(staticLayer, 0, 0);
@@ -233,11 +304,16 @@ export function createChannel({ seed, audio }){
     // flame body (layered gradients)
     const fx = w*0.5;
     const baseY = h*0.84;
+    const heightScale = lerp(0.65, 1.25, hn);
+    const widthScale = lerp(0.75, 1.15, hn);
+    const swayScale = lerp(0.6, 1.35, hn);
+    const flameSpeed = lerp(0.9, 1.55, hn);
+
     for (let i=0;i<5;i++){
-      const amp = 0.018 + i*0.01;
-      const sway = Math.sin(t*1.2 + i)*w*amp;
-      const height = h*(0.22 + i*0.03);
-      const width = w*(0.10 + i*0.02);
+      const amp = (0.018 + i*0.01) * swayScale;
+      const sway = Math.sin(t*1.2*flameSpeed + i)*w*amp;
+      const height = h*(0.22 + i*0.03) * heightScale;
+      const width = w*(0.10 + i*0.02) * widthScale;
       const g = ctx.createRadialGradient(fx+sway, baseY-height*0.4, 0, fx+sway, baseY-height*0.4, width);
       g.addColorStop(0, `rgba(255,220,140,${0.34 - i*0.04})`);
       g.addColorStop(0.5, `rgba(255,120,40,${0.22 - i*0.03})`);
@@ -251,9 +327,10 @@ export function createChannel({ seed, audio }){
     // sparks (perf: cached sprites; no per-spark gradients)
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    for (const s of sparks){
+    for (let i=0;i<activeSparks;i++){
+      const s = sparks[i];
       const a = Math.max(0, s.life/s.max);
-      const alpha = 0.12 + 0.28*a;
+      const alpha = (0.10 + 0.30*a) * lerp(0.65, 1.15, hn);
       if (alpha <= 0) continue;
 
       const rPx = bucketSparkRadiusPx(Math.round(s.r*10));
@@ -268,8 +345,9 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // warm glow
+    const glowA = 0.06 + 0.16*hn;
     const wg = ctx.createRadialGradient(fx,baseY, 0, fx,baseY, Math.max(w,h)*0.6);
-    wg.addColorStop(0,'rgba(255,140,60,0.14)');
+    wg.addColorStop(0,`rgba(255,140,60,${glowA})`);
     wg.addColorStop(1,'rgba(0,0,0,0)');
     ctx.fillStyle = wg;
     ctx.fillRect(0,0,w,h);
