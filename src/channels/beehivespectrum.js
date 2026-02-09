@@ -42,6 +42,21 @@ export function createChannel({ seed, audio }){
   let bgCacheW = 0;
   let bgCacheH = 0;
 
+  // perf: cache hot-path gradients (rebuild on resize / band switch)
+  let danceGlowGrad = null;
+  let danceGlowBandIdx = -1;
+  let danceGlowCacheX = 0;
+  let danceGlowCacheY = 0;
+  let danceGlowCacheW = 0;
+  let danceGlowCacheH = 0;
+
+  let wfSheenGrad = null;
+  let wfSheenBandIdx = -1;
+  let wfSheenCacheX = 0;
+  let wfSheenCacheY = 0;
+  let wfSheenCacheW = 0;
+  let wfSheenCacheH = 0;
+
   // layout
   let pad = 16;
   let panelX = 0, panelY = 0, panelW = 0, panelH = 0;
@@ -180,6 +195,11 @@ export function createChannel({ seed, audio }){
     bgCacheW = 0;
     bgCacheH = 0;
 
+    danceGlowGrad = null;
+    danceGlowBandIdx = -1;
+    wfSheenGrad = null;
+    wfSheenBandIdx = -1;
+
     pad = Math.max(14, Math.floor(Math.min(w, h) * 0.02));
     panelX = pad;
     panelY = pad;
@@ -224,6 +244,12 @@ export function createChannel({ seed, audio }){
     bandIdx = (next + BANDS.length) % BANDS.length;
     bandTimer = 22 + rand() * 18;
     tuneFx = 1.05;
+
+    // invalidate cached gradients that depend on band hue
+    danceGlowGrad = null;
+    danceGlowBandIdx = -1;
+    wfSheenGrad = null;
+    wfSheenBandIdx = -1;
 
     // a little “hive click”
     if (audio.enabled){
@@ -529,11 +555,26 @@ export function createChannel({ seed, audio }){
     ctx.fill();
     ctx.clip();
 
-    // soft glow
-    const gl = ctx.createRadialGradient(danceX + danceW * 0.5, danceY + danceH * 0.5, 10, danceX + danceW * 0.5, danceY + danceH * 0.5, Math.max(danceW, danceH) * 0.65);
-    gl.addColorStop(0, `hsla(${band.hue + 10}, 90%, 60%, 0.10)`);
-    gl.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = gl;
+    // soft glow (perf: cached gradient)
+    if (!danceGlowGrad || danceGlowBandIdx !== bandIdx || danceGlowCacheX !== danceX || danceGlowCacheY !== danceY || danceGlowCacheW !== danceW || danceGlowCacheH !== danceH){
+      danceGlowBandIdx = bandIdx;
+      danceGlowCacheX = danceX;
+      danceGlowCacheY = danceY;
+      danceGlowCacheW = danceW;
+      danceGlowCacheH = danceH;
+
+      danceGlowGrad = ctx.createRadialGradient(
+        danceX + danceW * 0.5,
+        danceY + danceH * 0.5,
+        10,
+        danceX + danceW * 0.5,
+        danceY + danceH * 0.5,
+        Math.max(danceW, danceH) * 0.65
+      );
+      danceGlowGrad.addColorStop(0, `hsla(${band.hue + 10}, 90%, 60%, 0.10)`);
+      danceGlowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    }
+    ctx.fillStyle = danceGlowGrad;
     ctx.fillRect(danceX, danceY, danceW, danceH);
 
     // waggle traces
@@ -607,14 +648,22 @@ export function createChannel({ seed, audio }){
     ctx.globalAlpha = 0.95;
     ctx.drawImage(wfCanvas, wfX, wfY, wfW, wfH);
 
-    // top gloss
+    // top gloss (perf: cached gradient)
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    const sheen = ctx.createLinearGradient(wfX, wfY, wfX + wfW, wfY);
-    sheen.addColorStop(0, 'rgba(255,220,140,0.00)');
-    sheen.addColorStop(0.55, `hsla(${band.hue + 8}, 95%, 70%, 0.08)`);
-    sheen.addColorStop(1, 'rgba(255,180,60,0.00)');
-    ctx.fillStyle = sheen;
+    if (!wfSheenGrad || wfSheenBandIdx !== bandIdx || wfSheenCacheX !== wfX || wfSheenCacheY !== wfY || wfSheenCacheW !== wfW || wfSheenCacheH !== wfH){
+      wfSheenBandIdx = bandIdx;
+      wfSheenCacheX = wfX;
+      wfSheenCacheY = wfY;
+      wfSheenCacheW = wfW;
+      wfSheenCacheH = wfH;
+
+      wfSheenGrad = ctx.createLinearGradient(wfX, wfY, wfX + wfW, wfY);
+      wfSheenGrad.addColorStop(0, 'rgba(255,220,140,0.00)');
+      wfSheenGrad.addColorStop(0.55, `hsla(${band.hue + 8}, 95%, 70%, 0.08)`);
+      wfSheenGrad.addColorStop(1, 'rgba(255,180,60,0.00)');
+    }
+    ctx.fillStyle = wfSheenGrad;
     ctx.fillRect(wfX, wfY, wfW, wfH);
     ctx.restore();
 
