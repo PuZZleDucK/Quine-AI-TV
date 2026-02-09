@@ -128,4 +128,5 @@ export const CHANNELS = [
   { id: 'marbledispatch', name: 'Marble Run Dispatch', file: 'marblerundispatch.js' },
   { id: 'neonlaundromat', name: 'Neon Laundromat Spin Cycle', file: 'neonlaundromat.js' },
   { id: 'cavetorch', name: 'Cave Torch Storyboard', file: 'cavetorch.js' },
+  { id: 'vinylpress', name: 'Vinyl Pressing Plant', file: 'vinylpress.js' },
 ];
