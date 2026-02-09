@@ -13,6 +13,74 @@ export function createChannel({ seed, audio }){
   let coral = [];
   let noiseHandle=null;
 
+  // Time-structure: calm → schooling → deep-glow (deterministic per seed).
+  const randStruct = mulberry32((seed ^ 0x85ebca6b) >>> 0);
+  const phasePlan = (() => {
+    const cycleDur = 120 + randStruct()*120; // 2–4 minutes
+    const calmDur = cycleDur * (0.38 + randStruct()*0.10);
+    const schoolDur = cycleDur * (0.26 + randStruct()*0.14);
+    const deepDur = Math.max(10, cycleDur - calmDur - schoolDur);
+    const fade = 6 + randStruct()*8; // seconds of crossfade at boundaries
+    return { cycleDur, calmDur, schoolDur, deepDur, fade };
+  })();
+
+  const schoolPlan = {
+    dir: randStruct() < 0.5 ? 1 : -1,
+    yNorm: 0.30 + randStruct()*0.40,
+    bandNorm: 0.05 + randStruct()*0.06,
+    fishSpeed: 1.35 + randStruct()*0.35,
+    bubbleSpeed: 1.10 + randStruct()*0.18,
+  };
+  const deepPlan = {
+    fishSpeed: 0.78 + randStruct()*0.12,
+    bubbleSpeed: 0.88 + randStruct()*0.10,
+    caustics: 0.75 + randStruct()*0.20,
+    glowHue: 175 + randStruct()*40,
+    glowStrength: 0.08 + randStruct()*0.10,
+  };
+
+  let schoolY = 0;
+  let schoolBand = 0;
+
+  function smooth01(x){ x = clamp(x, 0, 1); return x*x*(3 - 2*x); }
+
+  function getPhaseState(tt){
+    const { cycleDur, calmDur, schoolDur, deepDur, fade } = phasePlan;
+    const x = ((tt % cycleDur) + cycleDur) % cycleDur;
+
+    const segs = [
+      { name: 'calm', dur: calmDur },
+      { name: 'schooling', dur: schoolDur },
+      { name: 'deep', dur: deepDur },
+    ];
+
+    let acc = 0;
+    let idx = 0;
+    for (let i = 0; i < segs.length; i++){
+      const end = acc + segs[i].dur;
+      if (x < end){ idx = i; break; }
+      acc = end;
+    }
+
+    const cur = segs[idx];
+    const next = segs[(idx + 1) % segs.length];
+    const segEnd = acc + cur.dur;
+
+    const out = segEnd - x;
+    let mix = 0;
+    if (out < fade){
+      mix = smooth01(1 - out / Math.max(0.001, fade));
+    }
+
+    return { name: cur.name, next: next.name, mix };
+  }
+
+  function phaseWeight(state, name){
+    if (state.name === name) return 1 - state.mix;
+    if (state.next === name) return state.mix;
+    return 0;
+  }
+
   // Gradient/sprite caches to avoid hot-path allocations in render().
   const gradCache = {
     ctx: null,
@@ -20,6 +88,7 @@ export function createChannel({ seed, audio }){
     h: 0,
     water: null,
     vignette: null,
+    deepGlow: null,
     bubbleSprites: new Map(),
   };
 
@@ -29,6 +98,7 @@ export function createChannel({ seed, audio }){
     gradCache.h = 0;
     gradCache.water = null;
     gradCache.vignette = null;
+    gradCache.deepGlow = null;
     gradCache.bubbleSprites.clear();
   }
 
@@ -39,6 +109,7 @@ export function createChannel({ seed, audio }){
       gradCache.h = h;
       gradCache.water = null;
       gradCache.vignette = null;
+      gradCache.deepGlow = null;
       // Bubble sprites don't depend on dimensions, but clearing here keeps the cache logic simple.
       gradCache.bubbleSprites.clear();
     }
@@ -65,6 +136,21 @@ export function createChannel({ seed, audio }){
       gradCache.vignette = vg;
     }
     return gradCache.vignette;
+  }
+
+  function getDeepGlowGradient(ctx){
+    ensureGradCache(ctx);
+    if (!gradCache.deepGlow){
+      const gx = w*0.5;
+      const gy = h*0.62;
+      const r0 = Math.min(w,h)*0.08;
+      const r1 = Math.max(w,h)*0.75;
+      const gg = ctx.createRadialGradient(gx, gy, r0, gx, gy, r1);
+      gg.addColorStop(0, `hsla(${deepPlan.glowHue}, 90%, 60%, 0.75)`);
+      gg.addColorStop(1, 'rgba(0,0,0,0)');
+      gradCache.deepGlow = gg;
+    }
+    return gradCache.deepGlow;
   }
 
   function getBubbleSprite(r){
@@ -101,6 +187,8 @@ export function createChannel({ seed, audio }){
   function init({width,height}){
     w=width; h=height; t=0;
     resetGradCache();
+    schoolY = h * schoolPlan.yNorm;
+    schoolBand = h * schoolPlan.bandNorm;
     // Spawn some fish on-screen so screenshots are less empty right after tuning.
     fish = Array.from({length: 10}, (_,i)=>makeFish(i, i < 6));
     bubbles = Array.from({length: 90}, ()=>makeBubble(true));
@@ -271,6 +359,8 @@ export function createChannel({ seed, audio }){
   function onResize(width,height){
     w=width; h=height;
     resetGradCache();
+    schoolY = h * schoolPlan.yNorm;
+    schoolBand = h * schoolPlan.bandNorm;
     sand = makeSand();
     seaweed = makeSeaweed();
     coral = makeCoral();
@@ -286,26 +376,51 @@ export function createChannel({ seed, audio }){
   function onAudioOff(){ try{noiseHandle?.stop?.();}catch{} noiseHandle=null; }
   function destroy(){ onAudioOff(); }
 
+
   function update(dt){
     t += dt;
+
+    const ph = getPhaseState(t);
+    const calmW = phaseWeight(ph, 'calm');
+    const schoolW = phaseWeight(ph, 'schooling');
+    const deepW = phaseWeight(ph, 'deep');
+
+    const bubbleMul = calmW*1 + schoolW*schoolPlan.bubbleSpeed + deepW*deepPlan.bubbleSpeed;
+    const fishMul = calmW*1 + schoolW*schoolPlan.fishSpeed + deepW*deepPlan.fishSpeed;
+    const ampMul = calmW*1 + schoolW*0.55 + deepW*1.05;
+
     // bubbles
     for (const b of bubbles){
-      b.y -= b.sp*dt;
+      b.y -= b.sp * bubbleMul * dt;
       b.x += Math.sin(t*1.6 + b.wob) * b.drift;
       if (b.y < -20) Object.assign(b, makeBubble(true));
     }
+
     // fish
     for (let i=0;i<fish.length;i++){
       const f = fish[i];
-      f.x += f.dir * (80*f.sp) * dt;
-      f.y = f.baseY + Math.sin(t*0.8 + f.ph) * f.amp;
-      if (f.dir>0 && f.x> w + 80) fish[i]=makeFish(i);
-      if (f.dir<0 && f.x< -80) fish[i]=makeFish(i);
-      f.y = clamp(f.y, h*0.12, h*0.88);
+      const dirEff = (1 - schoolW) * f.dir + schoolW * schoolPlan.dir;
+      f.x += dirEff * (80*f.sp*fishMul) * dt;
+
+      const baseY = f.baseY + Math.sin(t*0.8 + f.ph) * f.amp * ampMul;
+      let yy = baseY;
+      if (schoolW > 0){
+        const bandY = schoolY + (f.variant*2 - 1) * schoolBand;
+        const schoolYy = bandY + Math.sin(t*1.05 + f.ph) * f.amp * 0.40;
+        yy = baseY*(1 - schoolW) + schoolYy*schoolW;
+      }
+      f.y = clamp(yy, h*0.12, h*0.88);
+
+      if (f.x > w + 120 || f.x < -120) fish[i] = makeFish(i);
     }
   }
 
   function render(ctx){
+    const ph = getPhaseState(t);
+    const calmW = phaseWeight(ph, 'calm');
+    const schoolW = phaseWeight(ph, 'schooling');
+    const deepW = phaseWeight(ph, 'deep');
+
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
 
@@ -313,19 +428,31 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = getWaterGradient(ctx);
     ctx.fillRect(0,0,w,h);
 
+    // deep-glow wash
+    if (deepW > 0){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = deepW * deepPlan.glowStrength;
+      ctx.fillStyle = getDeepGlowGradient(ctx);
+      ctx.fillRect(0,0,w,h);
+      ctx.restore();
+    }
+
     // caustics
+    const causticsA = 0.12 * (calmW*1.25 + schoolW*1.0 + deepW*deepPlan.caustics);
+    const causticsT = t * (calmW*1.0 + schoolW*1.25 + deepW*0.85);
     ctx.save();
-    ctx.globalAlpha = 0.12;
+    ctx.globalAlpha = causticsA;
     ctx.fillStyle = 'rgba(120,255,230,0.8)';
     for (let i=0;i<60;i++){
       const x = (i/60)*w;
-      const y = h*0.15 + Math.sin(t*0.8 + i)*h*0.03;
+      const y = h*0.15 + Math.sin(causticsT*0.8 + i)*h*0.03;
       ctx.fillRect(x, y, w/60, h*0.008);
     }
     ctx.restore();
 
     // seabed
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillStyle = `rgba(0,0,0,${0.25 + 0.08*deepW})`;
     ctx.fillRect(0,h*0.86,w,h*0.14);
     // sand specks
     ctx.save();
