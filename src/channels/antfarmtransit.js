@@ -458,6 +458,7 @@ export function createChannel({ seed, audio }){
         line: 0,
         size: 3,
         shade: 0.88,
+        body: 'rgba(35, 28, 22, 0.92)',
       };
     }
     antHead = 0;
@@ -478,6 +479,12 @@ export function createChannel({ seed, audio }){
     a.line = li;
     a.size = 2.6 + rand() * 1.8;
     a.shade = 0.78 + rand() * 0.18;
+    {
+      const r = (40 * a.shade) | 0;
+      const g = (30 * a.shade) | 0;
+      const b = (25 * a.shade) | 0;
+      a.body = `rgba(${r}, ${g}, ${b}, 0.92)`;
+    }
 
     const base = 58 + rand()*55;
     a.speed = base * speedMult;
@@ -851,9 +858,8 @@ export function createChannel({ seed, audio }){
       const p = edgePoint(e, a.u);
       const ang = edgeTangent(e, a.u) + (a.dir === 1 ? 0 : Math.PI);
 
-      const col = `rgba(${Math.floor(40*a.shade)}, ${Math.floor(30*a.shade)}, ${Math.floor(25*a.shade)}, 0.92)`;
       const glow = (surge.edge === a.edge) ? 1 : 0;
-      drawAnt(ctx, p.x, p.y, ang, a.size, col, glow);
+      drawAnt(ctx, p.x, p.y, ang, a.size, a.body, glow);
     }
 
     // queen pass
