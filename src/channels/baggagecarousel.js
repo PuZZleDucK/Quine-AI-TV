@@ -74,6 +74,16 @@ export function createChannel({ seed, audio }){
     postH: 0,
   };
 
+  // Perf: pre-render floor tile grid to an offscreen layer; blit with drift offset each frame.
+  const floorCache = {
+    dirty: true,
+    layer: null, // CanvasImageSource | false | null
+    tile: 0,
+    w: 0,
+    h: 0,
+    dpr: 1,
+  };
+
   // sim
   let beltSpeed = 0.7;
   let phaseIndex = -1;
@@ -108,6 +118,7 @@ export function createChannel({ seed, audio }){
     ry = h * 0.20;
     beltThick = Math.max(12, Math.floor(Math.min(w, h) * 0.045));
     gradCache.dirty = true;
+    floorCache.dirty = true;
   }
 
   function reset(){
@@ -255,6 +266,59 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function makeCanvas(W, H){
+    if (!(W > 0 && H > 0)) return null;
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+    if (typeof document !== 'undefined'){
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    }
+    return null;
+  }
+
+  function ensureFloorTileLayer(){
+    const tile = Math.max(26, Math.floor(Math.min(w, h) * 0.06));
+    if (!floorCache.dirty && floorCache.tile === tile && floorCache.w === w && floorCache.h === h && floorCache.dpr === dpr) return;
+
+    floorCache.dirty = false;
+    floorCache.tile = tile;
+    floorCache.w = w;
+    floorCache.h = h;
+    floorCache.dpr = dpr;
+
+    const W = w + tile;
+    const H = h + tile;
+
+    const c = makeCanvas(W, H);
+    if (!c){
+      floorCache.layer = false;
+      return;
+    }
+
+    const g = c.getContext('2d');
+    g.clearRect(0, 0, W, H);
+
+    g.strokeStyle = pal.grout;
+    g.lineWidth = Math.max(1, Math.floor(dpr));
+
+    for (let x = 0; x <= W; x += tile){
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(x, H);
+      g.stroke();
+    }
+    for (let y = 0; y <= H; y += tile){
+      g.beginPath();
+      g.moveTo(0, y);
+      g.lineTo(W, y);
+      g.stroke();
+    }
+
+    floorCache.layer = c;
+  }
+
   function ensureGradients(ctx){
     if (gradCache.ctx !== ctx){
       gradCache.ctx = ctx;
@@ -307,25 +371,32 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = gradCache.floor;
     ctx.fillRect(0, 0, w, h);
 
-    // tiles
-    const tile = Math.max(26, Math.floor(Math.min(w, h) * 0.06));
-    ctx.strokeStyle = pal.grout;
-    ctx.lineWidth = Math.max(1, Math.floor(dpr));
+    // tiles (cached grid layer; only rebuilt on resize)
+    ensureFloorTileLayer();
+    const tile = floorCache.tile;
 
     const driftX = (t * 4) % tile;
     const driftY = (t * 3) % tile;
 
-    for (let x = -tile; x <= w + tile; x += tile){
-      ctx.beginPath();
-      ctx.moveTo(x + driftX, 0);
-      ctx.lineTo(x + driftX, h);
-      ctx.stroke();
-    }
-    for (let y = -tile; y <= h + tile; y += tile){
-      ctx.beginPath();
-      ctx.moveTo(0, y + driftY);
-      ctx.lineTo(w, y + driftY);
-      ctx.stroke();
+    if (floorCache.layer){
+      ctx.drawImage(floorCache.layer, -driftX, -driftY);
+    } else {
+      // Fallback: if we can't allocate an offscreen layer, keep visuals intact.
+      ctx.strokeStyle = pal.grout;
+      ctx.lineWidth = Math.max(1, Math.floor(dpr));
+
+      for (let x = -tile; x <= w + tile; x += tile){
+        ctx.beginPath();
+        ctx.moveTo(x + driftX, 0);
+        ctx.lineTo(x + driftX, h);
+        ctx.stroke();
+      }
+      for (let y = -tile; y <= h + tile; y += tile){
+        ctx.beginPath();
+        ctx.moveTo(0, y + driftY);
+        ctx.lineTo(w, y + driftY);
+        ctx.stroke();
+      }
     }
 
     // subtle vignette
