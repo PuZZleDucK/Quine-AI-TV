@@ -13,6 +13,8 @@ export function createChannel({ seed, audio }){
   // (The flame + sparks are still dynamic.)
   let staticLayer=null; // CanvasImageSource | false | null
   let logSprites=null; // [{c,w,h,angle}] | null
+  let sparkSprites=null; // Map<radiusPx:number, CanvasImageSource> | null
+
   function makeCanvas(W,H){
     let c = null;
     if (typeof OffscreenCanvas !== 'undefined') c = new OffscreenCanvas(W,H);
@@ -68,10 +70,55 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  const SPARK_R_STEP = 2; // px
+  function bucketSparkRadiusPx(radiusPx){
+    const r = Math.max(2, radiusPx|0);
+    return Math.max(2, Math.round(r / SPARK_R_STEP) * SPARK_R_STEP);
+  }
+
+  function clearSparkSprites(){ sparkSprites = null; }
+
+  function warmSparkSprites(){
+    // Build once per resize so render() remains gradient-free in steady-state.
+    const scale = (h/540);
+    const minR = bucketSparkRadiusPx(Math.round(10*scale)); // ~= 1*10
+    const maxR = bucketSparkRadiusPx(Math.round(50*scale)); // ~= 5*10
+    for (let r=minR; r<=maxR; r+=SPARK_R_STEP) getSparkSprite(r);
+  }
+
+  function getSparkSprite(radiusPx){
+    const r = bucketSparkRadiusPx(radiusPx);
+    if (!sparkSprites) sparkSprites = new Map();
+    const hit = sparkSprites.get(r);
+    if (hit) return hit;
+
+    const size = r*2 + 4;
+    const c = makeCanvas(size, size);
+    if (!c) return null;
+    const g = c.getContext('2d');
+    g.setTransform(1,0,0,1,0,0);
+    g.clearRect(0,0,size,size);
+
+    const cx = size/2, cy = size/2;
+    const grad = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+    grad.addColorStop(0, 'rgba(255,220,150,0.95)');
+    grad.addColorStop(0.35, 'rgba(255,150,60,0.35)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(cx, cy, r, 0, Math.PI*2);
+    g.fill();
+
+    sparkSprites.set(r, c);
+    return c;
+  }
+
   function init({width,height}){
     w=width; h=height; t=0;
     rebuildStatic();
+    clearSparkSprites();
     sparks = Array.from({length: 240}, () => makeSpark(true));
+    warmSparkSprites();
     nextPop = 0.6;
   }
 
@@ -89,7 +136,7 @@ export function createChannel({ seed, audio }){
     };
   }
 
-  function onResize(width,height){ w=width; h=height; rebuildStatic(); }
+  function onResize(width,height){ w=width; h=height; rebuildStatic(); clearSparkSprites(); warmSparkSprites(); }
 
   function onAudioOn(){
     if (!audio.enabled) return;
@@ -201,18 +248,22 @@ export function createChannel({ seed, audio }){
       ctx.fill();
     }
 
-    // sparks
+    // sparks (perf: cached sprites; no per-spark gradients)
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (const s of sparks){
       const a = Math.max(0, s.life/s.max);
-      const g = ctx.createRadialGradient(s.x,s.y, 0, s.x,s.y, s.r*10);
-      g.addColorStop(0, `hsla(${s.hue},95%,65%,${0.12 + 0.28*a})`);
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(s.x,s.y, s.r*10, 0, Math.PI*2);
-      ctx.fill();
+      const alpha = 0.12 + 0.28*a;
+      if (alpha <= 0) continue;
+
+      const rPx = bucketSparkRadiusPx(Math.round(s.r*10));
+      const spr = getSparkSprite(rPx);
+      if (!spr) continue;
+
+      ctx.globalAlpha = alpha;
+      // sprite canvas is (r*2+4); draw centered
+      const size = rPx*2 + 4;
+      ctx.drawImage(spr, s.x - size/2, s.y - size/2);
     }
     ctx.restore();
 
