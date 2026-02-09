@@ -127,6 +127,7 @@ export const CHANNELS = [
   { id: 'nanobotrepair', name: 'Nanobot Repair Swarm', file: 'nanobotrepair.js' },
   { id: 'icecorelab', name: 'Ice Core Analysis Lab', file: 'icecorelab.js' },
   { id: 'marbledispatch', name: 'Marble Run Dispatch', file: 'marblerundispatch.js' },
+  { id: 'tugdispatch', name: 'Harbor Tug Dispatch', file: 'harbortugdispatch.js' },
   { id: 'neonlaundromat', name: 'Neon Laundromat Spin Cycle', file: 'neonlaundromat.js' },
   { id: 'cavetorch', name: 'Cave Torch Storyboard', file: 'cavetorch.js' },
   { id: 'vinylpress', name: 'Vinyl Pressing Plant', file: 'vinylpress.js' },
