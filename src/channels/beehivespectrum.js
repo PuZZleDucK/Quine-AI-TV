@@ -36,6 +36,12 @@ export function createChannel({ seed, audio }){
 
   let w = 0, h = 0, t = 0;
 
+  // perf: cache background gradients (rebuild on resize)
+  let bgGrad = null;
+  let vignetteGrad = null;
+  let bgCacheW = 0;
+  let bgCacheH = 0;
+
   // layout
   let pad = 16;
   let panelX = 0, panelY = 0, panelW = 0, panelH = 0;
@@ -167,6 +173,12 @@ export function createChannel({ seed, audio }){
     w = width;
     h = height;
     t = 0;
+
+    // invalidate cached gradients
+    bgGrad = null;
+    vignetteGrad = null;
+    bgCacheW = 0;
+    bgCacheH = 0;
 
     pad = Math.max(14, Math.floor(Math.min(w, h) * 0.02));
     panelX = pad;
@@ -418,11 +430,24 @@ export function createChannel({ seed, audio }){
   function drawBackground(ctx){
     const band = BANDS[bandIdx];
 
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#120b03');
-    g.addColorStop(0.55, '#140a02');
-    g.addColorStop(1, '#060301');
-    ctx.fillStyle = g;
+    if (!bgGrad || bgCacheW !== w || bgCacheH !== h){
+      bgCacheW = w;
+      bgCacheH = h;
+
+      bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#120b03');
+      bgGrad.addColorStop(0.55, '#140a02');
+      bgGrad.addColorStop(1, '#060301');
+
+      vignetteGrad = ctx.createRadialGradient(
+        w * 0.5, h * 0.5, Math.min(w, h) * 0.10,
+        w * 0.5, h * 0.5, Math.max(w, h) * 0.78
+      );
+      vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      vignetteGrad.addColorStop(1, 'rgba(0,0,0,0.60)');
+    }
+
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
     function drawHexLayer(layer, driftX, driftY, lineAlpha, glow){
@@ -453,10 +478,7 @@ export function createChannel({ seed, audio }){
 
     // subtle vignette
     ctx.save();
-    const v = ctx.createRadialGradient(w * 0.5, h * 0.5, Math.min(w, h) * 0.10, w * 0.5, h * 0.5, Math.max(w, h) * 0.78);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.60)');
-    ctx.fillStyle = v;
+    ctx.fillStyle = vignetteGrad;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
