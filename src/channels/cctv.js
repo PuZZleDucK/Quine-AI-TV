@@ -17,6 +17,10 @@ export function createChannel({ seed, audio }){
   let patrolCam=0;
   let nextPatrolSwitch=0;
 
+  // Rare “special moments” (deterministic per seed): signal loss/static + reconnect, or a brief CAM SWITCH overlay.
+  let nextSpecial=0;
+  let special=null; // { kind:'LOSS'|'SWITCH', camId?:number, stage?:'LOSS'|'RECONNECT', t:number, dur:number, dur2?:number }
+
   // Perf: avoid per-frame gradient allocation by using a cached radial "light" sprite.
   const LIGHT_SPRITE_SIZE = 256;
   let lightSprite = null; // CanvasImageSource | false | null
@@ -97,6 +101,10 @@ export function createChannel({ seed, audio }){
     patrolCam = (rand()*4) | 0;
     nextPatrolSwitch = 2 + rand()*4;
 
+    // Schedule first special moment after ~45–120s.
+    nextSpecial = 45 + rand()*75;
+    special = null;
+
     cams = Array.from({length: 4}, (_,i)=>({
       id:i,
       ph: rand()*10,
@@ -165,6 +173,47 @@ export function createChannel({ seed, audio }){
     t += dt;
     const phase = getPhaseAtTime(t);
 
+    // Special moments.
+    if (special){
+      special.t += dt;
+
+      if (special.kind === 'LOSS'){
+        if (special.stage === 'LOSS' && special.t >= special.dur){
+          special.stage = 'RECONNECT';
+          special.t = 0;
+          if (audio.enabled) audio.beep({freq: 180 + rand()*40, dur: 0.045, gain: 0.018, type:'square'});
+        } else if (special.stage === 'RECONNECT' && special.t >= (special.dur2 ?? 1.2)){
+          special = null;
+        }
+      } else {
+        if (special.t >= special.dur) special = null;
+      }
+    } else {
+      nextSpecial -= dt;
+      if (nextSpecial <= 0){
+        nextSpecial = 45 + rand()*75; // ~45–120s
+
+        if (rand() < 0.72){
+          special = {
+            kind: 'LOSS',
+            camId: (rand()*cams.length) | 0,
+            stage: 'LOSS',
+            t: 0,
+            dur: 0.55 + rand()*0.65,
+            dur2: 0.9 + rand()*1.0,
+          };
+          if (audio.enabled) audio.beep({freq: 70 + rand()*30, dur: 0.06, gain: 0.03, type:'sawtooth'});
+        } else {
+          special = {
+            kind: 'SWITCH',
+            t: 0,
+            dur: 0.55 + rand()*0.85,
+          };
+          if (audio.enabled) audio.beep({freq: 300 + rand()*90, dur: 0.04, gain: 0.02, type:'square'});
+        }
+      }
+    }
+
     for (const cam of cams){
       cam.boxes = cam.boxes.filter(b => (b.life -= dt) > 0);
       if (cam.boxes.length === 0) cam.msg = 'IDLE';
@@ -209,7 +258,7 @@ export function createChannel({ seed, audio }){
     return `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}`;
   }
 
-  function renderCam(ctx, cam, x, y, cw, ch, ts){
+  function renderCam(ctx, cam, x, y, cw, ch, ts, specialState){
 
     // background
     ctx.fillStyle = 'rgba(0,0,0,0.9)';
@@ -246,13 +295,60 @@ export function createChannel({ seed, audio }){
     }
     ctx.restore();
 
+    const loss = !!(specialState && specialState.kind === 'LOSS' && specialState.camId === cam.id);
+    const msg = loss
+      ? (specialState.stage === 'LOSS' ? 'NO SIGNAL' : 'RECONNECT')
+      : cam.msg;
+
+    // Special moment overlay (signal loss + reconnect) — keep OSD readable.
+    if (loss){
+      const stage = specialState.stage;
+      ctx.save();
+      ctx.globalAlpha = stage === 'LOSS' ? 0.92 : 0.65;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x,y,cw,ch);
+
+      // Deterministic static (no PRNG calls in draw).
+      const frame = (t*24) | 0;
+      ctx.fillStyle = 'rgba(200,255,210,1)';
+      for (let i=0;i<34;i++){
+        const u = Math.sin((i*127.1 + frame*17.3 + seed32*0.001) * 0.7) * 43758.5453;
+        const v = u - Math.floor(u);
+        const u2 = Math.sin((i*269.5 + frame*9.2 + seed32*0.002) * 0.9) * 43758.5453;
+        const v2 = u2 - Math.floor(u2);
+        ctx.globalAlpha = (stage === 'LOSS' ? 0.10 : 0.06) + (stage === 'LOSS' ? 0.18 : 0.10) * v2;
+        ctx.fillRect(x, y + v*ch, cw, 1);
+      }
+
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = 'rgba(180,255,210,0.95)';
+      ctx.font = '18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      ctx.fillText(stage === 'LOSS' ? 'NO SIGNAL' : 'RECONNECTING...', x + cw*0.18, y + ch*0.55);
+
+      if (stage === 'RECONNECT'){
+        const dur2 = specialState.dur2 ?? 1.2;
+        const p = Math.max(0, Math.min(1, specialState.t / Math.max(0.001, dur2)));
+        const bw = cw*0.55;
+        const bh = 6;
+        const bx = x + cw*0.22;
+        const by = y + ch*0.62;
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(bx,by,bw,bh);
+        ctx.fillStyle = 'rgba(120,255,160,0.9)';
+        ctx.fillRect(bx,by,Math.max(1, bw*p),bh);
+      }
+
+      ctx.restore();
+    }
+
     // overlays
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(x,y,cw, 24);
     ctx.fillStyle = 'rgba(180,255,210,0.9)';
     ctx.font = '14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-    ctx.fillText(`CAM ${cam.id+1}  ${cam.msg}`, x+8, y+17);
+    ctx.fillText(`CAM ${cam.id+1}  ${msg}`, x+8, y+17);
     ctx.fillText(ts, x+cw-110, y+17);
     ctx.restore();
   }
@@ -271,10 +367,10 @@ export function createChannel({ seed, audio }){
     const ts = formatClock(clockBaseSeconds + (t|0));
     const phase = getPhaseAtTime(t);
 
-    renderCam(ctx, cams[0], pad, pad, cw, ch, ts);
-    renderCam(ctx, cams[1], pad*2 + cw, pad, cw, ch, ts);
-    renderCam(ctx, cams[2], pad, pad*2 + ch, cw, ch, ts);
-    renderCam(ctx, cams[3], pad*2 + cw, pad*2 + ch, cw, ch, ts);
+    renderCam(ctx, cams[0], pad, pad, cw, ch, ts, special);
+    renderCam(ctx, cams[1], pad*2 + cw, pad, cw, ch, ts, special);
+    renderCam(ctx, cams[2], pad, pad*2 + ch, cw, ch, ts, special);
+    renderCam(ctx, cams[3], pad*2 + cw, pad*2 + ch, cw, ch, ts, special);
 
     // label bar
     ctx.save();
@@ -284,6 +380,30 @@ export function createChannel({ seed, audio }){
     ctx.font = `${Math.floor(h/18)}px ui-sans-serif, system-ui`;
     ctx.fillText(`CCTV NIGHT WATCH — ${phase.name}`, w*0.05, h*0.09);
     ctx.restore();
+
+    // Brief global overlay.
+    if (special && special.kind === 'SWITCH'){
+      const a = 1 - Math.max(0, Math.min(1, special.t / Math.max(0.001, special.dur)));
+      ctx.save();
+      ctx.globalAlpha = 0.9 * a;
+
+      const pw = Math.min(w*0.55, 320);
+      const ph = 34;
+      const px = (w - pw)/2;
+      const py = Math.floor(h*0.12) + 10;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(px,py,pw,ph);
+      ctx.strokeStyle = 'rgba(120,255,160,0.8)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px+1,py+1,pw-2,ph-2);
+
+      ctx.fillStyle = 'rgba(180,255,210,0.95)';
+      ctx.font = '16px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+      ctx.fillText('CAM SWITCH', px+16, py+22);
+
+      ctx.restore();
+    }
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
