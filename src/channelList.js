@@ -124,4 +124,5 @@ export const CHANNELS = [
   { id: 'telegraph', name: 'Telegraph Key Practice Hour', file: 'telegraph.js' },
   { id: 'streetmapfold', name: 'Street Map Folding Gym', file: 'streetmapfold.js' },
   { id: 'nanobotrepair', name: 'Nanobot Repair Swarm', file: 'nanobotrepair.js' },
+  { id: 'icecorelab', name: 'Ice Core Analysis Lab', file: 'icecorelab.js' },
 ];
