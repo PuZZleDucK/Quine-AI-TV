@@ -1,5 +1,9 @@
 # Agent Instructions (Quine TV)
 
+## Important
+
+For any bugfix or improvment you must take screenshots at the start of your work, and screenshots at the completion of your work. Review the final screenshot to verify that the intended effect has been achieved and try again if it has not. If you cannnot complete the task discard the work and report that the task was not achieved and why.
+
 ## Screenshot Review Workflow
 
 The repository includes a Playwright-based capture tool: `scripts/capture-channel-screenshots.mjs` (invoked via `npm run screenshots`).
