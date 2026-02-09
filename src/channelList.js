@@ -122,4 +122,5 @@ export const CHANNELS = [
   { id: 'kilncurve', name: 'Ceramic Kiln Firing Curve', file: 'kilncurve.js' },
   { id: 'elevatorpanel', name: 'Elevator Control Panel Dreams', file: 'elevatorpanel.js' },
   { id: 'telegraph', name: 'Telegraph Key Practice Hour', file: 'telegraph.js' },
+  { id: 'streetmapfold', name: 'Street Map Folding Gym', file: 'streetmapfold.js' },
 ];
