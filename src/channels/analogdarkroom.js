@@ -1,6 +1,7 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-10
 // Analog Photo Darkroom
 // Red-light darkroom loop: expose → agitate → reveal; prints slowly appear with a tiny timer HUD.
 
