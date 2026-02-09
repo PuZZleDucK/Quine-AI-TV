@@ -60,13 +60,27 @@ function drawAnt(ctx, x, y, ang, s, body, glow=0){
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  // body segments
+  // body segments (with subtle shadow + highlight for readability)
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath();
+  ctx.ellipse(-s*0.55 + s*0.05, s*0.06, s*0.60, s*0.46, 0, 0, Math.PI*2);
+  ctx.ellipse(0.2 + s*0.05, s*0.06, s*0.68, s*0.53, 0, 0, Math.PI*2);
+  ctx.ellipse(s*0.78 + s*0.05, s*0.06, s*0.78, s*0.60, 0, 0, Math.PI*2);
+  ctx.fill();
+
   ctx.fillStyle = body;
   ctx.beginPath();
   ctx.ellipse(-s*0.55, 0, s*0.55, s*0.42, 0, 0, Math.PI*2);
   ctx.ellipse(0.2, 0, s*0.62, s*0.48, 0, 0, Math.PI*2);
   ctx.ellipse(s*0.78, 0, s*0.72, s*0.55, 0, 0, Math.PI*2);
   ctx.fill();
+
+  ctx.globalCompositeOperation = 'screen';
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  ctx.beginPath();
+  ctx.ellipse(0.15, -s*0.14, s*0.85, s*0.22, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
 
   // legs
   ctx.strokeStyle = 'rgba(0,0,0,0.42)';
@@ -477,7 +491,8 @@ export function createChannel({ seed, audio }){
     a.dir = rand() < 0.5 ? 1 : -1;
     a.u = (a.dir === 1) ? 0 : 1;
     a.line = li;
-    a.size = 2.6 + rand() * 1.8;
+    // Slightly larger ants for readability at a glance.
+    a.size = 3.1 + rand() * 2.2;
     a.shade = 0.78 + rand() * 0.18;
     {
       const r = (40 * a.shade) | 0;
