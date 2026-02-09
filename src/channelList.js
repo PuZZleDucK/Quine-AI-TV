@@ -123,4 +123,5 @@ export const CHANNELS = [
   { id: 'elevatorpanel', name: 'Elevator Control Panel Dreams', file: 'elevatorpanel.js' },
   { id: 'telegraph', name: 'Telegraph Key Practice Hour', file: 'telegraph.js' },
   { id: 'streetmapfold', name: 'Street Map Folding Gym', file: 'streetmapfold.js' },
+  { id: 'nanobotrepair', name: 'Nanobot Repair Swarm', file: 'nanobotrepair.js' },
 ];
