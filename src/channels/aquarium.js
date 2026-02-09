@@ -12,6 +12,7 @@ export function createChannel({ seed, audio }){
   let seaweed = [];
   let coral = [];
   let noiseHandle=null;
+  let audioHandle=null; // handle registered with AudioManager.setCurrent
 
   // Special moments (rare): bioluminescent plankton bloom or passing silhouette.
   const randEvents = mulberry32((seed ^ 0x27d4eb2d) >>> 0);
@@ -489,12 +490,37 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
-    const hdl = audio.noiseSource({type:'pink', gain:0.03});
+
+    // Defensive hygiene: if we're called twice (e.g. channel re-init while audio is on),
+    // ensure we don't stack multiple noise sources.
+    onAudioOff();
+
+    const hdl = audio.noiseSource({ type:'pink', gain:0.03 });
     hdl.start();
     noiseHandle = hdl;
-    audio.setCurrent({ stop(){ hdl.stop(); } });
+
+    audioHandle = {
+      stop(){
+        try { hdl.stop?.(); } catch {}
+        if (noiseHandle === hdl) noiseHandle = null;
+      },
+    };
+    audio.setCurrent(audioHandle);
   }
-  function onAudioOff(){ try{noiseHandle?.stop?.();}catch{} noiseHandle=null; }
+
+  function onAudioOff(){
+    // Stop the source we started.
+    try { noiseHandle?.stop?.(); } catch {}
+    noiseHandle = null;
+
+    // If our handle is still registered as current, clear it (prevents stale current).
+    try {
+      if (audio.current === audioHandle) audio.stopCurrent();
+      else audioHandle?.stop?.();
+    } catch {}
+    audioHandle = null;
+  }
+
   function destroy(){ onAudioOff(); }
 
 
