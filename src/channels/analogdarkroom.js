@@ -655,15 +655,18 @@ export function createChannel({ seed, audio }){
     ctx.beginPath();
     roundRect(ctx, lx, ly, lw, lh, liquidRect.r);
     ctx.clip();
+    const baseAlpha = 0.06 + 0.08 * agitate;
+    ctx.fillStyle = 'rgb(255, 160, 160)';
     for (const b of bubbles){
       const by = b.y + Math.sin(t * (0.7 + b.spd) + b.ph) * (2 + 10 * agitate);
       const bx = b.x + Math.cos(t * (0.6 + b.spd) + b.ph) * (1 + 7 * agitate);
-      const alpha = 0.06 + 0.08 * agitate;
-      ctx.fillStyle = `rgba(255, 160, 160, ${alpha})`;
+      // Perf: avoid per-bubble fillStyle string allocations. Keep fillStyle constant; vary intensity via globalAlpha.
+      ctx.globalAlpha = baseAlpha * (0.75 + 0.25 * (0.5 + 0.5 * Math.sin(t * 1.9 + b.ph)));
       ctx.beginPath();
       ctx.arc(bx, by, b.r, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.globalAlpha = 1;
 
     // paper
     const tilt = (Math.sin(t * 1.7) * 0.6 + Math.sin(t * 0.9 + 2.2) * 0.4) * agitate * 0.06;
