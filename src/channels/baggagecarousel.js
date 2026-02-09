@@ -61,6 +61,19 @@ export function createChannel({ seed, audio }){
   let ry = 0;
   let beltThick = 0;
 
+  const gradCache = {
+    dirty: true,
+    ctx: null,
+    floor: null,
+    vignette: null,
+    belt: null,
+    post: null,
+    postX: 0,
+    postY: 0,
+    postW: 0,
+    postH: 0,
+  };
+
   // sim
   let beltSpeed = 0.7;
   let phaseIndex = -1;
@@ -94,6 +107,7 @@ export function createChannel({ seed, audio }){
     rx = w * 0.30;
     ry = h * 0.20;
     beltThick = Math.max(12, Math.floor(Math.min(w, h) * 0.045));
+    gradCache.dirty = true;
   }
 
   function reset(){
@@ -241,12 +255,56 @@ export function createChannel({ seed, audio }){
     }
   }
 
-  function drawFloor(ctx){
-    // base
+  function ensureGradients(ctx){
+    if (gradCache.ctx !== ctx){
+      gradCache.ctx = ctx;
+      gradCache.dirty = true;
+    }
+
+    if (!gradCache.dirty) return;
+    gradCache.dirty = false;
+
+    // floor base gradient
     const g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, pal.floorA);
     g.addColorStop(1, pal.floorB);
-    ctx.fillStyle = g;
+    gradCache.floor = g;
+
+    // subtle vignette
+    const r0 = Math.min(w, h) * 0.1;
+    const r1 = Math.min(w, h) * 0.65;
+    const v = ctx.createRadialGradient(w*0.55, h*0.6, r0, w*0.55, h*0.6, r1);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,0.55)');
+    gradCache.vignette = v;
+
+    // belt ring gradient
+    const beltG = ctx.createLinearGradient(cx-rx, cy-ry-beltThick, cx+rx, cy+ry+beltThick);
+    beltG.addColorStop(0, pal.belt);
+    beltG.addColorStop(0.5, pal.beltHi);
+    beltG.addColorStop(1, pal.belt);
+    gradCache.belt = beltG;
+
+    // metal post gradient (store its geom for reuse)
+    const postW = Math.max(16, Math.floor(Math.min(w,h) * 0.028));
+    const postH = Math.max(26, Math.floor(Math.min(w,h) * 0.05));
+    const px = cx - rx * 0.78;
+    const py = cy - ry * 0.05;
+    gradCache.postW = postW;
+    gradCache.postH = postH;
+    gradCache.postX = px;
+    gradCache.postY = py;
+
+    const mg = ctx.createLinearGradient(px, py, px+postW, py+postH);
+    mg.addColorStop(0, 'rgba(235,245,255,0.10)');
+    mg.addColorStop(0.5, 'rgba(235,245,255,0.24)');
+    mg.addColorStop(1, 'rgba(235,245,255,0.07)');
+    gradCache.post = mg;
+  }
+
+  function drawFloor(ctx){
+    // base
+    ctx.fillStyle = gradCache.floor;
     ctx.fillRect(0, 0, w, h);
 
     // tiles
@@ -271,10 +329,7 @@ export function createChannel({ seed, audio }){
     }
 
     // subtle vignette
-    const v = ctx.createRadialGradient(w*0.55, h*0.6, Math.min(w,h)*0.1, w*0.55, h*0.6, Math.min(w,h)*0.65);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = v;
+    ctx.fillStyle = gradCache.vignette;
     ctx.fillRect(0, 0, w, h);
   }
 
@@ -288,12 +343,7 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // belt ring
-    const beltG = ctx.createLinearGradient(cx-rx, cy-ry-beltThick, cx+rx, cy+ry+beltThick);
-    beltG.addColorStop(0, pal.belt);
-    beltG.addColorStop(0.5, pal.beltHi);
-    beltG.addColorStop(1, pal.belt);
-
-    ctx.fillStyle = beltG;
+    ctx.fillStyle = gradCache.belt;
     ctx.beginPath();
     ctx.ellipse(cx, cy, rx + beltThick, ry + beltThick*0.75, 0, 0, Math.PI*2);
     ctx.fill();
@@ -328,15 +378,12 @@ export function createChannel({ seed, audio }){
     }
 
     // metal post
-    const postW = Math.max(16, Math.floor(Math.min(w,h) * 0.028));
-    const postH = Math.max(26, Math.floor(Math.min(w,h) * 0.05));
-    const px = cx - rx * 0.78;
-    const py = cy - ry * 0.05;
-    const mg = ctx.createLinearGradient(px, py, px+postW, py+postH);
-    mg.addColorStop(0, 'rgba(235,245,255,0.10)');
-    mg.addColorStop(0.5, 'rgba(235,245,255,0.24)');
-    mg.addColorStop(1, 'rgba(235,245,255,0.07)');
-    ctx.fillStyle = mg;
+    const postW = gradCache.postW;
+    const postH = gradCache.postH;
+    const px = gradCache.postX;
+    const py = gradCache.postY;
+
+    ctx.fillStyle = gradCache.post;
     roundedRect(ctx, px, py, postW, postH, 5);
     ctx.fill();
 
@@ -520,6 +567,7 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
+    ensureGradients(ctx);
     drawFloor(ctx);
     drawCarousel(ctx);
 
