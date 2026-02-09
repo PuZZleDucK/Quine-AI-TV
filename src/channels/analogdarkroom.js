@@ -168,6 +168,9 @@ export function createChannel({ seed, audio }){
   let paper = { x: 0, y: 0, w: 0, h: 0, r: 10 };
   let lamp = { x: 0, y: 0, r: 80 };
 
+  let trayInset = 0;
+  let liquidRect = { x: 0, y: 0, w: 0, h: 0, r: 0 };
+
   let bubbles = []; // {x,y,r,spd,ph}
   let print = genPrint(rand);
 
@@ -178,6 +181,151 @@ export function createChannel({ seed, audio }){
   let ambience = null;
   let swishAcc = 0;
   let dripAcc = 0;
+
+  // Perf: cache static gradients/layers on resize/init so draw() creates 0 gradients per frame.
+  const cache = {
+    bg: null,         // CanvasImageSource | false | null
+    lamp: null,       // CanvasImageSource | false | null
+    lampR: 0,
+    liquid: null,     // CanvasImageSource | false | null
+    paperBase: null,  // CanvasImageSource | false | null
+    leak: null,       // CanvasImageSource | false | null
+    leakR: 0,
+  };
+
+  function makeCanvas(W, H){
+    if (!(W > 0 && H > 0)) return null;
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+    if (typeof document !== 'undefined'){
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    }
+    return null;
+  }
+
+  function rebuildCaches(){
+    // Background + vignette baked together.
+    {
+      const c = makeCanvas(w, h);
+      if (!c){
+        cache.bg = false;
+      } else {
+        const g = c.getContext('2d');
+        const bg = g.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, '#0a0006');
+        bg.addColorStop(0.45, '#2a000e');
+        bg.addColorStop(1, '#140009');
+        g.fillStyle = bg;
+        g.fillRect(0, 0, w, h);
+
+        const vg = g.createRadialGradient(
+          w * 0.5,
+          h * 0.55,
+          Math.min(w, h) * 0.12,
+          w * 0.5,
+          h * 0.55,
+          Math.min(w, h) * 0.72,
+        );
+        vg.addColorStop(0, 'rgba(0,0,0,0)');
+        vg.addColorStop(1, 'rgba(0,0,0,0.62)');
+        g.fillStyle = vg;
+        g.fillRect(0, 0, w, h);
+
+        cache.bg = c;
+      }
+    }
+
+    // Lamp light sprite (flicker applied via ctx.globalAlpha).
+    {
+      const R = Math.max(1, Math.floor(lamp.r));
+      const S = Math.max(8, R * 2);
+      const c = makeCanvas(S, S);
+      if (!c){
+        cache.lamp = false;
+        cache.lampR = 0;
+      } else {
+        const g = c.getContext('2d');
+        const cx = S / 2;
+        const cy = S / 2;
+        const grad = g.createRadialGradient(cx, cy, 0, cx, cy, R);
+        grad.addColorStop(0, 'rgba(255, 80, 60, 0.48)');
+        grad.addColorStop(0.35, 'rgba(200, 24, 34, 0.20)');
+        grad.addColorStop(1, 'rgba(50, 0, 8, 0)');
+        g.clearRect(0, 0, S, S);
+        g.fillStyle = grad;
+        g.fillRect(0, 0, S, S);
+        cache.lamp = c;
+        cache.lampR = R;
+      }
+    }
+
+    // Tray liquid sprite.
+    {
+      const W = Math.max(1, Math.floor(liquidRect.w));
+      const H = Math.max(1, Math.floor(liquidRect.h));
+      const c = makeCanvas(W, H);
+      if (!c){
+        cache.liquid = false;
+      } else {
+        const g = c.getContext('2d');
+        const liq = g.createLinearGradient(0, 0, 0, H);
+        liq.addColorStop(0, '#23000b');
+        liq.addColorStop(0.6, '#3b0013');
+        liq.addColorStop(1, '#180007');
+        g.clearRect(0, 0, W, H);
+        g.fillStyle = liq;
+        roundRect(g, 0, 0, W, H, liquidRect.r);
+        g.fill();
+        cache.liquid = c;
+      }
+    }
+
+    // Paper base sprite (so the gradient rotates with the paper).
+    {
+      const W = Math.max(1, Math.floor(paper.w));
+      const H = Math.max(1, Math.floor(paper.h));
+      const c = makeCanvas(W, H);
+      if (!c){
+        cache.paperBase = false;
+      } else {
+        const g = c.getContext('2d');
+        const base = g.createLinearGradient(0, 0, 0, H);
+        base.addColorStop(0, '#f3d7d7');
+        base.addColorStop(1, '#e8c0c3');
+        g.clearRect(0, 0, W, H);
+        g.fillStyle = base;
+        roundRect(g, 0, 0, W, H, paper.r);
+        g.fill();
+        cache.paperBase = c;
+      }
+    }
+
+    // Light leak sprite (scaled when drawn, so we don't allocate a huge offscreen).
+    {
+      const R = Math.min(w, h) * 0.9;
+      const S = 1024;
+      const c = makeCanvas(S, S);
+      if (!c){
+        cache.leak = false;
+        cache.leakR = 0;
+      } else {
+        const g = c.getContext('2d');
+        const cx = S / 2;
+        const cy = S / 2;
+        const grad = g.createRadialGradient(cx, cy, 0, cx, cy, S / 2);
+        grad.addColorStop(0, 'rgba(255, 120, 90, 0.9)');
+        grad.addColorStop(0.35, 'rgba(255, 40, 60, 0.45)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        g.clearRect(0, 0, S, S);
+        g.fillStyle = grad;
+        g.fillRect(0, 0, S, S);
+        cache.leak = c;
+        cache.leakR = R;
+      }
+    }
+  }
 
   function init({ width, height, dpr: dprIn }){
     w = width; h = height; dpr = dprIn || 1;
@@ -204,6 +352,13 @@ export function createChannel({ seed, audio }){
     lamp.y = h * (0.12 + rand() * 0.06);
     lamp.r = Math.min(w, h) * (0.18 + rand() * 0.06);
 
+    trayInset = tray.w * 0.04;
+    liquidRect.x = tray.x + trayInset;
+    liquidRect.y = tray.y + trayInset;
+    liquidRect.w = tray.w - trayInset * 2;
+    liquidRect.h = tray.h - trayInset * 2;
+    liquidRect.r = tray.r * 0.72;
+
     bubbles = Array.from({ length: 44 + ((rand() * 26) | 0) }, () => ({
       x: tray.x + tray.w * (0.10 + rand() * 0.80),
       y: tray.y + tray.h * (0.18 + rand() * 0.70),
@@ -221,6 +376,8 @@ export function createChannel({ seed, audio }){
 
     swishAcc = 0;
     dripAcc = 0;
+
+    rebuildCaches();
   }
 
   function onResize(width, height, dprIn){
@@ -318,14 +475,23 @@ export function createChannel({ seed, audio }){
     const flick = 0.85
       + 0.12 * Math.sin(t * 1.2 + flickPh1)
       + 0.06 * Math.sin(t * 12.7 + flickPh2);
-    const g = ctx.createRadialGradient(lamp.x, lamp.y, 0, lamp.x, lamp.y, lamp.r);
-    g.addColorStop(0, `rgba(255, 80, 60, ${0.48 * flick})`);
-    g.addColorStop(0.35, `rgba(200, 24, 34, ${0.20 * flick})`);
-    g.addColorStop(1, 'rgba(50, 0, 8, 0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(lamp.x, lamp.y, lamp.r, 0, Math.PI * 2);
-    ctx.fill();
+
+    if (cache.lamp && cache.lamp !== false){
+      ctx.save();
+      ctx.globalAlpha = flick;
+      ctx.drawImage(cache.lamp, lamp.x - cache.lampR, lamp.y - cache.lampR);
+      ctx.restore();
+    } else {
+      // Fallback path (no offscreen canvas support).
+      const g = ctx.createRadialGradient(lamp.x, lamp.y, 0, lamp.x, lamp.y, lamp.r);
+      g.addColorStop(0, `rgba(255, 80, 60, ${0.48 * flick})`);
+      g.addColorStop(0.35, `rgba(200, 24, 34, ${0.20 * flick})`);
+      g.addColorStop(1, 'rgba(50, 0, 8, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(lamp.x, lamp.y, lamp.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // lamp housing
     ctx.save();
@@ -426,22 +592,26 @@ export function createChannel({ seed, audio }){
   function draw(ctx){
     if (!w || !h) return;
 
-    // background
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#0a0006');
-    bg.addColorStop(0.45, '#2a000e');
-    bg.addColorStop(1, '#140009');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
+    // background (+ vignette)
+    if (cache.bg && cache.bg !== false){
+      ctx.drawImage(cache.bg, 0, 0);
+    } else {
+      // Fallback path (no offscreen canvas support).
+      const bg = ctx.createLinearGradient(0, 0, 0, h);
+      bg.addColorStop(0, '#0a0006');
+      bg.addColorStop(0.45, '#2a000e');
+      bg.addColorStop(1, '#140009');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
 
-    // vignette
-    ctx.save();
-    const vg = ctx.createRadialGradient(w * 0.5, h * 0.55, Math.min(w, h) * 0.12, w * 0.5, h * 0.55, Math.min(w, h) * 0.72);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.62)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, w, h);
-    ctx.restore();
+      ctx.save();
+      const vg = ctx.createRadialGradient(w * 0.5, h * 0.55, Math.min(w, h) * 0.12, w * 0.5, h * 0.55, Math.min(w, h) * 0.72);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.62)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
 
     drawLamp(ctx);
 
@@ -462,24 +632,28 @@ export function createChannel({ seed, audio }){
     // liquid
     const agitate = PHASES[phaseIdx].key === 'AGITATE' ? ease(phaseT / PHASES[phaseIdx].dur) : 0;
     const slosh = (Math.sin(t * 2.2) * 0.5 + Math.sin(t * 1.3 + 0.8) * 0.5) * agitate;
-    const inset = tray.w * 0.04;
-    const lx = tray.x + inset;
-    const ly = tray.y + inset;
-    const lw = tray.w - inset * 2;
-    const lh = tray.h - inset * 2;
 
-    const liq = ctx.createLinearGradient(0, ly, 0, ly + lh);
-    liq.addColorStop(0, '#23000b');
-    liq.addColorStop(0.6, '#3b0013');
-    liq.addColorStop(1, '#180007');
-    ctx.fillStyle = liq;
-    roundRect(ctx, lx, ly + slosh * lh * 0.04, lw, lh, tray.r * 0.72);
-    ctx.fill();
+    const lx = liquidRect.x;
+    const ly = liquidRect.y;
+    const lw = liquidRect.w;
+    const lh = liquidRect.h;
+
+    if (cache.liquid && cache.liquid !== false){
+      ctx.drawImage(cache.liquid, lx, ly + slosh * lh * 0.04);
+    } else {
+      const liq = ctx.createLinearGradient(0, ly, 0, ly + lh);
+      liq.addColorStop(0, '#23000b');
+      liq.addColorStop(0.6, '#3b0013');
+      liq.addColorStop(1, '#180007');
+      ctx.fillStyle = liq;
+      roundRect(ctx, lx, ly + slosh * lh * 0.04, lw, lh, liquidRect.r);
+      ctx.fill();
+    }
 
     // bubbles
     ctx.save();
     ctx.beginPath();
-    roundRect(ctx, lx, ly, lw, lh, tray.r * 0.72);
+    roundRect(ctx, lx, ly, lw, lh, liquidRect.r);
     ctx.clip();
     for (const b of bubbles){
       const by = b.y + Math.sin(t * (0.7 + b.spd) + b.ph) * (2 + 10 * agitate);
@@ -499,12 +673,16 @@ export function createChannel({ seed, audio }){
     ctx.translate(-(paper.x + paper.w * 0.5), -(paper.y + paper.h * 0.5));
 
     // base paper (safelight tint)
-    const base = ctx.createLinearGradient(paper.x, paper.y, paper.x, paper.y + paper.h);
-    base.addColorStop(0, '#f3d7d7');
-    base.addColorStop(1, '#e8c0c3');
-    ctx.fillStyle = base;
-    roundRect(ctx, paper.x, paper.y, paper.w, paper.h, paper.r);
-    ctx.fill();
+    if (cache.paperBase && cache.paperBase !== false){
+      ctx.drawImage(cache.paperBase, paper.x, paper.y);
+    } else {
+      const base = ctx.createLinearGradient(paper.x, paper.y, paper.x, paper.y + paper.h);
+      base.addColorStop(0, '#f3d7d7');
+      base.addColorStop(1, '#e8c0c3');
+      ctx.fillStyle = base;
+      roundRect(ctx, paper.x, paper.y, paper.w, paper.h, paper.r);
+      ctx.fill();
+    }
 
     // developer tint layer
     const phaseKey = PHASES[phaseIdx].key;
@@ -542,12 +720,21 @@ export function createChannel({ seed, audio }){
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
       ctx.globalAlpha = 0.22 * leak;
-      const lxg = ctx.createRadialGradient(w * 0.86, h * 0.18, 0, w * 0.86, h * 0.18, Math.min(w, h) * 0.9);
-      lxg.addColorStop(0, 'rgba(255, 120, 90, 0.9)');
-      lxg.addColorStop(0.35, 'rgba(255, 40, 60, 0.45)');
-      lxg.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = lxg;
-      ctx.fillRect(0, 0, w, h);
+
+      if (cache.leak && cache.leak !== false){
+        const R = cache.leakR;
+        const x0 = w * 0.86 - R;
+        const y0 = h * 0.18 - R;
+        ctx.drawImage(cache.leak, x0, y0, R * 2, R * 2);
+      } else {
+        const lxg = ctx.createRadialGradient(w * 0.86, h * 0.18, 0, w * 0.86, h * 0.18, Math.min(w, h) * 0.9);
+        lxg.addColorStop(0, 'rgba(255, 120, 90, 0.9)');
+        lxg.addColorStop(0.35, 'rgba(255, 40, 60, 0.45)');
+        lxg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = lxg;
+        ctx.fillRect(0, 0, w, h);
+      }
+
       ctx.restore();
     }
 
