@@ -121,4 +121,5 @@ export const CHANNELS = [
   { id: 'seedvault', name: 'Seed Vault Inventory', file: 'seedvault.js' },
   { id: 'kilncurve', name: 'Ceramic Kiln Firing Curve', file: 'kilncurve.js' },
   { id: 'elevatorpanel', name: 'Elevator Control Panel Dreams', file: 'elevatorpanel.js' },
+  { id: 'telegraph', name: 'Telegraph Key Practice Hour', file: 'telegraph.js' },
 ];
