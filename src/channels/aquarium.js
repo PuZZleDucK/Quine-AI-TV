@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-09
 import { mulberry32, clamp } from '../util/prng.js';
 
 export function createChannel({ seed, audio }){
