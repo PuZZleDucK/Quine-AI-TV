@@ -52,6 +52,18 @@ export function createChannel({ seed, audio }){
   let audioHandle=null; // {stop()}
   let nextPop=0;
 
+  // Rare special moments (seeded; ~45–120s): log shift + ember burst OR gust flare.
+  // Use separate PRNGs so we don't perturb the channel's base randomness or the schedule while emitting sparks.
+  const eventScheduleR = mulberry32((seedU ^ 0x9e3779b9) >>> 0);
+  const eventEmitR = mulberry32((seedU ^ 0x243f6a88) >>> 0);
+  let nextEventAt = 55 + eventScheduleR() * 55; // 55–110s from start
+  let moment = null; // {type, t0, dur, dir}
+  let logShift = 0; // 0..1 envelope
+  let gust = 0; // 0..1 envelope
+  let burstUntil = 0;
+  let burstRate = 0; // sparks/sec
+  let burstEmit = 0;
+
   // Perf: cache the static background/hearth and pre-render log sprites.
   // (The flame + sparks are still dynamic.)
   let staticLayer=null; // CanvasImageSource | false | null
@@ -195,6 +207,36 @@ export function createChannel({ seed, audio }){
     };
   }
 
+  function startBurst(time, heat, intensity, duration){
+    // intensity: 0..1
+    burstUntil = Math.max(burstUntil, time + duration);
+    const hn = clamp(heat / phaseCfg.roarPeak, 0, 1);
+    const base = lerp(35, 120, hn);
+    burstRate = base * lerp(0.55, 1.4, clamp(intensity, 0, 1));
+  }
+
+  function injectBurstSpark(heat){
+    if (activeSparks <= 0) return;
+    const i = Math.min(activeSparks - 1, Math.floor(eventEmitR() * activeSparks));
+    const hn = clamp(heat / phaseCfg.roarPeak, 0, 1);
+
+    const baseX = w*0.5 + (eventEmitR()*2-1)*w*0.10;
+    const life = 0.22 + eventEmitR()*0.55;
+    const kVy = lerp(1.15, 1.9, hn);
+    const kR = lerp(0.8, 1.05, hn);
+
+    sparks[i] = {
+      x: baseX,
+      y: h*(0.83 + eventEmitR()*0.06),
+      vx: (eventEmitR()*2-1)*90*(w/960),
+      vy: -(220 + eventEmitR()*520)*(h/540)*kVy,
+      r: (0.9+eventEmitR()*3.0)*(h/540)*kR,
+      life,
+      max: life,
+      hue: 18 + eventEmitR()*55,
+    };
+  }
+
   function onResize(width,height){ w=width; h=height; rebuildStatic(); clearSparkSprites(); warmSparkSprites(); }
 
   function onAudioOn(){
@@ -235,11 +277,56 @@ export function createChannel({ seed, audio }){
     t += dt;
 
     const heat = heatAt(t);
+
+    // Trigger rare seeded moments.
+    if (!moment && t >= nextEventAt){
+      const pick = eventScheduleR();
+      const type = (pick < 0.6 ? 'logShift' : 'gust');
+      const dur = (type === 'logShift')
+        ? (1.8 + eventScheduleR() * 1.6)
+        : (1.1 + eventScheduleR() * 0.9);
+      const dir = eventScheduleR() < 0.5 ? -1 : 1;
+      moment = { type, t0: t, dur, dir };
+
+      if (type === 'logShift'){
+        startBurst(t, heat, 0.9, 0.7 + eventScheduleR()*0.9);
+      } else {
+        startBurst(t, heat, 0.6, 0.35 + eventScheduleR()*0.45);
+      }
+
+      nextEventAt = t + (45 + eventScheduleR() * 75);
+    }
+
+    // Update moment envelopes.
+    logShift = 0;
+    gust = 0;
+    if (moment){
+      const u = (t - moment.t0) / Math.max(0.001, moment.dur);
+      if (u >= 1){
+        moment = null;
+      } else {
+        const env = Math.sin(Math.PI * clamp(u, 0, 1));
+        if (moment.type === 'logShift') logShift = env;
+        else gust = env;
+      }
+    }
+
     activeSparks = sparkCountForHeat(heat);
     if (activeSparks > prevActiveSparks){
       for (let i=prevActiveSparks; i<activeSparks; i++) sparks[i] = makeSpark(true, heat);
     }
     prevActiveSparks = activeSparks;
+
+    // Ember burst emission (injects a few short-lived sparks).
+    if (t < burstUntil && activeSparks > 0){
+      burstEmit += dt * burstRate;
+      while (burstEmit >= 1){
+        injectBurstSpark(heat);
+        burstEmit -= 1;
+      }
+    } else {
+      burstEmit = 0;
+    }
 
     for (let i=0;i<activeSparks;i++){
       const s = sparks[i];
@@ -281,19 +368,21 @@ export function createChannel({ seed, audio }){
     }
 
     // logs (cached sprites)
+    const shiftDir = (moment && moment.type === 'logShift') ? moment.dir : 1;
+    const shiftPx = w * 0.018 * logShift * shiftDir;
     if (logSprites){
       for (let i=0;i<3;i++){
         const spr = logSprites[i];
-        const x = w*(0.32 + i*0.12);
-        const y = h*(0.84 + Math.sin(t*0.3+i)*0.005);
+        const x = w*(0.32 + i*0.12) + shiftPx*(i-1)*0.65;
+        const y = h*(0.84 + Math.sin(t*0.3+i)*0.005) + Math.abs(shiftPx)*0.08*(0.5 - Math.abs(i-1));
         ctx.drawImage(spr.c, x - spr.w/2, y - spr.h/2);
       }
     } else {
       ctx.save();
       ctx.fillStyle = 'rgba(45,30,20,1)';
       for (let i=0;i<3;i++){
-        const x = w*(0.32 + i*0.12);
-        const y = h*(0.84 + Math.sin(t*0.3+i)*0.005);
+        const x = w*(0.32 + i*0.12) + shiftPx*(i-1)*0.65;
+        const y = h*(0.84 + Math.sin(t*0.3+i)*0.005) + Math.abs(shiftPx)*0.08*(0.5 - Math.abs(i-1));
         ctx.beginPath();
         ctx.ellipse(x,y,w*0.12,h*0.035, 0.25*Math.sin(i), 0, Math.PI*2);
         ctx.fill();
@@ -304,10 +393,11 @@ export function createChannel({ seed, audio }){
     // flame body (layered gradients)
     const fx = w*0.5;
     const baseY = h*0.84;
-    const heightScale = lerp(0.65, 1.25, hn);
-    const widthScale = lerp(0.75, 1.15, hn);
-    const swayScale = lerp(0.6, 1.35, hn);
-    const flameSpeed = lerp(0.9, 1.55, hn);
+    const heightScale = lerp(0.65, 1.25, hn) * (1 + 0.26*gust);
+    const widthScale = lerp(0.75, 1.15, hn) * (1 + 0.18*gust);
+    const swayScale = lerp(0.6, 1.35, hn) * (1 + 0.42*gust);
+    const flameSpeed = lerp(0.9, 1.55, hn) * (1 + 0.30*gust);
+    const flareK = 1 + 0.55*gust;
 
     for (let i=0;i<5;i++){
       const amp = (0.018 + i*0.01) * swayScale;
@@ -315,8 +405,10 @@ export function createChannel({ seed, audio }){
       const height = h*(0.22 + i*0.03) * heightScale;
       const width = w*(0.10 + i*0.02) * widthScale;
       const g = ctx.createRadialGradient(fx+sway, baseY-height*0.4, 0, fx+sway, baseY-height*0.4, width);
-      g.addColorStop(0, `rgba(255,220,140,${0.34 - i*0.04})`);
-      g.addColorStop(0.5, `rgba(255,120,40,${0.22 - i*0.03})`);
+      const a0 = Math.min(0.58, (0.34 - i*0.04) * flareK);
+      const a1 = Math.min(0.42, (0.22 - i*0.03) * flareK);
+      g.addColorStop(0, `rgba(255,220,140,${a0})`);
+      g.addColorStop(0.5, `rgba(255,120,40,${a1})`);
       g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
       ctx.beginPath();
@@ -345,7 +437,7 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // warm glow
-    const glowA = 0.06 + 0.16*hn;
+    const glowA = 0.06 + 0.16*hn + 0.05*gust + 0.03*logShift;
     const wg = ctx.createRadialGradient(fx,baseY, 0, fx,baseY, Math.max(w,h)*0.6);
     wg.addColorStop(0,`rgba(255,140,60,${glowA})`);
     wg.addColorStop(1,'rgba(0,0,0,0)');
