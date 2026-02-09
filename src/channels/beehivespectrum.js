@@ -455,11 +455,16 @@ export function createChannel({ seed, audio }){
       ctx.translate(driftX, driftY);
       ctx.lineWidth = Math.max(1, h / 650);
       ctx.globalCompositeOperation = 'screen';
+
+      // perf: avoid per-cell hsla(...) string allocations.
+      // Set strokeStyle once; vary alpha via globalAlpha.
+      ctx.strokeStyle = glow
+        ? `hsl(${band.hue + 8}, 85%, 55%)`
+        : `hsl(${band.hue + 8}, 85%, 42%)`;
+
       for (const cell of layer){
         const tw = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 0.35 + cell.tw));
-        const a = (cell.a * tw) * lineAlpha;
-        const col = `hsla(${band.hue + 8}, 85%, ${glow ? 55 : 42}%, ${a})`;
-        ctx.strokeStyle = col;
+        ctx.globalAlpha = (cell.a * tw) * lineAlpha;
         hexPath(ctx, cell.x, cell.y, cell.r);
         ctx.stroke();
       }
