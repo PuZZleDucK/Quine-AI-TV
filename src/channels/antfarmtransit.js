@@ -1,6 +1,8 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-10
+
 function pick(rand, arr){ return arr[(rand() * arr.length) | 0]; }
 function lerp(a,b,t){ return a + (b-a)*t; }
 function ease(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
@@ -420,6 +422,8 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOn(){
+    // Defensive: avoid stacking if toggled repeatedly.
+    onAudioOff();
     if (!audio.enabled) return;
 
     const n = audio.noiseSource({ type: 'brown', gain: 0.0032 });
@@ -438,8 +442,14 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
+    const prev = ambience;
     ambience = null;
+
+    // Stop our own sources regardless.
+    try { prev?.stop?.(); } catch {}
+
+    // If we're the registered current handle, clear it.
+    try { if (audio.current === prev) audio.stopCurrent(); } catch {}
   }
 
   function destroy(){
