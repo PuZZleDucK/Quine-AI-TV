@@ -361,26 +361,48 @@ export function createChannel({ seed, audio }){
     wfCtx.globalCompositeOperation = 'source-over';
   }
 
-  function onAudioOn(){
-    if (!audio.enabled) return;
-    // warm hum bed
-    drone = simpleDrone(audio, { root: 110 + (rand() * 25 | 0), detune: 1.1, gain: 0.028 });
-    audioHandle = {
-      stop(){
-        try { drone?.stop?.(); } catch {}
-      },
-    };
-    audio.setCurrent(audioHandle);
-  }
+  function stopAudio({ clearCurrent=false } = {}){
+    const handle = audioHandle;
+    const isCurrent = audio.current === handle;
 
-  function onAudioOff(){
-    try { audioHandle?.stop?.(); } catch {}
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
     drone = null;
     audioHandle = null;
   }
 
+  function onAudioOn(){
+    if (!audio.enabled) return;
+
+    // defensively stop any existing drone we started
+    stopAudio({ clearCurrent: true });
+
+    // warm hum bed
+    const localDrone = simpleDrone(audio, { root: 110 + (rand() * 25 | 0), detune: 1.1, gain: 0.028 });
+    drone = localDrone;
+
+    const handle = {
+      stop(){
+        try { localDrone?.stop?.(); } catch {}
+      },
+    };
+
+    audioHandle = handle;
+    audio.setCurrent(handle);
+  }
+
+  function onAudioOff(){
+    // stop/clear everything we own; only clear AudioManager.current if it's ours
+    stopAudio({ clearCurrent: true });
+  }
+
   function destroy(){
-    onAudioOff();
+    stopAudio({ clearCurrent: true });
   }
 
   function update(dt){
