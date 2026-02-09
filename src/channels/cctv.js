@@ -1,7 +1,11 @@
+// REVIEWED: 2026-02-10
 import { mulberry32 } from '../util/prng.js';
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  const seed32 = (seed|0) >>> 0;
+  const clockBaseSeconds = (Math.imul(seed32 ^ 0x9e3779b9, 2654435761) >>> 0) % 86400;
+
   let w=0,h=0,t=0;
   let cams=[];
   let noise=null;
@@ -57,7 +61,17 @@ export function createChannel({ seed, audio }){
     }
   }
 
-  function renderCam(ctx, cam, x, y, cw, ch){
+  function formatClock(totalSeconds){
+    const s = ((totalSeconds % 86400) + 86400) % 86400;
+    const hh = (s/3600) | 0;
+    const mm = ((s%3600)/60) | 0;
+    const ss = (s%60) | 0;
+    const pad2 = (n)=> String(n).padStart(2,'0');
+    return `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}`;
+  }
+
+  function renderCam(ctx, cam, x, y, cw, ch, ts){
+
     // background
     ctx.fillStyle = 'rgba(0,0,0,0.9)';
     ctx.fillRect(x,y,cw,ch);
@@ -99,7 +113,6 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = 'rgba(180,255,210,0.9)';
     ctx.font = '14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
     ctx.fillText(`CAM ${cam.id+1}  ${cam.msg}`, x+8, y+17);
-    const ts = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
     ctx.fillText(ts, x+cw-110, y+17);
     ctx.restore();
   }
@@ -115,11 +128,12 @@ export function createChannel({ seed, audio }){
     const pad = 18;
     const cw = (w - pad*3)/2;
     const ch = (h - pad*3)/2;
+    const ts = formatClock(clockBaseSeconds + (t|0));
 
-    renderCam(ctx, cams[0], pad, pad, cw, ch);
-    renderCam(ctx, cams[1], pad*2 + cw, pad, cw, ch);
-    renderCam(ctx, cams[2], pad, pad*2 + ch, cw, ch);
-    renderCam(ctx, cams[3], pad*2 + cw, pad*2 + ch, cw, ch);
+    renderCam(ctx, cams[0], pad, pad, cw, ch, ts);
+    renderCam(ctx, cams[1], pad*2 + cw, pad, cw, ch, ts);
+    renderCam(ctx, cams[2], pad, pad*2 + ch, cw, ch, ts);
+    renderCam(ctx, cams[3], pad*2 + cw, pad*2 + ch, cw, ch, ts);
 
     // label bar
     ctx.save();
