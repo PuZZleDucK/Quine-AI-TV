@@ -134,4 +134,5 @@ export const CHANNELS = [
   { id: 'sushiconveyor', name: 'Sushi Conveyor Night Shift', file: 'sushiconveyor.js' },
   { id: 'minigreenhouse', name: 'Mini Greenhouse Climate Console', file: 'minigreenhouse.js' },
   { id: 'snowplow', name: 'Snowplow Route Planner', file: 'snowplowplanner.js' },
+  { id: 'cashcounter', name: 'Vintage Cash Counter', file: 'vintagecashcounter.js' },
 ];
