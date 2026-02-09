@@ -229,15 +229,31 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn() is called repeatedly, never allow stacking.
+    // (Stop any previously registered current audio before starting new sources.)
+    try { audio.stopCurrent(); } catch {}
+    ambience = null;
+
     const n = audio.noiseSource({ type: 'pink', gain: 0.0038 });
     n.start();
     const d = simpleDrone(audio, { root: 55 + rand() * 22, detune: 0.6, gain: 0.014 });
-    ambience = { stop(){ try{ n.stop(); } catch {} try{ d.stop(); } catch {} } };
+
+    ambience = {
+      stop(){
+        try{ n.stop(); } catch {}
+        try{ d.stop(); } catch {}
+      }
+    };
+
     audio.setCurrent(ambience);
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
+    const a = ambience;
+    try { a?.stop?.(); } catch {}
+    // Only clear/stop the AudioManager's current if it's ours.
+    try { if (audio.current === a) audio.stopCurrent(); } catch {}
     ambience = null;
   }
 
