@@ -47,13 +47,22 @@ export function createChannel({ seed, audio }){
       kind === 'rare' ? (185 + randSim()*150) :
       (170 + randSim()*120);
 
+    const amp = (12+randSim()*40) * (h/540);
+    const ph = randSim()*Math.PI*2;
+    // Keep a stable baseline for vertical motion so fish don't slowly “walk” into clamps.
+    const baseYRaw = h*(0.18 + randSim()*0.72);
+    const baseYMin = h*0.12 + amp;
+    const baseYMax = h*0.88 - amp;
+    const baseY = baseYMin < baseYMax ? clamp(baseYRaw, baseYMin, baseYMax) : h*0.5;
+
     return {
       x: spawnOnscreen ? (randSim()*w) : (dir>0 ? -randSim()*w*0.6 : w + randSim()*w*0.6),
-      y: h*(0.18 + randSim()*0.72),
+      y: baseY + Math.sin(ph) * amp,
+      baseY,
       dir,
       sp: (0.25+randSim()*0.9) * (w/800),
-      amp: (12+randSim()*40) * (h/540),
-      ph: randSim()*Math.PI*2,
+      amp,
+      ph,
       hue,
       size: kindSize,
       kind,
@@ -202,7 +211,7 @@ export function createChannel({ seed, audio }){
     for (let i=0;i<fish.length;i++){
       const f = fish[i];
       f.x += f.dir * (80*f.sp) * dt;
-      f.y += Math.sin(t*0.8 + f.ph) * (f.amp*0.02);
+      f.y = f.baseY + Math.sin(t*0.8 + f.ph) * f.amp;
       if (f.dir>0 && f.x> w + 80) fish[i]=makeFish(i);
       if (f.dir<0 && f.x< -80) fish[i]=makeFish(i);
       f.y = clamp(f.y, h*0.12, h*0.88);
