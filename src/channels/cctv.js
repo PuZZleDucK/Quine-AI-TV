@@ -8,7 +8,8 @@ export function createChannel({ seed, audio }){
 
   let w=0,h=0,t=0;
   let cams=[];
-  let noise=null;
+  let noiseHandle=null; // audio.noiseSource handle
+  let audioHandle=null; // {stop()}
   let nextMotion=0;
 
   function init({width,height}){
@@ -26,12 +27,36 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
-    const n = audio.noiseSource({type:'white', gain:0.006});
-    n.start();
-    noise = {stop(){n.stop();}};
-    audio.setCurrent(noise);
+
+    // Defensive hygiene: if called twice while audio is on, avoid stacking noise sources.
+    onAudioOff();
+
+    const hdl = audio.noiseSource({ type:'white', gain:0.006 });
+    hdl.start();
+    noiseHandle = hdl;
+
+    audioHandle = {
+      stop(){
+        try { hdl.stop?.(); } catch {}
+        if (noiseHandle === hdl) noiseHandle = null;
+      },
+    };
+    audio.setCurrent(audioHandle);
   }
-  function onAudioOff(){ try{noise?.stop?.();}catch{} noise=null; }
+
+  function onAudioOff(){
+    // Stop the source we started.
+    try { noiseHandle?.stop?.(); } catch {}
+    noiseHandle = null;
+
+    // If our handle is still registered as current, clear it.
+    try {
+      if (audio.current === audioHandle) audio.stopCurrent();
+      else audioHandle?.stop?.();
+    } catch {}
+    audioHandle = null;
+  }
+
   function destroy(){ onAudioOff(); }
 
   function spawnMotion(cam){
