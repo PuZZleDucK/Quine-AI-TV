@@ -13,8 +13,94 @@ export function createChannel({ seed, audio }){
   let coral = [];
   let noiseHandle=null;
 
+  // Gradient/sprite caches to avoid hot-path allocations in render().
+  const gradCache = {
+    ctx: null,
+    w: 0,
+    h: 0,
+    water: null,
+    vignette: null,
+    bubbleSprites: new Map(),
+  };
+
+  function resetGradCache(){
+    gradCache.ctx = null;
+    gradCache.w = 0;
+    gradCache.h = 0;
+    gradCache.water = null;
+    gradCache.vignette = null;
+    gradCache.bubbleSprites.clear();
+  }
+
+  function ensureGradCache(ctx){
+    if (gradCache.ctx !== ctx || gradCache.w !== w || gradCache.h !== h){
+      gradCache.ctx = ctx;
+      gradCache.w = w;
+      gradCache.h = h;
+      gradCache.water = null;
+      gradCache.vignette = null;
+      // Bubble sprites don't depend on dimensions, but clearing here keeps the cache logic simple.
+      gradCache.bubbleSprites.clear();
+    }
+  }
+
+  function getWaterGradient(ctx){
+    ensureGradCache(ctx);
+    if (!gradCache.water){
+      const g = ctx.createLinearGradient(0,0,0,h);
+      g.addColorStop(0,'#041525');
+      g.addColorStop(0.5,'#032a33');
+      g.addColorStop(1,'#021015');
+      gradCache.water = g;
+    }
+    return gradCache.water;
+  }
+
+  function getVignetteGradient(ctx){
+    ensureGradCache(ctx);
+    if (!gradCache.vignette){
+      const vg = ctx.createRadialGradient(w/2,h/2, Math.min(w,h)*0.2, w/2,h/2, Math.max(w,h)*0.65);
+      vg.addColorStop(0,'rgba(0,0,0,0)');
+      vg.addColorStop(1,'rgba(0,0,0,0.55)');
+      gradCache.vignette = vg;
+    }
+    return gradCache.vignette;
+  }
+
+  function getBubbleSprite(r){
+    // Bucket radius to reduce unique sprites without noticeably changing the look.
+    const key = Math.max(1, Math.round(r * 2) / 2);
+    let spr = gradCache.bubbleSprites.get(key);
+    if (spr) return spr;
+
+    const pad = 2;
+    const size = Math.ceil(key*2 + pad*2);
+    const c = (typeof OffscreenCanvas !== 'undefined')
+      ? new OffscreenCanvas(size, size)
+      : document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const cctx = c.getContext('2d');
+    const cx = size/2;
+    const cy = size/2;
+
+    const gg = cctx.createRadialGradient(cx, cy, 1, cx, cy, key);
+    gg.addColorStop(0, 'rgba(255,255,255,1)');
+    gg.addColorStop(0.6, 'rgba(190,255,255,0.45)');
+    gg.addColorStop(1, 'rgba(255,255,255,0)');
+    cctx.fillStyle = gg;
+    cctx.beginPath();
+    cctx.arc(cx, cy, key, 0, Math.PI*2);
+    cctx.fill();
+
+    spr = { canvas: c, size, half: size/2 };
+    gradCache.bubbleSprites.set(key, spr);
+    return spr;
+  }
+
   function init({width,height}){
     w=width; h=height; t=0;
+    resetGradCache();
     // Spawn some fish on-screen so screenshots are less empty right after tuning.
     fish = Array.from({length: 10}, (_,i)=>makeFish(i, i < 6));
     bubbles = Array.from({length: 90}, ()=>makeBubble(true));
@@ -184,6 +270,7 @@ export function createChannel({ seed, audio }){
 
   function onResize(width,height){
     w=width; h=height;
+    resetGradCache();
     sand = makeSand();
     seaweed = makeSeaweed();
     coral = makeCoral();
@@ -223,11 +310,7 @@ export function createChannel({ seed, audio }){
     ctx.clearRect(0,0,w,h);
 
     // water gradient
-    const g = ctx.createLinearGradient(0,0,0,h);
-    g.addColorStop(0,'#041525');
-    g.addColorStop(0.5,'#032a33');
-    g.addColorStop(1,'#021015');
-    ctx.fillStyle = g;
+    ctx.fillStyle = getWaterGradient(ctx);
     ctx.fillRect(0,0,w,h);
 
     // caustics
@@ -265,22 +348,14 @@ export function createChannel({ seed, audio }){
     // bubbles
     ctx.save();
     for (const b of bubbles){
-      const gg = ctx.createRadialGradient(b.x, b.y, 1, b.x, b.y, b.r);
-      gg.addColorStop(0, `rgba(255,255,255,${b.a})`);
-      gg.addColorStop(0.6, `rgba(190,255,255,${b.a*0.45})`);
-      gg.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = gg;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
-      ctx.fill();
+      const spr = getBubbleSprite(b.r);
+      ctx.globalAlpha = b.a;
+      ctx.drawImage(spr.canvas, b.x - spr.half, b.y - spr.half);
     }
     ctx.restore();
 
     // vignette
-    const vg = ctx.createRadialGradient(w/2,h/2, Math.min(w,h)*0.2, w/2,h/2, Math.max(w,h)*0.65);
-    vg.addColorStop(0,'rgba(0,0,0,0)');
-    vg.addColorStop(1,'rgba(0,0,0,0.55)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = getVignetteGradient(ctx);
     ctx.fillRect(0,0,w,h);
 
     // label (kept subtle and away from the OSD area)
