@@ -16,6 +16,7 @@ function roundedRect(ctx, x, y, w, h, r){
   ctx.closePath();
 }
 
+// REVIEWED: 2026-02-09
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
 
@@ -23,6 +24,7 @@ export function createChannel({ seed, audio }){
   let h = 0;
   let dpr = 1;
   let t = 0;
+  let ready = false;
 
   // typography
   let font = 16;
@@ -281,6 +283,7 @@ export function createChannel({ seed, audio }){
     dpr = dprIn || 1;
     regenLayout();
     reset();
+    ready = true;
   }
 
   function onResize(width, height, dprIn){
@@ -312,6 +315,7 @@ export function createChannel({ seed, audio }){
   function destroy(){ onAudioOff(); }
 
   function update(dt){
+    if (!ready || cols.length === 0) return;
     t += dt;
 
     handoff = Math.max(0, handoff - dt * 1.6);
@@ -557,6 +561,8 @@ export function createChannel({ seed, audio }){
   }
 
   function draw(ctx){
+    if (!ready || cols.length === 0) return;
+
     drawBackground(ctx);
     drawBoard(ctx);
 
