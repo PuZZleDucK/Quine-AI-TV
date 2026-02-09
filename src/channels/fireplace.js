@@ -9,8 +9,68 @@ export function createChannel({ seed, audio }){
   let audioHandle=null; // {stop()}
   let nextPop=0;
 
+  // Perf: cache the static background/hearth and pre-render log sprites.
+  // (The flame + sparks are still dynamic.)
+  let staticLayer=null; // CanvasImageSource | false | null
+  let logSprites=null; // [{c,w,h,angle}] | null
+  function makeCanvas(W,H){
+    let c = null;
+    if (typeof OffscreenCanvas !== 'undefined') c = new OffscreenCanvas(W,H);
+    else if (typeof document !== 'undefined'){
+      const el = document.createElement('canvas');
+      el.width = W; el.height = H;
+      c = el;
+    }
+    return c;
+  }
+
+  function rebuildStatic(){
+    // Background + hearth layer
+    const bgc = makeCanvas(w,h);
+    if (!bgc){
+      staticLayer = false;
+      logSprites = null;
+      return;
+    }
+    const g = bgc.getContext('2d');
+    g.setTransform(1,0,0,1,0,0);
+    g.clearRect(0,0,w,h);
+
+    const bg = g.createLinearGradient(0,0,0,h);
+    bg.addColorStop(0,'#05030a');
+    bg.addColorStop(1,'#000000');
+    g.fillStyle = bg;
+    g.fillRect(0,0,w,h);
+
+    g.fillStyle = 'rgba(30,20,18,0.9)';
+    g.fillRect(w*0.18,h*0.78,w*0.64,h*0.16);
+
+    staticLayer = bgc;
+
+    // Logs as sprites (avoid re-ellipsing every frame; also keeps render() gradient-free here).
+    logSprites = [];
+    const rx = w*0.12;
+    const ry = h*0.035;
+    const sw = Math.max(1, Math.ceil(rx*2 + 6));
+    const sh = Math.max(1, Math.ceil(ry*2 + 6));
+    for (let i=0;i<3;i++){
+      const c = makeCanvas(sw, sh);
+      if (!c){ logSprites = null; break; }
+      const lg = c.getContext('2d');
+      lg.setTransform(1,0,0,1,0,0);
+      lg.clearRect(0,0,sw,sh);
+      lg.fillStyle = 'rgba(45,30,20,1)';
+      const ang = 0.25*Math.sin(i);
+      lg.beginPath();
+      lg.ellipse(sw/2, sh/2, rx, ry, ang, 0, Math.PI*2);
+      lg.fill();
+      logSprites.push({ c, w: sw, h: sh });
+    }
+  }
+
   function init({width,height}){
     w=width; h=height; t=0;
+    rebuildStatic();
     sparks = Array.from({length: 240}, () => makeSpark(true));
     nextPop = 0.6;
   }
@@ -29,7 +89,7 @@ export function createChannel({ seed, audio }){
     };
   }
 
-  function onResize(width,height){ w=width; h=height; }
+  function onResize(width,height){ w=width; h=height; rebuildStatic(); }
 
   function onAudioOn(){
     if (!audio.enabled) return;
@@ -89,28 +149,39 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
 
-    // dark room
-    const bg = ctx.createLinearGradient(0,0,0,h);
-    bg.addColorStop(0,'#05030a');
-    bg.addColorStop(1,'#000000');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0,0,w,h);
+    // background + hearth (cached layer)
+    if (staticLayer && staticLayer !== false) ctx.drawImage(staticLayer, 0, 0);
+    else {
+      const bg = ctx.createLinearGradient(0,0,0,h);
+      bg.addColorStop(0,'#05030a');
+      bg.addColorStop(1,'#000000');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0,0,w,h);
 
-    // hearth
-    ctx.fillStyle = 'rgba(30,20,18,0.9)';
-    ctx.fillRect(w*0.18,h*0.78,w*0.64,h*0.16);
-
-    // logs
-    ctx.save();
-    ctx.fillStyle = 'rgba(45,30,20,1)';
-    for (let i=0;i<3;i++){
-      const x = w*(0.32 + i*0.12);
-      const y = h*(0.84 + Math.sin(t*0.3+i)*0.005);
-      ctx.beginPath();
-      ctx.ellipse(x,y,w*0.12,h*0.035, 0.25*Math.sin(i), 0, Math.PI*2);
-      ctx.fill();
+      ctx.fillStyle = 'rgba(30,20,18,0.9)';
+      ctx.fillRect(w*0.18,h*0.78,w*0.64,h*0.16);
     }
-    ctx.restore();
+
+    // logs (cached sprites)
+    if (logSprites){
+      for (let i=0;i<3;i++){
+        const spr = logSprites[i];
+        const x = w*(0.32 + i*0.12);
+        const y = h*(0.84 + Math.sin(t*0.3+i)*0.005);
+        ctx.drawImage(spr.c, x - spr.w/2, y - spr.h/2);
+      }
+    } else {
+      ctx.save();
+      ctx.fillStyle = 'rgba(45,30,20,1)';
+      for (let i=0;i<3;i++){
+        const x = w*(0.32 + i*0.12);
+        const y = h*(0.84 + Math.sin(t*0.3+i)*0.005);
+        ctx.beginPath();
+        ctx.ellipse(x,y,w*0.12,h*0.035, 0.25*Math.sin(i), 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
 
     // flame body (layered gradients)
     const fx = w*0.5;
