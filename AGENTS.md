@@ -56,3 +56,50 @@ OUT_DIR=screenshots/review-aquarium-frames \
   npm run screenshots
 ```
 
+## Channel Review Standard (definition of “reviewed”)
+
+A *good channel review* must produce concrete, trackable follow-ups. Do **all** of the following.
+
+### 1) Capture screenshots + visual analysis
+- Capture several screenshots across time (different phases / special moments).
+- Ask:
+  - Does it look good? (composition, palette, legibility, typography)
+  - Does it convey the intended effect/intent?
+  - Is it visually pleasing/interesting over time (not just the first 10 seconds)?
+  - Is the dialog or text funny or entertaining?
+
+### 2) Code + audio review
+- Review the channel code for:
+  - correctness and obvious bugs,
+  - lifecycle hygiene (`onResize`, `update(dt)`, `draw(ctx)`, `destroy()`),
+  - deterministic variety (seeded PRNG use, stable pacing),
+  - performance (hot-path allocations, expensive gradients/paths per frame, too-many draw calls).
+- Review optional audio for:
+  - respecting `audio.enabled`,
+  - correct start/stop/cleanup on audio toggle + `destroy()`,
+  - sane levels + loops (no clicks, no runaway stacking).
+
+### 3) Identify improvements (be specific)
+Look for opportunities in these buckets:
+- Visual upgrades: depth/parallax, lighting/material cues, HUD polish.
+- Long-term interest: better time structure/phases, more variety, better pacing.
+- Efficiency: cache work, reduce allocations/state churn.
+- Text/dialog: longer, better themed, clearer intent, more dynamic, more entertaining.
+- New elements that better convey the concept.
+- Uncommon and rare elements.
+
+### 4) Create TODO items for every identified improvement
+- For each improvement, add a checklist task (in `/home/puzzleduck/clawd/AUTOPILOT.md` under `## Queue`).
+- Every TODO must include:
+  - channel id and file path (`src/channels/<id>.js`),
+  - exactly what to change and where,
+- Prefer several small bounded tasks over one huge “improve graphics” blob.
+
+### 5) Mark the channel file as reviewed
+Add a short comment near the top of `src/channels/<id>.js`:
+
+```js
+// REVIEWED: YYYY-MM-DD
+```
+
+That comment is the durable marker that the review pass happened.
