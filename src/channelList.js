@@ -129,4 +129,5 @@ export const CHANNELS = [
   { id: 'neonlaundromat', name: 'Neon Laundromat Spin Cycle', file: 'neonlaundromat.js' },
   { id: 'cavetorch', name: 'Cave Torch Storyboard', file: 'cavetorch.js' },
   { id: 'vinylpress', name: 'Vinyl Pressing Plant', file: 'vinylpress.js' },
+  { id: 'sushiconveyor', name: 'Sushi Conveyor Night Shift', file: 'sushiconveyor.js' },
 ];
