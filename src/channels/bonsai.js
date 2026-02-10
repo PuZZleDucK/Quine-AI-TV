@@ -242,18 +242,39 @@ export function createChannel({ seed, audio }){
     };
   }
 
-  function onAudioOn(){
-    if (!audio.enabled) return;
-    ah = makeAudioHandle();
-    audio.setCurrent(ah);
-  }
+  function stopAudio({ clearCurrent=false } = {}){
+    const handle = ah;
+    const isCurrent = audio.current === handle;
 
-  function onAudioOff(){
-    ah?.stop?.();
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
     ah = null;
   }
 
-  function destroy(){ onAudioOff(); }
+  function onAudioOn(){
+    if (!audio.enabled) return;
+
+    // defensively stop any existing ambience we started
+    stopAudio({ clearCurrent: true });
+
+    const handle = makeAudioHandle();
+    ah = handle;
+    audio.setCurrent(handle);
+  }
+
+  function onAudioOff(){
+    // stop/clear everything we own; only clear AudioManager.current if it's ours
+    stopAudio({ clearCurrent: true });
+  }
+
+  function destroy(){
+    stopAudio({ clearCurrent: true });
+  }
 
   function nextJump(){
     // rotate through a tiny care loop
