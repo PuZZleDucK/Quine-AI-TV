@@ -20,9 +20,13 @@ export function createChannel({ seed, audio }){
   let special = null;    // { type:'lightning'|'neon', t0, dur }
   let nextSpecialAt = 0;
 
-  // window-light events: mostly random twinkle, occasional sync pulse, rare wipe
+  // window-light events: mostly stable windows with slow random updates,
+  // occasional sync pulse, rare wipe
   let lightEvent = null; // { type:'sync'|'wipe', t0, dur, dir }
   let nextLightEventAt = 0;
+
+  // pacing for random window state updates (keep changes sparse)
+  let nextWinToggleAt = 0;
 
   function rebuildRainSprite(){
     const lw = Math.max(1, Math.floor(h/720));
@@ -225,6 +229,9 @@ export function createChannel({ seed, audio }){
     // window-light events
     lightEvent = null;
     nextLightEventAt = 18 + rand()*35;
+
+    // initialize stable window states (then update slowly in update())
+    initWindowStates();
   }
 
   function makeLayer(depth, i){
@@ -239,6 +246,55 @@ export function createChannel({ seed, audio }){
     const shade = Math.floor(mix(26, 4, depth));
     const fillStyle = `rgb(${shade},${shade},${shade})`;
     return {depth, buildings, hue: 220 + i*15, fillStyle};
+  }
+
+  function initWindowStates(){
+    const p = params || computePhaseParams(t);
+    const thresh = (p.winThresh ?? 0.7);
+
+    for (const layer of layers){
+      for (const b of layer.buildings){
+        const cols = Math.max(2, Math.floor(b.w/18));
+        const rows = Math.max(3, Math.floor(b.h/22));
+        b.winCols = cols;
+        b.winRows = rows;
+
+        const st = new Uint8Array(cols*rows);
+        for (let r=1;r<=rows;r++){
+          for (let c=1;c<=cols;c++){
+            const idx = (r-1)*cols + (c-1);
+            const tw = windowRand01(b.winSeed, 0, r, c);
+            st[idx] = (tw > thresh) ? 1 : 0;
+          }
+        }
+        b.winState = st;
+      }
+    }
+
+    nextWinToggleAt = 0.6 + rand()*1.2;
+  }
+
+  function scheduleNextWinToggle(){
+    // Goal: only ~1–2 windows change every ~1–2 seconds.
+    nextWinToggleAt = t + (1.0 + rand()*1.2);
+  }
+
+  function setRandomWindowState({ onProb }){
+    // Try a few times to find a window that actually changes state.
+    for (let tries=0; tries<10; tries++){
+      const layer = layers[(rand()*layers.length)|0];
+      const b = layer?.buildings?.[(rand()*layer.buildings.length)|0];
+      const st = b?.winState;
+      const cols = b?.winCols;
+      if (!st || !cols) continue;
+
+      const idx = (rand()*st.length)|0;
+      const old = st[idx];
+      let nu = (rand() < onProb) ? 1 : 0;
+      if (nu === old) nu ^= 1; // force a visible change
+      st[idx] = nu;
+      return;
+    }
   }
 
   function onResize(width,height){ w=width; h=height; init({width,height}); }
@@ -327,6 +383,16 @@ export function createChannel({ seed, audio }){
     if (special && (t - special.t0) > special.dur) special = null;
     if (lightEvent && (t - lightEvent.t0) > lightEvent.dur) lightEvent = null;
 
+    // Sparse window state updates (avoid “everything flickers” randomness)
+    if (t >= nextWinToggleAt){
+      const p = params || computePhaseParams(t);
+      const baseThresh = (p.winThresh ?? 0.7);
+      const onProb = clamp(1 - baseThresh, 0.04, 0.90);
+      const n = (rand() < 0.25) ? 2 : 1;
+      for (let i=0;i<n;i++) setRandomWindowState({ onProb });
+      scheduleNextWinToggle();
+    }
+
     const rainSpeed = params?.rainSpeed ?? 1;
     const wind = params?.wind ?? 1;
 
@@ -386,41 +452,48 @@ export function createChannel({ seed, audio }){
       ctx.restore();
 
       // windows
-      // Default: random twinkle. Occasionally sync (global pulse) and rarely a wipe band across x.
+      // Default: stable windows; only 1–2 change every ~1–2 seconds.
+      // Occasionally: sync pulse. Rarely: a wipe band across x.
       const le = lightEvent;
       const leAge = le ? (t - le.t0) : 0;
       const leU = le ? clamp(leAge / le.dur, 0, 1) : 0;
-      const syncPulse = (le && le.type === 'sync') ? (0.5 + 0.5*Math.sin(leAge * 8.5)) : 0;
+      const syncPulse = (le && le.type === 'sync') ? (0.5 + 0.5*Math.sin(leAge * 2.8)) : 0;
       const wipeCenter = (le && le.type === 'wipe') ? (le.dir > 0 ? leU : (1 - leU)) : -10;
+      const leFrame = le ? Math.floor(le.t0 * 7) : 0;
 
-      const twSpeed = (p.twinkleSpeed ?? 0.5);
-      const twFrame = Math.floor(t * (0.8 + twSpeed*2.8));
-      let winThreshBase = (p.winThresh ?? 0.7);
+      const baseThresh = (p.winThresh ?? 0.7);
       let winAlpha = (p.winAlpha ?? 0.22);
-      if (syncPulse > 0){
-        winThreshBase = mix(winThreshBase, 0.18, syncPulse);
-        winAlpha *= mix(0.7, 1.4, syncPulse);
-      }
+      const syncThresh = (syncPulse > 0) ? mix(baseThresh, 0.18, syncPulse) : baseThresh;
+      if (syncPulse > 0) winAlpha *= mix(0.7, 1.4, syncPulse);
 
       ctx.save();
       ctx.fillStyle = 'rgb(255,200,120)';
       ctx.globalAlpha = winAlpha;
       for (const b of layer.buildings){
         const topY = baseY - b.h;
-        const cols = Math.max(2, Math.floor(b.w/18));
-        const rows = Math.max(3, Math.floor(b.h/22));
+        const cols = b.winCols ?? Math.max(2, Math.floor(b.w/18));
+        const rows = b.winRows ?? Math.max(3, Math.floor(b.h/22));
+        const st = b.winState;
         const ww = b.w/(cols+1);
         const wh = b.h/(rows+1);
         for (let r=1;r<=rows;r++){
           for (let c=1;c<=cols;c++){
-            let thresh = winThreshBase;
-            if (wipeCenter >= 0){
-              const xNorm = (b.x + c*ww) / w;
-              const band = smoothstep01(1 - Math.abs(xNorm - wipeCenter) / 0.18);
-              thresh = Math.max(0.02, thresh - band*0.52);
+            const idx = (r-1)*cols + (c-1);
+            let on = st ? st[idx] : 0;
+
+            // Overlay sync/wipe without reintroducing constant per-frame randomness.
+            if (!on && le){
+              let thresh = syncThresh;
+              if (wipeCenter >= 0){
+                const xNorm = (b.x + c*ww) / w;
+                const band = smoothstep01(1 - Math.abs(xNorm - wipeCenter) / 0.18);
+                thresh = Math.max(0.02, thresh - band*0.52);
+              }
+              const tw = windowRand01(b.winSeed, leFrame, r, c);
+              if (tw > thresh) on = 1;
             }
-            const tw = windowRand01(b.winSeed, twFrame, r, c);
-            if (tw <= thresh) continue;
+
+            if (!on) continue;
             const x = b.x + c*ww;
             const y = topY + r*wh;
             ctx.fillRect(x,y, ww*0.35, wh*0.35);
