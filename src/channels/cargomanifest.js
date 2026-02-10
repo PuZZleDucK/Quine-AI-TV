@@ -347,7 +347,8 @@ export function createChannel({ seed, audio }){
 
     ctx.fillStyle = inkDim;
     ctx.font = `${mono}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    const sub = `CH ${String(1 + (seed % 97)).padStart(2, '0')} • ${phase().name}`;
+    // (UI) Avoid showing a faux channel number here; OSD already shows the real CH.
+    const sub = `${phase().name}`;
     ctx.fillText(sub, px + 16, py + 14 + font + 6);
 
     // list
