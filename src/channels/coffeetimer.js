@@ -104,6 +104,13 @@ export function createChannel({ seed, audio }){
   let w = 0, h = 0, dpr = 1;
   let t = 0;
 
+  // bg cache (rebuilt on resize / ctx change)
+  let bgGrad = null;
+  let vignetteGrad = null;
+  let bgCacheW = 0;
+  let bgCacheH = 0;
+  let bgCacheCtx = null;
+
   let font = 16;
   let small = 12;
   let big = 48;
@@ -164,10 +171,24 @@ export function createChannel({ seed, audio }){
     method = METHODS[(seed >>> 2) % METHODS.length];
     station = STATIONS[(seed >>> 6) % STATIONS.length];
     track = TRACKS[(seed >>> 10) % TRACKS.length];
+
+    // force background cache rebuild on first render after init
+    bgGrad = null;
+    vignetteGrad = null;
+    bgCacheCtx = null;
+    bgCacheW = 0;
+    bgCacheH = 0;
   }
 
   function onResize(width, height, dprIn){
     init({ width, height, dpr: dprIn });
+
+    // force background cache rebuild next frame
+    bgGrad = null;
+    vignetteGrad = null;
+    bgCacheCtx = null;
+    bgCacheW = 0;
+    bgCacheH = 0;
   }
 
   function stopAmbience({ clearCurrent=false }={}){
@@ -251,15 +272,32 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function ensureBgCache(ctx){
+    if (bgCacheCtx !== ctx || bgCacheW !== w || bgCacheH !== h || !bgGrad || !vignetteGrad){
+      bgCacheCtx = ctx;
+      bgCacheW = w;
+      bgCacheH = h;
+
+      const g = ctx.createRadialGradient(w*0.48, h*0.35, 0, w*0.5, h*0.5, Math.max(w, h)*0.85);
+      g.addColorStop(0, '#2a1a12');
+      g.addColorStop(0.45, '#0b0a0a');
+      g.addColorStop(1, '#000000');
+      bgGrad = g;
+
+      const vg = ctx.createRadialGradient(w*0.5, h*0.45, Math.min(w,h)*0.12, w*0.5, h*0.45, Math.max(w,h)*0.70);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.62)');
+      vignetteGrad = vg;
+    }
+  }
+
   function bg(ctx){
+    ensureBgCache(ctx);
+
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    const g = ctx.createRadialGradient(w*0.48, h*0.35, 0, w*0.5, h*0.5, Math.max(w, h)*0.85);
-    g.addColorStop(0, '#2a1a12');
-    g.addColorStop(0.45, '#0b0a0a');
-    g.addColorStop(1, '#000000');
-    ctx.fillStyle = g;
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
     // warm grain
@@ -275,10 +313,7 @@ export function createChannel({ seed, audio }){
 
     // vignette
     ctx.save();
-    const vg = ctx.createRadialGradient(w*0.5, h*0.45, Math.min(w,h)*0.12, w*0.5, h*0.45, Math.max(w,h)*0.70);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.62)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = vignetteGrad;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
