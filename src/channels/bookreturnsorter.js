@@ -70,7 +70,8 @@ export function createChannel({ seed, audio }){
 
   // books
   const MAX_BOOKS = 26;
-  let books = []; // {x,y,w,h,route,rot,color,spine,alpha,mode,tx,ty,meta,scanned}
+  // note: per-book targets/jitter are precomputed on spawn to keep update() deterministic across FPS
+  let books = []; // {x,y,w,h,route,rot,color,spine,alpha,mode,tx,ty,meta,scanned,divertJx,divertJy,divertRotTarget,scanFreq,divertFreq}
   let spawnAcc = 0;
   let lastScanned = null; // {title,call,due,route}
   let lastScanTTL = 0;
@@ -253,6 +254,13 @@ export function createChannel({ seed, audio }){
 
     const meta = makeMeta();
 
+    // precompute per-book targets (avoid rand() inside update hot loop)
+    const divertJx = rand() - 0.5;
+    const divertJy = rand() - 0.5;
+    const divertRotTarget = (rand() - 0.5) * 0.22;
+    const scanFreq = 980 + rand() * 160;
+    const divertFreq = 140 + rand() * 40;
+
     books.push({
       x: conveyor.x - ww - rand()*w*0.08,
       y: conveyor.y + conveyor.h*0.5 + (rand()-0.5) * conveyor.h*0.12,
@@ -268,6 +276,11 @@ export function createChannel({ seed, audio }){
       ty: 0,
       meta,
       scanned: false,
+      divertJx,
+      divertJy,
+      divertRotTarget,
+      scanFreq,
+      divertFreq,
     });
   }
 
@@ -277,7 +290,7 @@ export function createChannel({ seed, audio }){
     lastScanned = { ...book.meta, route: bins[book.route].label };
     lastScanTTL = 3.8;
 
-    safeBeep({ freq: 980 + rand()*160, dur: 0.03, gain: 0.016, type: 'triangle' });
+    safeBeep({ freq: book.scanFreq, dur: 0.03, gain: 0.016, type: 'triangle' });
     safeBeep({ freq: 220, dur: 0.05, gain: 0.02, type: 'square' });
   }
 
@@ -351,15 +364,15 @@ export function createChannel({ seed, audio }){
         if (phase.id === 'sort' && b.x + b.w*0.6 > diverterX){
           b.mode = 'divert';
           const bin = bins[b.route];
-          b.tx = bin.cx + (rand()-0.5) * bin.w * 0.16;
-          b.ty = bin.cy + (rand()-0.5) * bin.h * 0.10;
-          safeBeep({ freq: 140 + rand()*40, dur: 0.05, gain: 0.014, type: 'square' });
+          b.tx = bin.cx + b.divertJx * bin.w * 0.16;
+          b.ty = bin.cy + b.divertJy * bin.h * 0.10;
+          safeBeep({ freq: b.divertFreq, dur: 0.05, gain: 0.014, type: 'square' });
         }
       } else if (b.mode === 'divert'){
         const k = 1 - Math.pow(0.001, dt); // dt-safe smoothing
         b.x = lerp(b.x, b.tx, k*0.55);
         b.y = lerp(b.y, b.ty, k*0.45);
-        b.rot = lerp(b.rot, (rand()-0.5)*0.22, k*0.12);
+        b.rot = lerp(b.rot, b.divertRotTarget, k*0.12);
         if (Math.hypot(b.x-b.tx, b.y-b.ty) < 8){
           b.mode = 'bin';
         }
