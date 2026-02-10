@@ -454,6 +454,128 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function drawTools(ctx){
+    const top = signatures[signatures.length - 1];
+    const sway = Math.sin(t * 0.22 + seed*0.001) * w * benchDrift.x;
+    const bob = Math.sin(t * 0.18 + seed*0.002) * h * benchDrift.y;
+
+    // keep clear of the header/OSD
+    const safeTopY = h * 0.22;
+
+    // --- Glue pot + brush (left) ---
+    const potR = Math.min(w, h) * 0.045;
+    const potX = top.x + sway - potR * 1.35;
+    const potY = Math.max(safeTopY + potR * 1.2, top.y + bob + top.h * 0.80);
+
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = 'rgba(10,12,14,0.62)';
+    ctx.beginPath();
+    ctx.arc(potX, potY, potR * 0.95, 0, Math.PI * 2);
+    ctx.fill();
+
+    // rim/highlight
+    ctx.fillStyle = 'rgba(231,238,246,0.10)';
+    ctx.beginPath();
+    ctx.arc(potX - potR * 0.15, potY - potR * 0.18, potR * 0.75, 0, Math.PI * 2);
+    ctx.fill();
+
+    // glue surface
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = 'rgba(255,215,120,0.14)';
+    ctx.beginPath();
+    ctx.ellipse(potX, potY - potR * 0.05, potR * 0.55, potR * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // brush
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = 'rgba(231,238,246,0.35)';
+    ctx.lineWidth = Math.max(2, Math.floor(h / 320));
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(potX + potR * 0.20, potY - potR * 0.20);
+    ctx.lineTo(potX + potR * 1.35, potY - potR * 1.15);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,215,120,0.28)';
+    ctx.lineWidth = Math.max(2, Math.floor(h / 420));
+    ctx.beginPath();
+    ctx.moveTo(potX + potR * 1.25, potY - potR * 1.05);
+    ctx.lineTo(potX + potR * 1.55, potY - potR * 1.32);
+    ctx.stroke();
+    ctx.restore();
+
+    // --- Awl (right) ---
+    const ax = top.x + sway + top.w + potR * 0.65;
+    const ay = Math.max(safeTopY + potR, top.y + bob + top.h * 0.60);
+    const awlLen = potR * 2.4;
+
+    ctx.save();
+    ctx.globalAlpha = 0.80;
+    ctx.translate(ax, ay);
+    ctx.rotate(-0.55 + Math.sin(t * 0.12 + seed * 0.03) * 0.05);
+
+    // handle
+    ctx.fillStyle = 'rgba(10,12,14,0.55)';
+    roundedRect(ctx, -awlLen * 0.35, -potR * 0.24, awlLen * 0.70, potR * 0.48, potR * 0.22);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(231,238,246,0.10)';
+    roundedRect(ctx, -awlLen * 0.30, -potR * 0.18, awlLen * 0.60, potR * 0.36, potR * 0.18);
+    ctx.fill();
+
+    // shaft + tip
+    ctx.strokeStyle = 'rgba(231,238,246,0.55)';
+    ctx.lineWidth = Math.max(2, Math.floor(h / 360));
+    ctx.beginPath();
+    ctx.moveTo(awlLen * 0.35, 0);
+    ctx.lineTo(awlLen * 1.15, 0);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(231,238,246,0.32)';
+    ctx.lineWidth = Math.max(1, Math.floor(h / 520));
+    ctx.beginPath();
+    ctx.moveTo(awlLen * 1.05, -potR * 0.12);
+    ctx.lineTo(awlLen * 1.28, 0);
+    ctx.lineTo(awlLen * 1.05, potR * 0.12);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // --- Bone folder / press tool (bottom) ---
+    const bfX = top.x + sway + top.w * 0.28;
+    const bfY = Math.max(safeTopY + potR * 3.5, top.y + bob + top.h + potR * 0.55);
+    const bw = top.w * 0.56;
+    const bh = potR * 0.28;
+
+    ctx.save();
+    ctx.globalAlpha = 0.72;
+    ctx.translate(bfX, bfY);
+    ctx.rotate(0.12);
+
+    ctx.fillStyle = 'rgba(231,238,246,0.10)';
+    roundedRect(ctx, -bw * 0.5, -bh * 0.5, bw, bh, bh * 0.6);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = 'rgba(231,238,246,0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-bw * 0.35, 0);
+    ctx.lineTo(bw * 0.42, 0);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.62;
+    ctx.fillStyle = 'rgba(231,238,246,0.12)';
+    ctx.beginPath();
+    ctx.moveTo(bw * 0.48, -bh * 0.5);
+    ctx.lineTo(bw * 0.63, 0);
+    ctx.lineTo(bw * 0.48, bh * 0.5);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
   function drawFold(ctx, p){
     const top = signatures[signatures.length - 1];
     const sway = Math.sin(t * 0.22 + seed*0.001) * w * benchDrift.x;
@@ -769,6 +891,7 @@ export function createChannel({ seed, audio }){
     header(ctx, 'Bookbinding Bench ASMR', 'fold • stitch • press • stamp', ph.label, p);
 
     drawStack(ctx);
+    drawTools(ctx);
 
     if (ph.id === 'fold') drawFold(ctx, p);
     else if (ph.id === 'stitch') drawStitch(ctx, p);
