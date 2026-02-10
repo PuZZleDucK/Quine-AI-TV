@@ -96,6 +96,20 @@ function drawCritter(ctx, c, px, py, s){
   ctx.ellipse(0, 0, bodyL*0.55, bodyW*0.52, 0, 0, Math.PI*2);
   ctx.fill();
 
+  // subtle rim + highlight for readability on darker substrate
+  ctx.globalAlpha = a * 0.22;
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = Math.max(1, s*0.10);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, bodyL*0.55, bodyW*0.52, 0, 0, Math.PI*2);
+  ctx.stroke();
+
+  ctx.globalAlpha = a * 0.10;
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath();
+  ctx.ellipse(-bodyL*0.16, -bodyW*0.20, bodyL*0.25, bodyW*0.18, -0.4, 0, Math.PI*2);
+  ctx.fill();
+
   // head
   ctx.globalAlpha = a * 0.95;
   ctx.beginPath();
@@ -199,6 +213,9 @@ export function createChannel({ seed, audio }){
   // Cached grain layer (seeded, rebuilt on resize/ctx swap)
   let grain = { ctx: null, winKey: '', tile: 0, canvas: null, pattern: null };
 
+  // Cached habitat layer (bark/tubes/leaf litter), rebuilt on resize/ctx swap
+  let habitat = { ctx: null, winKey: '', canvas: null };
+
   function makeCanvas(W, H){
     if (!(W > 0 && H > 0)) return null;
     if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
@@ -254,6 +271,152 @@ export function createChannel({ seed, audio }){
     } catch {
       grain.pattern = null;
     }
+  }
+
+  function ensureHabitat(ctx){
+    const winKey = `${win.w}|${win.h}|${dpr}`;
+    if (habitat.ctx === ctx && habitat.winKey === winKey && habitat.canvas) return;
+
+    habitat.ctx = ctx;
+    habitat.winKey = winKey;
+
+    if (!(win.w > 0 && win.h > 0)){
+      habitat.canvas = null;
+      return;
+    }
+
+    const c = makeCanvas(win.w, win.h);
+    const g = c?.getContext?.('2d');
+    if (!c || !g){
+      habitat.canvas = null;
+      return;
+    }
+
+    g.setTransform(1,0,0,1,0,0);
+    g.clearRect(0, 0, win.w, win.h);
+
+    // Separate deterministic RNG so render() doesn't consume any other PRNG streams.
+    const r = mulberry32(((seed ^ 0x1b873593) >>> 0));
+
+    // Midground bark slabs
+    const barkN = 2 + Math.floor(r() * 2);
+    for (let i=0;i<barkN;i++){
+      const cx = win.w * (0.18 + r() * 0.64);
+      const cy = win.h * (0.42 + r() * 0.20);
+      const bw = win.w * (0.26 + r() * 0.26);
+      const bh = win.h * (0.07 + r() * 0.07);
+      const ang = (-0.55 + r() * 1.1);
+
+      g.save();
+      g.translate(cx, cy);
+      g.rotate(ang);
+
+      g.globalAlpha = 0.78;
+      g.fillStyle = 'rgba(66,41,26,0.62)';
+      roundRect(g, -bw*0.5, -bh*0.5, bw, bh, Math.min(22, bh*0.45));
+      g.fill();
+
+      g.globalAlpha = 0.28;
+      g.strokeStyle = 'rgba(255,235,205,0.22)';
+      g.lineWidth = Math.max(1, bh*0.08);
+      roundRect(g, -bw*0.5, -bh*0.5, bw, bh, Math.min(22, bh*0.45));
+      g.stroke();
+
+      // simple “bark” striations
+      g.globalAlpha = 0.22;
+      g.strokeStyle = 'rgba(20,10,6,0.55)';
+      g.lineWidth = Math.max(1, bh*0.06);
+      const lines = 8 + Math.floor(r() * 5);
+      for (let k=0;k<lines;k++){
+        const u = (k / Math.max(1, lines-1));
+        const yy = (-bh*0.32 + u * bh*0.64) + Math.sin(k*1.7 + i*0.9) * bh*0.05;
+        g.beginPath();
+        g.moveTo(-bw*0.48, yy);
+        g.quadraticCurveTo(0, yy + (r()-0.5) * bh*0.16, bw*0.48, yy);
+        g.stroke();
+      }
+
+      g.restore();
+    }
+
+    // Cardboard tubes (bug hotel!)
+    const tubeN = 2 + Math.floor(r() * 2);
+    for (let i=0;i<tubeN;i++){
+      const cx = win.w * (0.64 + r() * 0.30);
+      const cy = win.h * (0.62 + r() * 0.25);
+      const tw = win.w * (0.14 + r() * 0.12);
+      const th = win.h * (0.06 + r() * 0.05);
+      const ang = (-0.18 + r() * 0.36);
+
+      g.save();
+      g.translate(cx, cy);
+      g.rotate(ang);
+
+      g.globalAlpha = 0.72;
+      g.fillStyle = 'rgba(175,145,98,0.36)';
+      roundRect(g, -tw*0.5, -th*0.5, tw, th, th*0.45);
+      g.fill();
+
+      g.globalAlpha = 0.20;
+      g.fillStyle = 'rgba(255,240,210,0.90)';
+      roundRect(g, -tw*0.46, -th*0.30, tw*0.92, th*0.18, th*0.18);
+      g.fill();
+
+      g.globalAlpha = 0.28;
+      g.strokeStyle = 'rgba(40,20,10,0.35)';
+      g.lineWidth = Math.max(1, th*0.08);
+      roundRect(g, -tw*0.5, -th*0.5, tw, th, th*0.45);
+      g.stroke();
+
+      g.restore();
+    }
+
+    // Leaf litter (kept low-contrast so critters still read)
+    const leafN = 22 + Math.floor(r() * 10);
+    for (let i=0;i<leafN;i++){
+      const x = win.w * (0.05 + r() * 0.90);
+      const y = win.h * (0.63 + r() * 0.33);
+      const s = Math.max(3, win.h * (0.010 + r() * 0.020));
+      const ang = r() * Math.PI * 2;
+
+      g.save();
+      g.translate(x, y);
+      g.rotate(ang);
+
+      g.globalAlpha = 0.22;
+      g.fillStyle = (r() < 0.5) ? 'rgba(90,70,40,0.33)' : 'rgba(120,110,60,0.28)';
+      g.beginPath();
+      g.moveTo(-s, 0);
+      g.quadraticCurveTo(0, -s*0.65, s, 0);
+      g.quadraticCurveTo(0, s*0.65, -s, 0);
+      g.closePath();
+      g.fill();
+
+      g.globalAlpha = 0.12;
+      g.strokeStyle = 'rgba(20,10,6,0.45)';
+      g.lineWidth = Math.max(1, s*0.10);
+      g.beginPath();
+      g.moveTo(-s*0.8, 0);
+      g.lineTo(s*0.8, 0);
+      g.stroke();
+
+      g.restore();
+    }
+
+    // Pebbles
+    g.globalAlpha = 0.18;
+    g.fillStyle = 'rgba(20,20,20,0.65)';
+    const pebN = 6 + Math.floor(r() * 6);
+    for (let i=0;i<pebN;i++){
+      const x = win.w * (0.08 + r() * 0.84);
+      const y = win.h * (0.70 + r() * 0.26);
+      const rad = Math.max(1.2, win.h * (0.004 + r() * 0.010));
+      g.beginPath();
+      g.ellipse(x, y, rad*1.2, rad, r() * Math.PI, 0, Math.PI*2);
+      g.fill();
+    }
+
+    habitat.canvas = c;
   }
 
   function ensureGradients(ctx){
@@ -771,6 +934,15 @@ export function createChannel({ seed, audio }){
     roundRect(ctx, win.x, win.y, win.w, win.h, win.r);
     ctx.clip();
 
+    // habitat midground (cached on resize) — bark/tubes/leaf litter
+    ensureHabitat(ctx);
+    if (habitat.canvas){
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      ctx.drawImage(habitat.canvas, win.x, win.y);
+      ctx.restore();
+    }
+
     // subtle “macro grain” (cached seeded noise tile, blitted with slow drift)
     ensureGrain(ctx);
     if (grain.pattern){
@@ -788,7 +960,7 @@ export function createChannel({ seed, audio }){
     ctx.globalAlpha = 0.95;
     for (let i=0;i<critters.length;i++){
       const c = critters[i];
-      const s = Math.max(3, Math.min(w, h) * 0.0065 * c.kind.size);
+      const s = Math.max(3, Math.min(w, h) * 0.0071 * c.kind.size);
       drawCritter(ctx, c, c.x, c.y, s);
     }
 
