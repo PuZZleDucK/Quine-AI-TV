@@ -274,6 +274,115 @@ export function createChannel({ seed, audio }){
   let board = null;
   let ambience = null;
 
+  // Cached layers (rebuild on resize)
+  let cache = {
+    w: 0, h: 0, dpr: 1, font: 16,
+    bw: 0, bh: 0, br: 18,
+    bg: null,
+    board: null,
+    scan: null,
+  };
+
+  function makeCanvas(W, H){
+    if (!(W > 0 && H > 0)) return null;
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+    if (typeof document !== 'undefined'){
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    }
+    return null;
+  }
+
+  function rebuildCache(){
+    const bw = Math.floor(w * 0.72);
+    const bh = Math.floor(h * 0.58);
+    const br = Math.max(18, Math.floor(font * 1.1));
+
+    cache.w = w;
+    cache.h = h;
+    cache.dpr = dpr;
+    cache.font = font;
+    cache.bw = bw;
+    cache.bh = bh;
+    cache.br = br;
+
+    // background
+    const bgC = makeCanvas(w, h);
+    const bg = bgC?.getContext?.('2d');
+    if (bgC && bg){
+      bg.setTransform(1,0,0,1,0,0);
+      bg.clearRect(0, 0, w, h);
+      const g = bg.createRadialGradient(w * 0.5, h * 0.35, 10, w * 0.5, h * 0.35, Math.max(w, h) * 0.85);
+      g.addColorStop(0, '#10161f');
+      g.addColorStop(0.55, '#070b10');
+      g.addColorStop(1, '#020306');
+      bg.fillStyle = g;
+      bg.fillRect(0, 0, w, h);
+      cache.bg = bgC;
+    } else {
+      cache.bg = null;
+    }
+
+    // board body + solder-mask texture
+    const boardC = makeCanvas(bw, bh);
+    const bctx = boardC?.getContext?.('2d');
+    if (boardC && bctx){
+      bctx.setTransform(1,0,0,1,0,0);
+      bctx.clearRect(0, 0, bw, bh);
+
+      const gg = bctx.createLinearGradient(0, 0, bw, bh);
+      gg.addColorStop(0, '#0c3b2a');
+      gg.addColorStop(1, '#06261b');
+      bctx.fillStyle = gg;
+      roundRect(bctx, 0, 0, bw, bh, br);
+      bctx.fill();
+
+      bctx.save();
+      bctx.globalAlpha = 0.08;
+      bctx.fillStyle = 'rgba(255,255,255,1)';
+      const step = Math.max(16, Math.floor(font * 1.1));
+      for (let y0 = 0; y0 < bh; y0 += step){
+        for (let x0 = 0; x0 < bw; x0 += step){
+          if (((x0 + y0) / step) % 3 < 1) bctx.fillRect(x0, y0, 1, 1);
+        }
+      }
+      bctx.restore();
+
+      cache.board = boardC;
+    } else {
+      cache.board = null;
+    }
+
+    // scanline strip (vertical gradient), drawn at varying x
+    const scanC = makeCanvas(20, bh);
+    const sctx = scanC?.getContext?.('2d');
+    if (scanC && sctx){
+      sctx.setTransform(1,0,0,1,0,0);
+      sctx.clearRect(0, 0, 20, bh);
+      const sg = sctx.createLinearGradient(0, 0, 0, bh);
+      sg.addColorStop(0, 'rgba(108,242,255,0)');
+      sg.addColorStop(0.5, 'rgba(108,242,255,0.18)');
+      sg.addColorStop(1, 'rgba(108,242,255,0)');
+      sctx.fillStyle = sg;
+      sctx.fillRect(0, 0, 20, bh);
+      cache.scan = scanC;
+    } else {
+      cache.scan = null;
+    }
+  }
+
+  function ensureCache(){
+    const bw = Math.floor(w * 0.72);
+    const bh = Math.floor(h * 0.58);
+    if (
+      cache.w === w && cache.h === h && cache.dpr === dpr && cache.font === font &&
+      cache.bw === bw && cache.bh === bh && cache.bg && cache.board && cache.scan
+    ) return;
+    rebuildCache();
+  }
+
   // pacing
   const SEG_MIN = 6.5;
   const SEG_MAX = 10.5;
@@ -326,6 +435,8 @@ export function createChannel({ seed, audio }){
     segmentIndex = 0;
     segmentT = 0;
     setSegmentDuration();
+
+    ensureCache();
   }
 
   function onResize(width, height, dp){
@@ -374,26 +485,27 @@ export function createChannel({ seed, audio }){
   function render(ctx){
     if (!board) return;
 
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, w, h);
+    ensureCache();
 
-    // background: lab-dark + soft vignette
-    const bg = ctx.createRadialGradient(w * 0.5, h * 0.35, 10, w * 0.5, h * 0.35, Math.max(w, h) * 0.85);
-    bg.addColorStop(0, '#10161f');
-    bg.addColorStop(0.55, '#070b10');
-    bg.addColorStop(1, '#020306');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    if (cache.bg){
+      ctx.drawImage(cache.bg, 0, 0);
+    } else {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#020306';
+      ctx.fillRect(0, 0, w, h);
+    }
 
     const driftX = Math.sin(t * 0.18) * w * 0.02;
     const driftY = Math.cos(t * 0.14) * h * 0.016;
 
     // board placement
-    const bw = Math.floor(w * 0.72);
-    const bh = Math.floor(h * 0.58);
+    const bw = cache.bw;
+    const bh = cache.bh;
     const bx = Math.floor((w - bw) / 2 + driftX);
     const by = Math.floor(h * 0.2 + driftY);
-    const br = Math.max(18, Math.floor(font * 1.1));
+    const br = cache.br;
 
     // drop shadow
     ctx.save();
@@ -403,30 +515,19 @@ export function createChannel({ seed, audio }){
     ctx.fill();
     ctx.restore();
 
-    // board body
-    const g = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
-    g.addColorStop(0, '#0c3b2a');
-    g.addColorStop(1, '#06261b');
-    ctx.fillStyle = g;
-    roundRect(ctx, bx, by, bw, bh, br);
-    ctx.fill();
-
-    // subtle solder-mask texture
-    ctx.save();
-    ctx.globalAlpha = 0.08;
-    ctx.fillStyle = 'rgba(255,255,255,1)';
-    const step = Math.max(16, Math.floor(font * 1.1));
-    for (let y = by; y < by + bh; y += step){
-      for (let x = bx; x < bx + bw; x += step){
-        if (((x + y) / step) % 3 < 1) ctx.fillRect(x, y, 1, 1);
-      }
+    // board body (cached)
+    if (cache.board){
+      ctx.drawImage(cache.board, bx, by);
+    } else {
+      ctx.fillStyle = '#06261b';
+      roundRect(ctx, bx, by, bw, bh, br);
+      ctx.fill();
     }
-    ctx.restore();
 
     // traces
     ctx.save();
     ctx.beginPath();
-    ctx.rect(bx, by, bw, bh);
+    roundRect(ctx, bx, by, bw, bh, br);
     ctx.clip();
 
     ctx.globalAlpha = 0.52;
@@ -448,16 +549,16 @@ export function createChannel({ seed, audio }){
       ctx.stroke();
     }
 
-    // scanning line
+    // scanning line (cached strip)
     const scan = (Math.sin(t * 0.55) * 0.5 + 0.5);
     const sx = bx + scan * bw;
-    const sg = ctx.createLinearGradient(sx, by, sx, by + bh);
-    sg.addColorStop(0, 'rgba(108,242,255,0)');
-    sg.addColorStop(0.5, 'rgba(108,242,255,0.18)');
-    sg.addColorStop(1, 'rgba(108,242,255,0)');
     ctx.globalAlpha = 0.9;
-    ctx.fillStyle = sg;
-    ctx.fillRect(sx - 10, by, 20, bh);
+    if (cache.scan){
+      ctx.drawImage(cache.scan, Math.floor(sx - 10), by);
+    } else {
+      ctx.fillStyle = 'rgba(108,242,255,0.12)';
+      ctx.fillRect(sx - 10, by, 20, bh);
+    }
 
     ctx.restore();
 
