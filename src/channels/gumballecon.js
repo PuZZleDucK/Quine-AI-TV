@@ -833,7 +833,7 @@ export function createChannel({ seed, audio }){
     ctx.textBaseline = 'middle';
     ctx.font = `${size}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText('CH ??', w * 0.05, h * 0.17);
+    ctx.fillText('GUMBALL ECON', w * 0.05, h * 0.17);
 
     ctx.font = `${Math.max(16, Math.floor(s * 0.038))}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.fillStyle = 'rgba(255,92,220,0.92)';
