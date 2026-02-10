@@ -32,6 +32,7 @@ function drawGear(ctx, cx, cy, r, teeth, ang, fill, stroke){
   ctx.translate(cx, cy);
   ctx.rotate(ang);
 
+  // gear silhouette
   ctx.beginPath();
   for (let i=0;i<teeth;i++){
     const a0 = (i / teeth) * Math.PI*2;
@@ -44,12 +45,52 @@ function drawGear(ctx, cx, cy, r, teeth, ang, fill, stroke){
     ctx.lineTo(Math.cos(a2)*r0, Math.sin(a2)*r0);
   }
   ctx.closePath();
+
+  // base
   ctx.fillStyle = fill;
   ctx.fill();
 
-  ctx.lineWidth = Math.max(1, r * 0.06);
+  const lw = Math.max(1, r * 0.06);
+  ctx.lineWidth = lw;
   ctx.strokeStyle = stroke;
   ctx.stroke();
+
+  // Readability: bevel + specular + shadow (no gradients)
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  // subtle inner bevel
+  ctx.globalCompositeOperation = 'screen';
+  ctx.lineWidth = Math.max(1, lw * 0.55);
+  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+  ctx.stroke();
+
+  // specular arc highlight
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.93, -Math.PI * 0.78, -Math.PI * 0.12);
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = Math.max(1, r * 0.11);
+  ctx.stroke();
+
+  // inner rim highlight
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.58, -Math.PI * 0.70, -Math.PI * 0.18);
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+  ctx.lineWidth = Math.max(1, r * 0.08);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // shadowed rim for depth
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+  ctx.lineWidth = Math.max(1, lw * 0.6);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.95, Math.PI * 0.18, Math.PI * 0.92);
+  ctx.stroke();
+  ctx.restore();
 
   // hub
   circle(ctx, 0, 0, r * 0.35);
@@ -57,6 +98,11 @@ function drawGear(ctx, cx, cy, r, teeth, ang, fill, stroke){
   ctx.fill();
   circle(ctx, 0, 0, r * 0.14);
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fill();
+
+  // tiny fastener dot
+  circle(ctx, r * 0.06, -r * 0.06, r * 0.04);
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
   ctx.fill();
 
   ctx.restore();
@@ -650,9 +696,9 @@ export function createChannel({ seed, audio }){
       ctx.stroke();
     }
 
-    // gears behind
-    drawGear(ctx, gearA.x, gearA.y, gearA.r, 14, gearAng*0.9, 'rgba(0,0,0,0.18)', `rgba(255,255,255,${0.10 + slip*0.08})`);
-    drawGear(ctx, gearB.x, gearB.y, gearB.r, 12, -gearAng*1.1, 'rgba(0,0,0,0.20)', `rgba(255,255,255,${0.10 + slip*0.08})`);
+    // gears behind (pushed a bit darker + clearer edge so they read through the plate)
+    drawGear(ctx, gearA.x, gearA.y, gearA.r, 14, gearAng*0.9, 'rgba(28,20,14,0.34)', `rgba(255,255,255,${0.18 + slip*0.10})`);
+    drawGear(ctx, gearB.x, gearB.y, gearB.r, 12, -gearAng*1.1, 'rgba(24,18,14,0.36)', `rgba(255,255,255,${0.16 + slip*0.10})`);
 
     // brass gear overlay
     ctx.save();
@@ -773,6 +819,92 @@ export function createChannel({ seed, audio }){
     }
 
     ctx.restore();
+
+    // tiny workshop tools (calipers + awl) for extra "bench" vibe (no gradients; keep OSD clear)
+    {
+      const s = Math.min(pw, ph) * 0.11;
+      const tx = px + pw * 0.18;
+      const ty = py + ph * 0.83;
+
+      // calipers
+      ctx.save();
+      ctx.translate(tx, ty);
+      ctx.rotate(-0.35);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // shadow
+      ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+      ctx.lineWidth = Math.max(1, s * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(-s*0.35, -s*0.18);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(s*0.32, -s*0.22);
+      ctx.stroke();
+
+      // metal
+      ctx.strokeStyle = 'rgba(220,235,255,0.22)';
+      ctx.lineWidth = Math.max(1, s * 0.06);
+      ctx.beginPath();
+      ctx.moveTo(-s*0.36, -s*0.20);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(s*0.34, -s*0.24);
+      ctx.stroke();
+
+      // jaws
+      ctx.strokeStyle = 'rgba(220,235,255,0.18)';
+      ctx.lineWidth = Math.max(1, s * 0.05);
+      ctx.beginPath();
+      ctx.moveTo(-s*0.36, -s*0.20);
+      ctx.lineTo(-s*0.42, -s*0.32);
+      ctx.moveTo(s*0.34, -s*0.24);
+      ctx.lineTo(s*0.44, -s*0.34);
+      ctx.stroke();
+
+      // hinge screw
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      circle(ctx, 0, 0, s*0.07);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+      ctx.lineWidth = Math.max(1, s*0.03);
+      ctx.stroke();
+
+      ctx.restore();
+
+      // awl
+      const ax = px + pw * 0.27;
+      const ay = py + ph * 0.86;
+      const al = s * 0.95;
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(-0.95);
+      ctx.lineCap = 'round';
+
+      // handle
+      ctx.strokeStyle = 'rgba(0,0,0,0.20)';
+      ctx.lineWidth = Math.max(1, s * 0.10);
+      ctx.beginPath();
+      ctx.moveTo(-al*0.15, 0);
+      ctx.lineTo(al*0.18, 0);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(255,219,122,0.10)';
+      ctx.lineWidth = Math.max(1, s * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(-al*0.14, 0);
+      ctx.lineTo(al*0.17, 0);
+      ctx.stroke();
+
+      // tip
+      ctx.strokeStyle = 'rgba(220,235,255,0.24)';
+      ctx.lineWidth = Math.max(1, s * 0.05);
+      ctx.beginPath();
+      ctx.moveTo(al*0.17, 0);
+      ctx.lineTo(al*0.52, 0);
+      ctx.stroke();
+
+      ctx.restore();
+    }
 
     // phase label + alignment meter
     const labelX = box.x + box.w*0.14;
