@@ -1,5 +1,6 @@
 import { mulberry32 } from '../util/prng.js';
 
+// REVIEWED: 2026-02-11
 // Candlelit Chess Engine
 // Calm candlelit chessboard that plays a deterministic scripted game.
 
