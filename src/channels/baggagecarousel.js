@@ -6,6 +6,8 @@ function pick(rand, arr){ return arr[(rand() * arr.length) | 0]; }
 function lerp(a,b,t){ return a + (b-a)*t; }
 function ease(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
 
+const TAU = Math.PI * 2;
+
 function roundedRect(ctx, x, y, w, h, r){
   r = Math.min(r, w*0.5, h*0.5);
   ctx.beginPath();
@@ -245,9 +247,7 @@ export function createChannel({ seed, audio }){
       b.tagFlip = Math.max(0, b.tagFlip - dt * 3.5);
       b.blink = Math.max(0, b.blink - dt * 2.0);
 
-      // motion
-      const sp = beltSpeed * b.s;
-      b.a = (b.a + dt * sp) % (Math.PI * 2);
+      // motion (applied after we compute per-bag spacing; see below)
 
       // tag flips (deterministic-ish timing)
       if (b.pres > 0.4 && t >= b.nextTagAt){
@@ -256,6 +256,37 @@ export function createChannel({ seed, audio }){
         b.nextTagAt = t + (5 + rand() * 11);
 
         if (audio.enabled && rand() < 0.18) safeBeep({ freq: 520 + rand()*140, dur: 0.03, gain: 0.006, type: 'square' });
+      }
+    }
+
+    // motion: prevent overtaking by clamping each bag's advance to the gap ahead.
+    // (Angle-space approximation is sufficient for the belt ellipse.)
+    {
+      const present = bags.filter(b => b.pres > 0.2);
+
+      if (present.length <= 1){
+        for (const b of present){
+          b.a = (b.a + dt * beltSpeed * b.s) % TAU;
+        }
+      } else {
+        present.sort((a, b) => a.a - b.a);
+
+        // Space bags a bit more when there are fewer on the belt.
+        const minGap = clamp((TAU / Math.max(6, target)) * 0.6, 0.22, 0.55);
+
+        for (let i = 0; i < present.length; i++){
+          const b = present[i];
+          const ahead = present[(i + 1) % present.length];
+          const gap = (ahead.a - b.a + TAU) % TAU;
+
+          const baseSp = beltSpeed * b.s;
+          const scale = clamp(gap / minGap, 0, 1);
+          let da = dt * baseSp * scale;
+
+          // Hard safety: never advance past the bag ahead (handles big dt spikes).
+          da = Math.min(da, Math.max(0, gap - 0.001));
+          b.a = (b.a + da) % TAU;
+        }
       }
     }
 
