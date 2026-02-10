@@ -170,8 +170,22 @@ export function createChannel({ seed, audio }){
   let win = { x: 0, y: 0, w: 0, h: 0, r: 18 };
 
   let critters = [];
-  let eventT = 0;
   let spotlight = null; // {i, age}
+
+  // Phase cycle + deterministic schedules (separate RNG from per-frame critter wander)
+  const sched = mulberry32(((seed ^ 0x9e3779b9) >>> 0));
+  const evr = mulberry32(((seed ^ 0x85ebca6b) >>> 0));
+  const spr = mulberry32(((seed ^ 0x27d4eb2f) >>> 0));
+
+  let cycle = { len: 180, qEnd: 60, bEnd: 120, offset: 0 };
+  let phaseKey = 'quiet';
+  let phaseQ = 1, phaseB = 0, phaseN = 0;
+
+  let nextSightingT = 0;
+
+  let special = null; // {kind, t0, dur, ...}
+  let nextSpecialT = 0;
+  let specialN = 0;
 
   let field = { title:'—', latin:'—', behavior:'—', note:'—' };
   let log = [];
@@ -180,7 +194,7 @@ export function createChannel({ seed, audio }){
   let ah = null;
 
   // Cached gradients (rebuild on resize or ctx swap)
-  let grad = { ctx: null, w: 0, h: 0, winKey: '', bg: null, vignette: null, glass: null, dirt: null };
+  let grad = { ctx: null, w: 0, h: 0, winKey: '', bg: null, vignette: null, glass: null, dirt: null, lamp: null };
 
   // Cached grain layer (seeded, rebuilt on resize/ctx swap)
   let grain = { ctx: null, winKey: '', tile: 0, canvas: null, pattern: null };
@@ -244,7 +258,7 @@ export function createChannel({ seed, audio }){
 
   function ensureGradients(ctx){
     const winKey = `${win.x}|${win.y}|${win.w}|${win.h}`;
-    if (grad.ctx === ctx && grad.w === w && grad.h === h && grad.winKey === winKey && grad.bg && grad.vignette && grad.glass && grad.dirt){
+    if (grad.ctx === ctx && grad.w === w && grad.h === h && grad.winKey === winKey && grad.bg && grad.vignette && grad.glass && grad.dirt && grad.lamp){
       return;
     }
 
@@ -276,6 +290,12 @@ export function createChannel({ seed, audio }){
     dg.addColorStop(0, 'rgba(92,70,46,0.35)');
     dg.addColorStop(1, 'rgba(42,28,18,0.85)');
     grad.dirt = dg;
+
+    const lamp = ctx.createRadialGradient(win.x + win.w*0.25, win.y + win.h*0.18, 0, win.x + win.w*0.25, win.y + win.h*0.18, Math.max(win.w, win.h) * 0.85);
+    lamp.addColorStop(0, 'rgba(255,220,165,0.55)');
+    lamp.addColorStop(0.35, 'rgba(255,200,140,0.22)');
+    lamp.addColorStop(1, 'rgba(0,0,0,0)');
+    grad.lamp = lamp;
   }
 
   function stopAmbience({ clearCurrent = false } = {}){
@@ -332,10 +352,25 @@ export function createChannel({ seed, audio }){
 
     initCritters();
 
+    // phase cycle: 2–4 min quiet → busy → night-lamp
+    cycle.len = 150 + sched() * 90;
+    const q = cycle.len * (0.34 + sched() * 0.05);
+    const b = cycle.len * (0.34 + sched() * 0.05);
+    cycle.qEnd = q;
+    cycle.bEnd = q + b;
+    cycle.offset = sched() * cycle.len;
+
+    phaseKey = 'quiet';
+    phaseQ = 1; phaseB = 0; phaseN = 0;
+
     log = [];
-    eventT = 1.0 + rand() * 1.5;
+    nextSightingT = 1.0 + evr() * 1.5;
     spotlight = null;
     field = { title:'—', latin:'—', behavior:'—', note:'—' };
+
+    special = null;
+    specialN = 0;
+    nextSpecialT = 45 + spr() * 75;
   }
 
   function onResize(width, height, _dpr){ init({ width, height, dpr: _dpr }); }
@@ -387,10 +422,10 @@ export function createChannel({ seed, audio }){
   function destroy(){ onAudioOff(); }
 
   function spawnSighting(){
-    const i = Math.floor(rand() * critters.length);
+    const i = Math.floor(evr() * critters.length);
     const c = critters[i];
-    const b = c.kind.behaviors[Math.floor(rand() * c.kind.behaviors.length)];
-    const n = c.kind.notes[Math.floor(rand() * c.kind.notes.length)];
+    const b = c.kind.behaviors[Math.floor(evr() * c.kind.behaviors.length)];
+    const n = c.kind.notes[Math.floor(evr() * c.kind.notes.length)];
 
     spotlight = { i, age: 0 };
     field = {
@@ -406,18 +441,77 @@ export function createChannel({ seed, audio }){
     if (log.length > 7) log.length = 7;
 
     if (audio.enabled){
-      audio.beep({ freq: 980 + rand()*240, dur: 0.018, gain: 0.010, type: 'triangle' });
+      // Deterministic-ish chirp (no PRNG consumption in audio path)
+      const f = 940 + ((i * 97 + (t*10)|0) % 280);
+      audio.beep({ freq: f, dur: 0.018, gain: 0.010, type: 'triangle' });
+    }
+  }
+
+  function triggerSpecial(){
+    specialN++;
+    const kind = (spr() < 0.55) ? 'flash' : 'dew';
+
+    if (kind == 'flash'){
+      special = {
+        kind,
+        t0: t,
+        dur: 2.8,
+        dir: spr() < 0.5 ? -1 : 1,
+      };
+      // force a quick highlight on something during the sweep
+      spotlight = { i: Math.floor(evr() * critters.length), age: 0 };
+    } else {
+      const drops = [];
+      const n = 3 + Math.floor(spr() * 3);
+      for (let k=0;k<n;k++){
+        drops.push({
+          x: win.x + win.w * (0.10 + spr() * 0.80),
+          y0: win.y + win.h * (-0.2 + spr() * 0.6),
+          sp: win.h * (0.18 + spr() * 0.22),
+          len: win.h * (0.05 + spr() * 0.06),
+        });
+      }
+      special = { kind, t0: t, dur: 4.6, drops };
     }
 
-    eventT = 6.0 + rand() * 7.0;
+    if (audio.enabled){
+      const f = kind == 'flash' ? 1120 : 760;
+      audio.beep({ freq: f, dur: 0.030, gain: 0.012, type: 'triangle' });
+    }
+
+    nextSpecialT = t + (45 + spr() * 75);
   }
 
   function update(dt){
     t += dt;
 
-    eventT -= dt;
-    if (eventT <= 0){
+    // phase: quiet → busy → night-lamp (seeded cycle)
+    const u = (t + cycle.offset) % cycle.len;
+    if (u < cycle.qEnd){
+      phaseKey = 'quiet';
+      phaseQ = 1; phaseB = 0; phaseN = 0;
+    } else if (u < cycle.bEnd){
+      phaseKey = 'busy';
+      phaseQ = 0; phaseB = 1; phaseN = 0;
+    } else {
+      phaseKey = 'night';
+      phaseQ = 0; phaseB = 0; phaseN = 1;
+    }
+
+    // deterministic sightings schedule (cap catch-up to avoid long loops)
+    for (let k=0; k<3 && t >= nextSightingT; k++){
       spawnSighting();
+      const base = (phaseKey === 'busy') ? 4.0 : (phaseKey === 'quiet' ? 8.0 : 6.5);
+      const spread = (phaseKey === 'busy') ? 4.0 : (phaseKey === 'quiet' ? 7.0 : 5.5);
+      nextSightingT += base + evr() * spread;
+    }
+
+    // rare specials (~45–120s), deterministic per seed
+    if (!special && t >= nextSpecialT){
+      triggerSpecial();
+    }
+    if (special && (t - special.t0) > special.dur){
+      special = null;
     }
 
     if (spotlight){
@@ -431,23 +525,27 @@ export function createChannel({ seed, audio }){
     const my0 = win.y + win.h * 0.10;
     const my1 = win.y + win.h * 0.92;
 
+    const activity = (phaseKey === 'busy') ? 1.18 : (phaseKey === 'quiet' ? 0.92 : 0.74);
+    const turnScale = (phaseKey === 'night') ? 0.65 : 1.0;
+
     for (let i=0;i<critters.length;i++){
       const c = critters[i];
 
       const jitter = 0.8 + 0.35 * Math.sin(t*0.6 + c.wiggle);
-      const turn = (rand() - 0.5) * 0.9 * dt;
+      const turn = (rand() - 0.5) * 0.9 * turnScale * dt;
       c.ang += turn;
 
-      const speed = (0.38 + 0.52 * rand()) * jitter * c.kind.size;
+      const speed = (0.38 + 0.52 * rand()) * jitter * activity * c.kind.size;
       c.vx = lerp(c.vx, Math.cos(c.ang) * speed, 0.06);
       c.vy = lerp(c.vy, Math.sin(c.ang) * speed, 0.06);
 
-      // moth drifts toward top-left “light” region
+      // moth drifts toward top-left “light” region (stronger at night)
       if (c.kind.key === 'moth'){
         const lx = win.x + win.w * 0.25;
         const ly = win.y + win.h * 0.18;
-        c.vx += clamp((lx - c.x) * 0.0009, -0.04, 0.04);
-        c.vy += clamp((ly - c.y) * 0.0009, -0.04, 0.04);
+        const pull = (phaseKey === 'night') ? 1.60 : (phaseKey === 'busy' ? 1.10 : 1.0);
+        c.vx += clamp((lx - c.x) * 0.0009 * pull, -0.04, 0.04);
+        c.vy += clamp((ly - c.y) * 0.0009 * pull, -0.04, 0.04);
       }
 
       c.x += c.vx * dt * 60;
@@ -467,6 +565,20 @@ export function createChannel({ seed, audio }){
 
     ctx.fillStyle = grad.bg;
     ctx.fillRect(0, 0, w, h);
+
+    // phase tint
+    if (phaseB){
+      ctx.globalAlpha = 0.08 * phaseB;
+      ctx.fillStyle = 'rgba(16,70,48,1)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalAlpha = 1;
+    }
+    if (phaseN){
+      ctx.globalAlpha = 0.18 * phaseN;
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalAlpha = 1;
+    }
 
     ctx.fillStyle = grad.vignette;
     ctx.fillRect(0, 0, w, h);
@@ -542,7 +654,8 @@ export function createChannel({ seed, audio }){
     const recY = Math.floor(h*0.11);
     ctx.globalAlpha = 0.9;
     ctx.fillStyle = 'rgba(255,70,70,0.95)';
-    const pulse = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(t*3.2));
+    const pulseSpd = (phaseKey === 'busy') ? 5.0 : (phaseKey === 'quiet' ? 2.8 : 1.9);
+    const pulse = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(t*pulseSpd));
     ctx.beginPath();
     ctx.arc(recX, recY, Math.max(3, font*0.20)*pulse, 0, Math.PI*2);
     ctx.fill();
@@ -679,6 +792,61 @@ export function createChannel({ seed, audio }){
       drawCritter(ctx, c, c.x, c.y, s);
     }
 
+
+    // phase lamp (night) + specials
+    if (phaseN){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.14 * phaseN;
+      ctx.fillStyle = grad.lamp;
+      ctx.fillRect(win.x, win.y, win.w, win.h);
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 0.06 * phaseN;
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.fillRect(win.x, win.y, win.w, win.h);
+      ctx.restore();
+    }
+
+    if (special && special.kind === 'flash'){
+      const p = clamp((t - special.t0) / special.dur, 0, 1);
+      const pp = ease(p);
+      const start = win.x - win.w * 0.25;
+      const end = win.x + win.w * 1.25;
+      const x = lerp(start, end, special.dir > 0 ? pp : (1 - pp));
+      const a = 0.22 * (1 - Math.min(1, Math.abs(p - 0.5) * 1.6));
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = a;
+      ctx.translate(x, win.y + win.h * 0.45);
+      ctx.rotate(-0.22);
+      ctx.fillStyle = 'rgba(255,255,245,1)';
+      ctx.fillRect(-win.w * 0.10, -win.h, win.w * 0.20, win.h * 2);
+      ctx.globalAlpha *= 0.60;
+      ctx.fillStyle = 'rgba(255,210,165,1)';
+      ctx.fillRect(-win.w * 0.18, -win.h, win.w * 0.36, win.h * 2);
+      ctx.restore();
+    }
+
+    if (special && special.kind === 'dew' && special.drops){
+      const tt = (t - special.t0);
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = 'rgba(200,255,240,0.65)';
+      ctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) / 420));
+      for (let k=0;k<special.drops.length;k++){
+        const d = special.drops[k];
+        const y = d.y0 + tt * d.sp;
+        const yy = win.y + ((((y - win.y) % win.h) + win.h) % win.h);
+        ctx.beginPath();
+        ctx.moveTo(d.x, yy);
+        ctx.lineTo(d.x, Math.min(win.y + win.h, yy + d.len));
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     // spotlight overlay
     if (spotlight){
       const c = critters[spotlight.i];
