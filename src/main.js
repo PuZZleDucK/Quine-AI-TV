@@ -357,7 +357,10 @@ function tick(now){
     ctx.fillRect(0,0,screen.width,screen.height);
   } else {
     current?.update?.(dt);
-    current?.render?.(ctx);
+    // Some channels implement `render(ctx)` and others implement `draw(ctx)`.
+    // Support both so channel output doesn't silently freeze on the previous frame.
+    if (current?.render) current.render(ctx);
+    else current?.draw?.(ctx);
   }
 
   setOsd();
