@@ -1,5 +1,6 @@
 import { mulberry32, clamp } from '../util/prng.js';
 
+// REVIEWED: 2026-02-11
 // Bug Hotel Live
 // Cozy macro “wildlife cam” of tiny insects with faux field-notes + sightings log.
 
