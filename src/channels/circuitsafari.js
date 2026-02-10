@@ -388,6 +388,17 @@ export function createChannel({ seed, audio }){
   const SEG_MAX = 10.5;
   let segDur = 8;
 
+  // occasional tiny "radio" bleep (deterministic scheduling)
+  const RADIO_LAMBDA = 0.06; // events/sec (matches old rand() < dt * 0.06)
+  let nextRadioBleepAt = 0;
+
+  function scheduleNextRadioBleep(now){
+    // exponential inter-arrival time for a Poisson process; clamped to stay tasteful
+    const u = Math.max(1e-6, 1 - rand());
+    const interval = clamp(-Math.log(u) / RADIO_LAMBDA, 4, 40);
+    nextRadioBleepAt = now + interval;
+  }
+
   function chooseSpecimen(){
     // avoid immediate repeats without tracking too much state
     const s = pick(rand, SPECIMENS);
@@ -461,6 +472,7 @@ export function createChannel({ seed, audio }){
   function onAudioOff(){
     try { ambience?.stop?.(); } catch {}
     ambience = null;
+    nextRadioBleepAt = 0;
   }
 
   function destroy(){
@@ -475,10 +487,14 @@ export function createChannel({ seed, audio }){
       nextSegment();
     }
 
-    // occasional tiny "radio" bleep
-    if (audio.enabled && rand() < dt * 0.06){
-      const f = 1200 + rand() * 900;
-      audio.beep({ freq: f, dur: 0.012, gain: 0.008, type: 'square' });
+    // occasional tiny "radio" bleep (time-scheduled so it's FPS-stable)
+    if (audio.enabled){
+      if (nextRadioBleepAt <= 0) scheduleNextRadioBleep(t);
+      while (t >= nextRadioBleepAt){
+        const f = 1200 + rand() * 900;
+        audio.beep({ freq: f, dur: 0.012, gain: 0.008, type: 'square' });
+        scheduleNextRadioBleep(nextRadioBleepAt);
+      }
     }
   }
 
