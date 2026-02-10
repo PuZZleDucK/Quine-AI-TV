@@ -55,6 +55,61 @@ export function createChannel({ seed, audio }){
   let slot = { x: 0, y: 0, w: 0, h: 0 };
   let chute = { x0: 0, y0: 0, x1: 0, y1: 0 };
 
+  // cached gradients (rebuild on resize/ctx swap)
+  let gradCtx = null;
+  let gradW = 0;
+  let gradH = 0;
+  let bgGrad = null;
+  let baseGrad = null;
+  let globeGrad = null;
+  let globeVignette = null;
+  let screenVignette = null;
+
+  function rebuildGradients(ctx){
+    gradCtx = ctx;
+    gradW = w;
+    gradH = h;
+
+    bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+    bgGrad.addColorStop(0, '#080018');
+    bgGrad.addColorStop(0.55, '#12002a');
+    bgGrad.addColorStop(1, '#05000f');
+
+    const baseTopY = cy + globeR * 0.45;
+    baseGrad = ctx.createLinearGradient(0, baseTopY, 0, baseTopY + baseH);
+    baseGrad.addColorStop(0, '#1c0b34');
+    baseGrad.addColorStop(1, '#090117');
+
+    const gx = cx;
+    const gy = cy;
+    globeGrad = ctx.createRadialGradient(
+      gx - globeR * 0.25,
+      gy - globeR * 0.3,
+      globeR * 0.2,
+      gx,
+      gy - globeR * 0.05,
+      globeR * 1.15
+    );
+    globeGrad.addColorStop(0, 'rgba(130, 255, 255, 0.18)');
+    globeGrad.addColorStop(0.55, 'rgba(255, 255, 255, 0.08)');
+    globeGrad.addColorStop(1, 'rgba(255, 120, 210, 0.02)');
+
+    const globeCy = gy - globeR * 0.18;
+    globeVignette = ctx.createRadialGradient(gx, globeCy, globeR * 0.2, gx, globeCy, globeR * 1.05);
+    globeVignette.addColorStop(0, 'rgba(0,0,0,0)');
+    globeVignette.addColorStop(1, 'rgba(0,0,0,0.22)');
+
+    screenVignette = ctx.createRadialGradient(w * 0.5, h * 0.5, s * 0.1, w * 0.5, h * 0.5, s * 0.9);
+    screenVignette.addColorStop(0, 'rgba(0,0,0,0)');
+    screenVignette.addColorStop(1, 'rgba(0,0,0,0.35)');
+  }
+
+  function ensureGradients(ctx){
+    if (ctx !== gradCtx || w != gradW || h != gradH){
+      rebuildGradients(ctx);
+    }
+  }
+
   // gumballs in globe
   let balls = []; // fixed objects
   const BALL_N = 26;
@@ -372,11 +427,7 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBackground(ctx){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#080018');
-    g.addColorStop(0.55, '#12002a');
-    g.addColorStop(1, '#05000f');
-    ctx.fillStyle = g;
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
     // diagonal candy stripes (slow drift)
@@ -420,8 +471,11 @@ export function createChannel({ seed, audio }){
     const jx = (Math.sin(t * 28) * 1.2 + Math.sin(t * 18.2) * 0.8) * j * s * 0.008;
     const jy = (Math.sin(t * 22) * 1.1) * j * s * 0.006;
 
-    const gx = cx + jx;
-    const gy = cy + jy;
+    ctx.save();
+    ctx.translate(jx, jy);
+
+    const gx = cx;
+    const gy = cy;
 
     // base shadow
     ctx.save();
@@ -432,9 +486,6 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // base
-    const baseGrad = ctx.createLinearGradient(0, gy, 0, gy + baseH);
-    baseGrad.addColorStop(0, '#1c0b34');
-    baseGrad.addColorStop(1, '#090117');
     ctx.fillStyle = baseGrad;
     roundRect(ctx, gx - baseW * 0.5, gy + globeR * 0.45, baseW, baseH, baseH * 0.18);
     ctx.fill();
@@ -447,12 +498,6 @@ export function createChannel({ seed, audio }){
     roundRect(ctx, gx - baseW * 0.48, gy + globeR * 0.5, baseW * 0.96, baseH * 0.16, baseH * 0.12);
     ctx.fill();
     ctx.restore();
-
-    // globe
-    const globeG = ctx.createRadialGradient(gx - globeR * 0.25, gy - globeR * 0.3, globeR * 0.2, gx, gy - globeR * 0.05, globeR * 1.15);
-    globeG.addColorStop(0, 'rgba(130, 255, 255, 0.18)');
-    globeG.addColorStop(0.55, 'rgba(255, 255, 255, 0.08)');
-    globeG.addColorStop(1, 'rgba(255, 120, 210, 0.02)');
 
     // balls inside (clipped)
     ctx.save();
@@ -487,16 +532,13 @@ export function createChannel({ seed, audio }){
     }
 
     // inner vignette
-    const vg = ctx.createRadialGradient(gx, gy - globeR * 0.18, globeR * 0.2, gx, gy - globeR * 0.18, globeR * 1.05);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.22)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = globeVignette;
     ctx.fillRect(gx - globeR * 1.2, gy - globeR * 1.5, globeR * 2.4, globeR * 2.6);
 
     ctx.restore();
 
     // glass overlay
-    ctx.fillStyle = globeG;
+    ctx.fillStyle = globeGrad;
     ctx.beginPath();
     ctx.arc(gx, gy - globeR * 0.18, globeR, 0, Math.PI * 2);
     ctx.fill();
@@ -519,14 +561,14 @@ export function createChannel({ seed, audio }){
 
     // slot
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    roundRect(ctx, slot.x + jx, slot.y + jy, slot.w, slot.h, slot.h * 0.45);
+    roundRect(ctx, slot.x, slot.y, slot.w, slot.h, slot.h * 0.45);
     ctx.fill();
 
     // coin particles
     for (const c of coins){
       if (!c.on) continue;
       ctx.save();
-      ctx.translate(c.x + jx, c.y + jy);
+      ctx.translate(c.x, c.y);
       ctx.rotate(c.spin);
       ctx.fillStyle = 'rgba(255, 208, 90, 0.9)';
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
@@ -543,8 +585,8 @@ export function createChannel({ seed, audio }){
     ctx.strokeStyle = 'rgba(90,245,255,0.25)';
     ctx.lineWidth = Math.max(1, globeR * 0.02);
     ctx.beginPath();
-    ctx.moveTo(chute.x0 + jx, chute.y0 + jy);
-    ctx.lineTo(chute.x1 + jx, chute.y1 + jy);
+    ctx.moveTo(chute.x0, chute.y0);
+    ctx.lineTo(chute.x1, chute.y1);
     ctx.stroke();
     ctx.restore();
 
@@ -556,7 +598,7 @@ export function createChannel({ seed, audio }){
       ctx.globalAlpha = 0.85 + (1 - a) * 0.15;
       ctx.fillStyle = d.col;
       ctx.beginPath();
-      ctx.arc(d.x + jx, d.y + jy, d.r, 0, Math.PI * 2);
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -571,6 +613,8 @@ export function createChannel({ seed, audio }){
     ctx.font = `${Math.max(12, Math.floor(s * 0.028))}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
     ctx.fillText('GUMBALL MACRO', gx - baseW * 0.42, gy + globeR * 0.82);
+    ctx.restore();
+
     ctx.restore();
   }
 
@@ -763,6 +807,8 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
+    ensureGradients(ctx);
+
     drawBackground(ctx);
     drawMachine(ctx);
     drawHud(ctx);
@@ -770,10 +816,7 @@ export function createChannel({ seed, audio }){
 
     // soft vignette
     ctx.save();
-    const vg = ctx.createRadialGradient(w * 0.5, h * 0.5, s * 0.1, w * 0.5, h * 0.5, s * 0.9);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.35)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = screenVignette;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
