@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Quine TV</title>
+  <title>Quine AI TV</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -14,16 +14,15 @@
           <canvas id="screen" width="960" height="540" aria-label="TV screen"></canvas>
           <canvas id="noise" width="960" height="540" aria-hidden="true"></canvas>
           <div class="crt" aria-hidden="true"></div>
-          <div class="osd" id="osd" aria-live="polite">
-            <div class="osd-row">
-              <div class="pill" id="osd-power">OFF</div>
-              <div class="pill" id="osd-chan">CH 01</div>
-              <div class="pill" id="osd-name">—</div>
-              <div class="pill" id="osd-audio">AUDIO: OFF</div>
-              <div class="pill" id="osd-scan">SCAN: OFF</div>
-            </div>
-            <div class="osd-hint" id="osd-hint">Space: Power · ↑/↓: Channel · 0–9: Tune · A: Audio · S: Scan · I: Info · G: Guide</div>
-          </div>
+	          <div class="osd" id="osd" aria-live="polite">
+	            <div class="osd-row">
+	              <div class="pill" id="osd-power">OFF</div>
+	              <div class="pill" id="osd-chan">CH 01</div>
+	              <div class="pill" id="osd-name">—</div>
+	              <div class="pill" id="osd-audio">AUDIO: OFF</div>
+	              <div class="pill" id="osd-scan">SCAN: OFF</div>
+	            </div>
+	          </div>
 
           <div class="guide hidden" id="guide" aria-label="Channel guide" aria-live="polite"></div>
         </div>
@@ -66,12 +65,12 @@
             <div><span class="label">Seed:</span> <span id="status-seed">—</span></div>
           </div>
 
-          <div class="footer">
-            <div class="tiny">Tip: first click enables audio (browser policy). Press <b>A</b> after powering on.</div>
-          </div>
-        </div>
-      </div>
-    </div>
+	          <div class="footer">
+	            <div class="tiny">Space: Power · ↑/↓: Channel · 0–9: Tune · A: Audio · S: Scan · I: Info · G: Guide</div>
+	          </div>
+	        </div>
+	      </div>
+	    </div>
 
     <div class="panel" id="help" hidden>
       <div class="panel-card">
