@@ -270,7 +270,11 @@ async function switchTo(idx, {boot=false}={}){
 
   current = factory({ seed, audio });
   resize();
-  current?.init?.({ canvas: screen, ctx, width: screen.width, height: screen.height, dpr: Math.max(1, Math.min(2, window.devicePixelRatio||1)) });
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio||1));
+  const initPayload = { canvas: screen, ctx, width: screen.width, height: screen.height, dpr };
+  // Prefer init(), but fall back to onResize() for older channels that only implement onResize().
+  if (current?.init) current.init(initPayload);
+  else current?.onResize?.(initPayload.width, initPayload.height, initPayload.dpr);
   current?.onShow?.();
   if (audio.enabled) current?.onAudioOn?.(audio);
 
@@ -356,11 +360,27 @@ function tick(now){
     ctx.fillStyle = g;
     ctx.fillRect(0,0,screen.width,screen.height);
   } else {
-    current?.update?.(dt);
-    // Some channels implement `render(ctx)` and others implement `draw(ctx)`.
-    // Support both so channel output doesn't silently freeze on the previous frame.
-    if (current?.render) current.render(ctx);
-    else current?.draw?.(ctx);
+    try {
+      current?.update?.(dt);
+      // Some channels implement `render(ctx)` and others implement `draw(ctx)`.
+      // Support both so channel output doesn't silently freeze on the previous frame.
+      if (current?.render) current.render(ctx);
+      else current?.draw?.(ctx);
+    } catch (err) {
+      // Don't let a single channel kill the entire animation loop.
+      console.error(err);
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,screen.width,screen.height);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0,0,screen.width,screen.height);
+      ctx.fillStyle = 'rgba(255,90,90,0.95)';
+      ctx.font = `${Math.max(14, Math.floor(Math.min(screen.width, screen.height) * 0.05))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.fillText('CHANNEL ERROR', Math.floor(screen.width * 0.07), Math.floor(screen.height * 0.18));
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.font = `${Math.max(12, Math.floor(Math.min(screen.width, screen.height) * 0.03))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      const msg = String(err?.message || err);
+      ctx.fillText(msg.slice(0, 120), Math.floor(screen.width * 0.07), Math.floor(screen.height * 0.18) + 34);
+    }
   }
 
   setOsd();
