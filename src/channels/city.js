@@ -13,6 +13,13 @@ export function createChannel({ seed, audio }){
   // cached rain sprite (rebuild on resize)
   let rainSprite = null;
 
+  // phase cycle + special moments (seeded, deterministic)
+  let phaseCycle = null; // { durs:[quiet,rush,late], total, offset }
+  let params = null;     // latest phase params (computed in update)
+
+  let special = null;    // { type:'lightning'|'neon', t0, dur }
+  let nextSpecialAt = 0;
+
   function rebuildRainSprite(){
     const lw = Math.max(1, Math.floor(h/720));
     const sw = 32, sh = 64;
@@ -86,6 +93,71 @@ export function createChannel({ seed, audio }){
     gcache.streetH = h*0.22;
   }
 
+  function clamp(x, lo, hi){ return x < lo ? lo : (x > hi ? hi : x); }
+  function smoothstep01(x){ x = clamp(x, 0, 1); return x*x*(3 - 2*x); }
+  function mix(a,b,u){ return a + (b-a)*u; }
+
+  function computePhaseParams(tt){
+    if (!phaseCycle){
+      return {
+        phase: 'quiet',
+        rainSpeed: 1,
+        rainAlpha: 1,
+        wind: 1,
+        streetGlow: 1,
+        moonAlpha: 1,
+        winAlpha: 0.22,
+        winThresh: 0.7,
+        twinkleSpeed: 0.5,
+        titleAlpha: 1,
+      };
+    }
+
+    const cyc = phaseCycle;
+    const [dq, dr, dl] = cyc.durs;
+    const total = cyc.total;
+    let x = (tt + cyc.offset) % total;
+
+    let idx = 0;
+    let u = 0;
+    if (x < dq){ idx = 0; u = x / dq; }
+    else if (x < dq + dr){ idx = 1; u = (x - dq) / dr; }
+    else { idx = 2; u = (x - dq - dr) / dl; }
+
+    const names = ['quiet','rush','late'];
+
+    function base(name){
+      if (name === 'quiet'){
+        return { rainSpeed:0.78, rainAlpha:0.70, wind:0.90, streetGlow:0.95, moonAlpha:0.98, winAlpha:0.16, winThresh:0.78, twinkleSpeed:0.38, titleAlpha:0.78 };
+      }
+      if (name === 'rush'){
+        return { rainSpeed:1.18, rainAlpha:1.00, wind:1.18, streetGlow:1.10, moonAlpha:0.86, winAlpha:0.28, winThresh:0.65, twinkleSpeed:0.62, titleAlpha:0.88 };
+      }
+      return { rainSpeed:0.92, rainAlpha:0.82, wind:0.98, streetGlow:0.78, moonAlpha:1.05, winAlpha:0.12, winThresh:0.84, twinkleSpeed:0.30, titleAlpha:0.74 };
+    }
+
+    const currName = names[idx];
+    const nextName = names[(idx+1)%3];
+    const curr = base(currName);
+    const next = base(nextName);
+
+    // blend into the next phase near the end of this segment
+    const edge = 0.16;
+    const blend = u > 1-edge ? smoothstep01((u - (1-edge))/edge) : 0;
+
+    const out = { phase: currName };
+    for (const k of Object.keys(curr)) out[k] = mix(curr[k], next[k], blend);
+    return out;
+  }
+
+  function maybeStartSpecial(){
+    if (special || t < nextSpecialAt) return;
+
+    const type = (rand() < 0.55) ? 'neon' : 'lightning';
+    special = { type, t0: t, dur: type === 'lightning' ? 0.45 : 1.8 };
+    nextSpecialAt = t + (45 + rand()*75);
+  }
+
   function init({width,height}){
     w=width; h=height; t=0;
     gcache.ctx = null;
@@ -99,6 +171,18 @@ export function createChannel({ seed, audio }){
 
     rainSprite = null;
     rebuildRainSprite();
+
+    // seeded phase cycle (2–4 min total)
+    const quiet = 55 + rand()*35;
+    const rush = 55 + rand()*35;
+    const late = 55 + rand()*45;
+    const total = quiet + rush + late;
+    phaseCycle = { durs: [quiet, rush, late], total, offset: rand()*total };
+    params = computePhaseParams(0);
+
+    // rare special moments every ~45–120s
+    special = null;
+    nextSpecialAt = 45 + rand()*75;
   }
 
   function makeLayer(depth, i){
@@ -191,9 +275,18 @@ export function createChannel({ seed, audio }){
 
   function update(dt){
     t += dt;
+
+    params = computePhaseParams(t);
+    maybeStartSpecial();
+
+    if (special && (t - special.t0) > special.dur) special = null;
+
+    const rainSpeed = params?.rainSpeed ?? 1;
+    const wind = params?.wind ?? 1;
+
     for (const d of drops){
-      d.y += d.sp*dt;
-      d.x += dt*(80*(w/960));
+      d.y += d.sp*dt*rainSpeed;
+      d.x += dt*(80*(w/960))*wind;
       if (d.y > h){ d.y = -10; d.x = rand()*w; }
       if (d.x > w) d.x = 0;
     }
@@ -205,13 +298,34 @@ export function createChannel({ seed, audio }){
 
     ensureGradients(ctx);
 
+    const p = params || computePhaseParams(t);
+
+    // special moment modifiers
+    let neonMul = 1;
+    let flashAlpha = 0;
+    if (special){
+      const age = t - special.t0;
+      if (special.type === 'neon'){
+        neonMul = clamp(0.35 + 0.65*(0.5 + 0.5*Math.sin(age*28)*Math.sin(age*9.3)), 0.2, 1.0);
+      } else if (special.type === 'lightning'){
+        const p1 = Math.max(0, 1 - Math.abs(age - 0.08)/0.08);
+        const p2 = Math.max(0, 1 - Math.abs(age - 0.22)/0.06);
+        flashAlpha = 0.55*p1 + 0.35*p2;
+      }
+    }
+
     // sky
     ctx.fillStyle = gcache.sky;
     ctx.fillRect(0,0,w,h);
 
     // neon moon
+    ctx.save();
+    ctx.globalAlpha = (p.moonAlpha ?? 1) + flashAlpha*0.35;
     ctx.fillStyle = gcache.moon;
-    ctx.beginPath(); ctx.arc(gcache.mx,gcache.my,gcache.mr,0,Math.PI*2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(gcache.mx,gcache.my,gcache.mr,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
 
     // buildings
     const baseY = h*0.92;
@@ -231,7 +345,7 @@ export function createChannel({ seed, audio }){
       // windows
       ctx.save();
       ctx.fillStyle = 'rgb(255,200,120)';
-      ctx.globalAlpha = 0.22;
+      ctx.globalAlpha = (p.winAlpha ?? 0.22);
       for (const b of layer.buildings){
         const topY = baseY - b.h;
         const cols = Math.max(2, Math.floor(b.w/18));
@@ -240,8 +354,8 @@ export function createChannel({ seed, audio }){
         const wh = b.h/(rows+1);
         for (let r=1;r<=rows;r++){
           for (let c=1;c<=cols;c++){
-            const tw = Math.sin(t*0.5 + b.winSeed + r*0.7 + c*0.9);
-            if (tw <= 0.7) continue;
+            const tw = Math.sin(t*(p.twinkleSpeed ?? 0.5) + b.winSeed + r*0.7 + c*0.9);
+            if (tw <= (p.winThresh ?? 0.7)) continue;
             const x = b.x + c*ww;
             const y = topY + r*wh;
             ctx.fillRect(x,y, ww*0.35, wh*0.35);
@@ -252,20 +366,33 @@ export function createChannel({ seed, audio }){
     }
 
     // street glow
+    ctx.save();
+    ctx.globalAlpha = (p.streetGlow ?? 1) * neonMul;
     ctx.fillStyle = gcache.street;
     ctx.fillRect(0,gcache.streetY,w,gcache.streetH);
+    ctx.restore();
 
     // rain (sprite blit: avoids per-drop beginPath+stroke)
     ctx.save();
     if (!rainSprite) rebuildRainSprite();
     for (const d of drops){
-      ctx.globalAlpha = d.a;
+      ctx.globalAlpha = d.a * (p.rainAlpha ?? 1);
       ctx.drawImage(rainSprite.canvas, d.x - rainSprite.ax, d.y - rainSprite.ay);
     }
     ctx.restore();
 
+    // lightning flash overlay
+    if (flashAlpha > 0){
+      ctx.save();
+      ctx.globalAlpha = flashAlpha;
+      ctx.fillStyle = 'rgb(240,252,255)';
+      ctx.fillRect(0,0,w,h);
+      ctx.restore();
+    }
+
     // title
     ctx.save();
+    ctx.globalAlpha = (p.titleAlpha ?? 1) * neonMul;
     ctx.font = `${Math.floor(h/18)}px ui-sans-serif, system-ui`;
     ctx.fillStyle = 'rgba(231,238,246,0.75)';
     ctx.shadowColor = 'rgba(0,0,0,0.7)';
