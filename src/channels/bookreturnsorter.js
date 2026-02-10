@@ -58,6 +58,16 @@ export function createChannel({ seed, audio }){
   let jamTimer = 0;
   let nextJamAt = 0;
 
+  // cached gradients (rebuild on resize/ctx swap)
+  let bgGradient = null;
+  let bgGradientCtx = null;
+  let bgGradientH = 0;
+
+  let scanBeamGradient = null;
+  let scanBeamGradientCtx = null;
+  let scanBeamGradientFromY = 0;
+  let scanBeamGradientToY = 0;
+
   // books
   const MAX_BOOKS = 26;
   let books = []; // {x,y,w,h,route,rot,color,spine,alpha,mode,tx,ty,meta,scanned}
@@ -162,6 +172,15 @@ export function createChannel({ seed, audio }){
     font = Math.max(14, Math.floor(Math.min(w, h) / 32));
     small = Math.max(11, Math.floor(font * 0.78));
     mono = Math.max(12, Math.floor(font * 0.86));
+
+    // invalidate cached gradients (ctx may swap; layout changes on resize)
+    bgGradient = null;
+    bgGradientCtx = null;
+    bgGradientH = 0;
+    scanBeamGradient = null;
+    scanBeamGradientCtx = null;
+    scanBeamGradientFromY = 0;
+    scanBeamGradientToY = 0;
 
     regenLayout();
     reset();
@@ -412,11 +431,16 @@ export function createChannel({ seed, audio }){
     const phaseT = (cyc - phaseIndex * PHASE_DUR) / PHASE_DUR;
     const phase = PHASES[phaseIndex];
 
-    // background
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, pal.bg0);
-    g.addColorStop(1, pal.bg1);
-    ctx.fillStyle = g;
+    // background (cached)
+    if (!bgGradient || bgGradientCtx !== ctx || bgGradientH !== h){
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, pal.bg0);
+      g.addColorStop(1, pal.bg1);
+      bgGradient = g;
+      bgGradientCtx = ctx;
+      bgGradientH = h;
+    }
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, w, h);
 
     // shelves layer
@@ -481,11 +505,19 @@ export function createChannel({ seed, audio }){
     if (phase.id === 'scan' || scanBeam > 0.01){
       const a = 0.08 + scanBeam*0.18;
       ctx.globalAlpha = a;
-      const beamG = ctx.createLinearGradient(0, scanner.y + archH, 0, conveyor.y);
-      beamG.addColorStop(0, pal.accent);
-      beamG.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = beamG;
-      ctx.fillRect(scanner.x - archW*0.25, scanner.y + archH, archW*0.5, conveyor.y - (scanner.y + archH));
+      const fromY = scanner.y + archH;
+      const toY = conveyor.y;
+      if (!scanBeamGradient || scanBeamGradientCtx !== ctx || scanBeamGradientFromY !== fromY || scanBeamGradientToY !== toY){
+        const beamG = ctx.createLinearGradient(0, fromY, 0, toY);
+        beamG.addColorStop(0, pal.accent);
+        beamG.addColorStop(1, 'rgba(0,0,0,0)');
+        scanBeamGradient = beamG;
+        scanBeamGradientCtx = ctx;
+        scanBeamGradientFromY = fromY;
+        scanBeamGradientToY = toY;
+      }
+      ctx.fillStyle = scanBeamGradient;
+      ctx.fillRect(scanner.x - archW*0.25, fromY, archW*0.5, toY - fromY);
     }
 
     // scan flash ring
