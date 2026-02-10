@@ -57,6 +57,43 @@ export function createChannel({ seed, audio }){
 
   let w = 0, h = 0, t = 0;
 
+  // Background gradient cache (rebuilt on init/resize).
+  const bgCache = {
+    w: 0,
+    h: 0,
+    bg: null,
+    lamp: null,
+    vignette: null,
+  };
+
+  function ensureBackgroundCache(ctx){
+    if (bgCache.bg && bgCache.w === w && bgCache.h === h) return;
+
+    bgCache.w = w;
+    bgCache.h = h;
+
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#05070c');
+    g.addColorStop(0.55, '#070c12');
+    g.addColorStop(1, '#030409');
+    bgCache.bg = g;
+
+    // dim lamp glow (static center; animate intensity via globalAlpha)
+    const lx = w * 0.62;
+    const ly = h * 0.18;
+    const rg = ctx.createRadialGradient(lx, ly, 0, lx, ly, Math.max(w, h) * 0.55);
+    rg.addColorStop(0, 'rgba(255,220,140,0.10)');
+    rg.addColorStop(0.5, 'rgba(255,220,140,0.03)');
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    bgCache.lamp = rg;
+
+    // vignette
+    const vg = ctx.createRadialGradient(w*0.5, h*0.55, Math.min(w, h)*0.2, w*0.5, h*0.55, Math.max(w, h)*0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.72)');
+    bgCache.vignette = vg;
+  }
+
   // Growth timeline
   let day = 1 + ((seed >>> 0) % 90);
   let stage = 0; // 0..STAGES-1
@@ -119,6 +156,7 @@ export function createChannel({ seed, audio }){
 
   function init({ width, height }){
     w = width; h = height; t = 0;
+    bgCache.bg = bgCache.lamp = bgCache.vignette = null;
     buildSkeleton();
 
     stage = (seed >>> 0) % STAGES;
@@ -127,7 +165,10 @@ export function createChannel({ seed, audio }){
     jumpLabel = '';
   }
 
-  function onResize(width, height){ w = width; h = height; }
+  function onResize(width, height){
+    w = width; h = height;
+    bgCache.bg = bgCache.lamp = bgCache.vignette = null;
+  }
 
   function makeAudioHandle(){
     const ctx = audio.ensure();
@@ -239,28 +280,20 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBackground(ctx){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#05070c');
-    g.addColorStop(0.55, '#070c12');
-    g.addColorStop(1, '#030409');
-    ctx.fillStyle = g;
+    ensureBackgroundCache(ctx);
+
+    ctx.fillStyle = bgCache.bg;
     ctx.fillRect(0, 0, w, h);
 
-    // dim lamp glow
-    const lx = w * (0.62 + Math.sin(t*0.06)*0.01);
-    const ly = h * 0.18;
-    const rg = ctx.createRadialGradient(lx, ly, 0, lx, ly, Math.max(w,h) * 0.55);
-    rg.addColorStop(0, 'rgba(255,220,140,0.10)');
-    rg.addColorStop(0.5, 'rgba(255,220,140,0.03)');
-    rg.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = rg;
+    // dim lamp glow (intensity breathes; gradient is cached)
+    ctx.save();
+    ctx.globalAlpha = 0.85 + 0.15 * Math.sin(t * 0.06);
+    ctx.fillStyle = bgCache.lamp;
     ctx.fillRect(0, 0, w, h);
+    ctx.restore();
 
     // vignette
-    const vg = ctx.createRadialGradient(w*0.5, h*0.55, Math.min(w,h)*0.2, w*0.5, h*0.55, Math.max(w,h)*0.75);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.72)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = bgCache.vignette;
     ctx.fillRect(0, 0, w, h);
   }
 
