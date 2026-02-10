@@ -1,5 +1,6 @@
 import { mulberry32 } from '../util/prng.js';
 
+// REVIEWED: 2026-02-10
 // Bonsai Time Machine
 // Calm plant care + subtle time-lapse jumps (growth / pruning / wiring / seasons).
 
