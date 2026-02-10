@@ -92,6 +92,9 @@ A *good channel review* must produce concrete, trackable follow-ups. Do **all** 
   - respecting `audio.enabled`,
   - correct start/stop/cleanup on audio toggle + `destroy()`,
   - sane levels + loops (no clicks, no runaway stacking).
+- Review dialog and text:
+  - long enough to last 5 minutes
+  - humorous or entertaining
 
 ### 3) Identify improvements (be specific)
 Look for opportunities in these buckets:
