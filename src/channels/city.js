@@ -8,6 +8,33 @@ export function createChannel({ seed, audio }){
   let drops=[];
   let rain=null;
 
+  // cached rain sprite (rebuild on resize)
+  let rainSprite = null;
+
+  function rebuildRainSprite(){
+    const lw = Math.max(1, Math.floor(h/720));
+    const sw = 32, sh = 64;
+
+    const canvas = (typeof OffscreenCanvas !== 'undefined')
+      ? new OffscreenCanvas(sw, sh)
+      : (()=>{ const c=document.createElement('canvas'); c.width=sw; c.height=sh; return c; })();
+
+    const rctx = canvas.getContext('2d');
+    rctx.clearRect(0,0,sw,sh);
+    rctx.strokeStyle = 'rgba(180,220,255,0.18)';
+    rctx.lineWidth = lw;
+    rctx.lineCap = 'round';
+
+    const ax = Math.floor(sw*0.75);
+    const ay = Math.floor(sh*0.8);
+    rctx.beginPath();
+    rctx.moveTo(ax, ay);
+    rctx.lineTo(ax - 10, ay - 26);
+    rctx.stroke();
+
+    rainSprite = { canvas, ax, ay };
+  }
+
   // cache per-render gradients (rebuild on resize / ctx swap)
   const gcache = {
     ctx: null,
@@ -67,6 +94,9 @@ export function createChannel({ seed, audio }){
       sp: (600 + rand()*1200) * (h/540),
       a: 0.05 + rand()*0.12,
     }));
+
+    rainSprite = null;
+    rebuildRainSprite();
   }
 
   function makeLayer(depth, i){
@@ -159,16 +189,12 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = gcache.street;
     ctx.fillRect(0,gcache.streetY,w,gcache.streetH);
 
-    // rain
+    // rain (sprite blit: avoids per-drop beginPath+stroke)
     ctx.save();
-    ctx.strokeStyle = 'rgba(180,220,255,0.18)';
-    ctx.lineWidth = Math.max(1, Math.floor(h/720));
+    if (!rainSprite) rebuildRainSprite();
     for (const d of drops){
       ctx.globalAlpha = d.a;
-      ctx.beginPath();
-      ctx.moveTo(d.x, d.y);
-      ctx.lineTo(d.x - 10, d.y - 26);
-      ctx.stroke();
+      ctx.drawImage(rainSprite.canvas, d.x - rainSprite.ax, d.y - rainSprite.ay);
     }
     ctx.restore();
 
