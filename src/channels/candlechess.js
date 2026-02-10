@@ -37,6 +37,216 @@ export function createChannel({ seed, audio }) {
 
   const MOVE_PERIOD = 4.8 + rand() * 0.8;
 
+  // Perf: cache gradients/sprites on init/resize/ctx swap so steady-state render does
+  // 0 create*Gradient calls (and avoids expensive candle gradients per frame).
+  const cache = {
+    ctx: null,
+    dirty: true,
+
+    // Board/table/vignette gradients
+    bg: null,
+    frame: null,
+    sheen: null,
+    vignette: null,
+
+    // Candle sprites (pre-rendered)
+    candleBody: null,
+    candleBodyW: 0,
+    candleBodyH: 0,
+    candleBodyAx: 0,
+    candleBodyAy: 0,
+
+    candleGlow: null,
+    candleGlowS: 0,
+
+    candleFlame: null,
+    candleFlameW: 0,
+    candleFlameH: 0,
+    candleFlameAx: 0,
+    candleFlameAy: 0,
+    candleFlameBaseFr: 0,
+  };
+
+  function makeCanvas(W, H) {
+    if (!(W > 0 && H > 0)) return null;
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+    if (typeof document !== 'undefined') {
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    }
+    return null;
+  }
+
+  function invalidateCaches() {
+    cache.dirty = true;
+  }
+
+  function rebuildCaches(ctx) {
+    cache.ctx = ctx;
+    cache.dirty = false;
+
+    // Base layout (no camera offset) so cached gradients stay stable.
+    const s = Math.floor(Math.min(w, h) * 0.085);
+    const boardSize = s * 8;
+    const baseX = Math.floor(w * 0.5 - boardSize * 0.5);
+    const baseY = Math.floor(h * 0.56 - boardSize * 0.5);
+
+    // Background gradient.
+    {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#090707');
+      g.addColorStop(0.5, '#0f0b09');
+      g.addColorStop(1, '#040303');
+      cache.bg = g;
+    }
+
+    // Board frame gradient.
+    {
+      const g = ctx.createLinearGradient(0, baseY, 0, baseY + boardSize);
+      g.addColorStop(0, 'rgba(70,45,28,0.95)');
+      g.addColorStop(1, 'rgba(40,26,16,0.98)');
+      cache.frame = g;
+    }
+
+    // Sheen: bake as a 1.0 alpha gradient; scale in render via globalAlpha.
+    {
+      const g = ctx.createLinearGradient(baseX, baseY, baseX + boardSize, baseY + boardSize);
+      g.addColorStop(0, 'rgba(255,220,170,1)');
+      g.addColorStop(0.6, 'rgba(255,220,170,0)');
+      g.addColorStop(1, 'rgba(255,220,170,0)');
+      cache.sheen = g;
+    }
+
+    // Vignette.
+    {
+      const g = ctx.createRadialGradient(
+        w * 0.5,
+        h * 0.55,
+        Math.min(w, h) * 0.2,
+        w * 0.5,
+        h * 0.55,
+        Math.max(w, h) * 0.7
+      );
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(0,0,0,0.55)');
+      cache.vignette = g;
+    }
+
+    // Candle body sprite (wax gradient baked).
+    {
+      const bodyW = 36;
+      const bodyH = 120;
+      const pad = 28;
+
+      const W = Math.ceil(bodyW + pad * 2);
+      const H = Math.ceil(bodyH + pad * 2);
+      const c = makeCanvas(W, H);
+      const cctx = c?.getContext?.('2d');
+
+      if (cctx) {
+        const cx = W * 0.5;
+        const cy = pad + bodyH; // anchor at base of candle
+
+        const wax = cctx.createLinearGradient(cx - bodyW * 0.5, cy - bodyH, cx + bodyW * 0.5, cy);
+        wax.addColorStop(0, 'rgba(240,235,220,0.95)');
+        wax.addColorStop(0.5, 'rgba(220,212,196,0.95)');
+        wax.addColorStop(1, 'rgba(245,240,225,0.95)');
+
+        cctx.clearRect(0, 0, W, H);
+        cctx.fillStyle = wax;
+        roundRect(cctx, cx - bodyW * 0.52, cy - bodyH, bodyW * 1.04, bodyH, bodyW * 0.25);
+        cctx.fill();
+
+        cache.candleBody = c;
+        cache.candleBodyW = W;
+        cache.candleBodyH = H;
+        cache.candleBodyAx = cx;
+        cache.candleBodyAy = cy;
+      } else {
+        cache.candleBody = null;
+      }
+    }
+
+    // Candle glow sprite (radial gradient baked; intensity scaled via globalAlpha).
+    {
+      const S = 256;
+      const c = makeCanvas(S, S);
+      const cctx = c?.getContext?.('2d');
+
+      if (cctx) {
+        const cx = S * 0.5;
+        const cy = S * 0.5;
+        const r = S * 0.5;
+
+        const g = cctx.createRadialGradient(cx, cy, 1, cx, cy, r);
+        g.addColorStop(0, 'rgba(255,190,120,1)');
+        g.addColorStop(0.45, 'rgba(255,140,70,0.28)');
+        g.addColorStop(1, 'rgba(255,140,70,0)');
+
+        cctx.clearRect(0, 0, S, S);
+        cctx.fillStyle = g;
+        cctx.beginPath();
+        cctx.arc(cx, cy, r, 0, Math.PI * 2);
+        cctx.fill();
+
+        cache.candleGlow = c;
+        cache.candleGlowS = S;
+      } else {
+        cache.candleGlow = null;
+        cache.candleGlowS = 0;
+      }
+    }
+
+    // Candle flame sprite (elliptical radial gradient baked; scaled by fr).
+    {
+      const baseFr = 90;
+      const rx = baseFr * 0.62;
+      const ry = baseFr;
+      const pad = 22;
+      const W = Math.ceil(rx * 2 + pad * 2);
+      const H = Math.ceil(ry * 2 + pad * 2);
+
+      const c = makeCanvas(W, H);
+      const cctx = c?.getContext?.('2d');
+
+      if (cctx) {
+        const cx = W * 0.5;
+        const cy = H * 0.5;
+
+        const g = cctx.createRadialGradient(cx, cy, 1, cx, cy, ry);
+        g.addColorStop(0, 'rgba(255,255,220,1)');
+        g.addColorStop(0.35, 'rgba(255,200,110,0.78)');
+        g.addColorStop(1, 'rgba(255,120,40,0)');
+
+        cctx.clearRect(0, 0, W, H);
+        cctx.fillStyle = g;
+        cctx.beginPath();
+        cctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        cctx.fill();
+
+        cache.candleFlame = c;
+        cache.candleFlameW = W;
+        cache.candleFlameH = H;
+        cache.candleFlameAx = cx;
+        cache.candleFlameAy = cy;
+        cache.candleFlameBaseFr = baseFr;
+      } else {
+        cache.candleFlame = null;
+        cache.candleFlameW = 0;
+        cache.candleFlameH = 0;
+        cache.candleFlameAx = 0;
+        cache.candleFlameAy = 0;
+        cache.candleFlameBaseFr = 0;
+      }
+    }
+  }
+
+  function ensureCaches(ctx) {
+    if (cache.dirty || cache.ctx !== ctx) rebuildCaches(ctx);
+  }
+
   // Scripted, plausible-enough mini-game. UCI coords (e2e4), optional promotion suffix.
   // Special moments: bishop sacrifice + pawn promotion.
   const MOVES = [
@@ -191,6 +401,7 @@ export function createChannel({ seed, audio }) {
     h = height;
     dpr = _dpr;
     initDust();
+    invalidateCaches();
   }
 
   function makeAudioHandle(){
@@ -372,10 +583,8 @@ export function createChannel({ seed, audio }) {
   }
 
   function drawVignette(ctx){
-    const g = ctx.createRadialGradient(w*0.5, h*0.55, Math.min(w,h)*0.2, w*0.5, h*0.55, Math.max(w,h)*0.7);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = g;
+    if (!cache.vignette) return;
+    ctx.fillStyle = cache.vignette;
     ctx.fillRect(0,0,w,h);
   }
 
@@ -387,28 +596,56 @@ export function createChannel({ seed, audio }) {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     const glowR = scale * (240 + 60 * flick);
-    const glow = ctx.createRadialGradient(cx, cy - bodyH*0.65, 1, cx, cy - bodyH*0.65, glowR);
-    glow.addColorStop(0, `rgba(255,190,120,${0.24 + flick*0.1})`);
-    glow.addColorStop(0.45, 'rgba(255,140,70,0.07)');
-    glow.addColorStop(1, 'rgba(255,140,70,0)');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(cx, cy - bodyH*0.65, glowR, 0, Math.PI*2);
-    ctx.fill();
+    const glowA = 0.24 + flick * 0.1;
+
+    if (cache.candleGlow){
+      ctx.globalAlpha = glowA;
+      ctx.drawImage(
+        cache.candleGlow,
+        cx - glowR,
+        cy - bodyH * 0.65 - glowR,
+        glowR * 2,
+        glowR * 2
+      );
+    } else {
+      // Fallback (should be rare): old gradient path.
+      const glow = ctx.createRadialGradient(cx, cy - bodyH*0.65, 1, cx, cy - bodyH*0.65, glowR);
+      glow.addColorStop(0, `rgba(255,190,120,${glowA})`);
+      glow.addColorStop(0.45, 'rgba(255,140,70,0.07)');
+      glow.addColorStop(1, 'rgba(255,140,70,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(cx, cy - bodyH*0.65, glowR, 0, Math.PI*2);
+      ctx.fill();
+    }
     ctx.restore();
 
     // Body.
-    const wax = ctx.createLinearGradient(cx-bodyW*0.5, cy-bodyH, cx+bodyW*0.5, cy);
-    wax.addColorStop(0, 'rgba(240,235,220,0.95)');
-    wax.addColorStop(0.5, 'rgba(220,212,196,0.95)');
-    wax.addColorStop(1, 'rgba(245,240,225,0.95)');
-
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.55)';
     ctx.shadowBlur = 18 * scale;
-    ctx.fillStyle = wax;
-    roundRect(ctx, cx-bodyW*0.52, cy-bodyH, bodyW*1.04, bodyH, bodyW*0.25);
-    ctx.fill();
+
+    if (cache.candleBody){
+      const dw = cache.candleBodyW * scale;
+      const dh = cache.candleBodyH * scale;
+      ctx.drawImage(
+        cache.candleBody,
+        cx - cache.candleBodyAx * scale,
+        cy - cache.candleBodyAy * scale,
+        dw,
+        dh
+      );
+    } else {
+      // Fallback (should be rare): old gradient path.
+      const wax = ctx.createLinearGradient(cx-bodyW*0.5, cy-bodyH, cx+bodyW*0.5, cy);
+      wax.addColorStop(0, 'rgba(240,235,220,0.95)');
+      wax.addColorStop(0.5, 'rgba(220,212,196,0.95)');
+      wax.addColorStop(1, 'rgba(245,240,225,0.95)');
+
+      ctx.fillStyle = wax;
+      roundRect(ctx, cx-bodyW*0.52, cy-bodyH, bodyW*1.04, bodyH, bodyW*0.25);
+      ctx.fill();
+    }
     ctx.restore();
 
     // Wick + flame.
@@ -424,14 +661,30 @@ export function createChannel({ seed, audio }) {
     const fy = cy - bodyH - scale*(18 + 4*flick);
     const fr = scale*(18 + 5*flick);
 
-    const flame = ctx.createRadialGradient(fx, fy, 1, fx, fy, fr);
-    flame.addColorStop(0, 'rgba(255,255,220,0.95)');
-    flame.addColorStop(0.35, 'rgba(255,200,110,0.75)');
-    flame.addColorStop(1, 'rgba(255,120,40,0)');
-    ctx.fillStyle = flame;
-    ctx.beginPath();
-    ctx.ellipse(fx, fy, fr*0.62, fr, 0, 0, Math.PI*2);
-    ctx.fill();
+    if (cache.candleFlame){
+      const sc = fr / cache.candleFlameBaseFr;
+      const dw = cache.candleFlameW * sc;
+      const dh = cache.candleFlameH * sc;
+      ctx.globalAlpha = 0.92 + flick * 0.06;
+      ctx.drawImage(
+        cache.candleFlame,
+        fx - cache.candleFlameAx * sc,
+        fy - cache.candleFlameAy * sc,
+        dw,
+        dh
+      );
+    } else {
+      // Fallback (should be rare): old gradient path.
+      const flame = ctx.createRadialGradient(fx, fy, 1, fx, fy, fr);
+      flame.addColorStop(0, 'rgba(255,255,220,0.95)');
+      flame.addColorStop(0.35, 'rgba(255,200,110,0.75)');
+      flame.addColorStop(1, 'rgba(255,120,40,0)');
+      ctx.fillStyle = flame;
+      ctx.beginPath();
+      ctx.ellipse(fx, fy, fr*0.62, fr, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+
     ctx.restore();
   }
 
@@ -439,11 +692,12 @@ export function createChannel({ seed, audio }) {
     const { x, y, s } = rect;
 
     // Table / background.
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#090707');
-    bg.addColorStop(0.5, '#0f0b09');
-    bg.addColorStop(1, '#040303');
-    ctx.fillStyle = bg;
+    if (cache.bg) {
+      ctx.fillStyle = cache.bg;
+    } else {
+      // Fallback: should only happen on first frame.
+      ctx.fillStyle = '#090707';
+    }
     ctx.fillRect(0,0,w,h);
 
     // Soft wood grain band.
@@ -461,10 +715,7 @@ export function createChannel({ seed, audio }) {
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.6)';
     ctx.shadowBlur = 24;
-    const frame = ctx.createLinearGradient(x, y, x, y + s*8);
-    frame.addColorStop(0, 'rgba(70,45,28,0.95)');
-    frame.addColorStop(1, 'rgba(40,26,16,0.98)');
-    ctx.fillStyle = frame;
+    if (cache.frame) ctx.fillStyle = cache.frame;
     ctx.fillRect(x - s*0.35, y - s*0.35, s*8 + s*0.7, s*8 + s*0.7);
     ctx.restore();
 
@@ -478,7 +729,6 @@ export function createChannel({ seed, audio }) {
         const col = `rgb(${(base[0]*warm)|0},${(base[1]*warm)|0},${(base[2]*warm)|0})`;
         ctx.fillStyle = col;
 
-        const sq = squareCenter(i, rect);
         const sx = x + f*s;
         const sy = y + r*s;
         // Slight row compression for pseudo-perspective.
@@ -515,15 +765,14 @@ export function createChannel({ seed, audio }) {
     }
 
     // Sheen.
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    const sheen = ctx.createLinearGradient(x, y, x + s*8, y + s*8);
-    sheen.addColorStop(0, `rgba(255,220,170,${0.05 + flick*0.02})`);
-    sheen.addColorStop(0.6, 'rgba(255,220,170,0)');
-    sheen.addColorStop(1, 'rgba(255,220,170,0)');
-    ctx.fillStyle = sheen;
-    ctx.fillRect(x - s*0.1, y - s*0.1, s*8 + s*0.2, s*8 + s*0.2);
-    ctx.restore();
+    if (cache.sheen){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.05 + flick * 0.02;
+      ctx.fillStyle = cache.sheen;
+      ctx.fillRect(x - s*0.1, y - s*0.1, s*8 + s*0.2, s*8 + s*0.2);
+      ctx.restore();
+    }
   }
 
   function drawPiece(ctx, rect, p){
@@ -666,6 +915,8 @@ export function createChannel({ seed, audio }) {
   }
 
   function render(ctx){
+    ensureCaches(ctx);
+
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
 
