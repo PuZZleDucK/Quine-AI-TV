@@ -25,6 +25,33 @@ function hsl(h, s, l, a=1){ return `hsla(${h}, ${s}%, ${l}%, ${a})`; }
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
 
+  // macro time structure (separate RNG so it doesn't perturb sim randomness)
+  const MACRO_SEED = (seed ^ 0x9e3779b9) >>> 0;
+  let macroRand = mulberry32(MACRO_SEED);
+  let basePriceAnchor = 0;
+  let phase = { name: 'boom', t0: 0, dur: 60 };
+  let nextPhaseAt = 60;
+  let special = { name: '', t0: 0, dur: 0, active: false };
+  let nextSpecialAt = 1e9;
+
+  function mrand(){ return macroRand(); }
+  function mrange(a, b){ return a + (b - a) * mrand(); }
+  function startPhase(name, t0){
+    phase.name = name;
+    phase.t0 = t0;
+    if (name === 'boom') phase.dur = mrange(45, 75);
+    else if (name === 'bust') phase.dur = mrange(35, 55);
+    else phase.dur = mrange(55, 95); // steady
+    nextPhaseAt = t0 + phase.dur;
+  }
+  function advancePhase(t0){
+    const next = phase.name === 'boom' ? 'bust' : (phase.name === 'bust' ? 'steady' : 'boom');
+    startPhase(next, t0);
+  }
+  function scheduleNextSpecial(t0){
+    nextSpecialAt = t0 + mrange(75, 150);
+  }
+
   let w = 0;
   let h = 0;
   let dpr = 1;
@@ -210,7 +237,13 @@ export function createChannel({ seed, audio }){
   function resetSim(){
     t = 0;
 
+    macroRand = mulberry32(MACRO_SEED);
+    startPhase('boom', 0);
+    special = { name: '', t0: 0, dur: 0, active: false };
+    scheduleNextSpecial(0);
+
     basePrice = 0.2 + ((rand() * 20) | 0) / 100; // 0.20..0.39
+    basePriceAnchor = basePrice;
     price = basePrice;
     stock = 60 + ((rand() * 35) | 0);
     cash = 0;
@@ -398,6 +431,47 @@ export function createChannel({ seed, audio }){
     t += dt;
     shake = Math.max(0, shake - dt * 2.4);
 
+    // macro phase cycle (boom → bust → steady; ~2–4 min total, deterministic per seed)
+    let phaseGuard = 0;
+    while (t >= nextPhaseAt && phaseGuard++ < 4){
+      advancePhase(nextPhaseAt);
+    }
+
+    // rare special moments (deterministic per seed)
+    if (!special.active && t >= nextSpecialAt){
+      const tEvent = nextSpecialAt;
+      const kind = mrand() < 0.55 ? 'MARKET CRASH' : 'AUDIT';
+      special = {
+        name: kind,
+        t0: tEvent,
+        dur: kind === 'MARKET CRASH' ? mrange(5.5, 8.5) : mrange(5.0, 7.0),
+        active: true,
+      };
+      scheduleNextSpecial(tEvent);
+      shake = Math.max(shake, 1.1);
+
+      if (kind === 'MARKET CRASH'){
+        // immediate shock (then we keep steering during the window below)
+        demand = clamp(demand * 0.45, 0.18, 0.98);
+        price = lerp(price, Math.max(0.15, basePrice * 0.75), 0.65);
+        spike.active = false;
+        coupon.active = false;
+        nextCouponSpawnAt = 1e9;
+        safeBeep({ freq: 120, dur: 0.12, gain: 0.05, type: 'square' });
+        safeBeep({ freq: 90, dur: 0.18, gain: 0.04, type: 'sawtooth' });
+      } else {
+        // audit pauses promo noise
+        coupon.active = false;
+        nextCouponSpawnAt = 1e9;
+        safeBeep({ freq: 520, dur: 0.06, gain: 0.02, type: 'triangle' });
+        safeBeep({ freq: 390, dur: 0.07, gain: 0.018, type: 'triangle' });
+      }
+    }
+
+    if (special.active && (t - special.t0) >= special.dur){
+      special.active = false;
+    }
+
     // demand breathes (dt-based). Jitter via scheduled nudges for FPS stability.
     demand = clamp(demand + Math.sin(t * 0.22) * 0.0009, 0.18, 0.98);
     let jitterGuard = 0;
@@ -406,13 +480,50 @@ export function createChannel({ seed, audio }){
       nextDemandJitterAt += 0.15 + rand() * 0.18;
     }
 
+    // macro targets (phase-driven)
+    const phaseName = phase.name;
+    const targetDemand = phaseName === 'boom' ? 0.78 : (phaseName === 'bust' ? 0.28 : 0.55);
+    const targetBaseMul = phaseName === 'boom' ? 1.18 : (phaseName === 'bust' ? 0.92 : 1.02);
+
+    const kD = 1 - Math.exp(-dt * 0.8);
+    const kB = 1 - Math.exp(-dt * 0.25);
+    demand = clamp(lerp(demand, targetDemand, kD), 0.18, 0.98);
+
+    const targetBase = clamp(basePriceAnchor * targetBaseMul, 0.15, 0.65);
+    basePrice = lerp(basePrice, targetBase, kB);
+
+    let phaseRateMul = phaseName === 'boom' ? 1.35 : (phaseName === 'bust' ? 0.75 : 1.0);
+    let spikeGate = true;
+
+    if (special.active && special.name === 'MARKET CRASH'){
+      phaseRateMul *= 0.6;
+      spikeGate = false;
+      // keep steering price/demand down during the crash window
+      const k = 1 - Math.exp(-dt * 1.4);
+      demand = clamp(demand * 0.7, 0.18, 0.98);
+      price = lerp(price, Math.max(0.15, basePrice * 0.78), k);
+      cpi = lerp(cpi, 92 + price / Math.max(1e-6, basePrice) * 8, 0.06);
+    } else if (special.active && special.name === 'AUDIT'){
+      phaseRateMul *= 0.85;
+      spikeGate = false;
+      // no coupons during audit
+      if (coupon.active){
+        coupon.active = false;
+        nextCouponSpawnAt = 1e9;
+      }
+    }
+
     // schedule/drive spike & coupon windows (anchored to scheduled times)
-    if (!spike.active && t >= nextSpikeAt){
+    if (spikeGate && !spike.active && t >= nextSpikeAt){
       const tEvent = nextSpikeAt;
       spike = { t0: tEvent, dur: 2.6 + rand() * 1.2, active: true };
       coupon = { t0: tEvent + 1.1, dur: 6.5, active: true };
       nextCouponSpawnAt = coupon.t0 + expTime(3.6);
-      nextSpikeAt = tEvent + 26 + rand() * 30;
+
+      if (phaseName === 'boom') nextSpikeAt = tEvent + mrange(18, 36);
+      else if (phaseName === 'bust') nextSpikeAt = tEvent + mrange(34, 58);
+      else nextSpikeAt = tEvent + mrange(24, 48);
+
       shake = 1;
 
       safeBeep({ freq: 160, dur: 0.08, gain: 0.05, type: 'square' });
@@ -430,7 +541,7 @@ export function createChannel({ seed, audio }){
 
     // coins (time-scheduled; catch up safely)
     const spikeBoost = spike.active ? 2.1 : 1;
-    const rate = (0.55 + demand * 1.4) * spikeBoost;
+    const rate = (0.55 + demand * 1.4) * spikeBoost * phaseRateMul;
     let coinGuard = 0;
     while (t >= nextCoinAt && coinGuard++ < 6){
       spawnCoin(rate);
@@ -724,6 +835,7 @@ export function createChannel({ seed, audio }){
       ['PRICE', fmtMoney(showPrice)],
       ['STOCK', `${Math.round(stock)} / 100`],
       ['DEMAND', `${Math.round(demand * 100)}%`],
+      ['PHASE', phase.name.toUpperCase()],
       ['CASH', fmtMoney(cash)],
       ['GUMBALL CPI', `${cpi.toFixed(1)}`],
     ];
@@ -812,6 +924,30 @@ export function createChannel({ seed, audio }){
     ctx.fillText('STOCK', chX + 78, chY + 8);
 
     // overlay moments
+    if (special.active){
+      const u = clamp((t - special.t0) / 0.32, 0, 1);
+      const a = 0.5 + 0.5 * ease(u);
+      const msg = special.name;
+      const isCrash = msg === 'MARKET CRASH';
+
+      ctx.save();
+      ctx.globalAlpha = 0.9 * a;
+      ctx.translate(px + pw * 0.5, py + ph * 0.06);
+      ctx.rotate(isCrash ? -0.085 : -0.045);
+      ctx.fillStyle = isCrash ? 'rgba(255, 70, 70, 0.22)' : 'rgba(190, 120, 255, 0.18)';
+      roundRect(ctx, -pw * 0.44, -13, pw * 0.88, 36, 10);
+      ctx.fill();
+      ctx.strokeStyle = isCrash ? 'rgba(255, 90, 90, 0.7)' : 'rgba(200, 150, 255, 0.65)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = `${Math.max(14, Math.floor(s * 0.04))}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.fillStyle = isCrash ? 'rgba(255, 210, 210, 0.95)' : 'rgba(235, 220, 255, 0.95)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(msg, 0, 5);
+      ctx.restore();
+    }
+
     if (spike.active){
       const u = clamp((t - spike.t0) / 0.28, 0, 1);
       const a = 0.5 + 0.5 * ease(u);
