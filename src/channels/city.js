@@ -6,7 +6,9 @@ export function createChannel({ seed, audio }){
   let w=0,h=0,t=0;
   let layers=[];
   let drops=[];
-  let rain=null;
+
+  // audio handle (rain/noise bed)
+  let ah = null;
 
   // cached rain sprite (rebuild on resize)
   let rainSprite = null;
@@ -113,15 +115,79 @@ export function createChannel({ seed, audio }){
 
   function onResize(width,height){ w=width; h=height; init({width,height}); }
 
+  function makeAudioHandle(){
+    const ctx = audio.ensure();
+
+    // use a dedicated gain so we can fade cleanly on stop()
+    const out = ctx.createGain();
+    out.gain.value = 0.9;
+    out.connect(audio.master);
+
+    // gentle filtered pink-noise “rain” bed
+    const n = audio.noiseSource({ type: 'pink', gain: 0.045 });
+
+    const hpf = ctx.createBiquadFilter();
+    hpf.type = 'highpass';
+    hpf.frequency.value = 260;
+    hpf.Q.value = 0.7;
+
+    const lpf = ctx.createBiquadFilter();
+    lpf.type = 'lowpass';
+    lpf.frequency.value = 1800;
+    lpf.Q.value = 0.9;
+
+    // reroute noise: src -> gain -> filters -> out (disconnect default master route)
+    try { n.gain.disconnect(); } catch {}
+    try { n.src.disconnect(); } catch {}
+    n.src.connect(n.gain);
+    n.gain.connect(hpf);
+    hpf.connect(lpf);
+    lpf.connect(out);
+
+    n.start();
+
+    return {
+      stop(){
+        const now = ctx.currentTime;
+        try { out.gain.setTargetAtTime(0.0001, now, 0.10); } catch {}
+        try { n.stop(); } catch {}
+      }
+    };
+  }
+
+  function stopAudio({ clearCurrent=false } = {}){
+    const handle = ah;
+    const isCurrent = audio.current === handle;
+
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ah = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
-    const n = audio.noiseSource({type:'pink', gain:0.03});
-    n.start();
-    rain = {stop(){n.stop();}};
-    audio.setCurrent(rain);
+
+    // defensively stop any existing rain/noise we started (prevents stacking)
+    stopAudio({ clearCurrent: true });
+
+    const handle = makeAudioHandle();
+    ah = handle;
+    audio.setCurrent(handle);
   }
-  function onAudioOff(){ try{rain?.stop?.();}catch{} rain=null; }
-  function destroy(){ onAudioOff(); }
+
+  function onAudioOff(){
+    // stop/clear everything we own; only clear AudioManager.current if it's ours
+    stopAudio({ clearCurrent: true });
+  }
+
+  function destroy(){
+    stopAudio({ clearCurrent: true });
+  }
 
   function update(dt){
     t += dt;
