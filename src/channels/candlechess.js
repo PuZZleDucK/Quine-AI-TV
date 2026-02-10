@@ -654,10 +654,11 @@ export function createChannel({ seed, audio }) {
   function drawDust(ctx){
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = 'rgb(255,220,170)';
     for (const d of dust){
       const tw = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * (0.6 + d.z*0.25) + d.w));
       const a = (0.02 + 0.06 * tw) * (0.25 + d.z*0.75);
-      ctx.fillStyle = `rgba(255,220,170,${a.toFixed(3)})`;
+      ctx.globalAlpha = a > 1 ? 1 : (a < 0 ? 0 : a);
       const r = d.s * (0.7 + d.z*0.9);
       ctx.fillRect(d.x, d.y, r, r);
     }
