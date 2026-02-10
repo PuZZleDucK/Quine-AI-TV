@@ -194,7 +194,9 @@ export function createChannel({ seed, audio }){
       buildings.push({x, w:bw, h:bh, winSeed: rand()*999});
       x += bw + (10+rand()*30)*(w/960);
     }
-    return {depth, buildings, hue: 220 + i*15};
+    const shade = Math.floor(mix(26, 4, depth));
+    const fillStyle = `rgb(${shade},${shade},${shade})`;
+    return {depth, buildings, hue: 220 + i*15, fillStyle};
   }
 
   function onResize(width,height){ w=width; h=height; init({width,height}); }
@@ -330,12 +332,9 @@ export function createChannel({ seed, audio }){
     // buildings
     const baseY = h*0.92;
     for (const layer of layers){
-      const buildingAlpha = 0.22 + 0.6*layer.depth;
-
-      // silhouettes (avoid per-building rgba string allocations)
+      // silhouettes (opaque; avoid per-building style allocations)
       ctx.save();
-      ctx.fillStyle = '#000';
-      ctx.globalAlpha = buildingAlpha;
+      ctx.fillStyle = layer.fillStyle || '#000';
       for (const b of layer.buildings){
         const topY = baseY - b.h;
         ctx.fillRect(b.x, topY, b.w, b.h);
