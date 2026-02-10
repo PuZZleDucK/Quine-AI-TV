@@ -57,6 +57,17 @@ export function createChannel({ seed, audio }){
     ['CAR','TRUCK','FORKLIFT','PALLET','CRATE','CAT'],
   ];
 
+  // Visual replacement for moving labels: blurred, colored emoji tags.
+  // (Keep pools aligned with LABEL_POOLS indices.)
+  const EMOJI_POOLS = [
+    // ALLEY
+    ['👤','🐕','🚲','📦','🛹','🧥'],
+    // HALL
+    ['👤','🪪','👜','🛒','🚪','🙋'],
+    // YARD
+    ['🚗','🚚','🏗️','🪵','📦','🐈'],
+  ];
+
   function hash32(x){
     x = (x >>> 0);
     x ^= x >>> 16;
@@ -188,12 +199,24 @@ export function createChannel({ seed, audio }){
     cams = Array.from({length: 4}, (_,i)=>{
       const scene = makeScene(i);
       const labels = pickCamLabels(scene, i);
+
+      const labelPool = LABEL_POOLS[scene.kind|0] ?? LABEL_POOLS[0];
+      const emojiPool = EMOJI_POOLS[scene.kind|0] ?? EMOJI_POOLS[0];
+      const labelToEmoji = Object.create(null);
+      for (const s of labels){
+        const idx = labelPool.indexOf(s);
+        labelToEmoji[s] = idx >= 0 ? (emojiPool[idx] ?? '⬤') : '⬤';
+      }
+      const labelEmojiText = labels.map(s => labelToEmoji[s] ?? '⬤').join(' ');
+
       return {
         id: i,
         scene,
         ph: rand()*10,
         labels,
+        labelToEmoji,
         labelText: labels.join('·'),
+        labelEmojiText,
         targets: [],
         msg: 'IDLE',
       };
@@ -265,6 +288,11 @@ export function createChannel({ seed, audio }){
 
       const max = 0.9 + rand()*1.3;
 
+      const label = cam.labels[((rand()*cam.labels.length)|0)] ?? 'OBJECT';
+      const emoji = cam.labelToEmoji?.[label] ?? '⬤';
+      const hue = 40 + 260*h01(cam.scene.base ^ (0x9e3779b9 + Math.imul(cam.id+1,0x85ebca6b) + Math.imul(i+1,0xc2b2ae35)));
+      const glow = `hsla(${hue}, 85%, 62%, 0.9)`;
+
       return {
         x: x0,
         y: y0,
@@ -274,7 +302,10 @@ export function createChannel({ seed, audio }){
         vy,
         life: max,
         max,
-        label: cam.labels[((rand()*cam.labels.length)|0)] ?? 'OBJECT',
+        label,
+        emoji,
+        hue,
+        glow,
         tag: (i + 1),
       };
     });
@@ -385,6 +416,29 @@ export function createChannel({ seed, audio }){
     return `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}`;
   }
 
+  function drawEmojiTag(ctx, x, y, o, a){
+    const emoji = o.emoji ?? '⬤';
+
+    // Soft colored glow behind emoji.
+    ctx.save();
+    ctx.globalAlpha = 0.10 + 0.22*a;
+    ctx.fillStyle = o.glow ?? 'rgba(180,255,210,0.7)';
+    if ('filter' in ctx) ctx.filter = 'blur(6px)';
+    ctx.beginPath();
+    ctx.arc(x + 6, y - 6, 10, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // The emoji itself (slightly blurred).
+    ctx.save();
+    ctx.globalAlpha = 0.55 + 0.35*a;
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px ui-sans-serif, system-ui, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji';
+    if ('filter' in ctx) ctx.filter = 'blur(0.7px)';
+    ctx.fillText(emoji, x, y);
+    ctx.restore();
+  }
+
   function renderCam(ctx, cam, x, y, cw, ch, ts, specialState){
 
     // background
@@ -474,12 +528,10 @@ export function createChannel({ seed, audio }){
       ctx.globalAlpha = 0.25 + 0.75*a;
       ctx.strokeRect(x + o.x*cw, y + o.y*ch, o.w*cw, o.h*ch);
 
-      // label
-      ctx.globalAlpha = 0.55 + 0.45*a;
-      ctx.fillStyle = pal.hud;
-      const tx = x + o.x*cw + 4;
-      const ty = y + o.y*ch - 4;
-      ctx.fillText(`${o.label} ${o.tag}`, tx, Math.max(y + 28, ty));
+      // label (blurred emoji tag)
+      const tx = x + o.x*cw + 6;
+      const ty = Math.max(y + 24, y + o.y*ch - 6);
+      drawEmojiTag(ctx, tx, ty, o, a);
     }
     ctx.restore();
 
@@ -541,7 +593,7 @@ export function createChannel({ seed, audio }){
 
     // show the per-cam label set on the right for a bit of "different feeds" flavour
     ctx.globalAlpha = 0.6;
-    ctx.fillText(cam.labelText, x + 8, y + ch - 10);
+    ctx.fillText(cam.labelEmojiText ?? cam.labelText, x + 8, y + ch - 10);
     ctx.restore();
   }
 
