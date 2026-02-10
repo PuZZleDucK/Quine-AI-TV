@@ -293,7 +293,13 @@ export function createChannel({ seed, audio }){
         d.vy += Math.min(w,h) * 0.09 * dt;
         d.life -= dt;
       }
-      dust = dust.filter(d => d.life > 0);
+      // in-place compaction (avoid per-frame allocations)
+      let wr = 0;
+      for (let i = 0; i < dust.length; i++){
+        const d = dust[i];
+        if (d.life > 0) dust[wr++] = d;
+      }
+      dust.length = wr;
     }
   }
 
