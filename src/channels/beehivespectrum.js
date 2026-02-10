@@ -492,9 +492,14 @@ export function createChannel({ seed, audio }){
       }
     }
 
-    // trails decay
-    for (const tr of trails){ tr.life -= dt; }
-    trails = trails.filter(tr => tr.life > 0.02);
+    // trails decay (perf: in-place compaction to avoid per-frame array allocation)
+    let write = 0;
+    for (let i = 0; i < trails.length; i++){
+      const tr = trails[i];
+      tr.life -= dt;
+      if (tr.life > 0.02) trails[write++] = tr;
+    }
+    trails.length = write;
 
     updateWaterfall(dt);
   }
