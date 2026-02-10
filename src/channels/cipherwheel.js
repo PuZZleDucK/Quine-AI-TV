@@ -10,6 +10,16 @@ export function createChannel({ seed, audio }) {
 
   let boardC = null;
 
+  // Cached per-context gradients (rebuild on resize / ctx swap).
+  let vignetteG = null;
+  let vignetteCtx = null;
+  let vignetteW = 0;
+  let vignetteH = 0;
+
+  let wheelDiskG = null;
+  let wheelDiskCtx = null;
+  let wheelDiskR = 0;
+
   const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const STEP = (Math.PI * 2) / 26;
 
@@ -304,11 +314,16 @@ export function createChannel({ seed, audio }) {
     ctx.fill();
     ctx.restore();
 
-    // Outer disk
-    const diskG = ctx.createRadialGradient(0, 0, outerR * 0.2, 0, 0, outerR * 1.05);
-    diskG.addColorStop(0, 'rgba(10, 38, 34, 0.9)');
-    diskG.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
-    ctx.fillStyle = diskG;
+    // Outer disk (cached gradient)
+    if (!wheelDiskG || wheelDiskCtx !== ctx || wheelDiskR !== outerR) {
+      wheelDiskCtx = ctx;
+      wheelDiskR = outerR;
+      const g = ctx.createRadialGradient(0, 0, outerR * 0.2, 0, 0, outerR * 1.05);
+      g.addColorStop(0, 'rgba(10, 38, 34, 0.9)');
+      g.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+      wheelDiskG = g;
+    }
+    ctx.fillStyle = wheelDiskG;
     ctx.beginPath();
     ctx.arc(0, 0, outerR * 1.02, 0, Math.PI * 2);
     ctx.fill();
@@ -537,12 +552,22 @@ export function createChannel({ seed, audio }) {
 
     if (boardC) ctx.drawImage(boardC, 0, 0);
 
-    // Subtle moving vignette / breathe.
+    // Subtle moving vignette / breathe. (cached gradient + animated alpha)
+    if (!vignetteG || vignetteCtx !== ctx || vignetteW !== w || vignetteH !== h) {
+      vignetteCtx = ctx;
+      vignetteW = w;
+      vignetteH = h;
+      const rr0 = Math.min(w, h) * 0.2;
+      const rr1 = Math.min(w, h) * 0.9;
+      const g = ctx.createRadialGradient(w * 0.5, h * 0.45, rr0, w * 0.5, h * 0.45, rr1);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(0,0,0,1)');
+      vignetteG = g;
+    }
+
     ctx.save();
-    const v = ctx.createRadialGradient(w * 0.5, h * 0.45, Math.min(w, h) * 0.2, w * 0.5, h * 0.45, Math.min(w, h) * 0.9);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, `rgba(0,0,0,${0.34 + 0.06 * Math.sin(t * 0.18)})`);
-    ctx.fillStyle = v;
+    ctx.globalAlpha = 0.34 + 0.06 * Math.sin(t * 0.18);
+    ctx.fillStyle = vignetteG;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
