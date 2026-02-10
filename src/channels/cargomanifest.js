@@ -106,8 +106,29 @@ export function createChannel({ seed, audio }){
     try { audio.beep(opts); } catch {}
   }
 
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = musicHandle;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    drone = null;
+    noise = null;
+    musicHandle = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // defensively stop any existing ambience we started
+    stopAmbience({ clearCurrent: true });
+
     drone = simpleDrone(audio, { root: 55, detune: 1.2, gain: 0.05 });
     try {
       noise = audio.noiseSource({ type: 'pink', gain: 0.010 });
@@ -120,18 +141,17 @@ export function createChannel({ seed, audio }){
         try { noise?.stop?.(); } catch {}
       }
     };
+
     audio.setCurrent(musicHandle);
   }
 
   function onAudioOff(){
-    try { musicHandle?.stop?.(); } catch {}
-    drone = null;
-    noise = null;
-    musicHandle = null;
+    // stop/clear everything we own; only clear AudioManager.current if it's ours
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy(){
-    onAudioOff();
+    stopAmbience({ clearCurrent: true });
   }
 
   function rebuildLayout(width, height, devicePixelRatio=1){
