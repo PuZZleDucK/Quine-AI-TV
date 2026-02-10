@@ -101,6 +101,23 @@ export function createChannel({ seed, audio }){
   function smoothstep01(x){ x = clamp(x, 0, 1); return x*x*(3 - 2*x); }
   function mix(a,b,u){ return a + (b-a)*u; }
 
+  // fast deterministic 32-bit hash -> [0,1)
+  function hash01(x){
+    x |= 0;
+    x ^= x >>> 16;
+    x = Math.imul(x, 0x7feb352d);
+    x ^= x >>> 15;
+    x = Math.imul(x, 0x846ca68b);
+    x ^= x >>> 16;
+    return (x >>> 0) / 4294967296;
+  }
+
+  // pseudo-random per-window twinkle (avoids the obvious sine “wipe” wave at t≈0)
+  function windowRand01(seed, frame, r, c){
+    let x = (seed ^ Math.imul(frame, 0x9e3779b9) ^ Math.imul(r, 0x85ebca6b) ^ Math.imul(c, 0xc2b2ae35)) | 0;
+    return hash01(x);
+  }
+
   function computePhaseParams(tt){
     if (!phaseCycle){
       return {
@@ -216,7 +233,7 @@ export function createChannel({ seed, audio }){
     while (x < w + 100){
       const bw = (40 + rand()*140) * (w/960);
       const bh = (h*(0.25 + rand()*0.55)) * depth;
-      buildings.push({x, w:bw, h:bh, winSeed: rand()*999});
+      buildings.push({x, w:bw, h:bh, winSeed: (Math.floor(rand()*4294967296)>>>0)});
       x += bw + (10+rand()*30)*(w/960);
     }
     const shade = Math.floor(mix(26, 4, depth));
@@ -377,6 +394,7 @@ export function createChannel({ seed, audio }){
       const wipeCenter = (le && le.type === 'wipe') ? (le.dir > 0 ? leU : (1 - leU)) : -10;
 
       const twSpeed = (p.twinkleSpeed ?? 0.5);
+      const twFrame = Math.floor(t * (0.8 + twSpeed*2.8));
       let winThreshBase = (p.winThresh ?? 0.7);
       let winAlpha = (p.winAlpha ?? 0.22);
       if (syncPulse > 0){
@@ -399,9 +417,9 @@ export function createChannel({ seed, audio }){
             if (wipeCenter >= 0){
               const xNorm = (b.x + c*ww) / w;
               const band = smoothstep01(1 - Math.abs(xNorm - wipeCenter) / 0.18);
-              thresh = Math.max(-0.95, thresh - band*0.48);
+              thresh = Math.max(0.02, thresh - band*0.52);
             }
-            const tw = Math.sin(t*twSpeed + b.winSeed + r*0.7 + c*0.9);
+            const tw = windowRand01(b.winSeed, twFrame, r, c);
             if (tw <= thresh) continue;
             const x = b.x + c*ww;
             const y = topY + r*wh;
