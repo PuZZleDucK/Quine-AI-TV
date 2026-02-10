@@ -47,6 +47,16 @@ export function createChannel({ seed, audio }){
     },
   ];
 
+  // Each feed prefers a small, distinct set of "detected" items.
+  const LABEL_POOLS = [
+    // ALLEY
+    ['PERSON','DOG','BIKE','PACKAGE','SKATE','HOODIE'],
+    // HALL
+    ['PERSON','BADGE','BAG','CART','DOOR','VISITOR'],
+    // YARD
+    ['CAR','TRUCK','FORKLIFT','PALLET','CRATE','CAT'],
+  ];
+
   function hash32(x){
     x = (x >>> 0);
     x ^= x >>> 16;
@@ -57,6 +67,22 @@ export function createChannel({ seed, audio }){
     return x >>> 0;
   }
   function h01(x){ return (hash32(x) >>> 0) / 4294967296; }
+
+  function pickCamLabels(scene, camId){
+    const pool = LABEL_POOLS[scene.kind|0] ?? LABEL_POOLS[0];
+    const picked = [];
+
+    // Deterministic (no rand consumption): pick 3 unique items.
+    let k = 0;
+    while (picked.length < 3 && k < 20){
+      const idx = hash32(scene.base ^ (0x55aa00 + camId*101 + k*0x9e3779b9)) % pool.length;
+      const s = pool[idx];
+      if (!picked.includes(s)) picked.push(s);
+      k++;
+    }
+
+    return picked.length ? picked : pool.slice(0,3);
+  }
 
   function makeScene(camId){
     const base = hash32(seed32 ^ (0xa53a3b1d + Math.imul(camId + 1, 0x9e3779b9)));
@@ -159,13 +185,19 @@ export function createChannel({ seed, audio }){
     nextSpecial = 45 + rand()*75;
     special = null;
 
-    cams = Array.from({length: 4}, (_,i)=>({
-      id:i,
-      scene: makeScene(i),
-      ph: rand()*10,
-      boxes: [],
-      msg: 'IDLE',
-    }));
+    cams = Array.from({length: 4}, (_,i)=>{
+      const scene = makeScene(i);
+      const labels = pickCamLabels(scene, i);
+      return {
+        id: i,
+        scene,
+        ph: rand()*10,
+        labels,
+        labelText: labels.join('·'),
+        targets: [],
+        msg: 'IDLE',
+      };
+    });
 
     const phase = getPhaseAtTime(0);
     nextMotion = pickIn(phase.motion);
@@ -211,14 +243,41 @@ export function createChannel({ seed, audio }){
     const [minB,maxB] = boxRange ?? [1,3];
     const count = minB + ((rand()*(maxB - minB + 1)) | 0);
 
-    cam.boxes = Array.from({length: count}, ()=>({
-      x: rand()*0.7,
-      y: rand()*0.6,
-      w: 0.15 + rand()*0.25,
-      h: 0.12 + rand()*0.25,
-      life: 0.25 + rand()*0.8,
-      max: 0.25 + rand()*0.8,
-    }));
+    const kind = cam.scene.kind|0;
+
+    cam.targets = Array.from({length: count}, (_,i)=>{
+      const w0 = 0.10 + rand()*0.22;
+      const h0 = 0.10 + rand()*0.20;
+
+      // Start positions away from the very edge so boxes don’t immediately clip.
+      const x0 = 0.04 + rand()*(0.92 - w0);
+      const y0 = 0.06 + rand()*(0.88 - h0);
+
+      // Motion varies by scene: hall mostly horizontal, alley more diagonal, yard slow drift.
+      let vx = (rand()<0.5 ? -1 : 1) * (0.06 + rand()*0.14);
+      let vy = (rand()<0.5 ? -1 : 1) * (0.04 + rand()*0.10);
+      if (kind === 1) vy *= 0.35;
+      if (kind === 2){ vx *= 0.55; vy *= 0.55; }
+
+      // Slight per-target offset so they don’t march in lockstep.
+      vx *= (0.85 + 0.3*rand());
+      vy *= (0.85 + 0.3*rand());
+
+      const max = 0.9 + rand()*1.3;
+
+      return {
+        x: x0,
+        y: y0,
+        w: w0,
+        h: h0,
+        vx,
+        vy,
+        life: max,
+        max,
+        label: cam.labels[((rand()*cam.labels.length)|0)] ?? 'OBJECT',
+        tag: (i + 1),
+      };
+    });
 
     cam.msg = rand()<0.5 ? 'MOTION' : 'TRACK';
     if (audio.enabled) audio.beep({freq: 260 + rand()*60, dur: 0.03, gain: 0.02, type:'square'});
@@ -269,9 +328,22 @@ export function createChannel({ seed, audio }){
       }
     }
 
+    // Move tracked targets; the detection effect is now tied to moving objects.
     for (const cam of cams){
-      cam.boxes = cam.boxes.filter(b => (b.life -= dt) > 0);
-      if (cam.boxes.length === 0) cam.msg = 'IDLE';
+      for (const o of cam.targets){
+        o.life -= dt;
+        o.x += o.vx * dt;
+        o.y += o.vy * dt;
+
+        // bounce + clamp (normalized coords)
+        if (o.x < 0.02){ o.x = 0.02; o.vx = Math.abs(o.vx); }
+        if (o.y < 0.02){ o.y = 0.02; o.vy = Math.abs(o.vy); }
+        if (o.x + o.w > 0.98){ o.x = 0.98 - o.w; o.vx = -Math.abs(o.vx); }
+        if (o.y + o.h > 0.98){ o.y = 0.98 - o.h; o.vy = -Math.abs(o.vy); }
+      }
+
+      cam.targets = cam.targets.filter(o => o.life > 0);
+      if (cam.targets.length === 0) cam.msg = 'IDLE';
     }
 
     // Patrol phase gently "scans" between cameras.
@@ -384,21 +456,37 @@ export function createChannel({ seed, audio }){
       ctx.drawImage(spr, lx - diam/2, ly - diam/2, diam, diam);
     }
 
-    // boxes
+    // moving targets + detection boxes (tied to moving objects)
     ctx.save();
     ctx.strokeStyle = pal.box;
     ctx.lineWidth = 2;
-    for (const b of cam.boxes){
-      const a = b.life/b.max;
+    ctx.font = '12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+
+    for (const o of cam.targets){
+      const a = Math.max(0, Math.min(1, o.life / Math.max(0.001, o.max)));
+
+      // silhouette
+      ctx.globalAlpha = 0.08 + 0.12*a;
+      ctx.fillStyle = pal.hud;
+      ctx.fillRect(x + o.x*cw, y + o.y*ch, o.w*cw, o.h*ch);
+
+      // box
       ctx.globalAlpha = 0.25 + 0.75*a;
-      ctx.strokeRect(x + b.x*cw, y + b.y*ch, b.w*cw, b.h*ch);
+      ctx.strokeRect(x + o.x*cw, y + o.y*ch, o.w*cw, o.h*ch);
+
+      // label
+      ctx.globalAlpha = 0.55 + 0.45*a;
+      ctx.fillStyle = pal.hud;
+      const tx = x + o.x*cw + 4;
+      const ty = y + o.y*ch - 4;
+      ctx.fillText(`${o.label} ${o.tag}`, tx, Math.max(y + 28, ty));
     }
     ctx.restore();
 
     const loss = !!(specialState && specialState.kind === 'LOSS' && specialState.camId === cam.id);
     const msg = loss
       ? (specialState.stage === 'LOSS' ? 'NO SIGNAL' : 'RECONNECT')
-      : cam.msg;
+      : (cam.targets.length ? cam.msg : 'IDLE');
 
     // Special moment overlay (signal loss + reconnect) — keep OSD readable.
     if (loss){
@@ -450,6 +538,10 @@ export function createChannel({ seed, audio }){
     ctx.font = '14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
     ctx.fillText(`CAM ${cam.id+1} ${pal.name}  ${msg}`, x+8, y+17);
     ctx.fillText(ts, x+cw-110, y+17);
+
+    // show the per-cam label set on the right for a bit of "different feeds" flavour
+    ctx.globalAlpha = 0.6;
+    ctx.fillText(cam.labelText, x + 8, y + ch - 10);
     ctx.restore();
   }
 
