@@ -585,6 +585,21 @@ export function createChannel({ seed, audio }) {
     ctx.fillStyle = 'rgba(235,255,248,0.72)';
     ctx.fillText(sub, x + pad * 0.6, y + pad * 0.45 + titleSize + 6);
 
+    // Tiny “shift hint” during DEMO/QUIZ to make the mapping obvious at a glance.
+    if (seg === 'DEMO' || seg === 'QUIZ') {
+      const hint = lesson.type === 'ATBASH'
+        ? 'HINT: A↔Z'
+        : `HINT: A→${caesarChar('A', lesson.shift | 0)}`;
+
+      ctx.save();
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'rgba(120,255,220,0.82)';
+      ctx.fillText(hint, x + boxW - pad * 0.6, y + pad * 0.45 + titleSize + 6);
+      ctx.restore();
+
+      ctx.textAlign = 'left';
+    }
+
     const lineY = y + pad * 0.45 + titleSize + bodySize + 16;
 
     if (seg === 'DEMO') {
