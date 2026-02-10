@@ -118,14 +118,26 @@ export function createChannel({ seed, audio }){
     ctx.beginPath(); ctx.arc(gcache.mx,gcache.my,gcache.mr,0,Math.PI*2); ctx.fill();
 
     // buildings
+    const baseY = h*0.92;
     for (const layer of layers){
-      for (const b of layer.buildings){
-        const baseY = h*0.92;
-        const topY = baseY - b.h;
-        ctx.fillStyle = `rgba(0,0,0,${0.22 + 0.6*layer.depth})`;
-        ctx.fillRect(b.x, topY, b.w, b.h);
+      const buildingAlpha = 0.22 + 0.6*layer.depth;
 
-        // windows
+      // silhouettes (avoid per-building rgba string allocations)
+      ctx.save();
+      ctx.fillStyle = '#000';
+      ctx.globalAlpha = buildingAlpha;
+      for (const b of layer.buildings){
+        const topY = baseY - b.h;
+        ctx.fillRect(b.x, topY, b.w, b.h);
+      }
+      ctx.restore();
+
+      // windows
+      ctx.save();
+      ctx.fillStyle = 'rgb(255,200,120)';
+      ctx.globalAlpha = 0.22;
+      for (const b of layer.buildings){
+        const topY = baseY - b.h;
         const cols = Math.max(2, Math.floor(b.w/18));
         const rows = Math.max(3, Math.floor(b.h/22));
         const ww = b.w/(cols+1);
@@ -133,15 +145,14 @@ export function createChannel({ seed, audio }){
         for (let r=1;r<=rows;r++){
           for (let c=1;c<=cols;c++){
             const tw = Math.sin(t*0.5 + b.winSeed + r*0.7 + c*0.9);
-            const on = tw > 0.7;
-            if (!on) continue;
+            if (tw <= 0.7) continue;
             const x = b.x + c*ww;
             const y = topY + r*wh;
-            ctx.fillStyle = 'rgba(255,200,120,0.22)';
             ctx.fillRect(x,y, ww*0.35, wh*0.35);
           }
         }
       }
+      ctx.restore();
     }
 
     // street glow
