@@ -41,6 +41,7 @@ let current = null; // channel instance
 let lastTs = performance.now();
 let tuneBuffer = '';
 let tuneTimer = 0;
+let lastScanIndex = -1;
 
 // Noise burst rendering cache.
 // Avoid allocating a full-screen ImageData every frame during channel transitions (helps Playwright runs too).
@@ -219,7 +220,17 @@ function armScan(){
   scanTimer = setTimeout(() => {
     scanTimer = null;
     if (!(scanning && powered)) return;
-    channelStep(+1);
+    // Random channel scan. Avoid immediate repeats.
+    let next = currentIndex;
+    if (CHANNELS.length > 1){
+      for (let tries = 0; tries < 6; tries++){
+        const cand = (Math.random() * CHANNELS.length) | 0;
+        if (cand !== currentIndex && cand !== lastScanIndex) { next = cand; break; }
+      }
+      if (next === currentIndex) next = (currentIndex + 1) % CHANNELS.length;
+    }
+    lastScanIndex = currentIndex;
+    switchTo(next);
     // next arm happens when the channel switch completes (switchTo())
   }, SCAN_PERIOD_MS);
 }
