@@ -21,11 +21,62 @@ export function createChannel({ seed, audio }){
   let nextSpecial=0;
   let special=null; // { kind:'LOSS'|'SWITCH', camId?:number, stage?:'LOSS'|'RECONNECT', t:number, dur:number, dur2?:number }
 
-  // Perf: avoid per-frame gradient allocation by using a cached radial "light" sprite.
+  // Perf: avoid per-frame gradient allocation by using cached radial "light" sprites.
+  // Also use per-cam "scene" palettes so each CCTV feed feels distinct.
+  const PALETTES = [
+    {
+      name: 'ALLEY',
+      dot: 'rgba(200,255,210,0.12)',
+      hud: 'rgba(180,255,210,0.9)',
+      box: 'rgba(120,255,160,0.85)',
+      light0: 'rgba(120,255,160,0.10)',
+    },
+    {
+      name: 'HALL',
+      dot: 'rgba(190,220,255,0.12)',
+      hud: 'rgba(190,220,255,0.9)',
+      box: 'rgba(120,190,255,0.85)',
+      light0: 'rgba(120,190,255,0.10)',
+    },
+    {
+      name: 'YARD',
+      dot: 'rgba(255,220,170,0.12)',
+      hud: 'rgba(255,220,170,0.9)',
+      box: 'rgba(255,180,120,0.85)',
+      light0: 'rgba(255,180,120,0.10)',
+    },
+  ];
+
+  function hash32(x){
+    x = (x >>> 0);
+    x ^= x >>> 16;
+    x = Math.imul(x, 0x7feb352d);
+    x ^= x >>> 15;
+    x = Math.imul(x, 0x846ca68b);
+    x ^= x >>> 16;
+    return x >>> 0;
+  }
+  function h01(x){ return (hash32(x) >>> 0) / 4294967296; }
+
+  function makeScene(camId){
+    const base = hash32(seed32 ^ (0xa53a3b1d + Math.imul(camId + 1, 0x9e3779b9)));
+    const kind = base % 3;
+    const pal = PALETTES[kind];
+
+    // Per-scene motion speeds (avoid rand consumption; keep global PRNG timeline unchanged).
+    const sx = 90 + 120*h01(base ^ 0x11);
+    const sy = 40 + 90*h01(base ^ 0x22);
+    const dots = kind === 0 ? 120 : (kind === 1 ? 80 : 60);
+
+    return { kind, pal, base, sx, sy, dots };
+  }
+
   const LIGHT_SPRITE_SIZE = 256;
-  let lightSprite = null; // CanvasImageSource | false | null
-  function ensureLightSprite(){
-    if (lightSprite !== null) return;
+  const lightSprites = [null, null, null]; // CanvasImageSource | false | null
+  function ensureLightSprite(kind){
+    const k = kind|0;
+    if (lightSprites[k] !== null) return;
+
     const S = LIGHT_SPRITE_SIZE;
 
     let c = null;
@@ -36,19 +87,19 @@ export function createChannel({ seed, audio }){
       c = el;
     } else {
       // Headless/non-DOM environment: skip the light overlay rather than crashing.
-      lightSprite = false;
+      lightSprites[k] = false;
       return;
     }
 
     const g = c.getContext('2d');
     const cx = S/2, cy = S/2;
     const grad = g.createRadialGradient(cx,cy,0,cx,cy,S/2);
-    grad.addColorStop(0,'rgba(120,255,160,0.10)');
-    grad.addColorStop(1,'rgba(0,0,0,0)');
+    grad.addColorStop(0, PALETTES[k].light0);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
     g.clearRect(0,0,S,S);
     g.fillStyle = grad;
     g.fillRect(0,0,S,S);
-    lightSprite = c;
+    lightSprites[k] = c;
   }
 
   function makePhasePlan(){
@@ -94,7 +145,10 @@ export function createChannel({ seed, audio }){
 
   function init({width,height}){
     w=width; h=height; t=0;
-    ensureLightSprite();
+    // Build light sprites up-front (once per palette) so renderCam stays allocation-free.
+    ensureLightSprite(0);
+    ensureLightSprite(1);
+    ensureLightSprite(2);
 
     // Phase plan needs to be constructed before we schedule events.
     phasePlan = makePhasePlan();
@@ -107,6 +161,7 @@ export function createChannel({ seed, audio }){
 
     cams = Array.from({length: 4}, (_,i)=>({
       id:i,
+      scene: makeScene(i),
       ph: rand()*10,
       boxes: [],
       msg: 'IDLE',
@@ -264,29 +319,74 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = 'rgba(0,0,0,0.9)';
     ctx.fillRect(x,y,cw,ch);
 
-    // fake scene: moving light + noise
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.fillStyle = 'rgba(200,255,210,0.12)';
-    for (let i=0;i<120;i++){
-      const px = x + ((i*97 + t*120) % cw);
-      const py = y + ((i*53 + t*70) % ch);
-      ctx.fillRect(px, py, 1, 1);
+    const scene = cam.scene;
+    const pal = scene.pal;
+
+    // fake scene: per-cam stylized feeds (distinct palettes + motion patterns)
+    if (scene.kind === 0){
+      // ALLEY: speckle noise
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = pal.dot;
+      for (let i=0;i<scene.dots;i++){
+        const px = x + ((i*97 + t*scene.sx) % cw);
+        const py = y + ((i*53 + t*scene.sy) % ch);
+        ctx.fillRect(px, py, 1, 1);
+      }
+      ctx.restore();
+
+    } else if (scene.kind === 1){
+      // HALL: scanlines + softer speckle
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = pal.dot;
+      for (let yy=0; yy<ch; yy+=3){
+        ctx.fillRect(x, y + yy, cw, 1);
+      }
+      for (let i=0;i<scene.dots;i++){
+        const px = x + ((i*113 + t*(scene.sx*0.72)) % cw);
+        const py = y + ((i*41 + t*(scene.sy*0.55)) % ch);
+        ctx.fillRect(px, py, 1, 1);
+      }
+      ctx.restore();
+
+    } else {
+      // YARD: blocky silhouettes + sparse grain
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = pal.dot;
+      for (let i=0;i<scene.dots;i++){
+        const px = x + ((i*67 + t*(scene.sx*0.6)) % cw);
+        const py = y + ((i*29 + t*(scene.sy*0.42)) % ch);
+        ctx.fillRect(px, py, 1, 1);
+      }
+
+      ctx.globalAlpha = 0.14;
+      ctx.fillStyle = '#000';
+      for (let i=0;i<4;i++){
+        const rx = h01(scene.base ^ (0x100 + i*31)) * 0.7;
+        const ry = h01(scene.base ^ (0x200 + i*57)) * 0.55;
+        const rw = 0.18 + 0.28*h01(scene.base ^ (0x300 + i*73));
+        const rh = 0.12 + 0.25*h01(scene.base ^ (0x400 + i*91));
+        const bob = 0.01*Math.sin(t*0.25 + i + cam.ph);
+        ctx.fillRect(x + (rx + bob)*cw, y + (ry + bob)*ch, rw*cw, rh*ch);
+      }
+      ctx.restore();
     }
-    ctx.restore();
 
     // cached "light" (no per-frame gradients)
-    ensureLightSprite();
-    if (lightSprite){
-      const lx = x + cw*(0.2 + 0.6*(0.5+0.5*Math.sin(t*0.4+cam.ph)));
-      const ly = y + ch*(0.2 + 0.6*(0.5+0.5*Math.cos(t*0.33+cam.ph)));
+    ensureLightSprite(scene.kind);
+    const spr = lightSprites[scene.kind|0];
+    if (spr){
+      const lx = x + cw*(0.2 + 0.6*(0.5+0.5*Math.sin(t*(0.32 + 0.04*scene.kind)+cam.ph)));
+      const ly = y + ch*(0.2 + 0.6*(0.5+0.5*Math.cos(t*(0.27 + 0.03*scene.kind)+cam.ph)));
       const diam = Math.max(1, cw*1.2);
-      ctx.drawImage(lightSprite, lx - diam/2, ly - diam/2, diam, diam);
+      ctx.drawImage(spr, lx - diam/2, ly - diam/2, diam, diam);
     }
 
     // boxes
     ctx.save();
-    ctx.strokeStyle = 'rgba(120,255,160,0.85)';
+    ctx.strokeStyle = pal.box;
     ctx.lineWidth = 2;
     for (const b of cam.boxes){
       const a = b.life/b.max;
@@ -310,7 +410,7 @@ export function createChannel({ seed, audio }){
 
       // Deterministic static (no PRNG calls in draw).
       const frame = (t*24) | 0;
-      ctx.fillStyle = 'rgba(200,255,210,1)';
+      ctx.fillStyle = pal.hud;
       for (let i=0;i<34;i++){
         const u = Math.sin((i*127.1 + frame*17.3 + seed32*0.001) * 0.7) * 43758.5453;
         const v = u - Math.floor(u);
@@ -321,7 +421,7 @@ export function createChannel({ seed, audio }){
       }
 
       ctx.globalAlpha = 0.95;
-      ctx.fillStyle = 'rgba(180,255,210,0.95)';
+      ctx.fillStyle = pal.hud;
       ctx.font = '18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
       ctx.fillText(stage === 'LOSS' ? 'NO SIGNAL' : 'RECONNECTING...', x + cw*0.18, y + ch*0.55);
 
@@ -335,7 +435,7 @@ export function createChannel({ seed, audio }){
         ctx.globalAlpha = 0.8;
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
         ctx.fillRect(bx,by,bw,bh);
-        ctx.fillStyle = 'rgba(120,255,160,0.9)';
+        ctx.fillStyle = pal.box;
         ctx.fillRect(bx,by,Math.max(1, bw*p),bh);
       }
 
@@ -346,9 +446,9 @@ export function createChannel({ seed, audio }){
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(x,y,cw, 24);
-    ctx.fillStyle = 'rgba(180,255,210,0.9)';
+    ctx.fillStyle = pal.hud;
     ctx.font = '14px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-    ctx.fillText(`CAM ${cam.id+1}  ${msg}`, x+8, y+17);
+    ctx.fillText(`CAM ${cam.id+1} ${pal.name}  ${msg}`, x+8, y+17);
     ctx.fillText(ts, x+cw-110, y+17);
     ctx.restore();
   }
