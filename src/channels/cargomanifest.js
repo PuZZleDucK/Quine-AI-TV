@@ -35,6 +35,51 @@ export function createChannel({ seed, audio }){
   let dpr = 1;
   let t = 0;
 
+  // gradient caches (rebuilt on resize or ctx swap)
+  let bgGrad = null;
+  let bgGradCtx = null;
+  let bgGradH = 0;
+
+  let vignetteGrad = null;
+  let vignetteGradCtx = null;
+  let vignetteW = 0;
+  let vignetteH = 0;
+
+  function invalidateGradients(){
+    bgGrad = null;
+    bgGradCtx = null;
+    vignetteGrad = null;
+    vignetteGradCtx = null;
+  }
+
+  function getBGGrad(ctx){
+    if (!bgGrad || bgGradCtx !== ctx || bgGradH !== h){
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, bg0);
+      g.addColorStop(1, bg1);
+      bgGrad = g;
+      bgGradCtx = ctx;
+      bgGradH = h;
+    }
+    return bgGrad;
+  }
+
+  function getVignetteGrad(ctx){
+    if (!vignetteGrad || vignetteGradCtx !== ctx || vignetteW !== w || vignetteH !== h){
+      const vg = ctx.createRadialGradient(
+        w * 0.5, h * 0.5, Math.min(w, h) * 0.2,
+        w * 0.5, h * 0.5, Math.max(w, h) * 0.8
+      );
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.28)');
+      vignetteGrad = vg;
+      vignetteGradCtx = ctx;
+      vignetteW = w;
+      vignetteH = h;
+    }
+    return vignetteGrad;
+  }
+
   // Visual identity: starship cargo bay HUD
   const hue = 190 + rand() * 50;
   const bg0 = `hsl(${(hue + 220) % 360}, 26%, 8%)`;
@@ -158,6 +203,8 @@ export function createChannel({ seed, audio }){
     w = width;
     h = height;
     dpr = devicePixelRatio;
+
+    invalidateGradients();
 
     font = Math.max(14, Math.floor(h / 28));
     mono = Math.max(12, Math.floor(h / 32));
@@ -312,10 +359,7 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBG(ctx){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, bg0);
-    g.addColorStop(1, bg1);
-    ctx.fillStyle = g;
+    ctx.fillStyle = getBGGrad(ctx);
     ctx.fillRect(0, 0, w, h);
 
     // subtle drifting grid
@@ -625,10 +669,7 @@ export function createChannel({ seed, audio }){
 
     // subtle vignette
     ctx.save();
-    const vg = ctx.createRadialGradient(w * 0.5, h * 0.5, Math.min(w, h) * 0.2, w * 0.5, h * 0.5, Math.max(w, h) * 0.8);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.28)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = getVignetteGrad(ctx);
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
