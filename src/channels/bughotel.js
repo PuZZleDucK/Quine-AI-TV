@@ -179,6 +179,21 @@ export function createChannel({ seed, audio }){
   // Audio
   let ah = null;
 
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = ah;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      try { audio.stopCurrent(); } catch {}
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ah = null;
+  }
+
   function initCritters(){
     const n = 8;
     critters = [];
@@ -257,13 +272,17 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    stopAmbience({ clearCurrent: true });
+
     ah = makeAudioHandle();
     audio.setCurrent(ah);
   }
 
   function onAudioOff(){
-    try { ah?.stop?.(); } catch {}
-    ah = null;
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy(){ onAudioOff(); }
