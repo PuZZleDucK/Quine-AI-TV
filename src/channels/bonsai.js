@@ -119,7 +119,7 @@ export function createChannel({ seed, audio }){
 
     // pot body (matches render() placement)
     const s = Math.min(w, h);
-    const cx = w * 0.52;
+    const cx = w * 0.49;
     const cy = h * 0.63;
     const potW = s * 0.42;
     const potH = s * 0.16;
@@ -681,7 +681,7 @@ export function createChannel({ seed, audio }){
     drawBench(ctx);
 
     const s = Math.min(w, h);
-    const cx = w * 0.52;
+    const cx = w * 0.49;
     const potY = h * 0.63;
 
     drawPot(ctx, cx, potY, s);
