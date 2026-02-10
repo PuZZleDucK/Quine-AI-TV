@@ -27,11 +27,14 @@ const audio = new AudioManager();
 // Default boot state: TV ON and SCAN enabled.
 // (Audio remains OFF until user gesture, due to browser autoplay policies.)
 let powered = true;
-let showOsd = true;
+let osdPinned = false;
+let osdVisible = true;
 let showGuide = false;
 let scanning = true;
 let scanTimer = null;
 const SCAN_PERIOD_MS = 30_000;
+const OSD_AUTOHIDE_MS = 10_000;
+let osdHideTimer = null;
 
 let currentIndex = 0;
 let current = null; // channel instance
@@ -51,7 +54,7 @@ let _noiseBH = 0;
 const $ = (id) => document.getElementById(id);
 $('btn-power').addEventListener('click', () => togglePower());
 $('btn-audio').addEventListener('click', () => toggleAudio());
-$('btn-info').addEventListener('click', () => { showOsd = !showOsd; osd.classList.toggle('hidden', !showOsd); });
+$('btn-info').addEventListener('click', () => toggleOsdPin());
 $('btn-ch-up').addEventListener('click', () => channelStep(+1));
 $('btn-ch-down').addEventListener('click', () => channelStep(-1));
 $('btn-scan')?.addEventListener('click', () => toggleScan());
@@ -77,7 +80,7 @@ window.addEventListener('keydown', (e) => {
   else if (/^[0-9]$/.test(e.key)) { addDigit(e.key); }
   else if (e.key.toLowerCase() === 'a') { toggleAudio(); }
   else if (e.key.toLowerCase() === 's') { toggleScan(); }
-  else if (e.key.toLowerCase() === 'i') { showOsd = !showOsd; osd.classList.toggle('hidden', !showOsd); }
+  else if (e.key.toLowerCase() === 'i') { toggleOsdPin(); }
   else if (e.key.toLowerCase() === 'g') {
     showGuide = !showGuide;
     guide?.classList.toggle('hidden', !showGuide);
@@ -140,7 +143,7 @@ function addDigit(d){
   tuneBuffer = (tuneBuffer + d).slice(0, 3);
   tuneTimer = 1.5;
   setOsd();
-  flashOsd();
+  showOsdTemporarily();
 }
 
 function backspaceTune(){
@@ -148,7 +151,7 @@ function backspaceTune(){
   tuneBuffer = tuneBuffer.slice(0, -1);
   tuneTimer = 1.5;
   setOsd();
-  flashOsd();
+  showOsdTemporarily();
 }
 
 function confirmTune(){
@@ -172,11 +175,34 @@ async function channelStep(dir){
   await switchTo(next);
 }
 
-function flashOsd(){
-  osd.classList.remove('hidden');
-  showOsd = true;
-  clearTimeout(flashOsd._t);
-  flashOsd._t = setTimeout(() => { if (!showOsd) osd.classList.add('hidden'); }, 1200);
+function setOsdVisibility(){
+  osd.classList.toggle('hidden', !osdVisible);
+}
+
+function showOsdTemporarily(){
+  osdVisible = true;
+  setOsdVisibility();
+  if (osdPinned) return;
+
+  clearTimeout(osdHideTimer);
+  osdHideTimer = setTimeout(() => {
+    osdHideTimer = null;
+    if (osdPinned) return;
+    osdVisible = false;
+    setOsdVisibility();
+  }, OSD_AUTOHIDE_MS);
+}
+
+function toggleOsdPin(){
+  osdPinned = !osdPinned;
+  osdVisible = true;
+  setOsdVisibility();
+  if (osdPinned){
+    clearTimeout(osdHideTimer);
+    osdHideTimer = null;
+  } else {
+    showOsdTemporarily();
+  }
 }
 
 function disarmScan(){
@@ -205,7 +231,7 @@ function toggleScan(){
   }
   armScan();
   setOsd();
-  flashOsd();
+  showOsdTemporarily();
 }
 
 async function toggleAudio(){
@@ -216,7 +242,7 @@ async function toggleAudio(){
     current?.onAudioOff?.();
   }
   setOsd();
-  flashOsd();
+  showOsdTemporarily();
 }
 
 async function togglePower(){
@@ -232,7 +258,7 @@ async function togglePower(){
     guide?.classList.add('hidden');
   }
   setOsd();
-  flashOsd();
+  showOsdTemporarily();
 }
 
 function seedForChannel(id, idx){
@@ -258,7 +284,7 @@ async function switchTo(idx, {boot=false}={}){
 
   currentIndex = idx;
   setOsd();
-  flashOsd();
+  showOsdTemporarily();
   if (showGuide) renderGuide();
 
   // dynamic import through Vite's module graph so channel chunks are hashed in production.
