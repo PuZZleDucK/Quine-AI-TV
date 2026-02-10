@@ -144,7 +144,12 @@ export function createChannel({ seed, audio }){
 
     bg: null,
     vignette: null,
+
     desk: null,
+    deskGrain: null, // CanvasImageSource | false | null
+    deskGrainW: 0,
+    deskGrainH: 0,
+    deskGrainPad: 0,
 
     plate: null,
     drumTop: null,
@@ -193,12 +198,55 @@ export function createChannel({ seed, audio }){
       cache.vignette = v;
     }
 
-    // Desk wood
+    // Desk wood + cached grain layer (avoid per-frame stroke loops in drawDesk)
     {
       const g = ctx.createLinearGradient(0, box.y, 0, box.y + box.h);
       g.addColorStop(0, pal.wood0);
       g.addColorStop(1, pal.wood1);
       cache.desk = g;
+
+      const pad = 6;
+      cache.deskGrainPad = pad;
+
+      const W = Math.max(1, Math.ceil(box.w + pad * 2));
+      const H = Math.max(1, Math.ceil(box.h + pad * 2));
+      cache.deskGrainW = W;
+      cache.deskGrainH = H;
+
+      const c = makeCanvas(W, H);
+      if (!c){
+        cache.deskGrain = false;
+      } else {
+        const gctx = c.getContext('2d');
+        gctx.clearRect(0, 0, W, H);
+        gctx.save();
+        gctx.globalAlpha = 0.22;
+        gctx.strokeStyle = 'rgba(0,0,0,0.25)';
+        gctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) / 520));
+
+        // Deterministic jitter that doesn't consume the channel's main rand().
+        const r2 = mulberry32(((seed | 0) ^ 0x6d2b79f5) >>> 0);
+
+        const lines = 18;
+        for (let i = 0; i < lines; i++){
+          const yy = pad + (i / lines) * box.h;
+          const amp = box.w * (0.01 + (i % 3) * 0.003) * (0.90 + r2() * 0.20);
+          const phase = r2() * Math.PI * 2;
+
+          gctx.beginPath();
+          const step = box.w / 24;
+          for (let x = -pad; x <= box.w + pad + 0.001; x += step){
+            const u = x / box.w;
+            const y = yy + Math.sin(u * 8 + i * 1.7 + phase) * amp;
+            if (x <= -pad + 0.001) gctx.moveTo(pad + x, y);
+            else gctx.lineTo(pad + x, y);
+          }
+          gctx.stroke();
+        }
+
+        gctx.restore();
+        cache.deskGrain = c;
+      }
     }
 
     // Music box inner plate
@@ -501,28 +549,27 @@ export function createChannel({ seed, audio }){
   }
 
   function drawDesk(ctx){
+    const r = Math.max(10, Math.min(w,h)*0.02);
+
     ctx.fillStyle = cache.desk;
-    roundedRect(ctx, box.x, box.y, box.w, box.h, Math.max(10, Math.min(w,h)*0.02));
+    roundedRect(ctx, box.x, box.y, box.w, box.h, r);
     ctx.fill();
 
-    // grain
-    ctx.save();
-    ctx.globalAlpha = 0.22;
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-    ctx.lineWidth = Math.max(1, Math.floor(Math.min(w,h)/520));
-    for (let i=0;i<18;i++){
-      const yy = box.y + (i/18)*box.h;
-      const amp = box.w * (0.01 + (i%3)*0.003);
-      ctx.beginPath();
-      for (let x=box.x; x<=box.x+box.w; x+=box.w/24){
-        const u = (x - box.x) / box.w;
-        const y = yy + Math.sin(u*8 + i*1.7 + t*0.08) * amp;
-        if (x===box.x) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
+    // grain (cached offscreen layer; blit only)
+    const grain = cache.deskGrain;
+    if (grain){
+      const pad = cache.deskGrainPad | 0;
+
+      // tiny drift so it doesn't feel stamped; still alloc-free and no per-frame strokes.
+      const driftX = Math.sin(t * 0.05) * 1.5;
+      const driftY = Math.cos(t * 0.04) * 1.5;
+
+      ctx.save();
+      roundedRect(ctx, box.x, box.y, box.w, box.h, r);
+      ctx.clip();
+      ctx.drawImage(grain, box.x - pad + driftX, box.y - pad + driftY);
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   function drawMusicBox(ctx){
