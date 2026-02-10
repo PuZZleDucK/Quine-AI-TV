@@ -381,12 +381,13 @@ export function createChannel({ seed, audio }) {
     }
 
     // Letters (outer)
+    ctx.fillStyle = 'rgb(235,255,248)';
     for (let i = 0; i < 26; i++) {
       const ang = i * STEP;
       const ch = ALPHA[i];
       const a = 0.28 + 0.18 * (0.5 + 0.5 * Math.sin(t * 0.9 + i));
-      ctx.fillStyle = `rgba(235,255,248,${a})`;
       ctx.save();
+      ctx.globalAlpha = a;
       ctx.rotate(ang);
       ctx.translate(0, -outerR * 0.86);
       ctx.rotate(-ang);
@@ -395,12 +396,13 @@ export function createChannel({ seed, audio }) {
     }
 
     // Letters (inner)
+    ctx.fillStyle = 'rgb(255,245,210)';
     for (let i = 0; i < 26; i++) {
       const ang = innerRot + i * STEP;
       const ch = innerAlphabet[i];
       const a = 0.26 + 0.14 * (0.5 + 0.5 * Math.sin(t * 0.7 + i * 0.6));
-      ctx.fillStyle = `rgba(255,245,210,${a})`;
       ctx.save();
+      ctx.globalAlpha = a;
       ctx.rotate(ang);
       ctx.translate(0, -innerR * 0.82);
       ctx.rotate(-ang);
@@ -574,9 +576,10 @@ export function createChannel({ seed, audio }) {
     // Dust
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = 'rgb(220,255,245)';
     for (const d of dust) {
       const tw = 0.5 + 0.5 * Math.sin(t * 0.7 + d.tw);
-      ctx.fillStyle = `rgba(220,255,245,${d.a * (0.5 + tw * 0.6)})`;
+      ctx.globalAlpha = d.a * (0.5 + tw * 0.6);
       ctx.fillRect(d.x, d.y, d.r, d.r);
     }
     ctx.restore();
