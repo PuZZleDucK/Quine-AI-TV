@@ -164,6 +164,45 @@ export function createChannel({ seed, audio }) {
     }
     b.restore();
 
+    // Faint chalk diagrams / notes (deterministic, baked into the board texture).
+    b.save();
+    b.globalAlpha = 0.16;
+    b.strokeStyle = 'rgba(235,255,248,0.55)';
+    b.fillStyle = 'rgba(235,255,248,0.55)';
+    b.lineWidth = Math.max(1, h / 700);
+    b.font = `${Math.max(10, (h / 60) | 0)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    b.textAlign = 'left';
+    b.textBaseline = 'top';
+
+    const dx = w * 0.07;
+    const dy = h * 0.28;
+    const s = 1 + ((r2() * 25) | 0);
+    b.fillText(`SHIFT +${s}`, dx, dy);
+    b.fillText('A→?', dx, dy + h * 0.04);
+
+    // Tiny wheel sketch.
+    const rr = Math.min(w, h) * 0.05;
+    b.save();
+    b.translate(dx + rr * 1.1, dy + h * 0.11);
+    b.beginPath();
+    b.arc(0, 0, rr, 0, Math.PI * 2);
+    b.stroke();
+    b.beginPath();
+    b.arc(0, 0, rr * 0.65, 0, Math.PI * 2);
+    b.stroke();
+    b.beginPath();
+    b.moveTo(0, -rr * 1.15);
+    b.lineTo(0, -rr * 0.85);
+    b.stroke();
+    b.restore();
+
+    const ex = w * 0.70;
+    const ey = h * 0.30;
+    b.fillText('C = (P + K) mod 26', ex, ey);
+    b.fillText('P = (C − K) mod 26', ex, ey + h * 0.04);
+
+    b.restore();
+
     // Frame
     b.save();
     b.strokeStyle = 'rgba(0,0,0,0.55)';
@@ -709,15 +748,33 @@ export function createChannel({ seed, audio }) {
     const animPulse = seg === 'REVEAL' ? clamp(stamp, 0, 1) : 0;
     drawWheel(ctx, cx, cy, r, lesson, hiPlain, hiCipher, animPulse);
 
+    // Subtle desk edge (foreground framing).
+    ctx.save();
+    const deskY = h * 0.87;
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = 'rgb(10, 20, 18)';
+    ctx.fillRect(0, deskY, w, h - deskY);
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = 'rgb(235,255,248)';
+    ctx.fillRect(0, deskY, w, Math.max(1, h / 520));
+    ctx.restore();
+
     // Chalk tray / eraser (foreground)
     ctx.save();
     const trayY = h * 0.92;
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(w * 0.07, trayY, w * 0.86, h * 0.02);
+
+    // Chalk sticks + eraser blocks.
     ctx.fillStyle = 'rgba(235,255,248,0.16)';
     ctx.fillRect(w * 0.14, trayY - h * 0.018, w * 0.09, h * 0.022);
     ctx.fillStyle = 'rgba(235,255,248,0.12)';
     ctx.fillRect(w * 0.25, trayY - h * 0.014, w * 0.06, h * 0.018);
+    ctx.fillStyle = 'rgba(235,255,248,0.14)';
+    ctx.fillRect(w * 0.33, trayY - h * 0.012, w * 0.022, h * 0.012);
+    ctx.fillRect(w * 0.36, trayY - h * 0.013, w * 0.018, h * 0.011);
+    ctx.fillRect(w * 0.39, trayY - h * 0.012, w * 0.02, h * 0.012);
+
     ctx.restore();
 
     drawTextPanel(ctx, lesson, demoPlain, demoCipher, quizCipher, answer, seg, segT);
