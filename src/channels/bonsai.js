@@ -131,6 +131,90 @@ export function createChannel({ seed, audio }){
     fgCache.potBody = body;
   }
 
+  // Leaf puff sprite cache (avoid per-puff radial gradients in drawTree).
+  // We build a white alpha mask per radius bucket, then lazily build a tinted sprite
+  // per (radius bucket, leafFill) so the render loop stays gradient-free.
+  const LEAFPUFF_R_STEP = 3; // px
+  let leafPuffMaskSprites = null; // Map<radiusPx:number, CanvasImageSource>
+  let leafPuffTintKey = '';
+  let leafPuffTintedSprites = null; // Map<radiusPx:number, CanvasImageSource>
+
+  function makeCanvas(W,H){
+    let c = null;
+    if (typeof OffscreenCanvas !== 'undefined') c = new OffscreenCanvas(W,H);
+    else if (typeof document !== 'undefined'){
+      const el = document.createElement('canvas');
+      el.width = W; el.height = H;
+      c = el;
+    }
+    return c;
+  }
+
+  function bucketLeafPuffRadiusPx(radiusPx){
+    const r = Math.max(2, radiusPx|0);
+    return Math.max(2, Math.round(r / LEAFPUFF_R_STEP) * LEAFPUFF_R_STEP);
+  }
+
+  function clearLeafPuffSprites(){
+    leafPuffMaskSprites = null;
+    leafPuffTintedSprites = null;
+    leafPuffTintKey = '';
+  }
+
+  function getLeafPuffMaskSprite(radiusPx){
+    const r = bucketLeafPuffRadiusPx(radiusPx);
+    if (!leafPuffMaskSprites) leafPuffMaskSprites = new Map();
+    const hit = leafPuffMaskSprites.get(r);
+    if (hit) return hit;
+
+    const size = r*2 + 4;
+    const c = makeCanvas(size, size);
+    if (!c) return null;
+    const g = c.getContext('2d');
+    g.setTransform(1,0,0,1,0,0);
+    g.clearRect(0,0,size,size);
+
+    const cx = size/2;
+    const grad = g.createRadialGradient(cx, cx, r*0.15, cx, cx, r);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.fillRect(0,0,size,size);
+
+    leafPuffMaskSprites.set(r, c);
+    return c;
+  }
+
+  function getLeafPuffSprite(radiusPx, leafFill){
+    if (leafPuffTintKey !== leafFill){
+      leafPuffTintKey = leafFill;
+      leafPuffTintedSprites = null;
+    }
+
+    const r = bucketLeafPuffRadiusPx(radiusPx);
+    if (!leafPuffTintedSprites) leafPuffTintedSprites = new Map();
+    const hit = leafPuffTintedSprites.get(r);
+    if (hit) return hit;
+
+    const mask = getLeafPuffMaskSprite(r);
+    if (!mask) return null;
+
+    const size = mask.width;
+    const c = makeCanvas(size, size);
+    if (!c) return null;
+    const g = c.getContext('2d');
+    g.setTransform(1,0,0,1,0,0);
+    g.clearRect(0,0,size,size);
+
+    g.drawImage(mask, 0, 0);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = leafFill;
+    g.fillRect(0,0,size,size);
+
+    leafPuffTintedSprites.set(r, c);
+    return c;
+  }
+
   // Growth timeline
   let day = 1 + ((seed >>> 0) % 90);
   let stage = 0; // 0..STAGES-1
@@ -195,6 +279,7 @@ export function createChannel({ seed, audio }){
     w = width; h = height; t = 0;
     bgCache.bg = bgCache.lamp = bgCache.vignette = null;
     fgCache.bench = fgCache.potBody = null;
+    clearLeafPuffSprites();
     buildSkeleton();
 
     stage = (seed >>> 0) % STAGES;
@@ -207,6 +292,7 @@ export function createChannel({ seed, audio }){
     w = width; h = height;
     bgCache.bg = bgCache.lamp = bgCache.vignette = null;
     fgCache.bench = fgCache.potBody = null;
+    clearLeafPuffSprites();
   }
 
   function makeAudioHandle(){
@@ -500,7 +586,8 @@ export function createChannel({ seed, audio }){
     const leafiness = clamp01(1.15 - season * 1.05);
     const puffAlpha = 0.10 + 0.35 * leafiness;
 
-    // leaf puffs
+    // leaf puffs (sprite-based: no per-puff gradients in steady-state)
+    const leafFill = `rgb(${leafRGB[0]},${leafRGB[1]},${leafRGB[2]})`;
     for (const p of skeleton.leafPuffs){
       const b = skeleton.branches[p.b];
       const e = branchEnd(b, sway, grow);
@@ -508,13 +595,20 @@ export function createChannel({ seed, audio }){
       const y = lerp(-e.y0, -e.y1, p.u) + p.dy + Math.cos(t*0.32 + p.wob) * 0.006;
       const r = p.r * (0.65 + 0.65*grow);
 
-      const rg = ctx.createRadialGradient(x, y, r*0.2, x, y, r);
-      rg.addColorStop(0, `rgba(${leafRGB[0]},${leafRGB[1]},${leafRGB[2]},${puffAlpha})`);
-      rg.addColorStop(1, `rgba(${leafRGB[0]},${leafRGB[1]},${leafRGB[2]},0)`);
-      ctx.fillStyle = rg;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI*2);
-      ctx.fill();
+      // ctx is scaled by s; compute sprite size in pixel space then draw with model-space dimensions.
+      const rPx = Math.max(2, Math.round(r * s));
+      const spr = getLeafPuffSprite(rPx, leafFill);
+      if (!spr) continue;
+
+      const sizePx = spr.width;
+      const size = sizePx / s;
+      const x0 = x - size * 0.5;
+      const y0 = y - size * 0.5;
+
+      ctx.save();
+      ctx.globalAlpha = puffAlpha;
+      ctx.drawImage(spr, x0, y0, size, size);
+      ctx.restore();
     }
 
     ctx.restore();
