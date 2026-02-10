@@ -1,5 +1,6 @@
 import { mulberry32, clamp } from '../util/prng.js';
 
+// REVIEWED: 2026-02-11
 // Botanical Blueprint Studio
 // Drafting-table plant schematics (venation/cross-sections) drawn in timed layers.
 
