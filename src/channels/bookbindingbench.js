@@ -44,6 +44,32 @@ export function createChannel({ seed, audio }){
 
   let benchDrift = { x: 0, y: 0 };
 
+  // cached gradients (rebuild on resize / ctx swap)
+  let benchWoodGrad = null;
+  let benchSpotGrad = null;
+  let benchGradCtx = null;
+  let benchGradW = 0;
+  let benchGradH = 0;
+
+  function ensureBenchGradients(ctx){
+    if (benchGradCtx === ctx && benchGradW === w && benchGradH === h && benchWoodGrad && benchSpotGrad) return;
+    benchGradCtx = ctx;
+    benchGradW = w;
+    benchGradH = h;
+
+    // wood gradient
+    const g = ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0, pal.wood[0]);
+    g.addColorStop(1, pal.wood[1]);
+    benchWoodGrad = g;
+
+    // bench spotlight
+    const sp = ctx.createRadialGradient(w*0.5, h*0.45, Math.min(w,h)*0.05, w*0.5, h*0.45, Math.max(w,h)*0.7);
+    sp.addColorStop(0, 'rgba(0,0,0,0)');
+    sp.addColorStop(1, 'rgba(0,0,0,0.55)');
+    benchSpotGrad = sp;
+  }
+
   // stitch state
   let stitchPath = []; // precomputed points on spine
 
@@ -261,11 +287,10 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
 
-    // wood gradient
-    const g = ctx.createLinearGradient(0,0,0,h);
-    g.addColorStop(0, pal.wood[0]);
-    g.addColorStop(1, pal.wood[1]);
-    ctx.fillStyle = g;
+
+    ensureBenchGradients(ctx);
+
+    ctx.fillStyle = benchWoodGrad;
     ctx.fillRect(0,0,w,h);
 
     // subtle grain
@@ -284,11 +309,9 @@ export function createChannel({ seed, audio }){
     }
     ctx.restore();
 
+
     // bench spotlight
-    const sp = ctx.createRadialGradient(w*0.5, h*0.45, Math.min(w,h)*0.05, w*0.5, h*0.45, Math.max(w,h)*0.7);
-    sp.addColorStop(0, 'rgba(0,0,0,0)');
-    sp.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = sp;
+    ctx.fillStyle = benchSpotGrad;
     ctx.fillRect(0,0,w,h);
   }
 
