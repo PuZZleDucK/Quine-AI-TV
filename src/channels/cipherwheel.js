@@ -24,16 +24,79 @@ export function createChannel({ seed, audio }) {
   const STEP = (Math.PI * 2) / 26;
 
   const phrases = [
+    // Keep these short-ish and varied; the first word is used for the quiz.
     'HELLO WORLD',
     'MEET AT DAWN',
     'TRUST THE DUCK',
-    'THE COFFEE IS HOT',
+    'ROTATE THE RING',
+    'SHIFT HAPPENS',
     'KEEP IT SECRET',
-    'THIS IS A DRILL',
     'READ THE MANUAL',
     'NO BUGS TODAY',
     'CODE LIKE MAGIC',
+    'CHECK YOUR KEYS',
+    'WRITE IT DOWN',
+    'DONT PANIC',
+    'STAY CURIOUS',
+    'BREAK THE CODE',
+    'THE ANSWER IS 42',
+    'DRINK WATER',
+    'LOCK IT DOWN',
+    'OPEN THE DOOR',
+    'FOLLOW THE CIPHER',
+    'MIND THE GAP',
+    'SEND HELP',
+    'GOOD LUCK',
+    'KEEP PRACTICING',
+    'BLUE TEAM WINS',
+    'GREEN CHALK DUST',
+    'PAPER TRAIL',
+    'QUIZ TIME',
+    'NO SPOILERS',
+    'ENCRYPT EVERYTHING',
+    'DECRYPT LATER',
+    'WATCH THE POINTER',
+    'COUNT TO TEN',
+    'TRUST BUT VERIFY',
+    'HIDE IN PLAIN SIGHT',
+    'THE DUCK APPROVES',
   ];
+
+  const stampTemplatesCaesar = [
+    'SHIFT +{S} OK',
+    'SHIFT +{S} SET',
+    'OFFSET +{S}',
+    'KEY +{S}',
+    'ROTATE +{S}',
+    'WHEEL +{S}',
+    'SHIFTED',
+    'DECODED',
+  ];
+
+  const stampTemplatesAtbash = [
+    'ATBASH OK',
+    'A-Z MIRROR',
+    'MIRROR SET',
+    'REFLECTED',
+    'INVERTED OK',
+    'REVERSED',
+    'DECODED',
+  ];
+
+  function pickByKey(arr, key) {
+    const r = mulberry32(key >>> 0);
+    return arr[(r() * arr.length) | 0];
+  }
+
+  function stampTextFor(lesson, step) {
+    const k = (seed ^ 0x51ed270b ^ ((step * 0x9e3779b9) >>> 0)) >>> 0;
+    const pool = lesson.type === 'ATBASH' ? stampTemplatesAtbash : stampTemplatesCaesar;
+    const template = pickByKey(pool, k);
+    if (lesson.type === 'CAESAR') {
+      return template.replace('{S}', String(lesson.shift | 0));
+    }
+    return template.replace('{S}', '');
+  }
 
   let lessons = [];
   let lessonIndex = 0;
@@ -273,6 +336,10 @@ export function createChannel({ seed, audio }) {
     // Stamp moment + small audio cue.
     if (stamp <= 0 && t >= nextStampAt && t < nextStampAt + 0.25) {
       stamp = 1;
+
+      const lesson = lessons[lessonIndex] || lessons[0];
+      stampText = stampTextFor(lesson, step);
+
       if (audio.enabled) {
         audio.beep({ freq: 660, dur: 0.07, gain: 0.03, type: 'square' });
         audio.beep({ freq: 990, dur: 0.05, gain: 0.02, type: 'triangle' });
@@ -656,7 +723,7 @@ export function createChannel({ seed, audio }) {
     drawTextPanel(ctx, lesson, demoPlain, demoCipher, quizCipher, answer, seg, segT);
 
     // Stamp overlay (special moment)
-    stampText = 'MESSAGE DECODED';
+    // (stampText is chosen deterministically at the stamp moment)
     drawStamp(ctx);
 
     // tiny scanline for vibe
