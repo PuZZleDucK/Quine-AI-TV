@@ -170,30 +170,52 @@ export function createChannel({ seed, audio }){
     init({ width, height, dpr: dprIn });
   }
 
+  function stopAmbience({ clearCurrent=false }={}){
+    const handle = ambience;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try{ handle?.stop?.(); } catch {}
+    }
+
+    ambience = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // defensively stop any existing ambience we started
+    stopAmbience({ clearCurrent: true });
 
     // very quiet café room tone
     const n = audio.noiseSource({ type: 'pink', gain: 0.004 });
     n.start();
     const d = simpleDrone(audio, { root: 55 + rand()*18, detune: 0.7, gain: 0.015 });
 
-    ambience = {
+    const handle = {
       stop(){
         try{ n.stop(); } catch {}
         try{ d.stop(); } catch {}
       }
     };
 
-    audio.setCurrent(ambience);
+    ambience = handle;
+    audio.setCurrent(handle);
   }
 
   function onAudioOff(){
-    try{ ambience?.stop?.(); } catch {}
-    ambience = null;
+    // stop/clear everything we own; only clear AudioManager.current if it's ours
+    stopAmbience({ clearCurrent: true });
   }
 
-  function destroy(){ onAudioOff(); }
+  function destroy(){
+    stopAmbience({ clearCurrent: true });
+  }
 
   function update(dt){
     t += dt;
