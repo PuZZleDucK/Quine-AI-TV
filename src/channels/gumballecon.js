@@ -81,6 +81,21 @@ export function createChannel({ seed, audio }){
   let ambience = null;
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = ambience;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ambience = null;
+  }
+
   function pick(arr){ return arr[(rand() * arr.length) | 0]; }
 
   function resetSim(){
@@ -172,19 +187,31 @@ export function createChannel({ seed, audio }){
   function onAudioOn(){
     if (!audio.enabled) return;
 
+    // defensively stop any existing ambience we started
+    stopAmbience({ clearCurrent: true });
+
     // tiny candy-shop hum
     const n = audio.noiseSource({ type: 'pink', gain: 0.0016 });
     n.start();
-    ambience = { stop(){ try { n.stop(); } catch {} } };
-    audio.setCurrent(ambience);
+
+    const handle = {
+      stop(){
+        try { n.stop(); } catch {}
+      }
+    };
+
+    ambience = handle;
+    audio.setCurrent(handle);
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
-    ambience = null;
+    // stop/clear everything we own; only clear AudioManager.current if it's ours
+    stopAmbience({ clearCurrent: true });
   }
 
-  function destroy(){ onAudioOff(); }
+  function destroy(){
+    stopAmbience({ clearCurrent: true });
+  }
 
   function spawnCoin(rate){
     const c = coins.find(x => !x.on);
