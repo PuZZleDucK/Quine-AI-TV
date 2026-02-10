@@ -261,6 +261,7 @@ function drawComponent(ctx, kind, x, y, s, rot, ink, accent){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  const timeRand = mulberry32(((seed ^ 0x9e3779b9) >>> 0));
 
   let w = 0, h = 0, t = 0;
   let font = 16;
@@ -388,6 +389,95 @@ export function createChannel({ seed, audio }){
   const SEG_MAX = 10.5;
   let segDur = 8;
 
+
+  // time structure: 2–4 min phase cycle + rare special moments (deterministic per seed)
+  let cycleDur = 180;
+  let phaseCut1 = 0.34; // quiet→active
+  let phaseCut2 = 0.74; // active→spotlight
+  let phaseName = 'survey';
+  let phaseLabel = 'SURVEY';
+
+  let segSpeed = 1;
+  let scanSpeed = 0.55;
+  let scanAlpha = 0.9;
+  let driftScale = 1;
+  let driftFx = 0.18;
+  let driftFy = 0.14;
+  let traceAlpha = 0.52;
+  let focusBoost = 1;
+  let focusPulseSpeed = 2.4;
+
+  let nextSpecialAt = 0;
+  let specialKind = null; // 'glitch' | 'found'
+  let specialT0 = 0;
+  let specialDur = 0;
+  let specialSeed = 0;
+
+  function scheduleNextSpecial(now){
+    const interval = 45 + timeRand() * 75; // 45–120s
+    nextSpecialAt = now + interval;
+  }
+
+  function triggerSpecial(kind){
+    specialKind = kind;
+    specialT0 = t;
+    specialSeed = timeRand() * 1000;
+    specialDur = (kind === 'glitch') ? 1.2 : 2.2;
+
+    if (audio.enabled){
+      if (kind === 'glitch'){
+        const base = 220 + timeRand() * 110;
+        audio.beep({ freq: base, dur: 0.02, gain: 0.01, type: 'square' });
+        audio.beep({ freq: base * 2.2, dur: 0.03, gain: 0.008, type: 'triangle' });
+      } else {
+        chirp(1);
+      }
+    }
+  }
+
+  function updatePhase(){
+    const ct = cycleDur > 0 ? (t % cycleDur) : 0;
+    const u = cycleDur > 0 ? (ct / cycleDur) : 0;
+
+    if (u < phaseCut1){
+      phaseName = 'survey';
+      phaseLabel = 'SURVEY';
+      segSpeed = 0.92;
+      scanSpeed = 0.32;
+      scanAlpha = 0.62;
+      driftScale = 0.7;
+      driftFx = 0.14;
+      driftFy = 0.12;
+      traceAlpha = 0.38;
+      focusBoost = 0.9;
+      focusPulseSpeed = 1.9;
+    } else if (u < phaseCut2){
+      phaseName = 'scan';
+      phaseLabel = 'SCAN';
+      segSpeed = 1.08;
+      scanSpeed = 0.82;
+      scanAlpha = 1.0;
+      driftScale = 1.12;
+      driftFx = 0.23;
+      driftFy = 0.18;
+      traceAlpha = 0.58;
+      focusBoost = 1.0;
+      focusPulseSpeed = 2.8;
+    } else {
+      phaseName = 'focus';
+      phaseLabel = 'FOCUS';
+      segSpeed = 0.84;
+      scanSpeed = 0.46;
+      scanAlpha = 0.78;
+      driftScale = 0.9;
+      driftFx = 0.17;
+      driftFy = 0.14;
+      traceAlpha = 0.5;
+      focusBoost = 1.35;
+      focusPulseSpeed = 2.2;
+    }
+  }
+
   // occasional tiny "radio" bleep (deterministic scheduling)
   const RADIO_LAMBDA = 0.06; // events/sec (matches old rand() < dt * 0.06)
   let nextRadioBleepAt = 0;
@@ -447,6 +537,13 @@ export function createChannel({ seed, audio }){
     segmentT = 0;
     setSegmentDuration();
 
+    cycleDur = 120 + timeRand() * 120; // 2–4 minutes
+    phaseCut1 = clamp(0.28 + timeRand() * 0.12, 0.25, 0.45);
+    phaseCut2 = clamp(0.62 + timeRand() * 0.18, phaseCut1 + 0.18, 0.9);
+    nextSpecialAt = 0;
+    specialKind = null;
+    updatePhase();
+
     ensureCache();
   }
 
@@ -500,7 +597,10 @@ export function createChannel({ seed, audio }){
 
   function update(dt){
     t += dt;
-    segmentT += dt;
+
+    updatePhase();
+
+    segmentT += dt * segSpeed;
 
     if (segmentT >= segDur){
       nextSegment();
@@ -515,6 +615,18 @@ export function createChannel({ seed, audio }){
         scheduleNextRadioBleep(nextRadioBleepAt);
       }
     }
+
+    // rare special moments (time-scheduled, deterministic)
+    if (nextSpecialAt <= 0) scheduleNextSpecial(t);
+    while (t >= nextSpecialAt){
+      const kind = (timeRand() < 0.55) ? 'glitch' : 'found';
+      triggerSpecial(kind);
+      scheduleNextSpecial(nextSpecialAt);
+    }
+
+    if (specialKind && (t - specialT0) >= specialDur){
+      specialKind = null;
+    }
   }
 
   function render(ctx){
@@ -522,7 +634,17 @@ export function createChannel({ seed, audio }){
 
     ensureCache();
 
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    let jitterX = 0, jitterY = 0;
+
+    if (specialKind === 'glitch'){
+      const sp = (t - specialT0) / Math.max(1e-6, specialDur);
+      const p = clamp(sp, 0, 1);
+      const a = 1 - p;
+      jitterX = Math.sin((t - specialT0) * 28 + specialSeed) * a * 6;
+      jitterY = Math.cos((t - specialT0) * 21 + specialSeed * 0.7) * a * 4;
+    }
+
+    ctx.setTransform(1, 0, 0, 1, jitterX, jitterY);
 
     if (cache.bg){
       ctx.drawImage(cache.bg, 0, 0);
@@ -532,8 +654,8 @@ export function createChannel({ seed, audio }){
       ctx.fillRect(0, 0, w, h);
     }
 
-    const driftX = Math.sin(t * 0.18) * w * 0.02;
-    const driftY = Math.cos(t * 0.14) * h * 0.016;
+    const driftX = Math.sin(t * driftFx) * w * 0.02 * driftScale;
+    const driftY = Math.cos(t * driftFy) * h * 0.016 * driftScale;
 
     // board placement
     const bw = cache.bw;
@@ -565,7 +687,7 @@ export function createChannel({ seed, audio }){
     roundRect(ctx, bx, by, bw, bh, br);
     ctx.clip();
 
-    ctx.globalAlpha = 0.52;
+    ctx.globalAlpha = traceAlpha;
     ctx.strokeStyle = 'rgba(180, 255, 212, 0.22)';
     ctx.lineWidth = Math.max(1.25, 2.2 * dpr);
     for (const e of board.edges){
@@ -585,9 +707,9 @@ export function createChannel({ seed, audio }){
     }
 
     // scanning line (cached strip)
-    const scan = (Math.sin(t * 0.55) * 0.5 + 0.5);
+    const scan = (Math.sin(t * scanSpeed) * 0.5 + 0.5);
     const sx = bx + scan * bw;
-    ctx.globalAlpha = 0.9;
+    ctx.globalAlpha = scanAlpha;
     if (cache.scan){
       ctx.drawImage(cache.scan, Math.floor(sx - 10), by);
     } else {
@@ -620,19 +742,19 @@ export function createChannel({ seed, audio }){
     if (focus){
       const fx = bx + focus.x * bw;
       const fy = by + focus.y * bh;
-      const pulse = 0.5 + 0.5 * Math.sin(t * 2.4);
+      const pulse = 0.5 + 0.5 * Math.sin(t * focusPulseSpeed);
       ctx.save();
       ctx.globalAlpha = 0.9;
       ctx.strokeStyle = 'rgba(108,242,255,0.75)';
       ctx.lineWidth = Math.max(2, 2.5 * dpr);
       ctx.beginPath();
-      ctx.arc(fx, fy, 22 + pulse * 10, 0, Math.PI * 2);
+      ctx.arc(fx, fy, (22 + pulse * 10) * focusBoost, 0, Math.PI * 2);
       ctx.stroke();
 
-      ctx.globalAlpha = 0.25;
+      ctx.globalAlpha = 0.22 * focusBoost;
       ctx.fillStyle = 'rgba(108,242,255,0.3)';
       ctx.beginPath();
-      ctx.arc(fx, fy, 36 + pulse * 16, 0, Math.PI * 2);
+      ctx.arc(fx, fy, (36 + pulse * 16) * focusBoost, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
@@ -662,6 +784,13 @@ export function createChannel({ seed, audio }){
     ctx.font = `${Math.floor(font * 1.06)}px ui-sans-serif, system-ui`;
     ctx.textBaseline = 'middle';
     ctx.fillText('CIRCUIT SAFARI', Math.floor(w * 0.05), Math.floor(headerH * 0.45));
+
+    ctx.textAlign = 'right';
+    ctx.globalAlpha = 0.52;
+    ctx.fillStyle = 'rgba(108,242,255,0.9)';
+    ctx.font = `${Math.floor(font * 0.86)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.fillText(phaseLabel, Math.floor(w * 0.95), Math.floor(headerH * 0.45));
+    ctx.textAlign = 'left';
 
     ctx.globalAlpha = 0.72;
     ctx.font = `${Math.floor(font * 0.88)}px ui-sans-serif, system-ui`;
@@ -741,6 +870,48 @@ export function createChannel({ seed, audio }){
     ctx.textBaseline = 'middle';
     ctx.fillText(specimen?.subtitle || 'guided teardowns • signals • parts', Math.floor(w * 0.05), Math.floor(h * 0.965));
     ctx.restore();
+
+    // special moment overlays
+    if (specialKind === 'glitch'){
+      const p = clamp((t - specialT0) / Math.max(1e-6, specialDur), 0, 1);
+      const a = 1 - p;
+      ctx.save();
+      ctx.globalAlpha = 0.28 * a;
+      ctx.fillStyle = 'rgba(108,242,255,0.95)';
+      for (let i = 0; i < 7; i++){
+        const yy = ((i + 1) / 8) * h + Math.sin(specialSeed + i * 1.7 + (t - specialT0) * 9) * 14;
+        const hh = 4 + ((i % 3) * 3);
+        ctx.fillRect(0, yy | 0, w, hh);
+      }
+      ctx.globalAlpha = 0.18 * a;
+      ctx.fillStyle = 'rgba(0,0,0,0.95)';
+      for (let i = 0; i < 5; i++){
+        const yy = ((i + 1) / 6) * h + Math.cos(specialSeed * 0.7 + i * 2.1 + (t - specialT0) * 7) * 18;
+        ctx.fillRect(0, (yy | 0) - 2, w, 3);
+      }
+      ctx.restore();
+    } else if (specialKind === 'found'){
+      const p = clamp((t - specialT0) / Math.max(1e-6, specialDur), 0, 1);
+      const a = Math.sin(p * Math.PI);
+      ctx.save();
+      ctx.globalAlpha = 0.12 * a;
+      ctx.fillStyle = 'rgba(108,242,255,1)';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.globalAlpha = 0.85 * a;
+      ctx.strokeStyle = 'rgba(108,242,255,0.9)';
+      ctx.lineWidth = Math.max(2, 3 * dpr);
+      roundRect(ctx, bx - 6, by - 6, bw + 12, bh + 12, br + 6);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.92 * a;
+      ctx.fillStyle = 'rgba(231,238,246,0.92)';
+      ctx.font = `${Math.floor(font * 0.92)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('SPECIMEN FOUND', Math.floor(w * 0.5), Math.floor(h * 0.5));
+      ctx.restore();
+    }
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
