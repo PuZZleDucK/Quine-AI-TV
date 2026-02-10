@@ -39,6 +39,14 @@ let lastTs = performance.now();
 let tuneBuffer = '';
 let tuneTimer = 0;
 
+// Noise burst rendering cache.
+// Avoid allocating a full-screen ImageData every frame during channel transitions (helps Playwright runs too).
+let _noiseBuf = null;
+let _noiseBufCtx = null;
+let _noiseImg = null;
+let _noiseBW = 0;
+let _noiseBH = 0;
+
 // ---- UI wiring
 const $ = (id) => document.getElementById(id);
 $('btn-power').addEventListener('click', () => togglePower());
@@ -293,14 +301,38 @@ function noiseBurst(ms=520){
 }
 
 function drawNoise(nctx, w, h, alpha=1){
-  const img = nctx.createImageData(w, h);
-  const d = img.data;
+  if (alpha <= 0) return;
+
+  // Render noise to a smaller buffer then scale up. This keeps the effect
+  // CRT-ish while dramatically reducing CPU + GC pressure during transitions.
+  const targetW = Math.min(w, 360);
+  const bw = Math.max(64, targetW | 0);
+  const bh = Math.max(64, Math.floor(bw * (h / Math.max(1, w))));
+
+  if (!_noiseBuf || !_noiseBufCtx || bw !== _noiseBW || bh !== _noiseBH){
+    _noiseBW = bw;
+    _noiseBH = bh;
+    _noiseBuf = document.createElement('canvas');
+    _noiseBuf.width = bw;
+    _noiseBuf.height = bh;
+    _noiseBufCtx = _noiseBuf.getContext('2d');
+    _noiseImg = _noiseBufCtx.createImageData(bw, bh);
+  }
+
+  const d = _noiseImg.data;
   for (let i=0; i<d.length; i+=4){
     const v = (Math.random() * 255) | 0;
     d[i] = v; d[i+1] = v; d[i+2] = v;
-    d[i+3] = ((Math.random()*alpha) * 220) | 0;
+    d[i+3] = ((Math.random() * alpha) * 220) | 0;
   }
-  nctx.putImageData(img, 0, 0);
+  _noiseBufCtx.putImageData(_noiseImg, 0, 0);
+
+  nctx.save();
+  nctx.setTransform(1,0,0,1,0,0);
+  nctx.clearRect(0,0,w,h);
+  nctx.imageSmoothingEnabled = false;
+  nctx.drawImage(_noiseBuf, 0, 0, w, h);
+  nctx.restore();
 }
 
 // main loop
