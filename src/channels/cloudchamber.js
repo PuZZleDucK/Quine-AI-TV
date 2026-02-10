@@ -456,5 +456,8 @@ export function createChannel({ seed, audio }){
     drawHUD(ctx);
   }
 
-  return { onResize, update, draw, destroy, onAudioOn, onAudioOff };
+  // NOTE: main.js calls `init()` on channel creation, and only calls `onResize()`
+  // when the canvas size changes. Expose `init` so the channel is initialized
+  // correctly even when tuning without a resize.
+  return { init, onResize, update, draw, destroy, onAudioOn, onAudioOff };
 }
