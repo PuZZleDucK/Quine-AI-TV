@@ -454,8 +454,28 @@ export function createChannel({ seed, audio }){
     init({ width, height, dpr: dp });
   }
 
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = ambience;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      try { audio.stopCurrent(); } catch {}
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ambience = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    stopAmbience({ clearCurrent: true });
+
     const hiss = audio.noiseSource({ type: 'pink', gain: 0.0045 });
     hiss.start();
     const dr = simpleDrone(audio, { root: 92 + rand() * 30, detune: 0.8, gain: 0.045 });
@@ -470,8 +490,7 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
-    ambience = null;
+    stopAmbience({ clearCurrent: true });
     nextRadioBleepAt = 0;
   }
 
