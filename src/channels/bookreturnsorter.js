@@ -375,7 +375,13 @@ export function createChannel({ seed, audio }){
       }
     }
 
-    books = books.filter(b => b.alpha > 0 && b.x < w + b.w*2);
+    // in-place compaction (avoid per-frame array allocation)
+    let write = 0;
+    for (let i=0;i<books.length;i++){
+      const b = books[i];
+      if (b.alpha > 0 && b.x < w + b.w*2) books[write++] = b;
+    }
+    if (write !== books.length) books.length = write;
 
     // more scan beam during scan phase
     if (phase.id === 'scan'){
