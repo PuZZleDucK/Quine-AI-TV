@@ -84,7 +84,14 @@ export function createChannel({ seed, audio }) {
     if (k >= 0) pieces.splice(k, 1);
   }
 
+  function sortPiecesForRender(){
+    // Keep render order stable without per-frame array copies/sorts.
+    // Order: back-to-front by row (0..7).
+    pieces.sort((a,b) => ((a.i/8)|0) - ((b.i/8)|0));
+  }
+
   function resetGame(){
+
     board = new Array(64).fill(null);
     pieces = [];
     lastMove = null;
@@ -104,6 +111,8 @@ export function createChannel({ seed, audio }) {
     removeAt(7, 8); // h8 rook
     removeAt(7, 7); // h7 pawn
     removeAt(6, 7); // g7 pawn (prevents gxh6)
+
+    sortPiecesForRender();
 
     // Fresh timing.
     moveIndex = 0;
@@ -160,6 +169,8 @@ export function createChannel({ seed, audio }) {
     let special = null;
     if (core === 'c4f7') special = 'SACRIFICE';
     if (promo && core === 'h7h8') special = 'PROMOTION';
+
+    sortPiecesForRender();
 
     return { from: from.i, to: to.i, special };
   }
@@ -672,10 +683,10 @@ export function createChannel({ seed, audio }) {
 
     drawBoard(ctx, rect, flick);
 
-    // Pieces (render captured pieces already removed).
+    // Pieces (captured pieces fade out then are removed in update()).
     // Render order: back-to-front by row for the pseudo-perspective.
-    const sorted = pieces.slice().sort((a,b) => ((a.i/8)|0) - ((b.i/8)|0));
-    for (const p of sorted) drawPiece(ctx, rect, p);
+    // `pieces` is kept sorted via sortPiecesForRender() on reset/move.
+    for (const p of pieces) drawPiece(ctx, rect, p);
 
     drawDust(ctx);
 
