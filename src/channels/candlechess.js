@@ -601,7 +601,7 @@ export function createChannel({ seed, audio }) {
     ctx.fillStyle = `rgba(255,210,150,${0.88})`;
 
     const phase = moveIndex < 6 ? 'OPENING' : (moveIndex < 10 ? 'ATTACK' : 'ENDGAME');
-    const line1 = `CH ${String(1).padStart(2,'0')}  ENGINE`; // show "engine" vibe
+    const line1 = 'CHESS  ENGINE'; // show "engine" vibe (no hardcoded channel number)
     const line2 = `${phase}  EVAL ${evalScore >= 0 ? '+' : ''}${evalScore.toFixed(1)}`;
     ctx.fillText(line1, barX + barW + 18, barY + 6);
     ctx.fillStyle = 'rgba(235,228,210,0.82)';
