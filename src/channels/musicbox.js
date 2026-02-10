@@ -137,6 +137,151 @@ export function createChannel({ seed, audio }){
   let ambience = null;
   let drone = null;
 
+  // Perf: cache gradients/layers on init/resize/ctx swap so steady-state render allocates 0 gradients/frame.
+  const cache = {
+    ctx: null,
+    dirty: true,
+
+    bg: null,
+    vignette: null,
+    desk: null,
+
+    plate: null,
+    drumTop: null,
+    comb: null,
+
+    // Drum highlight sweep baked to an offscreen sprite (rotated in render).
+    drumHighlight: null, // CanvasImageSource | false | null
+    drumHighlightW: 0,
+    drumHighlightH: 0,
+
+    // Finale sparkle radial gradients bucketed by radius.
+    sparkle: null, // Array<CanvasGradient> | null
+    sparkleBuckets: 9,
+  };
+
+  function makeCanvas(W, H){
+    if (!(W > 0 && H > 0)) return null;
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+    if (typeof document !== 'undefined'){
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    }
+    return null;
+  }
+
+  function invalidateCaches(){
+    cache.dirty = true;
+  }
+
+  function rebuildCaches(ctx){
+    cache.ctx = ctx;
+    cache.dirty = false;
+
+    // Background + vignette
+    {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, pal.bg0);
+      g.addColorStop(1, pal.bg1);
+      cache.bg = g;
+
+      const v = ctx.createRadialGradient(w * 0.5, h * 0.55, 1, w * 0.5, h * 0.55, Math.max(w, h) * 0.75);
+      v.addColorStop(0, 'rgba(0,0,0,0)');
+      v.addColorStop(1, 'rgba(0,0,0,0.55)');
+      cache.vignette = v;
+    }
+
+    // Desk wood
+    {
+      const g = ctx.createLinearGradient(0, box.y, 0, box.y + box.h);
+      g.addColorStop(0, pal.wood0);
+      g.addColorStop(1, pal.wood1);
+      cache.desk = g;
+    }
+
+    // Music box inner plate
+    {
+      const py = box.y + box.h * 0.22;
+      const ph = box.h * 0.68;
+      const plate = ctx.createLinearGradient(0, py, 0, py + ph);
+      plate.addColorStop(0, pal.box2);
+      plate.addColorStop(1, pal.box);
+      cache.plate = plate;
+    }
+
+    // Drum top gradient (absolute coords, as used in render)
+    {
+      const topG = ctx.createRadialGradient(drum.x - drum.r * 0.2, drum.y - drum.ry * 0.2, 1, drum.x, drum.y, drum.r * 1.1);
+      topG.addColorStop(0, pal.brass);
+      topG.addColorStop(1, pal.brass2);
+      cache.drumTop = topG;
+    }
+
+    // Comb base plate gradient (absolute coords; aligns under translate)
+    {
+      const cg = ctx.createLinearGradient(comb.x, comb.y - comb.h * 0.5, comb.x, comb.y + comb.h * 0.5);
+      cg.addColorStop(0, 'rgba(210,210,220,0.35)');
+      cg.addColorStop(1, 'rgba(120,120,130,0.28)');
+      cache.comb = cg;
+    }
+
+    // Drum highlight sweep sprite
+    {
+      const W = Math.ceil(drum.r * 2 + 6);
+      const H = Math.ceil(drum.ry * 2 + 6);
+      cache.drumHighlightW = W;
+      cache.drumHighlightH = H;
+
+      const c = makeCanvas(W, H);
+      if (!c){
+        cache.drumHighlight = false;
+      } else {
+        const g = c.getContext('2d');
+        g.clearRect(0, 0, W, H);
+        g.save();
+        g.translate(W * 0.5, H * 0.5);
+
+        const hg = g.createLinearGradient(-drum.r, -drum.ry, drum.r, drum.ry);
+        hg.addColorStop(0, 'rgba(255,255,255,0)');
+        hg.addColorStop(0.52, 'rgba(255,255,255,1)');
+        hg.addColorStop(1, 'rgba(255,255,255,0)');
+
+        g.fillStyle = hg;
+        g.beginPath();
+        g.ellipse(0, 0, drum.r, drum.ry, 0, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+
+        cache.drumHighlight = c;
+      }
+    }
+
+    // Sparkle gradients (bucketed radii)
+    {
+      const sx = drum.x + drum.r * 0.2;
+      const sy = drum.y - drum.ry * 0.35;
+
+      const buckets = Math.max(3, cache.sparkleBuckets | 0);
+      cache.sparkle = new Array(buckets);
+      for (let i = 0; i < buckets; i++){
+        const u = buckets <= 1 ? 0 : i / (buckets - 1);
+        const sr = drum.r * lerp(0.6, 0.8, u);
+
+        const sg = ctx.createRadialGradient(sx, sy, 1, sx, sy, sr);
+        sg.addColorStop(0, 'rgba(255,255,255,0.28)');
+        sg.addColorStop(0.45, 'rgba(255,219,122,0.10)');
+        sg.addColorStop(1, 'rgba(255,219,122,0)');
+        cache.sparkle[i] = sg;
+      }
+    }
+  }
+
+  function ensureCaches(ctx){
+    if (cache.dirty || cache.ctx !== ctx) rebuildCaches(ctx);
+  }
+
   function phase(){ return PHASES[phaseIdx]; }
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
@@ -191,6 +336,8 @@ export function createChannel({ seed, audio }){
 
     gearA = { x: mx + mechW * 0.28, y: my + mechH * 0.63, r: R * 0.6 };
     gearB = { x: mx + mechW * 0.19, y: my + mechH * 0.46, r: R * 0.42 };
+
+    invalidateCaches();
   }
 
   function init({ width, height, dpr: dprIn=1 }){
@@ -345,25 +492,16 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBackground(ctx){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, pal.bg0);
-    g.addColorStop(1, pal.bg1);
-    ctx.fillStyle = g;
+    ctx.fillStyle = cache.bg;
     ctx.fillRect(0, 0, w, h);
 
     // subtle vignette
-    const v = ctx.createRadialGradient(w*0.5, h*0.55, 1, w*0.5, h*0.55, Math.max(w, h) * 0.75);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = v;
-    ctx.fillRect(0,0,w,h);
+    ctx.fillStyle = cache.vignette;
+    ctx.fillRect(0, 0, w, h);
   }
 
   function drawDesk(ctx){
-    const g = ctx.createLinearGradient(0, box.y, 0, box.y + box.h);
-    g.addColorStop(0, pal.wood0);
-    g.addColorStop(1, pal.wood1);
-    ctx.fillStyle = g;
+    ctx.fillStyle = cache.desk;
     roundedRect(ctx, box.x, box.y, box.w, box.h, Math.max(10, Math.min(w,h)*0.02));
     ctx.fill();
 
@@ -396,10 +534,7 @@ export function createChannel({ seed, audio }){
     const pw = box.w*0.76;
     const ph = box.h*0.68;
 
-    const plate = ctx.createLinearGradient(0, py, 0, py + ph);
-    plate.addColorStop(0, pal.box2);
-    plate.addColorStop(1, pal.box);
-    ctx.fillStyle = plate;
+    ctx.fillStyle = cache.plate;
     roundedRect(ctx, px, py, pw, ph, Math.max(12, Math.min(w,h)*0.02));
     ctx.fill();
 
@@ -430,9 +565,6 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // drum top
-    const topG = ctx.createRadialGradient(drum.x - drum.r*0.2, drum.y - drum.ry*0.2, 1, drum.x, drum.y, drum.r*1.1);
-    topG.addColorStop(0, pal.brass);
-    topG.addColorStop(1, pal.brass2);
 
     ctx.save();
     ctx.translate(drum.x, drum.y);
@@ -445,7 +577,7 @@ export function createChannel({ seed, audio }){
 
     ctx.beginPath();
     ctx.ellipse(0, 0, drum.r, drum.ry, 0, 0, Math.PI*2);
-    ctx.fillStyle = topG;
+    ctx.fillStyle = cache.drumTop;
     ctx.fill();
 
     ctx.strokeStyle = 'rgba(255,255,255,0.16)';
@@ -490,15 +622,19 @@ export function createChannel({ seed, audio }){
     // top highlight sweep
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.rotate(-Math.PI*0.12 + Math.sin(t*0.2)*0.05);
-    const hg = ctx.createLinearGradient(-drum.r, -drum.ry, drum.r, drum.ry);
-    hg.addColorStop(0, 'rgba(255,255,255,0)');
-    hg.addColorStop(0.52, `rgba(255,255,255,${0.10 + contactPulse*0.10})`);
-    hg.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = hg;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, drum.r, drum.ry, 0, 0, Math.PI*2);
-    ctx.fill();
+    ctx.globalAlpha = 0.10 + contactPulse * 0.10;
+    ctx.rotate(-Math.PI * 0.12 + Math.sin(t * 0.2) * 0.05);
+
+    if (cache.drumHighlight && cache.drumHighlight !== false){
+      ctx.drawImage(cache.drumHighlight, -cache.drumHighlightW * 0.5, -cache.drumHighlightH * 0.5);
+    } else {
+      // Fallback: no gradient allocation; just a soft screen-fill ellipse.
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, drum.r, drum.ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.restore();
 
     ctx.restore();
@@ -511,10 +647,7 @@ export function createChannel({ seed, audio }){
     ctx.translate(cx, cy);
 
     // base plate
-    const cg = ctx.createLinearGradient(0, -comb.h*0.5, 0, comb.h*0.5);
-    cg.addColorStop(0, 'rgba(210,210,220,0.35)');
-    cg.addColorStop(1, 'rgba(120,120,130,0.28)');
-    ctx.fillStyle = cg;
+    ctx.fillStyle = cache.comb;
     roundedRect(ctx, -comb.w*0.5, -comb.h*0.5, comb.w, comb.h, Math.max(8, comb.w*0.08));
     ctx.fill();
 
@@ -602,21 +735,26 @@ export function createChannel({ seed, audio }){
     if (sparkle > 0){
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
-      const a = sparkle;
-      ctx.fillStyle = `rgba(255,219,122,${0.06*a})`;
-      ctx.fillRect(0,0,w,h);
 
-      const sx = drum.x + drum.r*0.2;
-      const sy = drum.y - drum.ry*0.35;
-      const sr = drum.r * (0.6 + (1-sparkle)*0.2);
-      const sg = ctx.createRadialGradient(sx, sy, 1, sx, sy, sr);
-      sg.addColorStop(0, `rgba(255,255,255,${0.28*a})`);
-      sg.addColorStop(0.45, `rgba(255,219,122,${0.10*a})`);
-      sg.addColorStop(1, 'rgba(255,219,122,0)');
-      ctx.fillStyle = sg;
+      const a = sparkle;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(255,219,122,0.06)';
+      ctx.fillRect(0, 0, w, h);
+
+      const sx = drum.x + drum.r * 0.2;
+      const sy = drum.y - drum.ry * 0.35;
+
+      const buckets = cache.sparkle?.length || 0;
+      const u = clamp(1 - sparkle, 0, 1);
+      const idx = buckets ? Math.min(buckets - 1, Math.max(0, Math.round(u * (buckets - 1)))) : 0;
+      const uB = buckets <= 1 ? 0 : idx / (buckets - 1);
+      const sr = drum.r * lerp(0.6, 0.8, uB);
+
+      ctx.fillStyle = buckets ? cache.sparkle[idx] : 'rgba(255,255,255,0)';
       ctx.beginPath();
-      ctx.arc(sx, sy, sr, 0, Math.PI*2);
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
       ctx.fill();
+
       ctx.restore();
     }
   }
@@ -624,6 +762,8 @@ export function createChannel({ seed, audio }){
   function render(ctx){
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
+
+    ensureCaches(ctx);
 
     drawBackground(ctx);
     drawDesk(ctx);
