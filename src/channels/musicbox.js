@@ -533,14 +533,11 @@ export function createChannel({ seed, audio }){
     ctx.font = mono;
     ctx.textBaseline = 'middle';
 
-    const ch = 'CH 01';
-    ctx.fillStyle = pal.sub;
-    ctx.fillText(ch, labelX, labelY);
-
+    // Title: avoid hardcoded channel numbers here (OSD already shows the real channel).
     ctx.fillStyle = pal.ink;
     ctx.shadowColor = 'rgba(0,0,0,0.55)';
     ctx.shadowBlur = 10;
-    ctx.fillText('MECHANICAL MUSIC BOX', labelX + ctx.measureText(ch).width + 18, labelY);
+    ctx.fillText('MECHANICAL MUSIC BOX', labelX, labelY);
     ctx.shadowBlur = 0;
 
     // status line
