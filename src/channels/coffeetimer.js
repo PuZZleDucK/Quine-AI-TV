@@ -26,7 +26,9 @@ function roundRect(ctx, x, y, w, h, r){
 }
 
 export function createChannel({ seed, audio }){
-  const rand = mulberry32(seed);
+  // Visual determinism: keep channel content RNG independent from audio RNG.
+  const vRand = mulberry32(seed);
+  const aRand = mulberry32(seed ^ 0x9e3779b9);
 
   const METHODS = [
     {
@@ -130,9 +132,9 @@ export function createChannel({ seed, audio }){
   let small = 12;
   let big = 48;
 
-  let method = pick(rand, METHODS);
-  let station = pick(rand, STATIONS);
-  let track = pick(rand, TRACKS);
+  let method = pick(vRand, METHODS);
+  let station = pick(vRand, STATIONS);
+  let track = pick(vRand, TRACKS);
 
   let stepIndex = 0;
   let stepT = 0;
@@ -142,25 +144,29 @@ export function createChannel({ seed, audio }){
   let ambience = null;
   let tickAcc = 0;
 
-  function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
+  function safeBeep(optsOrFn){
+    if (!audio.enabled) return;
+    const opts = (typeof optsOrFn === 'function') ? optsOrFn() : optsOrFn;
+    if (opts) audio.beep(opts);
+  }
 
   function methodTotal(m){ return m.steps.reduce((a, s) => a + s.dur, 0); }
 
   function nextMethod(){
     const old = method?.id;
-    let m = pick(rand, METHODS);
-    if (m.id === old) m = pick(rand, METHODS);
+    let m = pick(vRand, METHODS);
+    if (m.id === old) m = pick(vRand, METHODS);
     method = m;
 
-    station = pick(rand, STATIONS);
-    track = pick(rand, TRACKS);
+    station = pick(vRand, STATIONS);
+    track = pick(vRand, TRACKS);
 
     stepIndex = 0;
     stepT = 0;
     loopT = 0;
 
     // tiny dial click
-    safeBeep({ freq: 460 + rand()*80, dur: 0.015, gain: 0.010, type: 'square' });
+    safeBeep(() => ({ freq: 460 + aRand()*80, dur: 0.015, gain: 0.010, type: 'square' }));
   }
 
   function curStep(){ return method.steps[stepIndex] || method.steps[0]; }
@@ -261,7 +267,7 @@ export function createChannel({ seed, audio }){
     // very quiet café room tone
     const n = audio.noiseSource({ type: 'pink', gain: 0.004 });
     n.start();
-    const d = simpleDrone(audio, { root: 55 + rand()*18, detune: 0.7, gain: 0.015 });
+    const d = simpleDrone(audio, { root: 55 + aRand()*18, detune: 0.7, gain: 0.015 });
 
     const handle = {
       stop(){
@@ -294,12 +300,12 @@ export function createChannel({ seed, audio }){
       stepIndex += 1;
 
       // step change: soft click
-      safeBeep({ freq: method.tick.freq + rand()*60, dur: 0.02, gain: method.tick.gain, type: 'triangle' });
+      safeBeep(() => ({ freq: method.tick.freq + aRand()*60, dur: 0.02, gain: method.tick.gain, type: 'triangle' }));
 
       if (stepIndex >= method.steps.length){
         // little station ID + switch method
-        safeBeep({ freq: 880 + rand()*80, dur: 0.02, gain: 0.009, type: 'square' });
-        safeBeep({ freq: 660 + rand()*60, dur: 0.02, gain: 0.008, type: 'square' });
+        safeBeep(() => ({ freq: 880 + aRand()*80, dur: 0.02, gain: 0.009, type: 'square' }));
+        safeBeep(() => ({ freq: 660 + aRand()*60, dur: 0.02, gain: 0.008, type: 'square' }));
         nextMethod();
       }
     }
@@ -310,7 +316,7 @@ export function createChannel({ seed, audio }){
       tickAcc += dt * baseRate;
       while (tickAcc >= 1){
         tickAcc -= 1;
-        if (rand() < 0.70) safeBeep({ freq: 980 + rand()*60, dur: 0.008, gain: 0.0045, type: 'square' });
+        if (aRand() < 0.70) safeBeep(() => ({ freq: 980 + aRand()*60, dur: 0.008, gain: 0.0045, type: 'square' }));
       }
     } else {
       tickAcc = 0;
