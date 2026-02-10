@@ -6,6 +6,17 @@ function pick(rand, arr){ return arr[(rand() * arr.length) | 0]; }
 function lerp(a,b,t){ return a + (b-a)*t; }
 function ease(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
 
+// Deterministic hash -> [0,1)
+function hash01(n){
+  n |= 0;
+  n = (n ^ 61) ^ (n >>> 16);
+  n = n + (n << 3);
+  n = n ^ (n >>> 4);
+  n = Math.imul(n, 0x27d4eb2d);
+  n = n ^ (n >>> 15);
+  return (n >>> 0) / 4294967296;
+}
+
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
 
@@ -101,6 +112,12 @@ export function createChannel({ seed, audio }){
   let stampFlash = 0;
   let dust = []; // {x,y,vx,vy,life}
 
+  // rare "perfect stamp" foil glint (~45–120s), deterministic per seed
+  const GLINT_DUR = 1.35;
+  let glintStart = -1;
+  let glintNextAt = 0;
+  let glintEventIdx = 0;
+
   // audio
   let ambience = null;
   let flipAcc = 0;
@@ -173,6 +190,10 @@ export function createChannel({ seed, audio }){
     stampThumped = false;
     stampFlash = 0;
     dust = [];
+
+    glintStart = -1;
+    glintEventIdx = 0;
+    glintNextAt = 45 + hash01(seed ^ 0x5f3759df) * 75;
   }
 
   function onPhaseEnter(){
@@ -244,6 +265,12 @@ export function createChannel({ seed, audio }){
 
     stampFlash = Math.max(0, stampFlash - dt * 1.6);
 
+    if (glintStart >= 0 && (t - glintStart) >= GLINT_DUR){
+      glintStart = -1;
+      glintEventIdx++;
+      glintNextAt = t + 45 + hash01((seed ^ 0x6acaa36d) + glintEventIdx * 1013904223) * 75;
+    }
+
     if (phaseT >= PHASE_DUR){
       phaseT = phaseT % PHASE_DUR;
       phaseIdx = (phaseIdx + 1) % PHASES.length;
@@ -278,15 +305,27 @@ export function createChannel({ seed, audio }){
         stitchAcc = 0;
       }
 
-      if (ph === 'stamp' && !stampThumped && p >= 0.52){
-        stampThumped = true;
-        safeBeep({ freq: 140, dur: 0.05, gain: 0.02, type: 'square' });
-        safeBeep({ freq: 680 + rand()*120, dur: 0.014, gain: 0.010, type: 'triangle' });
-      }
+      // stamp visuals are triggered outside the audio block (so they work with audio disabled)
 
       if (ph === 'press' && p >= 0.82 && rand() < 0.06){
         // occasional tiny clamp creak
         safeBeep({ freq: 260 + rand()*80, dur: 0.02, gain: 0.0045, type: 'sine' });
+      }
+    }
+
+    if (ph === 'stamp' && !stampThumped && p >= 0.52){
+      stampThumped = true;
+      if (audio.enabled){
+        safeBeep({ freq: 140, dur: 0.05, gain: 0.02, type: 'square' });
+        safeBeep({ freq: 680 + rand()*120, dur: 0.014, gain: 0.010, type: 'triangle' });
+      }
+    }
+
+    if (ph === 'stamp' && stampThumped && glintStart < 0 && t >= glintNextAt){
+      glintStart = t;
+      if (audio.enabled){
+        const u = hash01((seed ^ 0x9e3779b9) + glintEventIdx * 374761393);
+        safeBeep({ freq: 980 + u*220, dur: 0.028, gain: 0.0045, type: 'triangle' });
       }
     }
 
@@ -798,7 +837,7 @@ export function createChannel({ seed, audio }){
 
     const th = stampThumped ? 1 : 0;
     const wob = (1 - sp) * Math.sin(t*6) * 2;
-    ctx.rotate((rand() - 0.5) * 0.04 * (1 - sp));
+    ctx.rotate(Math.sin(seed * 0.013 + t * 0.9) * 0.02 * (1 - sp));
 
     // handle
     ctx.fillStyle = 'rgba(231,238,246,0.14)';
@@ -852,6 +891,44 @@ export function createChannel({ seed, audio }){
       roundedRect(ctx, ix, iy, iw, ih, 10);
       ctx.fill();
       ctx.restore();
+
+      // rare perfect-stamp glint sweep (deterministic)
+      if (glintStart >= 0){
+        const gp = clamp((t - glintStart) / GLINT_DUR, 0, 1);
+        const e = ease(gp);
+        const pulse = Math.sin(Math.PI * gp);
+
+        ctx.save();
+        ctx.translate(ix + iw*0.5, iy + ih*0.5);
+        ctx.rotate(-0.58);
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = (0.10 + 0.30 * pulse);
+
+        const gw = iw * 1.6;
+        const gh = ih * 2.2;
+        const x = lerp(-gw, gw, e);
+
+        const gg = ctx.createLinearGradient(x - iw * 0.35, 0, x + iw * 0.35, 0);
+        gg.addColorStop(0.00, 'rgba(0,0,0,0)');
+        gg.addColorStop(0.46, 'rgba(255,240,200,0)');
+        gg.addColorStop(0.50, 'rgba(255,240,200,1)');
+        gg.addColorStop(0.54, 'rgba(255,240,200,0)');
+        gg.addColorStop(1.00, 'rgba(0,0,0,0)');
+
+        ctx.fillStyle = gg;
+        ctx.fillRect(-gw*0.5, -gh*0.5, gw, gh);
+
+        // tiny sparkles inside the imprint
+        ctx.globalAlpha *= 0.65;
+        ctx.fillStyle = 'rgba(255,255,255,1)';
+        for (let i = 0; i < 6; i++){
+          const u = hash01((seed ^ 0x1b873593) + glintEventIdx * 0x9e3779b9 + i * 97);
+          const v = hash01((seed ^ 0x85ebca6b) + glintEventIdx * 0x7f4a7c15 + i * 131);
+          ctx.fillRect((u - 0.5) * iw * 0.8, (v - 0.5) * ih * 0.8, 2, 2);
+        }
+
+        ctx.restore();
+      }
 
       // monogram
       const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
