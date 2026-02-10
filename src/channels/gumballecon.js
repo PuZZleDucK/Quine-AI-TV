@@ -65,6 +65,51 @@ export function createChannel({ seed, audio }){
   let globeVignette = null;
   let screenVignette = null;
 
+  // cached stripes layer (rebuild on resize)
+  let stripesCanvas = null;
+  let stripesW = 0;
+  let stripesH = 0;
+  let stripesStripeW = 0;
+
+  function makeCanvas(cw, ch){
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(cw, ch);
+    const c = document.createElement('canvas');
+    c.width = cw;
+    c.height = ch;
+    return c;
+  }
+
+  function rebuildStripes(){
+    const stripeW = Math.max(24, s * 0.06);
+    const cw = Math.max(1, Math.ceil(w * 3));
+    const ch = Math.max(1, Math.ceil(h * 3));
+
+    stripesCanvas = makeCanvas(cw, ch);
+    stripesW = cw;
+    stripesH = ch;
+    stripesStripeW = stripeW;
+
+    const cctx = stripesCanvas.getContext('2d');
+    cctx.clearRect(0, 0, cw, ch);
+
+    const step = stripeW * 1.2;
+    for (let x = 0; x < cw + step; x += step){
+      cctx.fillStyle = 'rgba(255, 92, 220, 0.35)';
+      cctx.fillRect(x, 0, stripeW * 0.5, ch);
+      cctx.fillStyle = 'rgba(90, 245, 255, 0.28)';
+      cctx.fillRect(x + stripeW * 0.6, 0, stripeW * 0.25, ch);
+    }
+  }
+
+  function ensureStripes(){
+    const stripeW = Math.max(24, s * 0.06);
+    const cw = Math.max(1, Math.ceil(w * 3));
+    const ch = Math.max(1, Math.ceil(h * 3));
+    if (!stripesCanvas || stripesW !== cw || stripesH !== ch || stripesStripeW !== stripeW){
+      rebuildStripes();
+    }
+  }
+
   function rebuildGradients(ctx){
     gradCtx = ctx;
     gradW = w;
@@ -431,17 +476,12 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(0, 0, w, h);
 
     // diagonal candy stripes (slow drift)
+    ensureStripes();
     ctx.save();
     ctx.globalAlpha = 0.12;
     ctx.translate(Math.sin(t * 0.07) * w * 0.02, 0);
     ctx.rotate(-0.18);
-    const stripeW = Math.max(24, s * 0.06);
-    for (let x = -w; x < w * 2; x += stripeW * 1.2){
-      ctx.fillStyle = 'rgba(255, 92, 220, 0.35)';
-      ctx.fillRect(x, -h, stripeW * 0.5, h * 3);
-      ctx.fillStyle = 'rgba(90, 245, 255, 0.28)';
-      ctx.fillRect(x + stripeW * 0.6, -h, stripeW * 0.25, h * 3);
-    }
+    ctx.drawImage(stripesCanvas, -w, -h);
     ctx.restore();
 
     // subtle grid behind HUD
