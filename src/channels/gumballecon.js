@@ -41,6 +41,9 @@ export function createChannel({ seed, audio }){
   // events
   let nextCoinAt = 0;
   let nextSpikeAt = 0;
+  let nextCouponSpawnAt = 0;
+  let nextRestockAt = 0;
+  let nextDemandJitterAt = 0;
   let spike = { t0: 0, dur: 0, active: false };
   let coupon = { t0: 0, dur: 0, active: false };
   let shake = 0;
@@ -198,6 +201,12 @@ export function createChannel({ seed, audio }){
 
   function pick(arr){ return arr[(rand() * arr.length) | 0]; }
 
+  function expTime(ratePerSec){
+    // exponential distribution; stable across variable dt/FPS
+    const u = Math.max(1e-9, 1 - rand());
+    return -Math.log(u) / Math.max(1e-6, ratePerSec);
+  }
+
   function resetSim(){
     t = 0;
 
@@ -210,6 +219,9 @@ export function createChannel({ seed, audio }){
 
     nextCoinAt = 0.6 + rand() * 1.1;
     nextSpikeAt = 22 + rand() * 26;
+    nextCouponSpawnAt = 1e9;
+    nextRestockAt = expTime(1.2);
+    nextDemandJitterAt = 0.15 + rand() * 0.18;
     spike = { t0: 0, dur: 0, active: false };
     coupon = { t0: 0, dur: 0, active: false };
     shake = 0;
@@ -242,7 +254,10 @@ export function createChannel({ seed, audio }){
 
     coins = Array.from({ length: COIN_N }, () => ({ on: false, x: 0, y: 0, vx: 0, vy: 0, r: 6, spin: 0 }));
     disp = Array.from({ length: DISP_N }, () => ({ on: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, r: 6, col: '#fff' }));
-    coupons = Array.from({ length: COUPON_N }, () => ({ on: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, code: 'SAVE' }));
+    coupons = Array.from({ length: COUPON_N }, () => ({
+      on: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, code: 'SAVE',
+      shouldAccept: false, acceptAt: 0, accepted: false,
+    }));
 
     histP.fill(price);
     histS.fill(stock);
@@ -355,6 +370,11 @@ export function createChannel({ seed, audio }){
     c.vy = s * (0.14 + rand() * 0.06);
     c.life = 2.7;
 
+    // determinism: decide acceptance once per coupon (not per-frame rand)
+    c.shouldAccept = rand() < 0.35;
+    c.acceptAt = t + 0.65 + rand() * 0.7;
+    c.accepted = false;
+
     safeBeep({ freq: 980, dur: 0.04, gain: 0.012, type: 'square' });
   }
 
@@ -378,14 +398,21 @@ export function createChannel({ seed, audio }){
     t += dt;
     shake = Math.max(0, shake - dt * 2.4);
 
-    // demand breathes
-    demand = clamp(demand + Math.sin(t * 0.22) * 0.0009 + (rand() - 0.5) * 0.002, 0.18, 0.98);
+    // demand breathes (dt-based). Jitter via scheduled nudges for FPS stability.
+    demand = clamp(demand + Math.sin(t * 0.22) * 0.0009, 0.18, 0.98);
+    let jitterGuard = 0;
+    while (t >= nextDemandJitterAt && jitterGuard++ < 8){
+      demand = clamp(demand + (rand() - 0.5) * 0.012, 0.18, 0.98);
+      nextDemandJitterAt += 0.15 + rand() * 0.18;
+    }
 
-    // schedule/drive spike & coupon windows
+    // schedule/drive spike & coupon windows (anchored to scheduled times)
     if (!spike.active && t >= nextSpikeAt){
-      spike = { t0: t, dur: 2.6 + rand() * 1.2, active: true };
-      coupon = { t0: t + 1.1, dur: 6.5, active: true };
-      nextSpikeAt = t + 26 + rand() * 30;
+      const tEvent = nextSpikeAt;
+      spike = { t0: tEvent, dur: 2.6 + rand() * 1.2, active: true };
+      coupon = { t0: tEvent + 1.1, dur: 6.5, active: true };
+      nextCouponSpawnAt = coupon.t0 + expTime(3.6);
+      nextSpikeAt = tEvent + 26 + rand() * 30;
       shake = 1;
 
       safeBeep({ freq: 160, dur: 0.08, gain: 0.05, type: 'square' });
@@ -398,14 +425,16 @@ export function createChannel({ seed, audio }){
 
     if (coupon.active && (t - coupon.t0) >= coupon.dur){
       coupon.active = false;
+      nextCouponSpawnAt = 1e9;
     }
 
-    // coins
+    // coins (time-scheduled; catch up safely)
     const spikeBoost = spike.active ? 2.1 : 1;
     const rate = (0.55 + demand * 1.4) * spikeBoost;
-    if (t >= nextCoinAt){
+    let coinGuard = 0;
+    while (t >= nextCoinAt && coinGuard++ < 6){
       spawnCoin(rate);
-      nextCoinAt = t + (0.65 + rand() * 1.35) / rate;
+      nextCoinAt = nextCoinAt + (0.65 + rand() * 1.35) / rate;
     }
 
     for (const c of coins){
@@ -433,11 +462,13 @@ export function createChannel({ seed, audio }){
       if (d.life <= 0 || d.y > h + d.r * 2) d.on = false;
     }
 
-    // coupons float during coupon window
+    // coupons float during coupon window (time-scheduled; catch up safely)
     if (coupon.active && t >= coupon.t0){
-      if (rand() < 0.06){
-        const codes = ['SAVE10', 'B2G1', 'HALFOFF', 'MARKET', 'DENT', 'CPI??'];
+      const codes = ['SAVE10', 'B2G1', 'HALFOFF', 'MARKET', 'DENT', 'CPI??'];
+      let couponGuard = 0;
+      while (t >= nextCouponSpawnAt && couponGuard++ < 6){
         spawnCoupon(pick(codes));
+        nextCouponSpawnAt = nextCouponSpawnAt + expTime(3.6);
       }
     }
 
@@ -448,8 +479,9 @@ export function createChannel({ seed, audio }){
       c.y += c.vy * dt;
       c.vy += s * 0.03 * dt;
 
-      // accept coupon near price panel
-      if (c.life < 1.8 && c.y > h * 0.22 && rand() < 0.02){
+      // accept coupon near price panel (deterministic per coupon)
+      if (!c.accepted && c.shouldAccept && t >= c.acceptAt && c.life < 1.8 && c.y > h * 0.22){
+        c.accepted = true;
         // correction
         price = lerp(price, Math.max(basePrice * 0.85, price * 0.7), 0.45);
         cpi = lerp(cpi, 98, 0.18);
@@ -459,9 +491,11 @@ export function createChannel({ seed, audio }){
       if (c.life <= 0 || c.y > h + 40) c.on = false;
     }
 
-    // restock slowly
-    if (stock < 92 && rand() < 0.02){
-      stock = Math.min(100, stock + 1);
+    // restock slowly (time-scheduled; always advance schedule for FPS stability)
+    let restockGuard = 0;
+    while (t >= nextRestockAt && restockGuard++ < 6){
+      if (stock < 92) stock = Math.min(100, stock + 1);
+      nextRestockAt = nextRestockAt + expTime(1.2);
     }
 
     // push chart history
