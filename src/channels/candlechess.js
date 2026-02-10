@@ -211,15 +211,33 @@ export function createChannel({ seed, audio }) {
     };
   }
 
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = ambience;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ambience = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Defensive: avoid stacking our own ambience if onAudioOn gets called repeatedly.
+    stopAmbience({ clearCurrent: true });
+
     ambience = makeAudioHandle();
     audio.setCurrent(ambience);
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
-    ambience = null;
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy(){ onAudioOff(); }
