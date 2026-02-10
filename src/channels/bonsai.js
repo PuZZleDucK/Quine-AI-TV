@@ -231,7 +231,8 @@ export function createChannel({ seed, audio }){
   const skeleton = {
     trunk: [],
     branches: [],
-    leafPuffs: []
+    leafPuffs: [],
+    canopy: []
   };
 
   // audio handle
@@ -267,14 +268,24 @@ export function createChannel({ seed, audio }){
       };
     });
 
-    // leaf puffs: anchored near branch ends
-    const nPuffs = 12 + Math.floor(rand() * 9);
+    // canopy base: a few bigger blobs near the top so it reads as a "tree" crown
+    const nCan = 5 + Math.floor(rand() * 4);
+    skeleton.canopy = Array.from({ length: nCan }, () => ({
+      at: 0.70 + rand() * 0.24,
+      r: 0.10 + rand() * 0.08,
+      dx: (rand()*2-1) * 0.06,
+      dy: -0.06 - rand() * 0.08,
+      wob: rand() * Math.PI * 2,
+    }));
+
+    // leaf puffs: anchored near branch ends; keep them tighter + mostly above the pot
+    const nPuffs = 10 + Math.floor(rand() * 7);
     skeleton.leafPuffs = Array.from({length: nPuffs}, () => ({
       b: Math.floor(rand() * skeleton.branches.length),
-      u: 0.6 + rand() * 0.55, // beyond end slightly
-      r: 0.04 + rand() * 0.06,
-      dx: (rand()*2-1) * 0.05,
-      dy: (rand()*2-1) * 0.04,
+      u: 0.55 + rand() * 0.55,
+      r: 0.045 + rand() * 0.055,
+      dx: (rand()*2-1) * 0.040,
+      dy: -0.045 + (rand()*2-1) * 0.030,
       wob: rand() * Math.PI * 2,
     }));
   }
@@ -574,33 +585,45 @@ export function createChannel({ seed, audio }){
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // trunk path
-    ctx.strokeStyle = '#2a1f18';
-    ctx.lineWidth = 0.055;
+    // trunk body: blobby tapered mass (reads more like a trunk than a noodle-stroke)
+    const trunkScale = (0.85 + 0.25 * grow);
+
+    // subtle root flare at the soil line
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = '#1a130f';
     ctx.beginPath();
-    for (let i=0; i<=24; i++){
-      const u = i / 24;
+    ctx.ellipse(0, 0.01, 0.14, 0.06, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = '#2a1f18';
+    for (let i=0; i<=26; i++){
+      const u = i / 26;
       const p = trunkPoint(u, sway);
       const x = p.x;
       const y = -p.y;
-      if (i===0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      const r = lerp(0.090, 0.028, u) * trunkScale;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI*2);
+      ctx.fill();
     }
-    ctx.stroke();
 
-    // trunk highlight
-    ctx.strokeStyle = 'rgba(220,190,140,0.12)';
-    ctx.lineWidth = 0.020;
-    ctx.beginPath();
-    for (let i=0; i<=22; i++){
-      const u = i / 22;
+    // trunk highlight (warm lamp edge)
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = 'rgba(220,190,140,0.10)';
+    for (let i=0; i<=24; i++){
+      const u = i / 24;
       const p = trunkPoint(u, sway);
-      const x = p.x + 0.018 * (1-u);
+      const x = p.x + 0.020 * (1-u);
       const y = -p.y;
-      if (i===0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      const r = lerp(0.040, 0.012, u) * trunkScale;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI*2);
+      ctx.fill();
     }
-    ctx.stroke();
+    ctx.restore();
 
     // branches
     for (const b of skeleton.branches){
@@ -636,10 +659,35 @@ export function createChannel({ seed, audio }){
 
     // leaves: fade density down in winter-ish season
     const leafiness = clamp01(1.15 - season * 1.05);
-    const puffAlpha = 0.10 + 0.35 * leafiness;
+    const puffAlpha = 0.12 + 0.45 * leafiness;
 
     // leaf puffs (sprite-based: no per-puff gradients in steady-state)
     const leafFill = `rgb(${leafRGB[0]},${leafRGB[1]},${leafRGB[2]})`;
+    const leafFillDeep = `rgb(${Math.max(0, leafRGB[0]-18)},${Math.max(0, leafRGB[1]-22)},${Math.max(0, leafRGB[2]-18)})`;
+
+    // canopy base (bigger blobs) so it reads like a tree crown
+    const canopyAlpha = 0.06 + 0.20 * leafiness;
+    for (const c of skeleton.canopy){
+      const p0 = trunkPoint(c.at, sway);
+      const x = p0.x + c.dx + Math.sin(t*0.22 + c.wob) * 0.008;
+      const y = -p0.y + c.dy + Math.cos(t*0.19 + c.wob) * 0.006;
+      const r = c.r * (0.70 + 0.55*grow);
+
+      const rPx = Math.max(2, Math.round(r * s));
+      const spr = getLeafPuffSprite(rPx, leafFillDeep);
+      if (!spr) continue;
+
+      const sizePx = spr.width;
+      const size = sizePx / s;
+      const x0 = x - size * 0.5;
+      const y0 = y - size * 0.5;
+
+      ctx.save();
+      ctx.globalAlpha = canopyAlpha;
+      ctx.drawImage(spr, x0, y0, size, size);
+      ctx.restore();
+    }
+
     for (const p of skeleton.leafPuffs){
       const b = skeleton.branches[p.b];
       const e = branchEnd(b, sway, grow);
