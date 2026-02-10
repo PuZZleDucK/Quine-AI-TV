@@ -390,7 +390,7 @@ export function createChannel({ seed, audio }){
       ctx.restore();
     }
 
-    // flame body (layered gradients)
+    // flame body (layered shapes; additive blend)
     const fx = w*0.5;
     const baseY = h*0.84;
     const heightScale = lerp(0.65, 1.25, hn) * (1 + 0.26*gust);
@@ -399,22 +399,86 @@ export function createChannel({ seed, audio }){
     const flameSpeed = lerp(0.9, 1.55, hn) * (1 + 0.30*gust);
     const flareK = 1 + 0.55*gust;
 
+    const hot = smoothstep(0.15, 1.0, hn);
+    const midG = Math.round(lerp(150, 205, hot));
+    const midB = Math.round(lerp(55, 115, hot));
+    const coreG = Math.round(lerp(210, 245, hot));
+    const coreB = Math.round(lerp(120, 205, hot));
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    // subtle blue base (gas-flame hint)
+    const blueA = (0.05 + 0.05*hn) * (1 + 0.25*gust);
+    if (blueA > 0){
+      const bw = w*0.055 * widthScale;
+      const bh = h*0.075 * heightScale;
+      const bx = fx + Math.sin(t*2.1)*w*0.006*swayScale;
+      const by = baseY - bh*0.15;
+      const bg = ctx.createLinearGradient(bx, by, bx, by - bh);
+      bg.addColorStop(0, `rgba(80,170,255,${blueA})`);
+      bg.addColorStop(0.7, `rgba(120,210,255,${blueA*0.35})`);
+      bg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      ctx.moveTo(bx - bw, by);
+      ctx.quadraticCurveTo(bx - bw*0.55, by - bh*0.55, bx, by - bh);
+      ctx.quadraticCurveTo(bx + bw*0.55, by - bh*0.55, bx + bw, by);
+      ctx.closePath();
+      ctx.fill();
+    }
+
     for (let i=0;i<5;i++){
       const amp = (0.018 + i*0.01) * swayScale;
       const sway = Math.sin(t*1.2*flameSpeed + i)*w*amp;
       const height = h*(0.22 + i*0.03) * heightScale;
-      const width = w*(0.10 + i*0.02) * widthScale;
-      const g = ctx.createRadialGradient(fx+sway, baseY-height*0.4, 0, fx+sway, baseY-height*0.4, width);
-      const a0 = Math.min(0.58, (0.34 - i*0.04) * flareK);
-      const a1 = Math.min(0.42, (0.22 - i*0.03) * flareK);
-      g.addColorStop(0, `rgba(255,220,140,${a0})`);
-      g.addColorStop(0.5, `rgba(255,120,40,${a1})`);
+      const width = w*(0.085 + i*0.021) * widthScale;
+      const wob = 1 + 0.08*Math.sin(t*(2.6+i*0.7)*flameSpeed + i*3.2);
+
+      const wl = width * (1.0 + i*0.06) * wob;
+      const x0 = fx + sway;
+      const xTip = fx + sway*0.35;
+      const yTip = baseY - height;
+      const yShoulder = baseY - height*0.55;
+
+      const a0 = Math.min(0.62, (0.18 + (4-i)*0.035) * flareK);
+      const a1 = Math.min(0.56, (0.22 - i*0.028) * flareK);
+
+      const g = ctx.createLinearGradient(x0, baseY, xTip, yTip);
+      g.addColorStop(0, `rgba(255,${midG},${midB},${a1})`);
+      g.addColorStop(0.35, `rgba(255,${coreG},${coreB},${a0})`);
+      g.addColorStop(0.9, `rgba(255,${coreG},${coreB},${a0*0.22})`);
       g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
+
       ctx.beginPath();
-      ctx.ellipse(fx+sway, baseY-height*0.4, width, height, 0, 0, Math.PI*2);
+      ctx.moveTo(x0 - wl, baseY);
+      ctx.quadraticCurveTo(x0 - wl*0.85, yShoulder, xTip, yTip);
+      ctx.quadraticCurveTo(x0 + wl*0.85, yShoulder, x0 + wl, baseY);
+      ctx.closePath();
       ctx.fill();
+
+      // inner core
+      const inner = 0.52 - i*0.07;
+      if (inner > 0.18){
+        const iw = wl*inner;
+        const ih = height*(0.62 + 0.06*i);
+        const iyTip = baseY - ih;
+        const ia = (0.11 + 0.11*hn) * (1 - i*0.15) * flareK;
+        const ig = ctx.createLinearGradient(x0, baseY, xTip, iyTip);
+        ig.addColorStop(0, `rgba(255,${coreG},${coreB},${ia})`);
+        ig.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = ig;
+        ctx.beginPath();
+        ctx.moveTo(x0 - iw, baseY);
+        ctx.quadraticCurveTo(x0 - iw*0.6, baseY - ih*0.55, xTip, iyTip);
+        ctx.quadraticCurveTo(x0 + iw*0.6, baseY - ih*0.55, x0 + iw, baseY);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
+
+    ctx.restore();
 
     // sparks (perf: cached sprites; no per-spark gradients)
     ctx.save();
