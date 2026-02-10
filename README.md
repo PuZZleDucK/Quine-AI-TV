@@ -2,6 +2,10 @@
 
 HTML5 virtual TV: a CRT-ish shell UI + a pile of animated channels.
 
+This is an AI-coded project (human-directed, LLM-coded with Open Claw background tasks).
+
+Live deployment (GitHub Pages): https://puzzleduck.github.io/Quine-AI-TV/
+
 ## Run
 
 Development:
