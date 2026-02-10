@@ -117,6 +117,15 @@ export function createChannel({ seed, audio }){
   let scanlinesH = 0;
   let scanlinesStep = 0;
 
+  // plate cache (radial gradient; rebuilt on resize / ctx change)
+  let plateGrad = null;
+  let plateCacheCtx = null;
+  let plateCacheW = 0;
+  let plateCacheH = 0;
+  let plateCacheCX = 0;
+  let plateCacheCY = 0;
+  let plateCacheR = 0;
+
   let font = 16;
   let small = 12;
   let big = 48;
@@ -190,6 +199,15 @@ export function createChannel({ seed, audio }){
     scanlinesW = 0;
     scanlinesH = 0;
     scanlinesStep = 0;
+
+    // force plate gradient rebuild
+    plateGrad = null;
+    plateCacheCtx = null;
+    plateCacheW = 0;
+    plateCacheH = 0;
+    plateCacheCX = 0;
+    plateCacheCY = 0;
+    plateCacheR = 0;
   }
 
   function onResize(width, height, dprIn){
@@ -207,6 +225,15 @@ export function createChannel({ seed, audio }){
     scanlinesW = 0;
     scanlinesH = 0;
     scanlinesStep = 0;
+
+    // force plate gradient rebuild
+    plateGrad = null;
+    plateCacheCtx = null;
+    plateCacheW = 0;
+    plateCacheH = 0;
+    plateCacheCX = 0;
+    plateCacheCY = 0;
+    plateCacheR = 0;
   }
 
   function stopAmbience({ clearCurrent=false }={}){
@@ -332,6 +359,31 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function ensurePlateCache(ctx, cx, cy, R){
+    const eps = 0.001;
+    if (
+      plateCacheCtx !== ctx ||
+      plateCacheW !== w ||
+      plateCacheH !== h ||
+      !plateGrad ||
+      Math.abs(plateCacheCX - cx) > eps ||
+      Math.abs(plateCacheCY - cy) > eps ||
+      Math.abs(plateCacheR - R) > eps
+    ){
+      plateCacheCtx = ctx;
+      plateCacheW = w;
+      plateCacheH = h;
+      plateCacheCX = cx;
+      plateCacheCY = cy;
+      plateCacheR = R;
+
+      const g = ctx.createRadialGradient(cx, cy - R*0.22, 10, cx, cy, R*1.35);
+      g.addColorStop(0, 'rgba(34, 26, 22, 1)');
+      g.addColorStop(1, 'rgba(6, 6, 7, 1)');
+      plateGrad = g;
+    }
+  }
+
   function bg(ctx){
     ensureBgCache(ctx);
     ensureScanlinesCache();
@@ -428,10 +480,8 @@ export function createChannel({ seed, audio }){
     ctx.fill();
 
     ctx.globalAlpha = 0.90;
-    const plate = ctx.createRadialGradient(cx, cy - R*0.22, 10, cx, cy, R*1.35);
-    plate.addColorStop(0, 'rgba(34, 26, 22, 1)');
-    plate.addColorStop(1, 'rgba(6, 6, 7, 1)');
-    ctx.fillStyle = plate;
+    ensurePlateCache(ctx, cx, cy, R);
+    ctx.fillStyle = plateGrad;
     ctx.beginPath();
     ctx.ellipse(cx, cy, R * 1.12, R * 0.86, 0, 0, Math.PI * 2);
     ctx.fill();
