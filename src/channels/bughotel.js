@@ -179,6 +179,45 @@ export function createChannel({ seed, audio }){
   // Audio
   let ah = null;
 
+  // Cached gradients (rebuild on resize or ctx swap)
+  let grad = { ctx: null, w: 0, h: 0, winKey: '', bg: null, vignette: null, glass: null, dirt: null };
+
+  function ensureGradients(ctx){
+    const winKey = `${win.x}|${win.y}|${win.w}|${win.h}`;
+    if (grad.ctx === ctx && grad.w === w && grad.h === h && grad.winKey === winKey && grad.bg && grad.vignette && grad.glass && grad.dirt){
+      return;
+    }
+
+    grad.ctx = ctx;
+    grad.w = w;
+    grad.h = h;
+    grad.winKey = winKey;
+
+    // background
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#070b0b');
+    bg.addColorStop(1, '#020303');
+    grad.bg = bg;
+
+    const vg = ctx.createRadialGradient(w*0.5, h*0.55, 0, w*0.5, h*0.55, Math.max(w,h)*0.82);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.78)');
+    grad.vignette = vg;
+
+    // terrarium
+    const gg = ctx.createLinearGradient(win.x, win.y, win.x + win.w, win.y + win.h);
+    gg.addColorStop(0, '#123b31');
+    gg.addColorStop(0.45, '#0b241f');
+    gg.addColorStop(1, '#081515');
+    grad.glass = gg;
+
+    const dirtH = win.h * 0.32;
+    const dg = ctx.createLinearGradient(0, win.y + win.h - dirtH, 0, win.y + win.h);
+    dg.addColorStop(0, 'rgba(92,70,46,0.35)');
+    dg.addColorStop(1, 'rgba(42,28,18,0.85)');
+    grad.dirt = dg;
+  }
+
   function stopAmbience({ clearCurrent = false } = {}){
     const handle = ah;
     if (!handle) return;
@@ -364,21 +403,18 @@ export function createChannel({ seed, audio }){
 
   function drawBackground(ctx){
     // dim cozy room + soft vignette
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#070b0b');
-    g.addColorStop(1, '#020303');
-    ctx.fillStyle = g;
+    ensureGradients(ctx);
+
+    ctx.fillStyle = grad.bg;
     ctx.fillRect(0, 0, w, h);
 
-    const vg = ctx.createRadialGradient(w*0.5, h*0.55, 0, w*0.5, h*0.55, Math.max(w,h)*0.82);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.78)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = grad.vignette;
     ctx.fillRect(0, 0, w, h);
   }
 
   function drawTerrarium(ctx){
     ctx.save();
+    ensureGradients(ctx);
 
     // glass shadow
     ctx.globalAlpha = 0.55;
@@ -387,22 +423,14 @@ export function createChannel({ seed, audio }){
     ctx.fill();
 
     // glass body
-    const gg = ctx.createLinearGradient(win.x, win.y, win.x + win.w, win.y + win.h);
-    gg.addColorStop(0, '#123b31');
-    gg.addColorStop(0.45, '#0b241f');
-    gg.addColorStop(1, '#081515');
-
     ctx.globalAlpha = 0.95;
-    ctx.fillStyle = gg;
+    ctx.fillStyle = grad.glass;
     roundRect(ctx, win.x, win.y, win.w, win.h, win.r);
     ctx.fill();
 
     // substrate
     const dirtH = win.h * 0.32;
-    const dg = ctx.createLinearGradient(0, win.y + win.h - dirtH, 0, win.y + win.h);
-    dg.addColorStop(0, 'rgba(92,70,46,0.35)');
-    dg.addColorStop(1, 'rgba(42,28,18,0.85)');
-    ctx.fillStyle = dg;
+    ctx.fillStyle = grad.dirt;
     ctx.beginPath();
     ctx.moveTo(win.x, win.y + win.h - dirtH);
     for (let i=0;i<=7;i++){
