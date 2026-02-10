@@ -140,6 +140,25 @@ export function createChannel({ seed, audio }){
   function phase(){ return PHASES[phaseIdx]; }
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = ambience;
+    if (!handle){
+      drone = null;
+      return;
+    }
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ambience = null;
+    drone = null;
+  }
+
   function regen(){
     pad = Math.floor(Math.min(w, h) * 0.06);
 
@@ -201,6 +220,11 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    stopAmbience({ clearCurrent: true });
+
     drone = simpleDrone(audio, { root: 55 + rand()*16, detune: 1.0, gain: 0.010 });
     ambience = {
       stop(){
@@ -211,9 +235,7 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
-    ambience = null;
-    drone = null;
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy(){ onAudioOff(); }
