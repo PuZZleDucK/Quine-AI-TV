@@ -111,6 +111,12 @@ export function createChannel({ seed, audio }){
   let bgCacheH = 0;
   let bgCacheCtx = null;
 
+  // warm scanline grain cache (rebuilt on resize)
+  let scanlinesCanvas = null;
+  let scanlinesW = 0;
+  let scanlinesH = 0;
+  let scanlinesStep = 0;
+
   let font = 16;
   let small = 12;
   let big = 48;
@@ -178,6 +184,12 @@ export function createChannel({ seed, audio }){
     bgCacheCtx = null;
     bgCacheW = 0;
     bgCacheH = 0;
+
+    // force scanlines rebuild
+    scanlinesCanvas = null;
+    scanlinesW = 0;
+    scanlinesH = 0;
+    scanlinesStep = 0;
   }
 
   function onResize(width, height, dprIn){
@@ -189,6 +201,12 @@ export function createChannel({ seed, audio }){
     bgCacheCtx = null;
     bgCacheW = 0;
     bgCacheH = 0;
+
+    // force scanlines rebuild
+    scanlinesCanvas = null;
+    scanlinesW = 0;
+    scanlinesH = 0;
+    scanlinesStep = 0;
   }
 
   function stopAmbience({ clearCurrent=false }={}){
@@ -291,8 +309,32 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function ensureScanlinesCache(){
+    const step = Math.max(3, Math.floor(Math.min(w, h) / 90));
+    if (!scanlinesCanvas || scanlinesW !== w || scanlinesH !== h || scanlinesStep !== step){
+      const c = (typeof OffscreenCanvas !== 'undefined')
+        ? new OffscreenCanvas(w, h)
+        : document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+
+      const sctx = c.getContext('2d');
+      sctx.clearRect(0, 0, w, h);
+      sctx.fillStyle = 'rgba(255, 210, 170, 1)';
+      for (let y=0; y<h; y+=step){
+        if (((y/step)|0) % 2 === 0) sctx.fillRect(0, y, w, 1);
+      }
+
+      scanlinesCanvas = c;
+      scanlinesW = w;
+      scanlinesH = h;
+      scanlinesStep = step;
+    }
+  }
+
   function bg(ctx){
     ensureBgCache(ctx);
+    ensureScanlinesCache();
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -300,15 +342,11 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
-    // warm grain
+    // warm grain (pre-rendered scanlines)
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = 0.08;
-    ctx.fillStyle = 'rgba(255, 210, 170, 1)';
-    const step = Math.max(3, Math.floor(Math.min(w, h) / 90));
-    for (let y=0; y<h; y+=step){
-      if (((y/step)|0) % 2 === 0) ctx.fillRect(0, y, w, 1);
-    }
+    ctx.drawImage(scanlinesCanvas, 0, 0);
     ctx.restore();
 
     // vignette
