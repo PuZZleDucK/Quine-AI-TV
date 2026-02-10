@@ -62,17 +62,17 @@ body{
 
 .osd{
   position:absolute;
-  left:12px;
   right:12px;
-  top:12px;
+  bottom:12px;
   display:flex;
   flex-direction:column;
   gap:10px;
+  align-items:flex-end;
   opacity:1;
   transition: opacity .25s ease;
 }
 .osd.hidden{opacity:0}
-.osd-row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.osd-row{display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-end}
 .pill{
   padding:6px 10px;
   font-size:12px;
