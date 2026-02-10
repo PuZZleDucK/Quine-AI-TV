@@ -51,6 +51,29 @@ export function createChannel({ seed, audio }){
   let benchGradW = 0;
   let benchGradH = 0;
 
+  // cached per-signature paper gradients for the stack (rebuild on regen/resize/ctx swap)
+  let sigPaperGrads = [];
+  let sigGradCtx = null;
+  let sigGradDirty = true;
+
+  function invalidateSigGradients(){
+    sigGradDirty = true;
+  }
+
+  function ensureSigGradients(ctx){
+    if (!sigGradDirty && sigGradCtx === ctx && sigPaperGrads.length === signatures.length) return;
+    sigGradCtx = ctx;
+    sigPaperGrads = new Array(signatures.length);
+    for (let i = 0; i < signatures.length; i++){
+      const s = signatures[i];
+      const g = ctx.createLinearGradient(0, s.y, 0, s.y + s.h);
+      g.addColorStop(0, pal.paper[0]);
+      g.addColorStop(1, pal.paper[1]);
+      sigPaperGrads[i] = g;
+    }
+    sigGradDirty = false;
+  }
+
   function ensureBenchGradients(ctx){
     if (benchGradCtx === ctx && benchGradW === w && benchGradH === h && benchWoodGrad && benchSpotGrad) return;
     benchGradCtx = ctx;
@@ -117,6 +140,8 @@ export function createChannel({ seed, audio }){
         shade: sh,
       });
     }
+
+    invalidateSigGradients();
 
     // stitch path along spine of top signature
     stitchPath = [];
@@ -365,14 +390,13 @@ export function createChannel({ seed, audio }){
     ctx.fill();
     ctx.restore();
 
+    ensureSigGradients(ctx);
+
     // pages
     for (let i=0;i<signatures.length;i++){
       const s = signatures[i];
       const a = 0.72 + s.shade;
-      const paperGrad = ctx.createLinearGradient(0, s.y, 0, s.y + s.h);
-      paperGrad.addColorStop(0, pal.paper[0]);
-      paperGrad.addColorStop(1, pal.paper[1]);
-      ctx.fillStyle = paperGrad;
+      ctx.fillStyle = sigPaperGrads[i];
       ctx.save();
       ctx.globalAlpha = a;
       roundedRect(ctx, s.x + sway, s.y + bob, s.w, s.h, 18);
