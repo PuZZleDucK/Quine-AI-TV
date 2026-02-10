@@ -8,8 +8,58 @@ export function createChannel({ seed, audio }){
   let drops=[];
   let rain=null;
 
+  // cache per-render gradients (rebuild on resize / ctx swap)
+  const gcache = {
+    ctx: null,
+    w: 0,
+    h: 0,
+    sky: null,
+    moon: null,
+    street: null,
+    mx: 0,
+    my: 0,
+    mr: 0,
+    streetY: 0,
+    streetH: 0,
+  };
+
+  function ensureGradients(ctx){
+    if (gcache.ctx === ctx && gcache.w === w && gcache.h === h && gcache.sky && gcache.moon && gcache.street) return;
+    gcache.ctx = ctx;
+    gcache.w = w;
+    gcache.h = h;
+
+    // sky
+    const g = ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0,'#03081a');
+    g.addColorStop(0.65,'#0a0f2a');
+    g.addColorStop(1,'#02010a');
+    gcache.sky = g;
+
+    // neon moon
+    const mx=w*0.78, my=h*0.22, mr=Math.min(w,h)*0.09;
+    gcache.mx = mx;
+    gcache.my = my;
+    gcache.mr = mr;
+    const mg = ctx.createRadialGradient(mx,my,0,mx,my,mr);
+    mg.addColorStop(0,'rgba(255,255,255,0.9)');
+    mg.addColorStop(0.5,'rgba(108,242,255,0.35)');
+    mg.addColorStop(1,'rgba(108,242,255,0.0)');
+    gcache.moon = mg;
+
+    // street glow
+    const sg = ctx.createLinearGradient(0,h*0.82,0,h);
+    sg.addColorStop(0,'rgba(255,75,216,0)');
+    sg.addColorStop(0.6,'rgba(255,75,216,0.10)');
+    sg.addColorStop(1,'rgba(108,242,255,0.08)');
+    gcache.street = sg;
+    gcache.streetY = h*0.78;
+    gcache.streetH = h*0.22;
+  }
+
   function init({width,height}){
     w=width; h=height; t=0;
+    gcache.ctx = null;
     layers = [0.35, 0.55, 0.8].map((depth,i)=>makeLayer(depth,i));
     drops = Array.from({length: 520}, ()=>({
       x: rand()*w,
@@ -57,22 +107,15 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
 
+    ensureGradients(ctx);
+
     // sky
-    const g = ctx.createLinearGradient(0,0,0,h);
-    g.addColorStop(0,'#03081a');
-    g.addColorStop(0.65,'#0a0f2a');
-    g.addColorStop(1,'#02010a');
-    ctx.fillStyle = g;
+    ctx.fillStyle = gcache.sky;
     ctx.fillRect(0,0,w,h);
 
     // neon moon
-    const mx=w*0.78, my=h*0.22, mr=Math.min(w,h)*0.09;
-    const mg = ctx.createRadialGradient(mx,my,0,mx,my,mr);
-    mg.addColorStop(0,'rgba(255,255,255,0.9)');
-    mg.addColorStop(0.5,'rgba(108,242,255,0.35)');
-    mg.addColorStop(1,'rgba(108,242,255,0.0)');
-    ctx.fillStyle = mg;
-    ctx.beginPath(); ctx.arc(mx,my,mr,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = gcache.moon;
+    ctx.beginPath(); ctx.arc(gcache.mx,gcache.my,gcache.mr,0,Math.PI*2); ctx.fill();
 
     // buildings
     for (const layer of layers){
@@ -102,12 +145,8 @@ export function createChannel({ seed, audio }){
     }
 
     // street glow
-    const sg = ctx.createLinearGradient(0,h*0.82,0,h);
-    sg.addColorStop(0,'rgba(255,75,216,0)');
-    sg.addColorStop(0.6,'rgba(255,75,216,0.10)');
-    sg.addColorStop(1,'rgba(108,242,255,0.08)');
-    ctx.fillStyle = sg;
-    ctx.fillRect(0,h*0.78,w,h*0.22);
+    ctx.fillStyle = gcache.street;
+    ctx.fillRect(0,gcache.streetY,w,gcache.streetH);
 
     // rain
     ctx.save();
