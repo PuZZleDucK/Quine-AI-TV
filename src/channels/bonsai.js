@@ -223,6 +223,10 @@ export function createChannel({ seed, audio }){
   let jumpFx = 0; // 0..1
   let jumpLabel = '';
 
+  // Special moment: rare falling leaf (~45–120s), deterministic per seed.
+  let specialTimer = 0;
+  let leafFall = null; // {x0,y0,drift,fall,rot0,spin,phase,age,life,rgb:[r,g,b]}
+
   // precomputed tree skeleton (in normalized units)
   const skeleton = {
     trunk: [],
@@ -286,6 +290,9 @@ export function createChannel({ seed, audio }){
     jumpTimer = 10 + rand() * 10;
     jumpFx = 0;
     jumpLabel = '';
+
+    leafFall = null;
+    scheduleSpecial();
   }
 
   function onResize(width, height){
@@ -388,6 +395,38 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function scheduleSpecial(){
+    specialTimer = 45 + rand() * 75;
+  }
+
+  function startLeafFall(){
+    const sway = Math.sin(t * 0.22) * 0.06;
+    const grow = 0.72 + (stage / (STAGES-1)) * 0.42;
+
+    const season = (stage / (STAGES-1)) * 0.85 + 0.15 * (0.5 + 0.5*Math.sin(t*0.03));
+    const lc = leafColor(clamp01(season));
+    const rgb = mixRGB(lc.a, lc.b, lc.t);
+
+    const p = skeleton.leafPuffs[Math.floor(rand() * skeleton.leafPuffs.length)];
+    const b = skeleton.branches[p.b];
+    const e = branchEnd(b, sway, grow);
+    const x0 = lerp(e.x0, e.x1, p.u) + p.dx + Math.sin(t*0.35 + p.wob) * 0.006;
+    const y0 = lerp(-e.y0, -e.y1, p.u) + p.dy + Math.cos(t*0.32 + p.wob) * 0.006;
+
+    leafFall = {
+      x0,
+      y0,
+      drift: (rand()*2-1) * 0.030,
+      fall: 0.18 + rand() * 0.09,
+      rot0: rand() * Math.PI * 2,
+      spin: (rand()*2-1) * 1.2,
+      phase: rand() * Math.PI * 2,
+      age: 0,
+      life: 5 + rand() * 3,
+      rgb,
+    };
+  }
+
   function update(dt){
     t += dt;
 
@@ -398,6 +437,19 @@ export function createChannel({ seed, audio }){
 
     if (jumpFx > 0){
       jumpFx = Math.max(0, jumpFx - dt * 0.9);
+    }
+
+    if (leafFall){
+      leafFall.age += dt;
+      if (leafFall.age >= leafFall.life){
+        leafFall = null;
+        scheduleSpecial();
+      }
+    } else {
+      specialTimer -= dt;
+      if (specialTimer <= 0){
+        startLeafFall();
+      }
     }
   }
 
@@ -611,6 +663,35 @@ export function createChannel({ seed, audio }){
       ctx.restore();
     }
 
+
+    // special moment: a single leaf drifting down occasionally
+    if (leafFall){
+      const u = clamp01(leafFall.age / leafFall.life);
+      const fade = Math.sin(Math.PI * u); // 0..1..0
+      const alpha = 0.45 * fade;
+
+      const x = leafFall.x0 + leafFall.drift * leafFall.age + Math.sin(t*2.2 + leafFall.phase) * 0.018;
+      const y = leafFall.y0 + leafFall.fall * leafFall.age + Math.cos(t*3.1 + leafFall.phase) * 0.006;
+      const rot = leafFall.rot0 + leafFall.spin * leafFall.age + Math.sin(t*6.2 + leafFall.phase) * 0.35;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = `rgb(${leafFall.rgb[0]},${leafFall.rgb[1]},${leafFall.rgb[2]})`;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 0.028, 0.014, 0, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.globalAlpha = alpha * 0.35;
+      ctx.strokeStyle = 'rgba(20,28,24,0.65)';
+      ctx.lineWidth = 0.003;
+      ctx.beginPath();
+      ctx.moveTo(-0.022, 0);
+      ctx.lineTo(0.022, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.restore();
   }
 
