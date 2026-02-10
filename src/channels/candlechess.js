@@ -15,6 +15,8 @@ const PIECE_VALUE = {
 
 export function createChannel({ seed, audio }) {
   const rand = mulberry32(seed);
+  const seedU32 = (typeof seed === 'number' ? seed : 0) >>> 0;
+  const dustSeed = (seedU32 ^ 0xa5a5a5a5) >>> 0;
 
   let w = 0;
   let h = 0;
@@ -66,6 +68,19 @@ export function createChannel({ seed, audio }) {
     candleFlameAy: 0,
     candleFlameBaseFr: 0,
   };
+
+  function hashU32(x){
+    x = (x ^ (x >>> 16)) >>> 0;
+    x = Math.imul(x, 0x7feb352d) >>> 0;
+    x = (x ^ (x >>> 15)) >>> 0;
+    x = Math.imul(x, 0x846ca68b) >>> 0;
+    x = (x ^ (x >>> 16)) >>> 0;
+    return x >>> 0;
+  }
+
+  function hashUnit(x){
+    return hashU32(x) / 4294967296;
+  }
 
   function makeCanvas(W, H) {
     if (!(W > 0 && H > 0)) return null;
@@ -387,13 +402,20 @@ export function createChannel({ seed, audio }) {
 
   function initDust(){
     const n = 62;
-    dust = Array.from({ length: n }, () => ({
-      x: rand() * w,
-      y: rand() * h,
-      z: 0.2 + rand() * 1.0,
-      s: 0.6 + rand() * 1.4,
-      w: rand() * 10,
-    }));
+    dust = Array.from({ length: n }, (_, i) => {
+      const x0 = rand() * w;
+      const y0 = rand() * h;
+      return {
+        i,
+        x0,
+        y0,
+        x: x0,
+        y: y0,
+        z: 0.2 + rand() * 1.0,
+        s: 0.6 + rand() * 1.4,
+        w: rand() * 10, // phase
+      };
+    });
   }
 
   function onResize(width, height, _dpr=1){
@@ -497,15 +519,31 @@ export function createChannel({ seed, audio }) {
       }
     }
 
-    // Dust.
+    // Dust (deterministic across FPS): compute position from global time `t`.
     const drift = w * 0.008;
+    const wrapRange = h + 40; // y in [-20, h+20)
     for (const d of dust){
-      d.y -= dt * (10 + 28 * d.z);
-      d.x += Math.sin(t * (0.28 + d.z * 0.18) + d.w) * dt * drift * (0.2 + d.z * 0.35);
-      if (d.y < -20){
-        d.y = h + 20;
-        d.x = rand() * w;
-      }
+      const speed = 10 + 28 * d.z;
+
+      // Wrap y without dt-quantized boundary triggers.
+      let y = d.y0 - t * speed;
+      y = (y + 20) % wrapRange;
+      if (y < 0) y += wrapRange;
+      y -= 20;
+
+      // Change x base only when we wrap, via deterministic hash (no rand() in hot path).
+      const k = Math.floor((d.y0 + 20 - t * speed) / wrapRange); // 0, -1, -2...
+      const wraps = -k;
+      const u = hashUnit(
+        dustSeed ^ Math.imul(d.i + 1, 0x9e3779b1) ^ Math.imul(wraps + 1, 0x85ebca6b)
+      );
+      const xBase = wraps === 0 ? d.x0 : u * w;
+
+      const sway = Math.sin(t * (0.28 + d.z * 0.18) + d.w);
+      const x = xBase + sway * drift * (0.9 + d.z * 1.1);
+
+      d.x = x;
+      d.y = y;
     }
 
     // Phase holds (after special moments).
