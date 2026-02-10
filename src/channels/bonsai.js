@@ -94,6 +94,43 @@ export function createChannel({ seed, audio }){
     bgCache.vignette = vg;
   }
 
+  // Foreground gradient cache (bench + pot body; rebuilt on init/resize).
+  const fgCache = {
+    w: 0,
+    h: 0,
+    benchY: 0,
+    bench: null,
+    potBody: null,
+  };
+
+  function ensureForegroundCache(ctx){
+    if (fgCache.bench && fgCache.potBody && fgCache.w === w && fgCache.h === h) return;
+
+    fgCache.w = w;
+    fgCache.h = h;
+
+    // bench
+    const y = Math.floor(h * 0.70);
+    fgCache.benchY = y;
+    const gg = ctx.createLinearGradient(0, y, 0, h);
+    gg.addColorStop(0, '#0c0f14');
+    gg.addColorStop(1, '#07090d');
+    fgCache.bench = gg;
+
+    // pot body (matches render() placement)
+    const s = Math.min(w, h);
+    const cx = w * 0.52;
+    const cy = h * 0.63;
+    const potW = s * 0.42;
+    const potH = s * 0.16;
+
+    const body = ctx.createLinearGradient(cx - potW*0.5, cy, cx + potW*0.5, cy + potH);
+    body.addColorStop(0, '#1b2a34');
+    body.addColorStop(0.55, '#0f1820');
+    body.addColorStop(1, '#0a1016');
+    fgCache.potBody = body;
+  }
+
   // Growth timeline
   let day = 1 + ((seed >>> 0) % 90);
   let stage = 0; // 0..STAGES-1
@@ -157,6 +194,7 @@ export function createChannel({ seed, audio }){
   function init({ width, height }){
     w = width; h = height; t = 0;
     bgCache.bg = bgCache.lamp = bgCache.vignette = null;
+    fgCache.bench = fgCache.potBody = null;
     buildSkeleton();
 
     stage = (seed >>> 0) % STAGES;
@@ -168,6 +206,7 @@ export function createChannel({ seed, audio }){
   function onResize(width, height){
     w = width; h = height;
     bgCache.bg = bgCache.lamp = bgCache.vignette = null;
+    fgCache.bench = fgCache.potBody = null;
   }
 
   function makeAudioHandle(){
@@ -298,11 +337,10 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBench(ctx){
-    const y = Math.floor(h * 0.70);
-    const gg = ctx.createLinearGradient(0, y, 0, h);
-    gg.addColorStop(0, '#0c0f14');
-    gg.addColorStop(1, '#07090d');
-    ctx.fillStyle = gg;
+    ensureForegroundCache(ctx);
+
+    const y = fgCache.benchY;
+    ctx.fillStyle = fgCache.bench;
     ctx.fillRect(0, y, w, h - y);
 
     // subtle wood-ish lines
@@ -321,6 +359,8 @@ export function createChannel({ seed, audio }){
   }
 
   function drawPot(ctx, cx, cy, s){
+    ensureForegroundCache(ctx);
+
     const potW = s * 0.42;
     const potH = s * 0.16;
     const rimH = potH * 0.32;
@@ -334,13 +374,8 @@ export function createChannel({ seed, audio }){
     ctx.fill();
     ctx.restore();
 
-    // body
-    const body = ctx.createLinearGradient(cx - potW*0.5, cy, cx + potW*0.5, cy + potH);
-    body.addColorStop(0, '#1b2a34');
-    body.addColorStop(0.55, '#0f1820');
-    body.addColorStop(1, '#0a1016');
-
-    ctx.fillStyle = body;
+    // body (gradient cached; matches render() placement)
+    ctx.fillStyle = fgCache.potBody;
     ctx.strokeStyle = 'rgba(120,210,255,0.14)';
     ctx.lineWidth = 2;
     roundRect(ctx, cx - potW*0.5, cy, potW, potH, 10);
