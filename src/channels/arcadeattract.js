@@ -74,6 +74,46 @@ export function createChannel({ seed, audio }){
   // cabinet art cards
   let artCards = [];
 
+  // side adverts (seeded, deterministic)
+  let adverts = [];
+
+  const AD_PRODUCTS = [
+    'GHOST COIN™', 'TURBO NACHOS', 'CARTRIDGE AIR', 'LATENCY JUICE',
+    'PIXEL POLISH', 'BOSS KEY', 'HIGHSCORE INSURANCE', 'MYSTERY DIP SWITCH',
+    'CRT SUNSCREEN', 'VHS SKIN PACK',
+  ];
+
+  const AD_TAGS = [
+    'NOW 30% MORE REGRET',
+    'UNOFFICIAL BUT CONFIDENT',
+    'CERTIFIED ARCADE-GRADE',
+    'SOME ASSEMBLY REQUIRED',
+    'GREAT FOR SPEEDRUNS',
+    'ENGINEERED BY COMMITTEE',
+    'BATTERIES NOT INCLUDED',
+    '100% DETERMINISTIC†',
+  ];
+
+  const AD_CTA = [
+    'ASK ATTENDANT',
+    'INSERT COIN',
+    'DO NOT SHAKE CABINET',
+    'LIMIT 1 PER PLAYER',
+    'NO REFUNDS',
+    'SEE BACK OF RECEIPT',
+  ];
+
+  const AD_FINE = [
+    '†determinism not guaranteed',
+    '*regret may vary',
+    'void where prohibited',
+    'not for actual humans',
+    'may contain traces of lag',
+  ];
+
+  const AD_STAMPS = ['NEW!', 'HOT', 'LIMITED', 'PRO', 'BETA'];
+  const AD_PRICES = ['$0.25', '$0.50', '$0.99', '$1.00', '$1.25'];
+
   // demo state (tiny shoot-'em-up)
   const INV_N = 12;
   const BUL_N = 10;
@@ -108,6 +148,18 @@ export function createChannel({ seed, audio }){
       hueB: th.b,
       grain: rand() * 10,
       stamp: pick(rand, ['REV A', 'REV B', 'OPERATOR', 'EXPORT', 'JAMMA', '2P READY']),
+    }));
+
+    // adverts
+    adverts = Array.from({ length: 12 }, (_, i) => ({
+      head: pick(rand, AD_PRODUCTS),
+      tag: pick(rand, AD_TAGS),
+      cta: pick(rand, AD_CTA),
+      fine: pick(rand, AD_FINE),
+      stamp: pick(rand, AD_STAMPS),
+      price: pick(rand, AD_PRICES),
+      hueA: (baseHue + 25 + i * 17 + ((rand() * 20) | 0)) % 360,
+      hueB: (accentHue + 15 + i * 23 + ((rand() * 20) | 0)) % 360,
     }));
 
     // demo
@@ -422,16 +474,16 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = 'rgba(230, 245, 255, 0.86)';
     ctx.font = `800 ${Math.max(12, Math.floor(h * 0.020))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
     ctx.textBaseline = 'top';
-    ctx.fillText('ARCHIVE CARDS', sideX + pad, titleY);
+    ctx.fillText('SIDE ADS', sideX + pad, titleY);
 
     const cardH = Math.floor((sideH - pad * 2 - 36) / 3);
     const cardW = sideW - pad * 2;
     let y = sideY + pad + 34;
 
-    const k = (Math.floor(t / 10) % artCards.length) | 0;
+    const k = (Math.floor(t / 9) % adverts.length) | 0;
 
     for (let i = 0; i < 3; i++){
-      const c = artCards[(k + i) % artCards.length];
+      const c = adverts[(k + i) % adverts.length];
       const x = sideX + pad;
 
       // card background
@@ -455,21 +507,33 @@ export function createChannel({ seed, audio }){
       }
       ctx.globalAlpha = 1;
 
-      // label text
-      ctx.shadowColor = 'rgba(0,0,0,0.4)';
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      // advert text
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = 10;
+
+      ctx.fillStyle = 'rgba(255,255,255,0.94)';
       ctx.font = `900 ${Math.max(12, Math.floor(h * 0.020))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
-      ctx.fillText(c.key, x + 12, y + 10);
+      ctx.textAlign = 'left';
+      ctx.fillText(c.head, x + 12, y + 10);
 
       ctx.shadowBlur = 0;
-      ctx.fillStyle = 'rgba(255,255,255,0.75)';
-      ctx.font = `700 ${Math.max(11, Math.floor(h * 0.018))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
-      ctx.fillText(c.stamp, x + 12, y + 34);
+      ctx.fillStyle = 'rgba(255,255,255,0.78)';
+      ctx.font = `800 ${Math.max(11, Math.floor(h * 0.018))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      ctx.fillText(c.tag, x + 12, y + 34);
 
       ctx.fillStyle = 'rgba(255,255,255,0.62)';
-      ctx.font = `700 ${Math.max(10, Math.floor(h * 0.016))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
-      ctx.fillText(gameCode, x + 12, y + cardH - 20);
+      ctx.font = `800 ${Math.max(10, Math.floor(h * 0.016))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      ctx.fillText(`${c.cta}  ${c.price}`, x + 12, y + cardH - 38);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.font = `700 ${Math.max(9, Math.floor(h * 0.014))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      ctx.fillText(c.fine, x + 12, y + cardH - 20);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.70)';
+      ctx.font = `900 ${Math.max(10, Math.floor(h * 0.016))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      ctx.textAlign = 'right';
+      ctx.fillText(c.stamp, x + cardW - 12, y + 10);
+      ctx.textAlign = 'left';
 
       ctx.restore();
 
