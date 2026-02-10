@@ -182,6 +182,66 @@ export function createChannel({ seed, audio }){
   // Cached gradients (rebuild on resize or ctx swap)
   let grad = { ctx: null, w: 0, h: 0, winKey: '', bg: null, vignette: null, glass: null, dirt: null };
 
+  // Cached grain layer (seeded, rebuilt on resize/ctx swap)
+  let grain = { ctx: null, winKey: '', tile: 0, canvas: null, pattern: null };
+
+  function makeCanvas(W, H){
+    if (!(W > 0 && H > 0)) return null;
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+    if (typeof document !== 'undefined'){
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    }
+    return null;
+  }
+
+  function ensureGrain(ctx){
+    const winKey = `${win.w}|${win.h}|${dpr}`;
+    if (grain.ctx === ctx && grain.winKey === winKey && grain.pattern) return;
+
+    grain.ctx = ctx;
+    grain.winKey = winKey;
+
+    const tile = Math.max(180, Math.floor(Math.min(win.w, win.h) * 0.38));
+    grain.tile = tile;
+
+    const c = makeCanvas(tile, tile);
+    const g = c?.getContext?.('2d');
+    if (!c || !g){
+      grain.canvas = null;
+      grain.pattern = null;
+      return;
+    }
+
+    g.setTransform(1,0,0,1,0,0);
+    g.clearRect(0, 0, tile, tile);
+
+    // Separate deterministic RNG for grain so render() doesn't consume the main PRNG.
+    const r = mulberry32(((seed ^ 0x6d2b79f5) >>> 0));
+
+    g.fillStyle = '#fff';
+    const dots = Math.floor(tile * tile * 0.02);
+    for (let i=0;i<dots;i++){
+      const x = r() * tile;
+      const y = r() * tile;
+      const rad = r() * 1.8;
+      g.globalAlpha = 0.12 + r() * 0.22;
+      g.beginPath();
+      g.arc(x, y, rad, 0, Math.PI*2);
+      g.fill();
+    }
+    g.globalAlpha = 1;
+
+    grain.canvas = c;
+    try {
+      grain.pattern = ctx.createPattern(c, 'repeat');
+    } catch {
+      grain.pattern = null;
+    }
+  }
+
   function ensureGradients(ctx){
     const winKey = `${win.x}|${win.y}|${win.w}|${win.h}`;
     if (grad.ctx === ctx && grad.w === w && grad.h === h && grad.winKey === winKey && grad.bg && grad.vignette && grad.glass && grad.dirt){
@@ -598,16 +658,17 @@ export function createChannel({ seed, audio }){
     roundRect(ctx, win.x, win.y, win.w, win.h, win.r);
     ctx.clip();
 
-    // subtle “macro grain”
-    ctx.globalAlpha = 0.05;
-    for (let i=0;i<220;i++){
-      const x = win.x + rand() * win.w;
-      const y = win.y + rand() * win.h;
-      const r = rand() * 1.6;
-      ctx.fillStyle = `rgba(255,255,255,${0.10 + rand()*0.12})`;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI*2);
-      ctx.fill();
+    // subtle “macro grain” (cached seeded noise tile, blitted with slow drift)
+    ensureGrain(ctx);
+    if (grain.pattern){
+      const ox = (t * 3.3) % grain.tile;
+      const oy = (t * 2.1) % grain.tile;
+      ctx.save();
+      ctx.globalAlpha = 0.055;
+      ctx.translate(-ox, -oy);
+      ctx.fillStyle = grain.pattern;
+      ctx.fillRect(win.x + ox, win.y + oy, win.w, win.h);
+      ctx.restore();
     }
 
     // critters
