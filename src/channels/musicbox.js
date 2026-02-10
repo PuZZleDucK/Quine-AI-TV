@@ -6,6 +6,11 @@ function pick(rand, arr){ return arr[(rand() * arr.length) | 0]; }
 function lerp(a,b,t){ return a + (b-a)*t; }
 function ease(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
 
+function hash01(seed, x){
+  const s = Math.sin(x * 127.1 + seed * 311.7) * 43758.5453123;
+  return s - Math.floor(s);
+}
+
 function roundedRect(ctx, x, y, w, h, r){
   r = Math.min(r, w*0.5, h*0.5);
   ctx.beginPath();
@@ -90,20 +95,31 @@ export function createChannel({ seed, audio }){
 
   function genPattern(){
     const density = 0.42 + rand()*0.22;
-    const out = new Array(steps).fill(-1);
+    const notes = new Array(steps).fill(-1);
+    const detune = new Array(steps).fill(0);
+    const harm = new Array(steps).fill(false);
     let n = 0;
+
     for (let i=0;i<steps;i++){
       if (rand() < density){
-        out[i] = (rand() * scaleHz.length) | 0;
+        notes[i] = (rand() * scaleHz.length) | 0;
         n++;
       }
     }
     // ensure it's not too sparse
     while (n < 6){
       const i = (rand()*steps)|0;
-      if (out[i] === -1){ out[i] = (rand()*scaleHz.length)|0; n++; }
+      if (notes[i] === -1){ notes[i] = (rand()*scaleHz.length)|0; n++; }
     }
-    return out;
+
+    // Audio randomness is precomputed per step so per-frame update() uses 0 rand().
+    for (let i=0;i<steps;i++){
+      const note = notes[i];
+      detune[i] = (hash01(seed, 9100 + i*17.17 + note*3.1 + density*100) - 0.5) * 0.004; // ~±0.2%
+      harm[i] = hash01(seed, 9200 + i*13.7 + note*5.3) < 0.18;
+    }
+
+    return { notes, detune, harm };
   }
 
   const patterns = Array.from({ length: 3 }, () => genPattern());
@@ -128,8 +144,13 @@ export function createChannel({ seed, audio }){
   let revealPins = 0; // 0..1
   let contactPulse = 0;
   let sparkle = 0;
-  let nextSlipAt = 6 + rand()*10;
+  let slipCount = 0;
+  let nextSlipAt = 0;
+  let slipStartAt = -1;
   let slip = 0;
+
+  let nextPunchClickAt = Infinity;
+  let punchClickCount = 0;
 
   let lastStep = -1;
 
@@ -403,8 +424,14 @@ export function createChannel({ seed, audio }){
     revealPins = 0;
     contactPulse = 0;
     sparkle = 0;
-    nextSlipAt = 6 + rand()*10;
+    slipCount = 0;
+    slipStartAt = -1;
+    nextSlipAt = 6 + hash01(seed, 1100 + slipCount) * 10;
     slip = 0;
+
+    nextPunchClickAt = Infinity;
+    punchClickCount = 0;
+
     lastStep = -1;
     regen();
   }
@@ -447,6 +474,13 @@ export function createChannel({ seed, audio }){
 
     if (id === 'punch'){
       safeBeep({ freq: 240, dur: 0.05, gain: 0.03, type: 'square' });
+
+      // Schedule punch clicks deterministically (FPS-stable; no per-frame rand()).
+      punchClickCount = 0;
+      const phaseStart = t - phaseT;
+      nextPunchClickAt = phaseStart + 0.10 + hash01(seed, 2100) * 0.45;
+    } else {
+      nextPunchClickAt = Infinity;
     }
 
     if (id === 'test'){
@@ -478,13 +512,24 @@ export function createChannel({ seed, audio }){
 
     sparkle = Math.max(0, sparkle - dt * 1.35);
     contactPulse = Math.max(0, contactPulse - dt * 6.5);
-    slip = Math.max(0, slip - dt * 2.6);
+    // periodic tiny gear slip (time-scheduled; FPS-stable; 0 rand() in hot path)
+    while (t >= nextSlipAt){
+      const idx = slipCount;
+      slipCount++;
 
-    // periodic tiny gear slip
-    if (t >= nextSlipAt){
-      slip = 1;
-      nextSlipAt = t + 10 + rand()*14;
-      if (phase().id !== 'finale') safeBeep({ freq: 130 + rand()*40, dur: 0.035, gain: 0.012, type: 'square' });
+      slipStartAt = nextSlipAt;
+      nextSlipAt = slipStartAt + 10 + hash01(seed, 1200 + slipCount) * 14;
+
+      if (phase().id !== 'finale'){
+        const f = 130 + hash01(seed, 1300 + idx) * 40;
+        safeBeep({ freq: f, dur: 0.035, gain: 0.012, type: 'square' });
+      }
+    }
+
+    if (slipStartAt >= 0){
+      slip = Math.max(0, 1 - (t - slipStartAt) * 2.6);
+    } else {
+      slip = 0;
     }
 
     const p = phase();
@@ -516,13 +561,14 @@ export function createChannel({ seed, audio }){
       if (step !== lastStep){
         lastStep = step;
 
-        const pin = cur[step];
+        const pin = cur.notes[step];
         if (pin >= 0){
           contactPulse = 1;
           const hz = scaleHz[pin];
           const bright = p.id === 'finale' ? 1.0 : 0.8;
-          safeBeep({ freq: hz * (1 + (rand()-0.5)*0.004), dur: 0.06, gain: 0.02 * bright, type: 'triangle' });
-          if (p.id === 'finale' && rand() < 0.18){
+          const det = cur.detune[step] || 0;
+          safeBeep({ freq: hz * (1 + det), dur: 0.06, gain: 0.02 * bright, type: 'triangle' });
+          if (p.id === 'finale' && cur.harm[step]){
             safeBeep({ freq: hz*2, dur: 0.04, gain: 0.008, type: 'sine' });
           }
         }
@@ -531,10 +577,13 @@ export function createChannel({ seed, audio }){
       lastStep = -1;
     }
 
-    // punch clicks
+    // punch clicks (deterministically scheduled; FPS-stable; no per-frame rand())
     if (p.id === 'punch'){
-      if ((Math.sin(t * 4.2) * 0.5 + 0.5) > 0.995){
-        safeBeep({ freq: 190 + rand()*80, dur: 0.03, gain: 0.02, type: 'square' });
+      while (t >= nextPunchClickAt){
+        const i = punchClickCount++;
+        const f = 190 + hash01(seed, 3100 + i) * 80;
+        safeBeep({ freq: f, dur: 0.03, gain: 0.02, type: 'square' });
+        nextPunchClickAt += 0.18 + hash01(seed, 3200 + i) * 0.55;
       }
     }
   }
@@ -632,7 +681,7 @@ export function createChannel({ seed, audio }){
     ctx.stroke();
 
     // lanes + pins
-    const cur = patterns[patternIndex];
+    const cur = patterns[patternIndex].notes;
     const lanes = scaleHz.length;
     const pinCount = Math.floor(steps * revealPins + 0.001);
 
