@@ -20,6 +20,10 @@ export function createChannel({ seed, audio }){
   let special = null;    // { type:'lightning'|'neon', t0, dur }
   let nextSpecialAt = 0;
 
+  // window-light events: mostly random twinkle, occasional sync pulse, rare wipe
+  let lightEvent = null; // { type:'sync'|'wipe', t0, dur, dir }
+  let nextLightEventAt = 0;
+
   function rebuildRainSprite(){
     const lw = Math.max(1, Math.floor(h/720));
     const sw = 32, sh = 64;
@@ -158,6 +162,23 @@ export function createChannel({ seed, audio }){
     nextSpecialAt = t + (45 + rand()*75);
   }
 
+  function maybeStartLightEvent(){
+    if (lightEvent || t < nextLightEventAt) return;
+
+    // Most of the time: normal random twinkle.
+    // Occasionally: a global “sync” pulse (threshold shifts together).
+    // Rarely: a left→right or right→left “wipe” band.
+    const type = (rand() < 0.12) ? 'wipe' : 'sync';
+    lightEvent = {
+      type,
+      t0: t,
+      dur: type === 'wipe' ? (2.8 + rand()*2.6) : (1.6 + rand()*2.0),
+      dir: rand() < 0.5 ? 1 : -1,
+    };
+
+    nextLightEventAt = t + (type === 'wipe' ? (90 + rand()*120) : (24 + rand()*40));
+  }
+
   function init({width,height}){
     w=width; h=height; t=0;
     gcache.ctx = null;
@@ -183,6 +204,10 @@ export function createChannel({ seed, audio }){
     // rare special moments every ~45–120s
     special = null;
     nextSpecialAt = 45 + rand()*75;
+
+    // window-light events
+    lightEvent = null;
+    nextLightEventAt = 18 + rand()*35;
   }
 
   function makeLayer(depth, i){
@@ -280,8 +305,10 @@ export function createChannel({ seed, audio }){
 
     params = computePhaseParams(t);
     maybeStartSpecial();
+    maybeStartLightEvent();
 
     if (special && (t - special.t0) > special.dur) special = null;
+    if (lightEvent && (t - lightEvent.t0) > lightEvent.dur) lightEvent = null;
 
     const rainSpeed = params?.rainSpeed ?? 1;
     const wind = params?.wind ?? 1;
@@ -342,9 +369,24 @@ export function createChannel({ seed, audio }){
       ctx.restore();
 
       // windows
+      // Default: random twinkle. Occasionally sync (global pulse) and rarely a wipe band across x.
+      const le = lightEvent;
+      const leAge = le ? (t - le.t0) : 0;
+      const leU = le ? clamp(leAge / le.dur, 0, 1) : 0;
+      const syncPulse = (le && le.type === 'sync') ? (0.5 + 0.5*Math.sin(leAge * 8.5)) : 0;
+      const wipeCenter = (le && le.type === 'wipe') ? (le.dir > 0 ? leU : (1 - leU)) : -10;
+
+      const twSpeed = (p.twinkleSpeed ?? 0.5);
+      let winThreshBase = (p.winThresh ?? 0.7);
+      let winAlpha = (p.winAlpha ?? 0.22);
+      if (syncPulse > 0){
+        winThreshBase = mix(winThreshBase, 0.18, syncPulse);
+        winAlpha *= mix(0.7, 1.4, syncPulse);
+      }
+
       ctx.save();
       ctx.fillStyle = 'rgb(255,200,120)';
-      ctx.globalAlpha = (p.winAlpha ?? 0.22);
+      ctx.globalAlpha = winAlpha;
       for (const b of layer.buildings){
         const topY = baseY - b.h;
         const cols = Math.max(2, Math.floor(b.w/18));
@@ -353,8 +395,14 @@ export function createChannel({ seed, audio }){
         const wh = b.h/(rows+1);
         for (let r=1;r<=rows;r++){
           for (let c=1;c<=cols;c++){
-            const tw = Math.sin(t*(p.twinkleSpeed ?? 0.5) + b.winSeed + r*0.7 + c*0.9);
-            if (tw <= (p.winThresh ?? 0.7)) continue;
+            let thresh = winThreshBase;
+            if (wipeCenter >= 0){
+              const xNorm = (b.x + c*ww) / w;
+              const band = smoothstep01(1 - Math.abs(xNorm - wipeCenter) / 0.18);
+              thresh = Math.max(-0.95, thresh - band*0.48);
+            }
+            const tw = Math.sin(t*twSpeed + b.winSeed + r*0.7 + c*0.9);
+            if (tw <= thresh) continue;
             const x = b.x + c*ww;
             const y = topY + r*wh;
             ctx.fillRect(x,y, ww*0.35, wh*0.35);
