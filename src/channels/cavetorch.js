@@ -1,5 +1,7 @@
 import { mulberry32 } from '../util/prng.js';
 
+// REVIEWED: 2026-02-11
+
 function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
 function smoothstep(a, b, t){
   t = clamp((t - a) / (b - a), 0, 1);
