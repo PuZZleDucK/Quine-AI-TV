@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] visuals `containerport`: containers on the ships are the wrong size, should be the same size as all other containers. Commit: 90a7316
+
 - [x] [project:quine-tv] visuals `containerport`: containers should be consistent persistant entities and not background elements or disapear, they should move with ships when loaded. Commit: 92a487d
 
 - [x] [project:quine-tv] visuals `containerport`: reroute events should cause a container to be moved from the source to the target column. Commit: 4a4855b
