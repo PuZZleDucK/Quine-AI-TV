@@ -1,6 +1,5 @@
 
 # TODO Queue
-- Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): paper is wider than the hole, the machine needs to be wider and more interesting.
 - Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): add subtle counter texture/film grain and stronger printer-slot lighting/shadow so the scene reads less “flat”. Accept: 0–60s capture shows visible texture + depth improve receipt legibility.
 - Content polish `dreamreceipt` (src/channels/dreamreceipt.js): expand receipt text variety (more headers/footers/notes) and add 1 rare special moment beyond glitch/coupon (e.g., VOID stamp / “TOTAL: ???” scramble) scheduled deterministically (~45–120s). Accept: 5min capture shows at least one additional special moment; deterministic per seed.
 

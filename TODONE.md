@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): widen printer body + slot so paper fits; added bevel highlight + screws for interest. Commit: 9c00b79
+
 - [x] [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): longer post-print pause, then receipt falls off-screen. Commit: 582e5c1
 
 - [x] [project:quine-tv] Audio hygiene `dreamreceipt` (src/channels/dreamreceipt.js): make `onAudioOn()` idempotent (stop existing ambience we own first); `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Accept: repeated A toggles never stack; volume stays stable. Commit: efc57d6
