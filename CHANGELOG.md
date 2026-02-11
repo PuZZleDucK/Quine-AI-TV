@@ -1,4 +1,5 @@
 
+- 2026-02-12 00:32 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: capped on-ship container stacks to max 3 high. Commit: 532568c
 - 2026-02-12 00:24 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: unified container sizing across ship/yard/crane so ship containers match yard containers. Commit: 90a7316
 - 2026-02-12 00:08 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: ship containers are now persistent entities (drawn from `shipStacks`), and UNLOAD crane moves pop containers off the ship so the stacks visibly empty while the ship moves. Commit: 92a487d
 - 2026-02-11 23:45 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: during REROUTE phase, cranes now move a container from the source bay to the target bay (routeA→routeB). Commit: 4a4855b

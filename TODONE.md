@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] visuals `containerport`: containers should be limited to stacks of three on ships. Commit: 532568c
+
 - [x] [project:quine-tv] visuals `containerport`: containers on the ships are the wrong size, should be the same size as all other containers. Commit: 90a7316
 
 - [x] [project:quine-tv] visuals `containerport`: containers should be consistent persistant entities and not background elements or disapear, they should move with ships when loaded. Commit: 92a487d
