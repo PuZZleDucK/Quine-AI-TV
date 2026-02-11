@@ -50,6 +50,43 @@ export function createChannel({ seed, audio }){
   let noiseCtx = null;
   let noiseScroll = 0;
 
+  // gradients (cache per ctx + size)
+  let gradCtx = null;
+  let gradKey = '';
+  let bgGrad = null;
+  let rimGrad = null;
+  let vignetteGrad = null;
+
+  function invalidateGradients(){
+    gradCtx = null;
+    gradKey = '';
+    bgGrad = null;
+    rimGrad = null;
+    vignetteGrad = null;
+  }
+
+  function ensureGradients(ctx){
+    const key = `${w},${h},${cx},${cy},${cw},${ch}`;
+    if (ctx === gradCtx && key === gradKey && bgGrad && rimGrad && vignetteGrad) return;
+
+    gradCtx = ctx;
+    gradKey = key;
+
+    bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.75);
+    bgGrad.addColorStop(0, '#040a10');
+    bgGrad.addColorStop(0.45, '#03070c');
+    bgGrad.addColorStop(1, '#020408');
+
+    rimGrad = ctx.createLinearGradient(cx, cy, cx + cw, cy + ch);
+    rimGrad.addColorStop(0, 'rgba(170,255,255,0.16)');
+    rimGrad.addColorStop(0.55, 'rgba(80,170,210,0.09)');
+    rimGrad.addColorStop(1, 'rgba(140,255,255,0.14)');
+
+    vignetteGrad = ctx.createRadialGradient(cx + cw * 0.5, cy + ch * 0.5, 10, cx + cw * 0.5, cy + ch * 0.5, Math.max(cw, ch) * 0.65);
+    vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vignetteGrad.addColorStop(1, 'rgba(0,0,0,0.55)');
+  }
+
   // tracks (pooled)
   const MAX_TRACKS = 140;
   const MAX_PTS = 26;
@@ -82,6 +119,8 @@ export function createChannel({ seed, audio }){
     cx = Math.floor((w - cw) / 2);
     cy = Math.floor((h - ch) / 2);
     cr = Math.max(16, Math.floor(Math.min(cw, ch) * 0.06));
+
+    invalidateGradients();
 
     phaseIdx = (seed >>> 0) % PHASES.length;
     phaseEndsAt = PHASES[phaseIdx].dur;
@@ -258,11 +297,9 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBackground(ctx){
-    const g = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.75);
-    g.addColorStop(0, '#040a10');
-    g.addColorStop(0.45, '#03070c');
-    g.addColorStop(1, '#020408');
-    ctx.fillStyle = g;
+    ensureGradients(ctx);
+
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
     // subtle spill glow
@@ -289,22 +326,16 @@ export function createChannel({ seed, audio }){
     ctx.shadowColor = 'rgba(140,245,255,0.18)';
     ctx.shadowBlur = Math.max(10, Math.min(w, h) * 0.03);
 
-    const rim = ctx.createLinearGradient(cx, cy, cx + cw, cy + ch);
-    rim.addColorStop(0, 'rgba(170,255,255,0.16)');
-    rim.addColorStop(0.55, 'rgba(80,170,210,0.09)');
-    rim.addColorStop(1, 'rgba(140,255,255,0.14)');
+    ensureGradients(ctx);
 
-    ctx.strokeStyle = rim;
+    ctx.strokeStyle = rimGrad;
     ctx.lineWidth = Math.max(2, Math.min(w, h) * 0.006);
     roundRect(ctx, cx, cy, cw, ch, cr);
     ctx.stroke();
 
     ctx.shadowBlur = 0;
     // inner vignette
-    const vg = ctx.createRadialGradient(cx + cw * 0.5, cy + ch * 0.5, 10, cx + cw * 0.5, cy + ch * 0.5, Math.max(cw, ch) * 0.65);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = vignetteGrad;
     roundRect(ctx, cx + 4, cy + 4, cw - 8, ch - 8, Math.max(10, cr - 6));
     ctx.fill();
 
