@@ -1,6 +1,8 @@
 import { mulberry32 } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-11
+
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 
 const VARS = ['duck', 'bean', 'pixel', 'orbit', 'crumb', 'spark', 'moss', 'byte', 'petal', 'kettle'];
