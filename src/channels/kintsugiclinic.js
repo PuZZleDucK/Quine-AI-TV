@@ -117,6 +117,13 @@ export function createChannel({ seed, audio }){
   // audio
   let ambience = null;
 
+  function stopAmbience(){
+    try { ambience?.stop?.(); } catch {}
+    // Only clear current if we own it.
+    if (audio.current === ambience) audio.current = null;
+    ambience = null;
+  }
+
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
   function nearestCrack(x, y){
@@ -235,6 +242,10 @@ export function createChannel({ seed, audio }){
   function onAudioOn(){
     if (!audio.enabled) return;
 
+    // Idempotent: ensure we don't stack sources if this is called repeatedly.
+    try { audio.stopCurrent?.(); } catch {}
+    stopAmbience();
+
     const n = audio.noiseSource({ type: 'brown', gain: 0.0036 });
     n.start();
 
@@ -245,12 +256,12 @@ export function createChannel({ seed, audio }){
         try { d.stop(); } catch {}
       },
     };
+
     audio.setCurrent(ambience);
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
-    ambience = null;
+    stopAmbience();
   }
 
   function destroy(){ onAudioOff(); }
