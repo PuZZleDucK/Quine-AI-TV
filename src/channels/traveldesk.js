@@ -361,14 +361,14 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // header text
-    const font = Math.max(14, Math.floor(Math.min(w, h) / 36));
-    ctx.font = `bold ${Math.floor(font * 1.05)}px ui-sans-serif, system-ui`;
-    ctx.fillStyle = 'rgba(20, 18, 16, 0.75)';
+    const font = Math.max(16, Math.floor(Math.min(w, h) / 34));
+    ctx.font = `bold ${Math.floor(font * 1.08)}px ui-sans-serif, system-ui`;
+    ctx.fillStyle = 'rgba(20, 18, 16, 0.88)';
     ctx.textBaseline = 'top';
     ctx.fillText('THE TINY TRAVEL DESK', mx + Math.floor(mw * 0.05), my + Math.floor(font * 0.8));
 
     ctx.font = `${Math.floor(font * 0.9)}px ui-sans-serif, system-ui`;
-    ctx.fillStyle = 'rgba(20, 18, 16, 0.55)';
+    ctx.fillStyle = 'rgba(20, 18, 16, 0.72)';
     ctx.fillText('desk-based travel • maps • street footage • food • history', mx + Math.floor(mw * 0.05), my + Math.floor(font * 2.1));
 
     ctx.restore();
@@ -481,12 +481,15 @@ export function createChannel({ seed, audio }){
     // caption
     const font = layout.font;
     ctx.save();
-    ctx.font = `bold ${Math.floor(font * 0.95)}px ui-sans-serif, system-ui`;
-    ctx.fillStyle = 'rgba(235, 240, 245, 0.82)';
+    ctx.font = `bold ${Math.floor(font * 1.02)}px ui-sans-serif, system-ui`;
+    ctx.lineWidth = Math.max(1, Math.floor(font * 0.07));
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillStyle = 'rgba(245, 248, 252, 0.96)';
     ctx.textBaseline = 'top';
+    ctx.strokeText('STREET FEED', sx + Math.floor(sw * 0.08), sy + Math.floor(sh * 0.06));
     ctx.fillText('STREET FEED', sx + Math.floor(sw * 0.08), sy + Math.floor(sh * 0.06));
-    ctx.font = `${Math.floor(font * 0.78)}px ui-sans-serif, system-ui`;
-    ctx.fillStyle = 'rgba(235, 240, 245, 0.62)';
+    ctx.font = `${Math.floor(font * 0.84)}px ui-sans-serif, system-ui`;
+    ctx.fillStyle = 'rgba(235, 240, 245, 0.82)';
     ctx.fillText(`${dest.city.toUpperCase()} • ${dest.vibe}`, sx + Math.floor(sw * 0.08), sy + Math.floor(sh * 0.13));
     ctx.restore();
 
@@ -545,13 +548,13 @@ export function createChannel({ seed, audio }){
     ctx.fillText('MAIL', sx + sw * 0.12, sy + sh * 0.55);
 
     // left note
-    ctx.globalAlpha = 0.78;
-    ctx.fillStyle = 'rgba(10,10,10,0.75)';
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = 'rgba(10,10,10,0.85)';
     ctx.font = `bold ${Math.floor(layout.font * 1.05)}px ui-sans-serif, system-ui`;
     ctx.fillText(`${dest.city}, ${dest.country}`, px + pw * 0.08, py + ph * 0.16);
 
     ctx.font = `${Math.floor(layout.font * 0.92)}px ui-sans-serif, system-ui`;
-    ctx.globalAlpha = 0.62;
+    ctx.globalAlpha = 0.78;
     ctx.fillText(`Region: ${dest.region}`, px + pw * 0.08, py + ph * 0.30);
 
     // info bullets (highlighted by phase)
@@ -568,7 +571,7 @@ export function createChannel({ seed, audio }){
     const x = px + pw * 0.08;
     for (let i = 0; i < items.length; i++){
       const it = items[i];
-      const a = i === hi ? 0.86 : 0.50;
+      const a = i === hi ? 0.94 : 0.68;
       ctx.globalAlpha = a;
       ctx.fillStyle = i === hi ? `rgba(0,0,0,0.82)` : `rgba(0,0,0,0.72)`;
       ctx.font = `${Math.floor(layout.font * 0.84)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
