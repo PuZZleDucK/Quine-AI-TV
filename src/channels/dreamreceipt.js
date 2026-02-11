@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-11 (screenshots: screenshots/review-dreamreceipt)
 import { mulberry32, clamp } from '../util/prng.js';
 
 function lerp(a, b, t){ return a + (b - a) * t; }
