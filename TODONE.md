@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Channel `volcanoobs` (src/channels/volcanoobservatory.js): Perf pass — cache sky/ground/vignette gradients (rebuilt on `regen()` / ctx swap) so steady-state render avoids per-frame background/vignette/ground gradient allocations. Commit: 12bb239
+
 - [x] [project:quine-tv] Channel `volcanoobs` (src/channels/volcanoobservatory.js): Rebuild cone silhouette in `drawVolcano()` so the crater is visually anchored to mountain shoulders instead of reading like a floating disc/UFO. Commit: cc7bef1
 
 - [x] [project:quine-tv] Channel `volcanoobs` (src/channels/volcanoobservatory.js): Add explicit, long-window eruption phases in `intensityAt()`/`puffAmount()` so at least one clearly visible eruptive event occurs within each 60s viewing window. Commit: 85eae5d
