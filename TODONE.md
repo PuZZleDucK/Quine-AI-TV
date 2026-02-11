@@ -1,7 +1,7 @@
 
 # Done
 
-- [x] [project:quine-tv] Perf pass `duckdebug` (src/channels/rubberduck.js): pre-rendered scanlines as a cached pattern (no per-frame scanline fillRect loop). Commit: 3a4445f
+- [x] [project:quine-tv] Perf pass `duckdebug` (src/channels/rubberduck.js): pre-rendered scanlines as a cached pattern (no per-frame scanline fillRect loop). Commit: d9d8baa
 
 - [x] [project:quine-tv] Perf pass `duckdebug` (src/channels/rubberduck.js): cached background linear + vignette radial gradients (rebuild on resize/ctx swap) so steady-state `render()` allocates 0 gradients/frame. Commit: 0f3c483
 
