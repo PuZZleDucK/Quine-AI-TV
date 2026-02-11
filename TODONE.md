@@ -1,7 +1,7 @@
 
 # Done
 
-- [x] [project:quine-tv] Review channel `deepseasonar` (src/channels/deepseasonar.js): captured screenshots (0–300s) to `screenshots/review-deepseasonar`, did code+audio pass, added `// REVIEWED` marker, and queued concrete follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: TBD
+- [x] [project:quine-tv] Review channel `deepseasonar` (src/channels/deepseasonar.js): captured screenshots (0–300s) to `screenshots/review-deepseasonar`, did code+audio pass, added `// REVIEWED` marker, and queued concrete follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: 866f413
 
 - [x] [project:quine-tv] Review channel `kaleido` (src/channels/kaleido.js): captured screenshots (0–300s) to `screenshots/review-kaleido`, did code+audio pass, confirmed no errors/warnings, and queued follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: 9d50467
 
