@@ -54,6 +54,117 @@ export function createChannel({ seed, audio }){
   // dust motes (reused objects)
   let dust = [];
 
+  // cached gradients + sprites (rebuild on init/resize/ctx swap)
+  let gradCtx = null;
+  let gradKey = '';
+  let woodGrad = null;
+  let woodVignetteGrad = null;
+  let keyBodyGrad = null;
+  let lockBodyGrad = null;
+
+  let sweepCanvas = null; // horizontal white sweep (alpha gradient)
+  let plugCanvas = null;
+  let plugPad = 0;
+
+  // derived layout (stable for given w/h)
+  let inner = { x:0, y:0, w:0, h:0 };
+  let plugW = 0;
+  let plugH = 0;
+  let plugCx = 0;
+  let plugCy = 0;
+
+  function invalidateCaches(){
+    gradCtx = null;
+    gradKey = '';
+    woodGrad = null;
+    woodVignetteGrad = null;
+    keyBodyGrad = null;
+    lockBodyGrad = null;
+    sweepCanvas = null;
+    plugCanvas = null;
+  }
+
+  function ensureCaches(ctx){
+    const keyStr = `${w},${h},${key.x},${key.y},${key.w},${key.h},${lock.x},${lock.y},${lock.w},${lock.h}`;
+    if (ctx === gradCtx && keyStr === gradKey && woodGrad && woodVignetteGrad && keyBodyGrad && lockBodyGrad && sweepCanvas && plugCanvas) return;
+
+    gradCtx = ctx;
+    gradKey = keyStr;
+
+    woodGrad = ctx.createLinearGradient(0, 0, 0, h);
+    woodGrad.addColorStop(0, pal.woodA);
+    woodGrad.addColorStop(1, pal.woodB);
+
+    woodVignetteGrad = ctx.createRadialGradient(w*0.5, h*0.5, Math.min(w,h)*0.12, w*0.5, h*0.5, Math.max(w,h)*0.7);
+    woodVignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    woodVignetteGrad.addColorStop(1, 'rgba(0,0,0,0.55)');
+
+    keyBodyGrad = ctx.createLinearGradient(key.x, key.y, key.x + key.w, key.y);
+    keyBodyGrad.addColorStop(0, pal.metalB);
+    keyBodyGrad.addColorStop(0.5, pal.metalA);
+    keyBodyGrad.addColorStop(1, pal.metalB);
+
+    lockBodyGrad = ctx.createLinearGradient(lock.x, lock.y, lock.x + lock.w, lock.y + lock.h);
+    lockBodyGrad.addColorStop(0, 'rgba(20,20,24,0.72)');
+    lockBodyGrad.addColorStop(1, 'rgba(0,0,0,0.72)');
+
+    // sweep sprite (reused for key glint + click sparkle)
+    sweepCanvas = document.createElement('canvas');
+    sweepCanvas.width = 256;
+    sweepCanvas.height = 64;
+    const sctx = sweepCanvas.getContext('2d');
+    const sg = sctx.createLinearGradient(0, 0, sweepCanvas.width, 0);
+    sg.addColorStop(0, 'rgba(255,255,255,0)');
+    sg.addColorStop(0.5, 'rgba(255,255,255,1)');
+    sg.addColorStop(1, 'rgba(255,255,255,0)');
+    sctx.fillStyle = sg;
+    sctx.fillRect(0, 0, sweepCanvas.width, sweepCanvas.height);
+
+    // plug sprite (metal fill + slot + shear line + outline)
+    plugPad = Math.ceil(plugH * 0.25);
+    plugCanvas = document.createElement('canvas');
+    plugCanvas.width = Math.ceil(plugW + plugPad * 2);
+    plugCanvas.height = Math.ceil(plugH + plugPad * 2);
+    const pctx = plugCanvas.getContext('2d');
+
+    const pg = pctx.createLinearGradient(plugPad, plugPad, plugPad + plugW, plugPad + plugH);
+    pg.addColorStop(0, pal.metalB);
+    pg.addColorStop(0.55, pal.metalA);
+    pg.addColorStop(1, pal.metalB);
+    pctx.fillStyle = pg;
+    roundedRect(pctx, plugPad, plugPad, plugW, plugH, plugH*0.2);
+    pctx.fill();
+
+    // key slot cutout
+    pctx.save();
+    pctx.globalCompositeOperation = 'destination-out';
+    pctx.fillStyle = 'rgba(0,0,0,1)';
+    roundedRect(
+      pctx,
+      plugPad + plugW * 0.16,
+      plugPad + plugH * 0.56,
+      plugW * 0.68,
+      plugH * 0.18,
+      plugH * 0.09
+    );
+    pctx.fill();
+    pctx.restore();
+
+    // shear line
+    pctx.strokeStyle = 'rgba(0,0,0,0.32)';
+    pctx.lineWidth = Math.max(1, plugH*0.045);
+    pctx.beginPath();
+    pctx.moveTo(plugPad + plugW * 0.02, plugPad + plugH * 0.48);
+    pctx.lineTo(plugPad + plugW * 0.98, plugPad + plugH * 0.48);
+    pctx.stroke();
+
+    // outline
+    pctx.strokeStyle = 'rgba(0,0,0,0.42)';
+    pctx.lineWidth = Math.max(1, plugH*0.06);
+    roundedRect(pctx, plugPad, plugPad, plugW, plugH, plugH*0.2);
+    pctx.stroke();
+  }
+
   // audio
   let ambience = null;
   let cutAcc = 0;
@@ -118,6 +229,20 @@ export function createChannel({ seed, audio }){
       w: w * 0.64,
       h: h * 0.34,
     };
+
+    inner = {
+      x: lock.x + lock.w*0.06,
+      y: lock.y + lock.h*0.16,
+      w: lock.w*0.88,
+      h: lock.h*0.62,
+    };
+
+    plugCx = inner.x + inner.w*0.52;
+    plugCy = inner.y + inner.h*0.55;
+    plugW = inner.w*0.78;
+    plugH = inner.h*0.46;
+
+    invalidateCaches();
 
     regen();
     onPhaseEnter();
@@ -235,10 +360,7 @@ export function createChannel({ seed, audio }){
   }
 
   function drawWood(ctx){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, pal.woodA);
-    g.addColorStop(1, pal.woodB);
-    ctx.fillStyle = g;
+    ctx.fillStyle = woodGrad;
     ctx.fillRect(0,0,w,h);
 
     // subtle grain
@@ -259,10 +381,7 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // vignette
-    const v = ctx.createRadialGradient(w*0.5, h*0.5, Math.min(w,h)*0.12, w*0.5, h*0.5, Math.max(w,h)*0.7);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = v;
+    ctx.fillStyle = woodVignetteGrad;
     ctx.fillRect(0,0,w,h);
   }
 
@@ -274,11 +393,7 @@ export function createChannel({ seed, audio }){
 
     // body
     ctx.save();
-    const bodyG = ctx.createLinearGradient(x, y, x+ww, y);
-    bodyG.addColorStop(0, pal.metalB);
-    bodyG.addColorStop(0.5, pal.metalA);
-    bodyG.addColorStop(1, pal.metalB);
-    ctx.fillStyle = bodyG;
+    ctx.fillStyle = keyBodyGrad;
 
     const r = hh * 0.22;
     roundedRect(ctx, x, y, ww, hh, r);
@@ -314,12 +429,9 @@ export function createChannel({ seed, audio }){
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
       const gx = x + ww * (0.15 + 0.85 * (1 - glint));
-      const gg = ctx.createLinearGradient(gx - ww*0.18, 0, gx + ww*0.18, 0);
-      gg.addColorStop(0, 'rgba(255,255,255,0)');
-      gg.addColorStop(0.5, `rgba(255,255,255,${0.28*glint})`);
-      gg.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = gg;
-      ctx.fillRect(x, y - hh*0.3, ww, hh*1.8);
+      const sw = ww * 0.36;
+      ctx.globalAlpha = 0.28 * glint;
+      ctx.drawImage(sweepCanvas, gx - sw*0.5, y - hh*0.3, sw, hh*1.8);
       ctx.restore();
     }
 
@@ -339,55 +451,19 @@ export function createChannel({ seed, audio }){
     const hh = lock.h;
 
     // lock body
-    const g = ctx.createLinearGradient(x, y, x+ww, y+hh);
-    g.addColorStop(0, 'rgba(20,20,24,0.72)');
-    g.addColorStop(1, 'rgba(0,0,0,0.72)');
-    ctx.fillStyle = g;
+    ctx.fillStyle = lockBodyGrad;
     roundedRect(ctx, x, y, ww, hh, hh*0.06);
     ctx.fill();
 
     // inner cutaway
-    const inner = {
-      x: x + ww*0.06,
-      y: y + hh*0.16,
-      w: ww*0.88,
-      h: hh*0.62,
-    };
-
-    // plug + cylinder
-    const cx = inner.x + inner.w*0.52;
-    const cy = inner.y + inner.h*0.55;
-    const plugW = inner.w*0.78;
-    const plugH = inner.h*0.46;
+    // (derived layout is precomputed on init)
 
     ctx.save();
-    ctx.translate(cx, cy);
+    ctx.translate(plugCx, plugCy);
     ctx.rotate(turnAmt * (Math.PI * 0.24));
 
-    // plug metal
-    const pg = ctx.createLinearGradient(-plugW*0.5, -plugH*0.5, plugW*0.5, plugH*0.5);
-    pg.addColorStop(0, pal.metalB);
-    pg.addColorStop(0.55, pal.metalA);
-    pg.addColorStop(1, pal.metalB);
-    ctx.fillStyle = pg;
-    roundedRect(ctx, -plugW*0.5, -plugH*0.5, plugW, plugH, plugH*0.2);
-    ctx.fill();
-
-    // key slot
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = 'rgba(0,0,0,1)';
-    roundedRect(ctx, -plugW*0.34, plugH*0.06, plugW*0.68, plugH*0.18, plugH*0.09);
-    ctx.fill();
-    ctx.restore();
-
-    // shear line
-    ctx.strokeStyle = 'rgba(0,0,0,0.32)';
-    ctx.lineWidth = Math.max(1, plugH*0.045);
-    ctx.beginPath();
-    ctx.moveTo(-plugW*0.48, -plugH*0.02);
-    ctx.lineTo(plugW*0.48, -plugH*0.02);
-    ctx.stroke();
+    // plug sprite (cached; rotates with ctx)
+    ctx.drawImage(plugCanvas, -plugW*0.5 - plugPad, -plugH*0.5 - plugPad);
 
     if (showPins){
       const seg = (plugW * 0.76) / pinCount;
@@ -431,21 +507,14 @@ export function createChannel({ seed, audio }){
         ctx.save();
         ctx.globalCompositeOperation = 'screen';
         const sx = -plugW*0.5 + plugW * ease(1 - clickFlash);
-        const sg = ctx.createLinearGradient(sx - plugW*0.18, 0, sx + plugW*0.18, 0);
-        sg.addColorStop(0, 'rgba(255,255,255,0)');
-        sg.addColorStop(0.5, `rgba(255,255,255,${0.42*clickFlash})`);
-        sg.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = sg;
-        ctx.fillRect(-plugW*0.5, shearY - plugH*0.09, plugW, plugH*0.18);
+        const sw = plugW * 0.36;
+        ctx.globalAlpha = 0.42 * clickFlash;
+        ctx.drawImage(sweepCanvas, sx - sw*0.5, shearY - plugH*0.09, sw, plugH*0.18);
         ctx.restore();
       }
     }
 
-    // plug outline
-    ctx.strokeStyle = 'rgba(0,0,0,0.42)';
-    ctx.lineWidth = Math.max(1, plugH*0.06);
-    roundedRect(ctx, -plugW*0.5, -plugH*0.5, plugW, plugH, plugH*0.2);
-    ctx.stroke();
+    // plug outline baked into plugCanvas
 
     ctx.restore();
 
@@ -494,6 +563,8 @@ export function createChannel({ seed, audio }){
   function render(ctx){
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
+
+    ensureCaches(ctx);
 
     // subtle camera drift
     const dx = Math.sin(t*0.12 + seed*0.00001) * w * 0.008;
