@@ -1,5 +1,6 @@
 import { mulberry32 } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
+// REVIEWED: 2026-02-11
 
 const pick = (rand, a) => a[(rand() * a.length) | 0];
 
@@ -104,15 +105,23 @@ export function createChannel({ seed, audio }){
   const STOP_DUR = 7.5;
   let stopIx = 0;
   let stopT = 0;
+  let segment = 'BOARDING';
 
   let route = null;
   let bed = null;
+  let flash = 0;
+  let flashLabel = '';
+  let nextRareAt = 0;
 
   function setRoute(i){
     const rand = mulberry32((seed ^ (i * 0x6c8e9cf5)) >>> 0);
     route = makeRoute(rand, { w, h });
     stopIx = 0;
     stopT = 0;
+    segment = 'BOARDING';
+    flash = 0;
+    flashLabel = '';
+    nextRareAt = 16 + rand() * 28;
   }
 
   function init({ width, height }){
@@ -153,10 +162,24 @@ export function createChannel({ seed, audio }){
   function update(dt){
     t += dt;
     stopT += dt;
+    flash = Math.max(0, flash - dt * 0.8);
+
+    if (route && t >= nextRareAt && flash <= 0) {
+      const tags = ['POWER DIP', 'WRONG PLATFORM', 'PHANTOM ANNOUNCEMENT', 'TRACK HUM'];
+      flashLabel = tags[((seed + ((t * 10) | 0)) >>> 0) % tags.length];
+      flash = 1;
+      nextRareAt = t + 28 + ((seed + ((t * 7) | 0)) % 36);
+      if (audio.enabled) {
+        audio.beep({ freq: 220, dur: 0.05, gain: 0.018, type: 'sawtooth' });
+        audio.beep({ freq: 320, dur: 0.04, gain: 0.014, type: 'triangle' });
+      }
+    }
 
     if (stopT >= STOP_DUR){
       stopT = 0;
       stopIx++;
+      const p = route ? stopIx / Math.max(1, route.stops.length - 1) : 0;
+      segment = p < 0.33 ? 'DEPARTURE' : p < 0.7 ? 'TRANSFER' : 'LAST LEG';
       if (audio.enabled){
         // station chime
         audio.beep({ freq: 660, dur: 0.04, gain: 0.030, type: 'triangle' });
@@ -343,6 +366,10 @@ export function createChannel({ seed, audio }){
     ctx.font = `${Math.floor(font * 0.85)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.fillStyle = route.line.color;
     ctx.fillText(route.line.name.toUpperCase(), px + Math.floor(pw * 0.62), py + Math.floor(ph * 0.05));
+    ctx.globalAlpha = 0.72;
+    ctx.fillStyle = 'rgba(245,248,255,0.85)';
+    ctx.font = `${Math.floor(font * 0.72)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.fillText(segment, px + Math.floor(pw * 0.48), py + Math.floor(ph * 0.085));
 
     // progress dots
     const n = route.stops.length;
@@ -443,6 +470,32 @@ export function createChannel({ seed, audio }){
     const panel = drawPanel(ctx);
     const mapLayout = drawMap(ctx, panel);
     drawHUD(ctx, panel, mapLayout);
+
+    if (flash > 0 && flashLabel) {
+      const p = flash * (0.5 + 0.5 * Math.sin(t * 24) ** 2);
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = `rgba(160,210,255,${0.1 * p})`;
+      ctx.fillRect(0, 0, w, h);
+      const fs = Math.max(14, Math.floor(Math.min(w, h) * 0.028));
+      ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      const pad = Math.floor(fs * 0.45);
+      const tw = Math.ceil(ctx.measureText(flashLabel).width);
+      const bw = tw + pad * 2;
+      const bh = fs + pad * 1.5;
+      const bx = Math.floor(w * 0.5 - bw * 0.5);
+      const by = Math.floor(h * 0.08);
+      ctx.globalAlpha = 0.92 * p;
+      ctx.fillStyle = 'rgba(10,22,34,0.9)';
+      ctx.strokeStyle = 'rgba(150,220,255,0.8)';
+      ctx.lineWidth = 2;
+      roundedRect(ctx, bx, by, bw, bh, Math.max(8, Math.floor(fs * 0.36)));
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(230,248,255,0.96)';
+      ctx.fillText(flashLabel, bx + pad, by + fs + pad * 0.35);
+      ctx.restore();
+    }
 
     // vignette
     ctx.save();
