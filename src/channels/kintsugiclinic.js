@@ -331,7 +331,13 @@ export function createChannel({ seed, audio }){
         }
         d.life -= dt;
       }
-      dust = dust.filter(d => d.life > 0);
+      // In-place compaction to avoid per-frame array allocation.
+      let keep = 0;
+      for (let i=0;i<dust.length;i++){
+        const d = dust[i];
+        if (d.life > 0) dust[keep++] = d;
+      }
+      dust.length = keep;
     }
 
     // glint special moment
