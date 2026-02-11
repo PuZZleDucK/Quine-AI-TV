@@ -58,6 +58,8 @@ export function createChannel({ seed, audio }){
   // Determinism: keep audio randomness from consuming the visual PRNG so the same
   // seed yields identical visuals with audio on/off.
   const audioRand = mulberry32(((seed | 0) ^ 0xA11D0BEE) >>> 0);
+  // Determinism: typing speed jitter should be per-line (FPS-stable).
+  const typeRand = mulberry32(((seed | 0) ^ 0x71BEEFED) >>> 0);
 
   let w = 0, h = 0, t = 0;
   let font = 18;
@@ -179,7 +181,8 @@ export function createChannel({ seed, audio }){
   }
 
   function pushLine(text, color){
-    transcript.push({ text, shown: 0, color });
+    const speed = (text && text.length) ? (35 + typeRand() * 20) : 0;
+    transcript.push({ text, shown: 0, color, speed });
     const maxLines = Math.max(10, Math.floor((h * 0.62) / lineH));
     while (transcript.length > maxLines) transcript.shift();
   }
@@ -217,7 +220,7 @@ export function createChannel({ seed, audio }){
 
       const cur = transcript[transcript.length - 1];
       if (cur && cur.shown < cur.text.length){
-        const speed = 35 + rand() * 20; // chars/sec, slightly jittery
+        const speed = cur.speed; // chars/sec, per-line jitter (FPS-stable)
         const prev = cur.shown;
         cur.shown = Math.min(cur.text.length, cur.shown + dt * speed);
 
