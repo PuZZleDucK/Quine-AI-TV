@@ -274,6 +274,42 @@ function makeCoast(rand, cx, cy, r){
   return rough;
 }
 
+function makeInternalBorders(rand, cx, cy, r){
+  const borders = [];
+  const total = 2 + ((rand() * 3) | 0);
+  for (let i = 0; i < total; i++){
+    const a = rand() * Math.PI * 2;
+    const endA = a + (Math.PI * (0.8 + rand() * 0.4));
+    const x1 = cx + Math.cos(a) * r * (0.9 + rand() * 0.35);
+    const y1 = cy + Math.sin(a) * r * (0.75 + rand() * 0.28);
+    const x2 = cx + Math.cos(endA) * r * (0.9 + rand() * 0.35);
+    const y2 = cy + Math.sin(endA) * r * (0.75 + rand() * 0.28);
+    const artificial = rand() < 0.42;
+    if (artificial){
+      borders.push({ artificial: true, pts: [{ x: x1, y: y1 }, { x: x2, y: y2 }] });
+      continue;
+    }
+    const steps = 6 + ((rand() * 4) | 0);
+    const pts = [];
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const nx = -dy / len;
+    const ny = dx / len;
+    for (let s = 0; s <= steps; s++){
+      const p = s / steps;
+      const amp = (1 - Math.abs(p - 0.5) * 2) * r * (0.04 + rand() * 0.04);
+      const wob = Math.sin((p * Math.PI * 2) + rand() * 6) * amp;
+      pts.push({
+        x: x1 + dx * p + nx * wob,
+        y: y1 + dy * p + ny * wob,
+      });
+    }
+    borders.push({ artificial: false, pts });
+  }
+  return borders;
+}
+
 function makeStreet(rand, ww, hh){
   const horizon = hh * (0.72 + rand() * 0.14);
   const layers = [0.4, 0.7, 1.0].map((depth, i) => {
@@ -320,8 +356,8 @@ export function createChannel({ seed, audio }){
   let segT = 0;
   let dest = DESTINATIONS[0];
   let coast = [];
-  let coast2 = [];
   let islands = [];
+  let borders = [];
   let street = null;
 
   let bed = null;
@@ -358,9 +394,9 @@ export function createChannel({ seed, audio }){
     const my = h * 0.40;
     const rr = Math.min(w, h) * (0.18 + r() * 0.04);
     coast = makeCoast(r, mx + r() * w * 0.06, my + r() * h * 0.05, rr);
-    coast2 = makeCoast(r, mx + w * 0.11 + r() * w * 0.05, my + h * 0.08 + r() * h * 0.05, rr * 0.72);
+    borders = makeInternalBorders(r, mx + r() * w * 0.06, my + r() * h * 0.05, rr * 0.95);
     islands = [];
-    const islandCount = (r() < 0.42 ? 1 : 0) + (r() < 0.16 ? 1 : 0);
+    const islandCount = (r() < 0.18 ? 1 : 0);
     for (let k = 0; k < islandCount; k++){
       const ia = r() * Math.PI * 2;
       const id = rr * (0.95 + r() * 0.55);
@@ -513,10 +549,28 @@ export function createChannel({ seed, audio }){
     }
 
     strokeCoast(coast);
-    strokeCoast(coast2);
     for (const isl of islands){
       strokeCoast(isl);
     }
+
+    // Interior borders: clipped to the country silhouette, mix of straight and natural lines.
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(coast[0].x, coast[0].y);
+    for (let i = 1; i < coast.length; i++) ctx.lineTo(coast[i].x, coast[i].y);
+    ctx.closePath();
+    ctx.clip();
+    const baseBorderW = Math.max(1, Math.floor(Math.min(w, h) / 460));
+    for (const b of borders){
+      ctx.beginPath();
+      ctx.moveTo(b.pts[0].x, b.pts[0].y);
+      for (let i = 1; i < b.pts.length; i++) ctx.lineTo(b.pts[i].x, b.pts[i].y);
+      ctx.globalAlpha = b.artificial ? 0.52 : 0.36;
+      ctx.lineWidth = b.artificial ? baseBorderW * 1.05 : baseBorderW * 0.9;
+      ctx.strokeStyle = 'rgba(36,31,24,1)';
+      ctx.stroke();
+    }
+    ctx.restore();
 
     // route highlight (animated)
     ctx.save();
