@@ -1,3 +1,5 @@
+- 2026-02-12 08:32 (Australia/Melbourne) [project:quine-tv] Perf pass `duckdebug` (src/channels/rubberduck.js): cached background linear gradient + vignette radial gradient (rebuild on resize/ctx swap) so steady-state `render()` allocates 0 gradients/frame. Commit: 0f3c483
+
 - 2026-02-12 08:15 (Australia/Melbourne) [project:quine-tv] Audio hygiene `elevatorpanel` (src/channels/elevatorpanel.js): made `onAudioOn()` idempotent (stops any existing handle we own before starting) and `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: 9ecfa53
 
 - 2026-02-12 08:00 (Australia/Melbourne) [project:quine-tv] Review channel `flow` (src/channels/flowfield.js): captured screenshots (0–300s) to `screenshots/review-flow-before` + completion shots to `screenshots/review-flow-after` (errors/warnings: 0), did code/perf pass, confirmed `// REVIEWED: 2026-02-12`, and confirmed/queued follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: ff11544

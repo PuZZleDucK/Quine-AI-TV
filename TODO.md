@@ -24,7 +24,6 @@ if `TODO.md` has no ready items:
 - [quine-tv] `duckdebug` (src/channels/rubberduck.js): Audio hygiene — make `onAudioOn()` idempotent (stop existing roomTone/current before starting new); `onAudioOff()`/`destroy()` should stop+null and clear current when owned.
 - [quine-tv] `duckdebug` (src/channels/rubberduck.js): Determinism — separate audio RNG from visual PRNG (beep pitch/jitter must not consume `rand()` that affects visuals); ensure audio.enabled toggles don’t change transcript/typing cadence.
 - [quine-tv] `duckdebug` (src/channels/rubberduck.js): Determinism — remove per-frame `rand()` in typing speed jitter; use a per-line seeded speed (or time-hash) so 30fps vs 60fps yields identical captures.
-- [quine-tv] `duckdebug` (src/channels/rubberduck.js): Perf pass — cache background linear + vignette radial gradients (rebuild on resize/ctx swap) so steady-state `render()` allocates 0 gradients/frame.
 - [quine-tv] `duckdebug` (src/channels/rubberduck.js): Perf pass — pre-render scanlines to an offscreen tile/pattern on resize and blit, instead of per-frame scanline fillRect loop.
 
 - [quine-tv] `flow` (src/channels/flowfield.js): Determinism — replace `for (const p of pts) { p.x += ... * dt; ... }` integration with a fixed-timestep update loop (accumulate `dt`, step at e.g. 1/60) so 30fps vs 60fps yields identical captures for the same seed.
