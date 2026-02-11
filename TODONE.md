@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Perf pass `containerport` (`src/channels/containerport.js`): cache gradients created in render path (bg/sea/yard/vignette) on init/resize/ctx swap. Accept: steady-state `render()` allocates 0 gradients/frame. Commit: f848d5e
+
 - [x] [project:quine-tv] Review channel `containerport` (src/channels/containerport.js): captured screenshots (0–300s) to `screenshots/review-containerport`, did code+audio pass, added `// REVIEWED` marker, and queued follow-ups. Commit: TBD
 
 - [x] [project:quine-tv] Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Increase eruption readability by scaling ash and plume contrast during puff phase; added rare incandescent ejecta arcs. Commit: 2115be7
