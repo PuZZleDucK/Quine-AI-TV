@@ -83,6 +83,7 @@ export function createChannel({ seed, audio }){
   let clickPulse = 0;
 
   let quiz = null; // {name, goal, rec:{isoI,fI,sI}}
+  let quizAttempt = null; // {isoI,fI,sI} (picked once per quiz segment for determinism)
   let quizRevealed = false;
 
   let bed = null;
@@ -143,9 +144,18 @@ export function createChannel({ seed, audio }){
   function segmentStarted(s){
     flash = Math.max(0, flash * 0.5);
     clickPulse = 0;
+    // Quiz segment: pick scenario + the "student attempt" ONCE at segment start
+    // so results are deterministic across different FPS/dt.
     if (s.kind === 'quiz'){
       quiz = scenario();
+      quizAttempt = {
+        isoI: clamp(baseIsoI + ((rand() * 3) | 0) - 1, 0, ISO.length - 1),
+        fI: clamp(baseFI + ((rand() * 3) | 0) - 1, 0, FSTOPS.length - 1),
+        sI: clamp(baseSI + ((rand() * 3) | 0) - 1, 0, SHUTTERS.length - 1),
+      };
       quizRevealed = false;
+    } else {
+      quizAttempt = null;
     }
 
     if (!audio.enabled) return;
@@ -182,6 +192,7 @@ export function createChannel({ seed, audio }){
     clickPulse = 0;
 
     quiz = null;
+    quizAttempt = null;
     quizRevealed = false;
 
     segmentStarted(cur());
@@ -223,11 +234,8 @@ export function createChannel({ seed, audio }){
     } else if (cs.kind === 'quiz'){
       const settle = ease(segT / (cs.dur * 0.25));
       // show "student attempt" first, then reveal recommendation.
-      const attempt = {
-        isoI: clamp(baseIsoI + ((rand() * 3) | 0) - 1, 0, ISO.length - 1),
-        fI: clamp(baseFI + ((rand() * 3) | 0) - 1, 0, FSTOPS.length - 1),
-        sI: clamp(baseSI + ((rand() * 3) | 0) - 1, 0, SHUTTERS.length - 1),
-      };
+      // IMPORTANT: attempt is precomputed on quiz segment start for determinism.
+      const attempt = quizAttempt || { isoI: baseIsoI, fI: baseFI, sI: baseSI };
       isoI = attempt.isoI;
       fI = attempt.fI;
       sI = attempt.sI;
