@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Special moment `containerport` (`src/channels/containerport.js`): add 1–2 rare deterministic events (~45–120s) uncommon and rare ship types. Accept: 5min capture shows at least one special moment; deterministic per seed. Commit: c84f6c5
+
 - [x] [project:quine-tv] Determinism `containerport` (`src/channels/containerport.js`): decouple audio randomness from visual PRNG (separate RNG) so the same seed yields identical visuals with audio on/off. Accept: same seed yields identical screenshots at 30fps vs 60fps; audio.enabled does not affect visual sequence. Commit: 1512bd6
 
 - [x] [project:quine-tv] visuals `containerport`: crane frame should look sturdier. Commit: bd87b1f
