@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Review channel `stitchalong` (src/channels/constellationstitch.js): captured screenshots (0–300s) to `screenshots/review-stitchalong` (errors/warnings: 0), did code+audio/perf/determinism pass, added `// REVIEWED: 2026-02-12`, and queued concrete follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: 329ad4a
+
 - [x] [project:quine-tv] Review channel `kintsugi` (src/channels/kintsugiclinic.js): captured screenshots (0–300s) to `screenshots/review-kintsugi`, did code+audio/perf/determinism pass, confirmed `// REVIEWED: 2026-02-12`, and queued concrete follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: 1d3463d
 
 - [x] [project:quine-tv] Review channel `elevatorpanel` (src/channels/elevatorpanel.js): captured screenshots (0–300s) to `screenshots/review-elevatorpanel`, did code+audio pass (errors/warnings: 0), confirmed `// REVIEWED: 2026-02-12`, and queued concrete follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: TBD

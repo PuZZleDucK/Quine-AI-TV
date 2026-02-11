@@ -1,6 +1,7 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-12
 // Glassblower’s Studio Loop
 // Molten glass on a pipe: heat → gather → blow → shape → anneal.
 
@@ -20,6 +21,7 @@ function roundRect(ctx, x, y, w, h, r){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  const randA = mulberry32((seed ^ 0xA11DCAFE) >>> 0); // audio RNG (don’t affect visuals)
 
   // fixed phases for deterministic “show” structure
   const PHASES = [
@@ -116,13 +118,22 @@ export function createChannel({ seed, audio }){
     init({ width, height, dpr: dprIn });
   }
 
-  function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
+  function safeBeep(makeOpts){
+    if (!audio.enabled) return;
+    const opts = makeOpts?.();
+    if (opts) audio.beep(opts);
+  }
 
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // idempotent: stop any prior handles we created
+    try { ambience?.stop?.(); } catch {}
+    ambience = null;
+
     const n = audio.noiseSource({ type: 'brown', gain: 0.0045 });
     n.start();
-    const d = simpleDrone(audio, { root: 44 + rand() * 14, detune: 0.55, gain: 0.012 });
+    const d = simpleDrone(audio, { root: 44 + randA() * 14, detune: 0.55, gain: 0.012 });
     ambience = { stop(){ try{ n.stop(); } catch {} try{ d.stop(); } catch {} } };
     audio.setCurrent(ambience);
   }
@@ -154,9 +165,11 @@ export function createChannel({ seed, audio }){
 
     flare = 1;
 
-    // tiny “spark pop”
-    safeBeep({ freq: 1100 + rand() * 800, dur: 0.014, gain: 0.010, type: 'triangle' });
-    if (rand() < 0.5) safeBeep({ freq: 340 + rand() * 120, dur: 0.030, gain: 0.006, type: 'sine' });
+    // tiny “spark pop” (use audio RNG; don’t consume visual RNG when audio is off)
+    if (audio.enabled){
+      safeBeep(() => ({ freq: 1100 + randA() * 800, dur: 0.014, gain: 0.010, type: 'triangle' }));
+      if (randA() < 0.5) safeBeep(() => ({ freq: 340 + randA() * 120, dur: 0.030, gain: 0.006, type: 'sine' }));
+    }
   }
 
   function update(dt){
