@@ -232,12 +232,35 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function stopAmbience({ clearCurrent=false } = {}){
+    const handle = musicHandle;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ambience = null;
+    drone = null;
+    musicHandle = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
 
+    // idempotent: stop any existing handles we own first
+    stopAmbience({ clearCurrent: true });
+
     // subtle chamber hiss + low hum
-    ambience = audio.noiseSource({ type: pick(['pink','brown']), gain: 0.026 });
-    ambience.start();
+    try {
+      ambience = audio.noiseSource({ type: pick(['pink','brown']), gain: 0.026 });
+      ambience.start();
+    } catch { ambience = null; }
+
     drone = simpleDrone(audio, { root: 44, detune: 0.9, gain: 0.038 });
 
     musicHandle = {
@@ -250,14 +273,12 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOff(){
-    try { musicHandle?.stop?.(); } catch {}
-    ambience = null;
-    drone = null;
-    musicHandle = null;
+    // stop/clear everything we own; only clear AudioManager.current if it's ours
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy(){
-    onAudioOff();
+    stopAmbience({ clearCurrent: true });
   }
 
   function update(dt){
