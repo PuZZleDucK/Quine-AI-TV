@@ -36,6 +36,22 @@ export function createChannel({ seed, audio }){
   let font = 16;
   let big = 48;
 
+  // Cached per-context gradients/layers (rebuild on resize / ctx swap).
+  let paperG = null;
+  let paperCtx = null;
+  let paperW = 0;
+  let paperH = 0;
+
+  let vignetteG = null;
+  let vignetteCtx = null;
+  let vignetteW = 0;
+  let vignetteH = 0;
+
+  let scanlinesC = null;
+  let scanlinesW = 0;
+  let scanlinesH = 0;
+  let scanlinesStep = 0;
+
   // palette: warm film + cyan HUD
   const hue = 40 + rand() * 25;
   const paperA = `hsl(${hue}, 35%, 18%)`;
@@ -283,10 +299,17 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBg(ctx){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, paperA);
-    g.addColorStop(1, paperB);
-    ctx.fillStyle = g;
+    // paper gradient (cached)
+    if (!paperG || paperCtx !== ctx || paperW !== w || paperH !== h){
+      paperCtx = ctx;
+      paperW = w;
+      paperH = h;
+      paperG = ctx.createLinearGradient(0, 0, 0, h);
+      paperG.addColorStop(0, paperA);
+      paperG.addColorStop(1, paperB);
+    }
+
+    ctx.fillStyle = paperG;
     ctx.fillRect(0, 0, w, h);
 
     // subtle grain drift
@@ -303,22 +326,51 @@ export function createChannel({ seed, audio }){
     }
     ctx.restore();
 
-    // vignette
+    // vignette (cached)
+    if (!vignetteG || vignetteCtx !== ctx || vignetteW !== w || vignetteH !== h){
+      vignetteCtx = ctx;
+      vignetteW = w;
+      vignetteH = h;
+      vignetteG = ctx.createRadialGradient(
+        w * 0.5,
+        h * 0.45,
+        Math.min(w, h) * 0.2,
+        w * 0.5,
+        h * 0.45,
+        Math.max(w, h) * 0.62
+      );
+      vignetteG.addColorStop(0, 'rgba(0,0,0,0)');
+      vignetteG.addColorStop(1, `rgba(0,0,0,${vignette.a})`);
+    }
+
     ctx.save();
-    const vg = ctx.createRadialGradient(w * 0.5, h * 0.45, Math.min(w, h) * 0.2, w * 0.5, h * 0.45, Math.max(w, h) * 0.62);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, `rgba(0,0,0,${vignette.a})`);
-    ctx.fillStyle = vg;
+    ctx.fillStyle = vignetteG;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
-    // scanlines
-    ctx.save();
-    ctx.globalAlpha = 0.06;
-    ctx.fillStyle = 'rgba(0,0,0,1)';
+    // scanlines (pre-rendered layer; rebuild on resize)
     const step = Math.max(2, Math.floor(Math.min(w, h) / 130));
-    for (let y = 0; y < h; y += step) ctx.fillRect(0, y, w, 1);
-    ctx.restore();
+    if (!scanlinesC || scanlinesW !== w || scanlinesH !== h || scanlinesStep !== step){
+      scanlinesW = w;
+      scanlinesH = h;
+      scanlinesStep = step;
+      scanlinesC = document.createElement('canvas');
+      scanlinesC.width = w;
+      scanlinesC.height = h;
+      const sctx = scanlinesC.getContext('2d');
+      if (sctx){
+        sctx.clearRect(0, 0, w, h);
+        sctx.fillStyle = 'rgba(0,0,0,1)';
+        for (let y = 0; y < h; y += step) sctx.fillRect(0, y, w, 1);
+      }
+    }
+
+    if (scanlinesC){
+      ctx.save();
+      ctx.globalAlpha = 0.06;
+      ctx.drawImage(scanlinesC, 0, 0);
+      ctx.restore();
+    }
   }
 
   function drawTriangle(ctx, x, y, size, focus){
