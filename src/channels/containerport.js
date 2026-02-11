@@ -589,41 +589,61 @@ export function createChannel({ seed, audio }){
 
   function drawCranes(ctx){
     ctx.save();
-    ctx.lineWidth = Math.max(2, 2.0 * dpr);
-    ctx.strokeStyle = pal.steel2;
-    ctx.fillStyle = 'rgba(0,0,0,0)';
 
     for (let i = 0; i < CRANE_COUNT; i++){
       const c = cranes[i];
 
       const mastH = h * 0.20;
-      const mastW = w * 0.010;
+      const mastW = Math.max(w * 0.012, 4 * dpr);
       const beamW = w * 0.28;
+      const beamH = Math.max(h * 0.007, 3 * dpr);
+
       const beamY = dockY - mastH;
       const leftX = c.x - beamW * 0.50;
       const rightX = c.x + beamW * 0.50;
 
-      // mast
-      ctx.strokeStyle = 'rgba(220,240,255,0.20)';
+      // mast (filled body + outline so it reads as a solid frame)
+      ctx.fillStyle = 'rgba(220,240,255,0.10)';
+      ctx.fillRect(c.x - mastW * 0.5, beamY, mastW, mastH);
+
+      ctx.lineWidth = Math.max(2, 2.2 * dpr);
+      ctx.strokeStyle = 'rgba(220,240,255,0.22)';
+      ctx.strokeRect(c.x - mastW * 0.5, beamY, mastW, mastH);
+
+      // base shoe
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(c.x - mastW * 0.70, dockY - 2 * dpr, mastW * 1.40, 4 * dpr);
+
+      // beam (chunky bar)
+      ctx.fillStyle = 'rgba(220,240,255,0.08)';
+      ctx.fillRect(leftX, beamY - beamH * 0.5, beamW, beamH);
+      ctx.strokeStyle = 'rgba(220,240,255,0.18)';
+      ctx.strokeRect(leftX, beamY - beamH * 0.5, beamW, beamH);
+
+      // highlight cap
+      ctx.strokeStyle = 'rgba(108,242,255,0.10)';
       ctx.beginPath();
-      ctx.moveTo(c.x, dockY);
-      ctx.lineTo(c.x, beamY);
+      ctx.moveTo(leftX, beamY - beamH * 0.5);
+      ctx.lineTo(rightX, beamY - beamH * 0.5);
       ctx.stroke();
 
-      // beam
-      ctx.strokeStyle = 'rgba(220,240,255,0.17)';
-      ctx.beginPath();
-      ctx.moveTo(leftX, beamY);
-      ctx.lineTo(rightX, beamY);
-      ctx.stroke();
-
-      // braces
+      // truss braces
+      ctx.lineWidth = Math.max(1, 1.6 * dpr);
       ctx.strokeStyle = 'rgba(220,240,255,0.10)';
-      for (let k = 0; k <= 6; k++){
-        const x = lerp(leftX, rightX, k/6);
+      const pad = beamW * 0.18;
+      ctx.beginPath();
+      ctx.moveTo(leftX + pad, beamY);
+      ctx.lineTo(c.x, dockY);
+      ctx.lineTo(rightX - pad, beamY);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(220,240,255,0.08)';
+      for (let k = 0; k < 6; k++){
+        const x0 = lerp(leftX + pad, rightX - pad, k/6);
+        const x1 = lerp(leftX + pad, rightX - pad, (k+1)/6);
         ctx.beginPath();
-        ctx.moveTo(x, beamY);
-        ctx.lineTo(c.x, dockY);
+        ctx.moveTo(x0, beamY);
+        ctx.lineTo(x1, beamY + mastH * 0.20);
         ctx.stroke();
       }
 
@@ -632,10 +652,11 @@ export function createChannel({ seed, audio }){
 
       // trolley
       ctx.fillStyle = 'rgba(108,242,255,0.22)';
-      roundedRect(ctx, trolleyX - 10, beamY - 7, 20, 14, 4);
+      roundedRect(ctx, trolleyX - 11, beamY - 8, 22, 16, 4);
       ctx.fill();
 
       // hoist cable
+      ctx.lineWidth = Math.max(1, 1.4 * dpr);
       ctx.strokeStyle = 'rgba(180,220,255,0.22)';
       ctx.beginPath();
       ctx.moveTo(trolleyX, beamY);
