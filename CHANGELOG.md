@@ -1,4 +1,5 @@
 
+- 2026-02-11 18:04 (Australia/Melbourne) [project:quine-tv] Perf pass `dreamreceipt` (src/channels/dreamreceipt.js): cached counter/vignette/printer/paper gradients (rebuild on init/resize/ctx swap) so steady-state render path calls no create*Gradient(). Commit: 05d1221
 - 2026-02-11 17:33 (Australia/Melbourne) [project:quine-tv] Perf pass `cavetorch` (src/channels/cavetorch.js): cached base wall background into an offscreen layer and replaced torch light/soot gradients with cached sprites so steady-state `drawWall()` is just blits (no gradients, no tiling loops). Commit: 71f67ba
 - 2026-02-11 17:18 (Australia/Melbourne) [project:quine-tv] Content polish `cavetorch` (src/channels/cavetorch.js): added deterministic rotating scene title/caption variants + a rare bat-swarm silhouette special moment scheduled ~45–120s. Commit: 53930f8
 - 2026-02-11 17:00 (Australia/Melbourne) [project:quine-tv] Determinism `cavetorch` (src/channels/cavetorch.js): made torch flicker + film grain FPS-stable by switching to time-hashed flicker and a pre-generated grain tile (no per-frame `rand()` consumption); also scheduled handprint in absolute time. Commit: 37d6978
