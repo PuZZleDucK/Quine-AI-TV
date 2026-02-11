@@ -1,3 +1,4 @@
+- 2026-02-12 02:37 (Australia/Melbourne) [project:quine-tv] Review channel `kaleido` (src/channels/kaleido.js): captured screenshots (0–300s) to `screenshots/review-kaleido`, did code+audio pass, and queued follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: 9d50467
 
 - 2026-02-12 01:23 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: only schedule ship load/unload moves once the ship is fully docked (prevents cargo moving while ship is still arriving). Commit: 73b3e34
 - 2026-02-12 00:48 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: crane hoist stays vertical (clamped to beam span; trolley tracks load). Commit: 6ad6d17

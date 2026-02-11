@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Review channel `kaleido` (src/channels/kaleido.js): captured screenshots (0–300s) to `screenshots/review-kaleido`, did code+audio pass, confirmed no errors/warnings, and queued follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: 9d50467
+
 - [x] [project:quine-tv] visuals `containerport`: containers should be loaded and unloaded from ships when ship is stopped only. some ships unload, some load, some both. Commit: 73b3e34
 
 - [x] [project:quine-tv] visuals `containerport`: cranes should only lift containers vertically and should be consistant and not jump around. Commit: 6ad6d17
