@@ -37,6 +37,16 @@ export function createChannel({ seed, audio }){
   // moments
   let glitch = { t0: 0, dur: 0, y0: 0, y1: 0 };
   let coupon = { t0: 0, dur: 0, text: '', seed: 0 };
+  let rare = {
+    every: 0,
+    dur: 0,
+    kind: 'void', // 'void' | 'scramble'
+    rot: 0,
+    xN: 0,
+    yN: 0,
+    flash: 0,
+    _beeped: false,
+  };
 
   // audio
   let ambience = null;
@@ -187,14 +197,100 @@ export function createChannel({ seed, audio }){
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
   function mkReceipt(prng){
-    const headerA = ['DREAM MART', 'SUBLUNAR GROCER', 'MIRAGE SUPPLY CO.', 'LUCID DELI', 'THE SOFTWARE STORE'];
-    const headerB = ['NIGHT SHIFT', 'AFTER HOURS', 'OPEN IN THEORY', 'EST. SOMEDAY', 'NOW SERVING: YOU'];
+    const headerA = [
+      'DREAM MART',
+      'SUBLUNAR GROCER',
+      'MIRAGE SUPPLY CO.',
+      'LUCID DELI',
+      'THE SOFTWARE STORE',
+      'SLEEPWALK SUPPLY',
+      'INFINITE AISLE',
+      'LATE BLOOM MARKET',
+      'MIRAGE OUTLET',
+      'THE LAST CORNER STORE',
+    ];
+    const headerB = [
+      'NIGHT SHIFT',
+      'AFTER HOURS',
+      'OPEN IN THEORY',
+      'EST. SOMEDAY',
+      'NOW SERVING: YOU',
+      'TEMPORARILY PERMANENT',
+      'PLEASE DO NOT LINGER',
+      'CUSTOMER: YOU',
+      'SHIFT SUPERVISOR: ???',
+    ];
 
-    const nouns = ['MOONBEAM', 'ECHO', 'VELVET', 'STATIC', 'ORCHID', 'GLASS', 'COMET', 'TEA', 'SAND', 'VHS', 'BREAD', 'NEON', 'SPARE KEY', 'TINY SUN'];
-    const mods = ['WARM', 'HOLLOW', 'GENTLE', 'UNFINISHED', 'POLITE', 'HAUNTED', 'PORTABLE', 'MINT', 'SLEEPY', 'UNDECLARED', 'UNRELIABLE'];
+    const nouns = [
+      'MOONBEAM',
+      'ECHO',
+      'VELVET',
+      'STATIC',
+      'ORCHID',
+      'GLASS',
+      'COMET',
+      'TEA',
+      'SAND',
+      'VHS',
+      'BREAD',
+      'NEON',
+      'SPARE KEY',
+      'TINY SUN',
+      'MOTH DUST',
+      'RAIN TICKET',
+      'PAPER BOAT',
+      'HALF MEMORY',
+      'BOTTLED DAWN',
+      'POCKET VOID',
+    ];
+    const mods = [
+      'WARM',
+      'HOLLOW',
+      'GENTLE',
+      'UNFINISHED',
+      'POLITE',
+      'HAUNTED',
+      'PORTABLE',
+      'MINT',
+      'SLEEPY',
+      'UNDECLARED',
+      'UNRELIABLE',
+      'SECONDHAND',
+      'ELECTRIC',
+      'SOFT',
+      'SHY',
+      'UNPAID',
+      'GLOWING',
+    ];
     const units = ['EA', 'PK', 'SET', 'BAG', 'TUBE', 'ROLL', 'BOX', 'JAR'];
 
-    const jokeTail = ['(DO NOT WAKE)', '(FRAGILE VIBES)', '(TAX EXEMPT: FEELINGS)', '(NON-EUCLIDEAN)', '(OKAY??)'];
+    const jokeTail = [
+      '(DO NOT WAKE)',
+      '(FRAGILE VIBES)',
+      '(TAX EXEMPT: FEELINGS)',
+      '(NON-EUCLIDEAN)',
+      '(OKAY??)',
+      '(CHECK UNDER PILLOW)',
+      '(RETURN IF REMEMBERED)',
+      '(HANDLE WITH CARE)',
+      '(SEE ATTACHED DREAM)',
+    ];
+
+    const footA = [
+      'PAYMENT: ???',
+      'PAYMENT: DREAM CARD',
+      'PAYMENT: CASH (MAYBE)',
+      'PAYMENT: IOU',
+      'PAYMENT: STORE CREDIT',
+      'PAYMENT: GOOD INTENTIONS',
+    ];
+    const footB = [
+      'THANK YOU FOR SHOPPING IN A DREAM',
+      'PLEASE KEEP THIS RECEIPT (FOR LATER YOU)',
+      'COME BACK WHEN YOU REMEMBER',
+      'NO REFUNDS ON PROPHECY',
+      'HAVE A NICE NIGHT (IF POSSIBLE)',
+    ];
 
     function pick(arr){ return arr[(prng() * arr.length) | 0]; }
 
@@ -249,13 +345,25 @@ export function createChannel({ seed, audio }){
     out.push({ left: '-------------------------------', right: '', kind: 'rule' });
 
     out.push({ left: '', right: '', kind: 'blank' });
-    out.push({ left: 'PAYMENT: ???', right: '', kind: 'foot' });
-    out.push({ left: 'THANK YOU FOR SHOPPING IN A DREAM', right: '', kind: 'foot2' });
+    out.push({ left: pick(footA), right: '', kind: 'foot' });
+    out.push({ left: pick(footB), right: '', kind: 'foot2' });
 
     // barcode row placeholder
     out.push({ left: '', right: '', kind: 'barcode' });
 
     return out;
+  }
+
+  function initRare(){
+    const r = mulberry32((seed ^ 0x5EEDFACE) >>> 0);
+    rare.every = 45 + r() * 75; // ~45–120s
+    rare.dur = 1.8 + r() * 1.1;
+    rare.kind = (r() < 0.55) ? 'void' : 'scramble';
+    rare.rot = (r() * 0.6 - 0.3);
+    rare.xN = (r() * 0.14 - 0.07);
+    rare.yN = (r() * 0.12 - 0.06);
+    rare.flash = 0;
+    rare._beeped = false;
   }
 
   function regen(){
@@ -331,6 +439,7 @@ export function createChannel({ seed, audio }){
     t = 0;
     loopT = 0;
     receiptNo = 1;
+    initRare();
     regen();
     invalidateGradients();
   }
@@ -423,6 +532,28 @@ export function createChannel({ seed, audio }){
       }
     }
     if (loopT < coupon.t0 - 0.2) coupon._beeped = false;
+
+    // rare special moment (every ~45–120s; deterministic per seed)
+    const absT = (receiptNo - 1) * loopDur + loopT;
+    const kRare = absT - rare.every;
+    let rareFlash = 0;
+    if (kRare >= 0){
+      const phase = kRare % rare.every;
+      if (phase < rare.dur){
+        const p = phase / rare.dur;
+        rareFlash = 1 - Math.abs(p * 2 - 1);
+        if (audio.enabled && !rare._beeped){
+          rare._beeped = true;
+          safeBeep({ freq: 1560, dur: 0.06, gain: 0.012, type: 'square' });
+          safeBeep({ freq: 1040, dur: 0.04, gain: 0.009, type: 'triangle' });
+        }
+      } else {
+        rare._beeped = false;
+      }
+    } else {
+      rare._beeped = false;
+    }
+    rare.flash = rareFlash;
 
     if (loopT >= loopDur){
       loopT = loopT % loopDur;
@@ -597,6 +728,7 @@ export function createChannel({ seed, audio }){
 
     const pCoupon = clamp((loopT - coupon.t0) / coupon.dur, 0, 1);
     const couponFlash = (pCoupon > 0 && pCoupon < 1) ? (1 - Math.abs(pCoupon * 2 - 1)) : 0;
+    const rareFlash = rare.flash;
 
     const pTear = clamp((loopT - tearT0) / tearDur, 0, 1);
     const hang = ease(pTear);
@@ -686,13 +818,20 @@ export function createChannel({ seed, audio }){
 
       ctx.globalAlpha = a + 0.7 * ease(clamp((printedLen - r.y) / (lineH * 1.0), 0, 1));
       ctx.fillStyle = col;
+
+      let left = r.left;
+      let right = r.right;
+      if (r.kind === 'total' && rare.kind === 'scramble' && rareFlash > 0.02){
+        right = '???';
+      }
+
       if (r.kind === 'rule'){
-        ctx.fillText(r.left, tx, yy);
+        ctx.fillText(left, tx, yy);
       } else {
-        ctx.fillText(r.left, tx, yy);
-        if (r.right){
+        ctx.fillText(left, tx, yy);
+        if (right){
           ctx.textAlign = 'right';
-          ctx.fillText(r.right, x0 + paperW - padX, yy);
+          ctx.fillText(right, x0 + paperW - padX, yy);
           ctx.textAlign = 'left';
         }
       }
@@ -751,6 +890,31 @@ export function createChannel({ seed, audio }){
       ctx.font = `${Math.max(10, Math.floor(s / 56))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
       const digits = String(100000000000 + Math.floor(prng() * 900000000000)).slice(-12);
       ctx.fillText(digits, bx, by + bh + 14);
+      ctx.restore();
+    }
+
+
+    // rare VOID stamp overlay (drawn after text/barcode so it reads as an overprint)
+    if (rare.kind === 'void' && rareFlash > 0.02){
+      const sx = x0 + paperW * (0.5 + rare.xN);
+      const sy = y0 + ph * (0.48 + rare.yN);
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(rare.rot);
+      ctx.globalAlpha = 0.10 + 0.26 * rareFlash;
+      ctx.lineWidth = Math.max(2, Math.floor(s / 180));
+      ctx.strokeStyle = 'rgba(170,40,40,0.85)';
+      ctx.fillStyle = 'rgba(170,40,40,0.14)';
+      ctx.font = `bold ${Math.max(22, Math.floor(s / 16))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeText('VOID', 0, 0);
+      ctx.fillText('VOID', 0, 0);
+
+      const stampW = Math.max(110, Math.floor(s * 0.26));
+      const stampH = Math.max(44, Math.floor(s * 0.11));
+      ctx.globalAlpha *= 0.85;
+      ctx.strokeRect(-stampW * 0.5, -stampH * 0.5, stampW, stampH);
       ctx.restore();
     }
 
