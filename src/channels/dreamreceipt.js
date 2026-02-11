@@ -376,7 +376,8 @@ export function createChannel({ seed, audio }){
   }
 
   function drawPrinter(ctx){
-    const bodyW = Math.floor(paperW * 1.2);
+    // slightly wider body/slot so the paper doesn't feel bigger than the machine
+    const bodyW = Math.floor(paperW * 1.32);
     const bodyH = Math.floor(s * 0.18);
     const x = Math.floor(cx - bodyW * 0.5);
     const y = Math.floor(slotY - bodyH * 0.55);
@@ -395,11 +396,38 @@ export function createChannel({ seed, audio }){
     roundRect(ctx, x, y, bodyW, bodyH, 18);
     ctx.fill();
 
+    // subtle bevel highlight + screws (extra interest, cheap)
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    roundRect(ctx, x + 2, y + 2, bodyW - 4, Math.floor(bodyH * 0.32), 16);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    const screwR = Math.max(2, Math.floor(s * 0.004));
+    ctx.globalAlpha = 0.30;
+    ctx.fillStyle = 'rgba(0,0,0,0.40)';
+    for (const px of [x + 18, x + bodyW - 18]){
+      const py = y + 18;
+      ctx.beginPath();
+      ctx.arc(px, py, screwR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.beginPath();
+      ctx.arc(px - screwR * 0.35, py - screwR * 0.35, screwR * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.30;
+      ctx.fillStyle = 'rgba(0,0,0,0.40)';
+    }
+    ctx.restore();
+
     // slot
     ctx.save();
     ctx.globalAlpha = 0.8;
     ctx.fillStyle = '#0a0b0e';
-    const slotW = Math.floor(paperW * 0.88);
+    const slotW = Math.floor(paperW * 0.96);
     const slotH = Math.max(10, Math.floor(s * 0.02));
     const sx = Math.floor(cx - slotW * 0.5);
     const sy = Math.floor(slotY - slotH * 0.5);
