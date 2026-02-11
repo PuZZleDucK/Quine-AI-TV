@@ -1,5 +1,6 @@
 import { mulberry32 } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
+import { COUNTRY_SHAPES } from '../data/countryShapes.js';
 
 const pick = (rand, a) => a[(rand() * a.length) | 0];
 
@@ -310,6 +311,23 @@ function makeInternalBorders(rand, cx, cy, r){
   return borders;
 }
 
+function makeCoastFromProfile(profile, cx, cy, r, rot){
+  const cr = Math.cos(rot);
+  const sr = Math.sin(rot);
+  const s = r * 0.96;
+  const out = [];
+  for (let i = 0; i < profile.length; i++){
+    const p = profile[i];
+    const px = p[0];
+    const py = p[1];
+    out.push({
+      x: cx + (px * cr - py * sr) * s,
+      y: cy + (px * sr + py * cr) * s,
+    });
+  }
+  return out;
+}
+
 function makeStreet(rand, ww, hh){
   const horizon = hh * (0.72 + rand() * 0.14);
   const layers = [0.4, 0.7, 1.0].map((depth, i) => {
@@ -389,14 +407,25 @@ export function createChannel({ seed, audio }){
     const r = mulberry32((seed ^ (i * 0x9e3779b9)) >>> 0);
     dest = pickDestinationForSegment(i, r);
 
-    // map blobs (desk-map fiction, not real geography)
-    const mx = w * 0.27;
-    const my = h * 0.40;
-    const rr = Math.min(w, h) * (0.18 + r() * 0.04);
-    coast = makeCoast(r, mx + r() * w * 0.06, my + r() * h * 0.05, rr);
-    borders = makeInternalBorders(r, mx + r() * w * 0.06, my + r() * h * 0.05, rr * 0.95);
+    // Map geometry: scale to the map panel so outlines fill most of the paper.
+    const pad = Math.floor(Math.min(w, h) * 0.05);
+    const mw = Math.floor(w * 0.54);
+    const mh = Math.floor(h * 0.68);
+    const mx = pad;
+    const my = Math.floor(h * 0.16);
+    const rr = Math.min(mw, mh) * (0.42 + r() * 0.05);
+    const ccx = mx + mw * (0.53 + (r() - 0.5) * 0.05);
+    const ccy = my + mh * (0.53 + (r() - 0.5) * 0.05);
+    const profile = COUNTRY_SHAPES[dest.country];
+    if (profile){
+      const rot = (r() - 0.5) * (Math.PI / 6);
+      coast = makeCoastFromProfile(profile, ccx, ccy, rr, rot);
+    } else {
+      coast = makeCoast(r, ccx, ccy, rr);
+    }
+    borders = makeInternalBorders(r, ccx, ccy, rr * 0.95);
     islands = [];
-    const islandCount = (r() < 0.18 ? 1 : 0);
+    const islandCount = profile ? 0 : (r() < 0.18 ? 1 : 0);
     for (let k = 0; k < islandCount; k++){
       const ia = r() * Math.PI * 2;
       const id = rr * (0.95 + r() * 0.55);
