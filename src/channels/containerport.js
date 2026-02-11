@@ -154,6 +154,8 @@ export function createChannel({ seed, audio }){
   let moveCursor = 0;
 
   let ship = { x: 0, y: 0, w: 0, h: 0, dockX: 0 };
+  let shipStacks = []; // Array<Array<{id:number, col:string}>> (persistent on-ship containers)
+  let shipCycle = -1;
 
   // Special moment: reroute
   let routeA = 0;
@@ -256,6 +258,9 @@ export function createChannel({ seed, audio }){
 
     // Start fully off-screen to the right (ship.x is the ship's right edge; draw uses sx = x - w).
     ship.x = w + ship.w * 1.10;
+
+    shipCycle = 0;
+    regenShipStacks(shipCycle);
   }
 
   function init({ width, height, dpr: dprIn }){
@@ -366,6 +371,39 @@ export function createChannel({ seed, audio }){
     return { id: nextContainerId++, col };
   }
 
+  function shipSlotLayout(){
+    // Match the drawShip() slot placement so crane pickups originate from the actual stack top.
+    const n = Math.max(1, shipStacks.length || 9);
+    const step = n >= 12 ? 0.062 : 0.078;
+    const bw = ship.w * (n >= 12 ? 0.055 : 0.062);
+    const sx = ship.x - ship.w;
+    const baseY = ship.y - ship.h * 0.20;
+    const dy = ship.h * 0.22;
+    const ch = ship.h * 0.18;
+    return { n, step, bw, sx, baseY, dy, ch };
+  }
+
+  function regenShipStacks(cycle){
+    // New ship load per cycle: deterministic per seed + cycle (does not consume visual PRNG).
+    const s = seed | 0;
+    const cyc = cycle | 0;
+
+    const slotCount = 9;
+    shipStacks = [];
+    for (let i = 0; i < slotCount; i++){
+      const hi = hash01(s ^ Math.imul(cyc + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca6b));
+      const n = 2 + ((hi * 4) | 0); // 2–5
+
+      const st = [];
+      for (let j = 0; j < n; j++){
+        const hj = hash01(s ^ Math.imul(cyc + 1, 0x7feb352d) ^ Math.imul(i + 1, 0x846ca68b) ^ Math.imul(j + 1, 0xc2b2ae35));
+        const col = CONTAINER_COLS[(hj * CONTAINER_COLS.length) | 0];
+        st.push({ id: nextContainerId++, col });
+      }
+      shipStacks.push(st);
+    }
+  }
+
   function completeCraneJob(job){
     if (!job) return;
     if (job.kind === 'toYard' || job.kind === 'yardToYard'){
@@ -391,10 +429,29 @@ export function createChannel({ seed, audio }){
       moveCursor++;
       if (dest < 0) return false;
 
-      const container = makeMoveContainer();
-      const shipSlotX = ship.x - ship.w * (0.75 - ci * 0.10);
-      const startX = shipSlotX;
-      const startY = ship.y - ship.h * 0.22;
+      const slotCount = shipStacks.length;
+      if (slotCount <= 0) return false;
+
+      // Choose a non-empty ship slot deterministically (so the ship visibly empties).
+      let startSlot = (moveRand01(moveCursor + 11 + ci * 17) * slotCount) | 0;
+      let srcSlot = -1;
+      for (let k = 0; k < slotCount; k++){
+        const i = (startSlot + k) % slotCount;
+        if (shipStacks[i] && shipStacks[i].length > 0){ srcSlot = i; break; }
+      }
+      if (srcSlot < 0) return false;
+
+      const lay = shipSlotLayout();
+      const stShip = shipStacks[srcSlot];
+      const prevLen = stShip.length;
+      const container = stShip.pop();
+      if (!container) return false;
+
+      const bx = lay.sx + ship.w * (0.08 + srcSlot * lay.step);
+      const startX = bx + lay.bw * 0.5;
+      const topY = lay.baseY - (prevLen - 1) * lay.dy;
+      const startY = topY + lay.ch * 0.5;
+
       const endX = bays[dest].x + bays[dest].w * 0.5;
       const endY = baseY - (stackCount(dest) + 1) * (u * 0.78);
 
@@ -473,6 +530,15 @@ export function createChannel({ seed, audio }){
     if (p !== phaseIndex){
       phaseIndex = p;
       chooseTargetsForPhase(phaseIndex);
+
+      // New arrival cycle → refill on-ship container stacks (so they persist + move with the ship).
+      if (phaseIndex === 0){
+        const cyc = ((t / CYCLE_DUR) | 0);
+        if (cyc !== shipCycle){
+          shipCycle = cyc;
+          regenShipStacks(shipCycle);
+        }
+      }
 
       if (phaseIndex === 0) safeBeep({ freq: 92, dur: 0.06, gain: 0.014, type: 'sine' });
       if (phaseIndex === 1) safeBeep({ freq: 110, dur: 0.07, gain: 0.016, type: 'square' });
@@ -722,20 +788,20 @@ export function createChannel({ seed, audio }){
       ctx.restore();
     }
 
-    // stacked containers on ship (none for icebreaker)
-    if (v !== 2){
-      const cols = ['#2b2d3a', '#1f2b2a', '#2f2a1f', '#2a2033', '#2f1f2b'];
-      const nx = v === 0 ? 14 : 9;
-      const step = v === 0 ? 0.062 : 0.078;
-      for (let i = 0; i < nx; i++){
-        const bx = sx + ship.w * (0.08 + i * step);
-        const bw = ship.w * (v === 0 ? 0.055 : 0.062);
-        const base = sy - ship.h * 0.20;
-        const n = v === 0 ? (2 + (((i + (seed|0)) % 5) | 0)) : (1 + (((i + (seed|0)) % 3) | 0));
-        for (let j = 0; j < n; j++){
-          const by = base - j * (ship.h * 0.22);
-          const col = cols[(i + j) % cols.length];
-          drawContainer(ctx, bx, by, bw, ship.h * 0.18, col, ((v + 1) << 12) ^ (i << 4) ^ j, dpr);
+    // stacked containers on ship (persistent entities; physically removed by cranes during UNLOAD)
+    {
+      const lay = shipSlotLayout();
+      for (let i = 0; i < shipStacks.length; i++){
+        const st = shipStacks[i];
+        if (!st || st.length === 0) continue;
+
+        const bx = lay.sx + ship.w * (0.08 + i * lay.step);
+        const bw = lay.bw;
+
+        for (let j = 0; j < st.length; j++){
+          const by = lay.baseY - j * lay.dy;
+          const c = st[j];
+          drawContainer(ctx, bx, by, bw, lay.ch, c.col, c.id, dpr);
         }
       }
     }
