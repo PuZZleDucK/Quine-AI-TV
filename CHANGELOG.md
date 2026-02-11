@@ -1,4 +1,5 @@
 
+- 2026-02-12 01:23 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: only schedule ship load/unload moves once the ship is fully docked (prevents cargo moving while ship is still arriving). Commit: 73b3e34
 - 2026-02-12 00:48 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: crane hoist stays vertical (clamped to beam span; trolley tracks load). Commit: 6ad6d17
 - 2026-02-12 00:32 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: capped on-ship container stacks to max 3 high. Commit: 532568c
 - 2026-02-12 00:24 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: unified container sizing across ship/yard/crane so ship containers match yard containers. Commit: 90a7316

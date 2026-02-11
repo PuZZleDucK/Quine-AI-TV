@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] visuals `containerport`: containers should be loaded and unloaded from ships when ship is stopped only. some ships unload, some load, some both. Commit: 73b3e34
+
 - [x] [project:quine-tv] visuals `containerport`: cranes should only lift containers vertically and should be consistant and not jump around. Commit: 6ad6d17
 
 - [x] [project:quine-tv] visuals `containerport`: containers should be limited to stacks of three on ships. Commit: 532568c
