@@ -109,6 +109,30 @@ export function createChannel({ seed, audio }){
   let beepCooldown = 0;
   let bed = null;
 
+  // cached gradients (rebuild on resize / ctx swap)
+  let bgGrad = null;
+  let glowGrad = null;
+  let gradCtx = null;
+  let gradW = 0, gradH = 0;
+
+  function ensureBackgroundGradients(ctx){
+    if (ctx !== gradCtx || gradW !== w || gradH !== h){
+      gradCtx = ctx;
+      gradW = w; gradH = h;
+
+      bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#110d16');
+      bgGrad.addColorStop(1, '#04040b');
+
+      const gx = w * 0.35;
+      const gy = h * 0.28;
+      const gr = Math.max(w, h) * 0.7;
+      glowGrad = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+      glowGrad.addColorStop(0, 'rgba(255,190,140,0.08)');
+      glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    }
+  }
+
   function resetSegment(){
     seg = makeSegment(rand);
     phase = 'typing';
@@ -274,17 +298,12 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    // Cozy background
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#110d16');
-    bg.addColorStop(1, '#04040b');
-    ctx.fillStyle = bg;
+    // Cozy background (cached)
+    ensureBackgroundGradients(ctx);
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
-    const glow = ctx.createRadialGradient(w * 0.35, h * 0.28, 0, w * 0.35, h * 0.28, Math.max(w, h) * 0.7);
-    glow.addColorStop(0, 'rgba(255,190,140,0.08)');
-    glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = glow;
+    ctx.fillStyle = glowGrad;
     ctx.fillRect(0, 0, w, h);
 
     // Main window
