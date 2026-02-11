@@ -328,6 +328,32 @@ function makeCoastFromProfile(profile, cx, cy, r, rot){
   return out;
 }
 
+function pointBounds(pts){
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const p of pts){
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+  return {
+    minX, maxX, minY, maxY,
+    w: Math.max(1e-6, maxX - minX),
+    h: Math.max(1e-6, maxY - minY),
+  };
+}
+
+function fitPointsToBox(pts, cx, cy, targetW, targetH){
+  const b = pointBounds(pts);
+  const s = Math.min(targetW / b.w, targetH / b.h);
+  const ox = (b.minX + b.maxX) * 0.5;
+  const oy = (b.minY + b.maxY) * 0.5;
+  return pts.map((p) => ({ x: cx + (p.x - ox) * s, y: cy + (p.y - oy) * s }));
+}
+
 function makeStreet(rand, ww, hh){
   const horizon = hh * (0.72 + rand() * 0.14);
   const layers = [0.4, 0.7, 1.0].map((depth, i) => {
