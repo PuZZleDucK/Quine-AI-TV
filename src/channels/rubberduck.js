@@ -138,8 +138,29 @@ export function createChannel({ seed, audio }){
     init({ width, height });
   }
 
+  function stopRoomTone({ clearCurrent = false } = {}){
+    const handle = roomTone;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    roomTone = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Idempotent: if our room tone is already the current handle, keep it.
+    if (roomTone && audio.current === roomTone) return;
+
+    // If we previously started one (even if no longer current), stop it.
+    stopRoomTone({ clearCurrent: true });
+
     const n = audio.noiseSource({ type: 'brown', gain: 0.01 });
     n.start();
     roomTone = { stop(){ n.stop(); } };
@@ -147,8 +168,7 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOff(){
-    try { roomTone?.stop?.(); } catch {}
-    roomTone = null;
+    stopRoomTone({ clearCurrent: true });
   }
 
   function destroy(){
