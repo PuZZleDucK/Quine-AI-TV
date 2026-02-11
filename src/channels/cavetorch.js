@@ -44,6 +44,11 @@ export function createChannel({ seed, audio }){
   let wallTex = null;
   let grainTex = null;
 
+  // cached wall layers (rebuilt on init/resize)
+  let wallLayer = null;
+  let torchLightSprite = null;
+  let sootSprite = null;
+
   // timed structure (simple storyboard loop)
   const scenes = [
     {
@@ -186,6 +191,92 @@ export function createChannel({ seed, audio }){
     return c;
   }
 
+  function makeTorchLightSprite(){
+    // Small reusable sprite; scaled + alpha-modulated per frame (no gradients in steady-state).
+    const size = 512;
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const g = c.getContext('2d');
+    const r = size * 0.5;
+    const cx = r, cy = r;
+
+    const grad = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+    grad.addColorStop(0, 'rgba(255,170,90,0.34)');
+    grad.addColorStop(0.35, 'rgba(255,120,55,0.18)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, size, size);
+    return c;
+  }
+
+  function makeSootSprite(){
+    const size = 256;
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const g = c.getContext('2d');
+    const r = size * 0.5;
+    const cx = r, cy = r;
+
+    const grad = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+    grad.addColorStop(0, 'rgba(0,0,0,0.16)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, size, size);
+    return c;
+  }
+
+  function rebuildWallLayer(){
+    // Static wall background: base gradient + warm fill + tiled texture + vignette.
+    // Rebuilt on init/resize so `drawWall()` is a couple of blits.
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const g = c.getContext('2d');
+
+    // base gradient
+    const bg = g.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#0c0606');
+    bg.addColorStop(1, '#050203');
+    g.fillStyle = bg;
+    g.fillRect(0, 0, w, h);
+
+    // warm wall fill
+    const warm = g.createRadialGradient(w * 0.18, h * 0.62, 0, w * 0.18, h * 0.62, Math.max(w, h) * 0.9);
+    warm.addColorStop(0, 'rgba(90,45,18,0.75)');
+    warm.addColorStop(1, 'rgba(12,6,6,0.0)');
+    g.fillStyle = warm;
+    g.fillRect(0, 0, w, h);
+
+    // texture tiled (pattern fill, scaled)
+    if (wallTex){
+      const scale = 2.6;
+      const p = g.createPattern(wallTex, 'repeat');
+      g.save();
+      g.globalAlpha = 0.9;
+      g.scale(scale, scale);
+      g.fillStyle = p;
+      g.fillRect(0, 0, w / scale, h / scale);
+      g.restore();
+    }
+
+    // vignette
+    const vig = g.createRadialGradient(w * 0.5, h * 0.55, Math.min(w, h) * 0.15, w * 0.5, h * 0.55, Math.max(w, h) * 0.7);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(0,0,0,0.82)');
+    g.fillStyle = vig;
+    g.fillRect(0, 0, w, h);
+
+    wallLayer = c;
+  }
+
+  function rebuildWallAssets(){
+    rebuildWallLayer();
+    torchLightSprite = makeTorchLightSprite();
+    sootSprite = makeSootSprite();
+  }
+
   function resetParticles(){ 
     const moteN = Math.floor(180 + (w*h) / (900*520) * 120);
     motes = Array.from({length: moteN}, () => ({
@@ -215,6 +306,7 @@ export function createChannel({ seed, audio }){
 
     wallTex = makeWallTexture();
     grainTex = makeGrainTexture();
+    rebuildWallAssets();
     resetParticles();
 
     flick = 0;
@@ -235,6 +327,7 @@ export function createChannel({ seed, audio }){
   function onResize(width, height){
     w = width;
     h = height;
+    rebuildWallAssets();
     resetParticles();
   }
 
@@ -372,63 +465,35 @@ export function createChannel({ seed, audio }){
 
   function drawWall(ctx){
     ctx.setTransform(1,0,0,1,0,0);
-    ctx.clearRect(0,0,w,h);
 
-    // base gradient
-    const bg = ctx.createLinearGradient(0,0,0,h);
-    bg.addColorStop(0, '#0c0606');
-    bg.addColorStop(1, '#050203');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0,0,w,h);
+    // Static cached wall background (rebuilt on init/resize)
+    if (!wallLayer) rebuildWallAssets();
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(wallLayer, 0, 0);
 
-    // warm wall fill
-    const warm = ctx.createRadialGradient(w*0.18,h*0.62, 0, w*0.18,h*0.62, Math.max(w,h)*0.9);
-    warm.addColorStop(0, 'rgba(90,45,18,0.75)');
-    warm.addColorStop(1, 'rgba(12,6,6,0.0)');
-    ctx.fillStyle = warm;
-    ctx.fillRect(0,0,w,h);
-
-    // texture tiled
-    if (wallTex){
-      ctx.save();
-      ctx.globalAlpha = 0.9;
-      const scale = 2.6;
-      for (let y=0; y<h; y+=wallTex.height*scale){
-        for (let x=0; x<w; x+=wallTex.width*scale){
-          ctx.drawImage(wallTex, x, y, wallTex.width*scale, wallTex.height*scale);
-        }
-      }
-      ctx.restore();
-    }
-
-    // vignette
-    const vig = ctx.createRadialGradient(w*0.5,h*0.55, Math.min(w,h)*0.15, w*0.5,h*0.55, Math.max(w,h)*0.7);
-    vig.addColorStop(0, 'rgba(0,0,0,0)');
-    vig.addColorStop(1, 'rgba(0,0,0,0.82)');
-    ctx.fillStyle = vig;
-    ctx.fillRect(0,0,w,h);
-
-    // torch light cone
+    // torch light cone (sprite blit: no gradients in steady-state)
     const flickAmt = 0.92 + 0.10*Math.sin(t*4.5) + 0.10*flick;
     const lx = w*0.14;
     const ly = h*0.62;
-    const r = Math.max(w,h) * (0.62 + 0.06*flick);
-    const light = ctx.createRadialGradient(lx,ly, 0, lx,ly, r);
-    light.addColorStop(0, `rgba(255,170,90,${0.34*flickAmt})`);
-    light.addColorStop(0.35, `rgba(255,120,55,${0.18*flickAmt})`);
-    light.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = light;
-    ctx.fillRect(0,0,w,h);
-    ctx.restore();
+    const maxDim = Math.max(w, h);
+    const r = maxDim * (0.62 + 0.06*flick);
+
+    if (torchLightSprite){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = flickAmt;
+      ctx.drawImage(torchLightSprite, lx - r, ly - r, r*2, r*2);
+      ctx.restore();
+    }
 
     // subtle soot bloom near torch
-    const soot = ctx.createRadialGradient(lx,ly, 0, lx,ly, Math.max(w,h)*0.22);
-    soot.addColorStop(0, 'rgba(0,0,0,0.16)');
-    soot.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = soot;
-    ctx.fillRect(0,0,w,h);
+    if (sootSprite){
+      const sr = maxDim * 0.22;
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.drawImage(sootSprite, lx - sr, ly - sr, sr*2, sr*2);
+      ctx.restore();
+    }
   }
 
   function strokeStyle(ctx, tone='ochre', a=1){
