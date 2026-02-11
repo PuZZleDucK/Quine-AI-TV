@@ -1,4 +1,5 @@
 
+- 2026-02-11 20:03 (Australia/Melbourne) [project:quine-tv] `volcanoobs` (src/channels/volcanoobservatory.js): reshaped cone silhouette (multi-curve shoulders + shared craterY) so the crater rim reads anchored to the mountain. Commit: cc7bef1
 - 2026-02-11 19:45 (Australia/Melbourne) [project:quine-tv] `volcanoobs` (src/channels/volcanoobservatory.js): added a longer, pulsing eruption window in `intensityAt()`/`puffAmount()` so at least one clearly visible eruptive event occurs within each loop (<=60s). Commit: 85eae5d
 - 2026-02-11 19:30 (Australia/Melbourne) [project:quine-tv] Content polish `dreamreceipt` (src/channels/dreamreceipt.js): expanded receipt text variety (more headers/footers/notes) + added deterministic rare special moment (VOID stamp or TOTAL ??? scramble) every ~45–120s. Commit: ecaabcb
 - 2026-02-11 19:21 (Australia/Melbourne) [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): added subtle counter film grain + stronger printer-slot lip/shadow (paper mouth shade) so the scene reads less “flat”. Commit: c13d109

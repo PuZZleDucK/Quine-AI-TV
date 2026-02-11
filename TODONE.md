@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Channel `volcanoobs` (src/channels/volcanoobservatory.js): Rebuild cone silhouette in `drawVolcano()` so the crater is visually anchored to mountain shoulders instead of reading like a floating disc/UFO. Commit: cc7bef1
+
 - [x] [project:quine-tv] Channel `volcanoobs` (src/channels/volcanoobservatory.js): Add explicit, long-window eruption phases in `intensityAt()`/`puffAmount()` so at least one clearly visible eruptive event occurs within each 60s viewing window. Commit: 85eae5d
 
 - [x] [project:quine-tv] Content polish `dreamreceipt` (src/channels/dreamreceipt.js): expanded receipt text variety (more headers/footers/notes) + added deterministic rare special moment (VOID stamp or TOTAL ??? scramble) every ~45–120s. Accept: 5min capture shows at least one additional special moment; deterministic per seed. Commit: ecaabcb
