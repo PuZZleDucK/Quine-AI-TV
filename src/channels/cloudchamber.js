@@ -41,6 +41,7 @@ export function createChannel({ seed, audio }){
   let bigFlash = 0;
   let banner = 0;
   let nextBigAt = 0;
+  let spawnNextAt = 0;
 
   let hits = 0;
   let displayHits = 0;
@@ -127,6 +128,8 @@ export function createChannel({ seed, audio }){
     phaseIdx = (seed >>> 0) % PHASES.length;
     phaseEndsAt = PHASES[phaseIdx].dur;
 
+    spawnNextAt = 1 / PHASES[phaseIdx].rate;
+
     bigFlash = 0;
     banner = 0;
     nextBigAt = 8 + rand() * 10;
@@ -164,7 +167,7 @@ export function createChannel({ seed, audio }){
     init({ width, height });
   }
 
-  function spawnTrack({ kind='small', prewarm=false } = {}){
+  function spawnTrack({ kind='small', prewarm=false, age=null } = {}){
     // find free slot
     let tr = null;
     for (let i = 0; i < tracks.length; i++) {
@@ -178,7 +181,7 @@ export function createChannel({ seed, audio }){
     }
 
     tr.active = true;
-    tr.age = prewarm ? rand() * 1.2 : 0;
+    tr.age = (age != null) ? age : (prewarm ? rand() * 1.2 : 0);
     tr.life = (kind === 'big' ? 2.6 : 1.7) + rand() * (kind === 'big' ? 1.1 : 0.9);
     tr.width = (kind === 'big' ? 2.1 : 1.2) + rand() * (kind === 'big' ? 1.2 : 0.8);
     tr.energy = kind === 'big' ? 1.35 : 1.0;
@@ -219,12 +222,15 @@ export function createChannel({ seed, audio }){
     hits += kind === 'big' ? (6 + ((rand() * 10) | 0)) : 1;
   }
 
-  function triggerBigEvent(){
-    bigFlash = 1.0;
-    banner = 1.0;
+  function triggerBigEvent(eventTime = t){
+    const age = Math.max(0, t - eventTime);
+
+    // deterministic across FPS: apply the impulse at eventTime, but compute its decayed value at the current t
+    bigFlash = Math.max(bigFlash, 1.0 - age * 1.35);
+    banner = Math.max(banner, 1.0 - age * 1.1);
 
     const burst = 6 + ((rand() * 7) | 0);
-    for (let i = 0; i < burst; i++) spawnTrack({ kind: 'big' });
+    for (let i = 0; i < burst; i++) spawnTrack({ kind: 'big', age });
 
     if (audio.enabled){
       audio.beep({ freq: 92 + rand() * 25, dur: 0.08, gain: 0.045, type: 'triangle' });
@@ -282,39 +288,56 @@ export function createChannel({ seed, audio }){
   }
 
   function update(dt){
-    t += dt;
+    const tPrev = t;
+    t = tPrev + dt;
 
-    const phase = PHASES[phaseIdx];
-    if (t >= phaseEndsAt){
-      phaseIdx = (phaseIdx + 1) % PHASES.length;
-      phaseEndsAt = t + PHASES[phaseIdx].dur;
-
-      // tiny cue
-      banner = Math.max(banner, 0.6);
-      if (audio.enabled) audio.beep({ freq: 160 + rand() * 120, dur: 0.03, gain: 0.02, type: 'sine' });
-    }
-
-    // spawn rate
-    // (keep bounded, avoid huge while loops)
-    const rate = phase.rate;
-    const spawnCount = Math.min(6, Math.floor(rate * dt + rand() * 1.3));
-    for (let i = 0; i < spawnCount; i++) spawnTrack({ kind: 'small' });
-
-    // big events
-    if (t >= nextBigAt){
-      triggerBigEvent();
-      nextBigAt = t + 12 + rand() * 16;
-    }
-
-    // decay
+    // decay (dt-based but deterministic; impulses are applied with an exact eventTime below)
     bigFlash = Math.max(0, bigFlash - dt * 1.35);
     banner = Math.max(0, banner - dt * 1.1);
 
-    // tracks aging
+    // age existing tracks first (newly spawned tracks get an absolute age so they don't double-age this frame)
     for (const tr of tracks){
       if (!tr.active) continue;
       tr.age += dt;
       if (tr.age >= tr.life) tr.active = false;
+    }
+
+    // phase + deterministic spawning (FPS-stable): schedule spawns at fixed times within each phase
+    let segStart = tPrev;
+    while (segStart < t){
+      const phase = PHASES[phaseIdx];
+      const segEnd = Math.min(t, phaseEndsAt);
+      const interval = 1 / phase.rate;
+
+      while (spawnNextAt <= segEnd){
+        // spawn occurred at spawnNextAt; set age as-of current t
+        spawnTrack({ kind: 'small', age: t - spawnNextAt });
+        spawnNextAt += interval;
+      }
+
+      if (segEnd === phaseEndsAt){
+        const boundaryTime = phaseEndsAt;
+
+        phaseIdx = (phaseIdx + 1) % PHASES.length;
+        phaseEndsAt = boundaryTime + PHASES[phaseIdx].dur;
+
+        // restart spawn schedule in the new phase (anchored to the exact boundary time)
+        spawnNextAt = boundaryTime + (1 / PHASES[phaseIdx].rate);
+
+        // tiny cue (applied at boundaryTime, evaluated at current t)
+        const cue = 0.6 - (t - boundaryTime) * 1.1;
+        if (cue > 0) banner = Math.max(banner, cue);
+        if (audio.enabled) audio.beep({ freq: 160 + rand() * 120, dur: 0.03, gain: 0.02, type: 'sine' });
+      }
+
+      segStart = segEnd;
+    }
+
+    // big events (anchored to the scheduled time; FPS-stable)
+    while (t >= nextBigAt){
+      const eventTime = nextBigAt;
+      triggerBigEvent(eventTime);
+      nextBigAt = eventTime + 12 + rand() * 16;
     }
 
     // rolling counter
