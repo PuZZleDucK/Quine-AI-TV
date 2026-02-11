@@ -95,6 +95,14 @@ export function createChannel({ seed, audio }){
   // Audio
   let ambience = null;
 
+  // Gradient caches (rebuilt on resize/layout change or ctx swap)
+  let gCtx = null;
+  let gSky = null;
+  let gSea = null;
+  let gYard = null;
+  let gVignette = null;
+  let gradientsDirty = true;
+
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
   function regenLayout(){
@@ -132,6 +140,8 @@ export function createChannel({ seed, audio }){
       const fx = lerp(dockX0 + w * 0.08, dockX1 - w * 0.08, (i + 0.5) / CRANE_COUNT);
       cranes.push({ x: fx, y: dockY - h * 0.10, s: 0.9 + rand()*0.25, off: rand() * 10 });
     }
+
+    gradientsDirty = true;
   }
 
   function reset(){
@@ -285,12 +295,35 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function ensureGradients(ctx){
+    if (!gradientsDirty && gCtx === ctx) return;
+    gCtx = ctx;
+
+    gSky = ctx.createLinearGradient(0, 0, 0, h);
+    gSky.addColorStop(0, pal.sky0);
+    gSky.addColorStop(0.55, pal.sky1);
+    gSky.addColorStop(1, '#050b12');
+
+    gSea = ctx.createLinearGradient(0, horizon, 0, dockY);
+    gSea.addColorStop(0, pal.sea1);
+    gSea.addColorStop(1, pal.sea0);
+
+    gYard = ctx.createLinearGradient(0, yardY, 0, yardY + yardH);
+    gYard.addColorStop(0, pal.yard2);
+    gYard.addColorStop(1, pal.yard);
+
+    gVignette = ctx.createRadialGradient(
+      w*0.5, h*0.45, Math.min(w,h)*0.12,
+      w*0.5, h*0.45, Math.max(w,h)*0.65
+    );
+    gVignette.addColorStop(0, 'rgba(0,0,0,0)');
+    gVignette.addColorStop(1, 'rgba(0,0,0,0.35)');
+
+    gradientsDirty = false;
+  }
+
   function drawBackground(ctx){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, pal.sky0);
-    g.addColorStop(0.55, pal.sky1);
-    g.addColorStop(1, '#050b12');
-    ctx.fillStyle = g;
+    ctx.fillStyle = gSky;
     ctx.fillRect(0, 0, w, h);
 
     // clouds
@@ -317,10 +350,7 @@ export function createChannel({ seed, audio }){
   }
 
   function drawSea(ctx){
-    const g = ctx.createLinearGradient(0, horizon, 0, dockY);
-    g.addColorStop(0, pal.sea1);
-    g.addColorStop(1, pal.sea0);
-    ctx.fillStyle = g;
+    ctx.fillStyle = gSea;
     ctx.fillRect(0, horizon, w, dockY - horizon);
 
     // simple waves
@@ -415,10 +445,7 @@ export function createChannel({ seed, audio }){
 
   function drawYard(ctx){
     // yard pad
-    const g = ctx.createLinearGradient(0, yardY, 0, yardY + yardH);
-    g.addColorStop(0, pal.yard2);
-    g.addColorStop(1, pal.yard);
-    ctx.fillStyle = g;
+    ctx.fillStyle = gYard;
     roundedRect(ctx, yardX, yardY, yardW, yardH, Math.max(10, yardH * 0.02));
     ctx.fill();
 
@@ -674,6 +701,8 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
+    ensureGradients(ctx);
+
     drawBackground(ctx);
     drawSea(ctx);
     drawShip(ctx);
@@ -687,10 +716,7 @@ export function createChannel({ seed, audio }){
 
     // subtle vignette
     ctx.save();
-    const vg = ctx.createRadialGradient(w*0.5, h*0.45, Math.min(w,h)*0.12, w*0.5, h*0.45, Math.max(w,h)*0.65);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.35)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = gVignette;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
