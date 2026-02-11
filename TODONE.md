@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Review channel `containerport` (src/channels/containerport.js): captured screenshots (0–300s) to `screenshots/review-containerport`, did code+audio pass, added `// REVIEWED` marker, and queued follow-ups. Commit: TBD
+
 - [x] [project:quine-tv] Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Increase eruption readability by scaling ash and plume contrast during puff phase; added rare incandescent ejecta arcs. Commit: 2115be7
 
 - [x] [project:quine-tv] Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Replace `destination-out` crater hole in `drawVolcano()` with layered rim/lip shading (no hard cutout artifacts). Commit: 30db510
