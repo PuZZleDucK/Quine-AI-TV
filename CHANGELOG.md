@@ -1,4 +1,5 @@
 
+- 2026-02-11 18:32 (Australia/Melbourne) [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): increased post-print pause and added a fall-off-screen motion after tear. Commit: 582e5c1
 - 2026-02-11 18:15 (Australia/Melbourne) [project:quine-tv] Audio hygiene `dreamreceipt` (src/channels/dreamreceipt.js): made `onAudioOn()` idempotent by stopping our existing ambience first; `onAudioOff()`/`destroy()` now stop+clear and only clear AudioManager.current when owned (prevents stacking on repeated toggles). Commit: efc57d6
 - 2026-02-11 18:04 (Australia/Melbourne) [project:quine-tv] Perf pass `dreamreceipt` (src/channels/dreamreceipt.js): cached counter/vignette/printer/paper gradients (rebuild on init/resize/ctx swap) so steady-state render path calls no create*Gradient(). Commit: 05d1221
 - 2026-02-11 17:33 (Australia/Melbourne) [project:quine-tv] Perf pass `cavetorch` (src/channels/cavetorch.js): cached base wall background into an offscreen layer and replaced torch light/soot gradients with cached sprites so steady-state `drawWall()` is just blits (no gradients, no tiling loops). Commit: 71f67ba
