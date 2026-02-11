@@ -740,11 +740,14 @@ export function createChannel({ seed, audio }){
     }
 
     // dust motes (foreground-ish)
+    // Perf: avoid per-mote template literal `rgba(...)` allocations by using fixed fillStyle
+    // and varying intensity via ctx.globalAlpha.
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgb(255,210,160)';
     for (const m of motes){
       const a = (0.05 + 0.10*m.z) * (0.7 + 0.3*Math.sin(t*0.8 + m.x*0.01));
-      ctx.fillStyle = `rgba(255,210,160,${a})`;
+      ctx.globalAlpha = a;
       ctx.beginPath();
       ctx.arc(m.x + Math.sin(t*0.4 + m.y*0.01)*m.z*6, m.y, m.r*(0.6 + 0.8*m.z), 0, Math.PI*2);
       ctx.fill();
