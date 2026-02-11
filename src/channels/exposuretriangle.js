@@ -86,6 +86,7 @@ export function createChannel({ seed, audio }){
   let quizRevealed = false;
 
   let bed = null;
+  let ambience = null;
 
   function cur(){ return segments[segIndex] || segments[0]; }
 
@@ -682,25 +683,48 @@ export function createChannel({ seed, audio }){
     }
   }
 
-  function onAudioOn(){
-    if (!audio.enabled) return;
-    bed = audio.noiseSource({ type: 'pink', gain: 0.016 });
-    bed.start();
-    audio.setCurrent({
-      stop(){
-        try { bed?.stop?.(); } catch {}
-      }
-    });
-  }
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = ambience;
+    if (!handle){
+      bed = null;
+      return;
+    }
 
-  function onAudioOff(){
-    try { bed?.stop?.(); } catch {}
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      try { audio.stopCurrent(); } catch {}
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ambience = null;
     bed = null;
   }
 
-  function destroy(){
-    onAudioOff();
+  function onAudioOn(){
+    if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    stopAmbience({ clearCurrent: true });
+
+    bed = audio.noiseSource({ type: 'pink', gain: 0.016 });
+    bed.start();
+
+    ambience = {
+      stop(){
+        try { bed?.stop?.(); } catch {}
+      }
+    };
+    audio.setCurrent(ambience);
   }
+
+  function onAudioOff(){
+    stopAmbience({ clearCurrent: true });
+  }
+
+  function destroy(){ onAudioOff(); }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
 }
