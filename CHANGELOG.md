@@ -1,3 +1,5 @@
+- 2026-02-12 08:00 (Australia/Melbourne) [project:quine-tv] Review channel `flow` (src/channels/flowfield.js): captured screenshots (0–300s) to `screenshots/review-flow-before` + completion shots to `screenshots/review-flow-after` (errors/warnings: 0), did code/perf pass, confirmed `// REVIEWED: 2026-02-12`, and confirmed/queued follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: TBD
+
 - 2026-02-12 04:38 (Australia/Melbourne) [project:quine-tv] Review channel `kintsugi` (src/channels/kintsugiclinic.js): captured screenshots (0–300s) to `screenshots/review-kintsugi`, did code+audio/perf/determinism pass, confirmed `// REVIEWED: 2026-02-12`, and queued follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: 1d3463d
 
 - 2026-02-12 03:23 (Australia/Melbourne) [project:quine-tv] Review channel `deepseasonar` (src/channels/deepseasonar.js): captured screenshots (0–300s) to `screenshots/review-deepseasonar`, did code+audio pass, added `// REVIEWED` marker, and queued follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: 866f413
