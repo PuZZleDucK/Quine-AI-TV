@@ -137,13 +137,29 @@ function makeStreet(rand, ww, hh){
     while (x < ww * 1.3){
       const bw = (20 + rand() * 54) * (0.82 + 0.18 * (1 / depth));
       const bh = (hh * (0.10 + rand() * 0.36)) * depth;
-      b.push({ x, w: bw, h: bh, seed: rand() * 999, hue: 210 + i * 10 });
+      const cols = Math.max(2, Math.floor(bw / 20));
+      const rows = Math.max(2, Math.floor(bh / 26));
+      const lights = new Uint8Array(cols * rows);
+      for (let wi = 0; wi < lights.length; wi++){
+        lights[wi] = rand() < (0.03 + 0.02 * depth) ? 1 : 0;
+      }
+      b.push({
+        x,
+        w: bw,
+        h: bh,
+        seed: rand() * 999,
+        hue: 210 + i * 10,
+        cols,
+        rows,
+        lights,
+        lightTimer: 4 + rand() * 10 + (1 - depth) * 5,
+      });
       x += bw + (10 + rand() * 40);
     }
     return { depth, buildings: b };
   });
 
-  return { horizon, layers };
+  return { horizon, layers, rand };
 }
 
 export function createChannel({ seed, audio }){
@@ -210,6 +226,20 @@ export function createChannel({ seed, audio }){
     segT += dt;
     if (segT >= SEG_DUR){
       setSegment(segIx + 1);
+    }
+
+    if (!street) return;
+    for (const layer of street.layers){
+      for (const b of layer.buildings){
+        b.lightTimer -= dt;
+        if (b.lightTimer > 0) continue;
+        const toggles = (street.rand() < 0.18 ? 2 : 1);
+        for (let i = 0; i < toggles; i++){
+          const ix = (street.rand() * b.lights.length) | 0;
+          b.lights[ix] = b.lights[ix] ? 0 : 1;
+        }
+        b.lightTimer = 6 + street.rand() * 16 + (1 - layer.depth) * 7;
+      }
     }
   }
 
@@ -405,16 +435,15 @@ export function createChannel({ seed, audio }){
           ctx.fillStyle = `rgb(${tone}, ${tone + 3}, ${tone + 7})`;
           ctx.fillRect(bx, by, b.w, b.h);
 
-          // windows flicker
-          const cols = Math.max(2, Math.floor(b.w / 20));
-          const rows = Math.max(2, Math.floor(b.h / 26));
-          const ww = b.w / (cols + 1);
-          const wh = b.h / (rows + 1);
-          for (let r0 = 1; r0 <= rows; r0++){
-            for (let c0 = 1; c0 <= cols; c0++){
-              const tw = Math.sin(t * 0.7 + b.seed + r0 * 0.6 + c0 * 0.9);
-              if (tw < 0.9) continue;
-              ctx.fillStyle = `rgba(255, 210, 140, ${0.08 + 0.1 * layer.depth})`;
+          // rare-event windows: mostly stable with occasional on/off changes
+          const ww = b.w / (b.cols + 1);
+          const wh = b.h / (b.rows + 1);
+          for (let r0 = 1; r0 <= b.rows; r0++){
+            for (let c0 = 1; c0 <= b.cols; c0++){
+              const wi = (r0 - 1) * b.cols + (c0 - 1);
+              if (!b.lights[wi]) continue;
+              const twinkle = 0.82 + 0.18 * Math.sin(t * 0.35 + b.seed + wi * 0.17);
+              ctx.fillStyle = `rgba(255, 210, 140, ${(0.06 + 0.08 * layer.depth) * twinkle})`;
               ctx.fillRect(bx + c0 * ww, by + r0 * wh, ww * 0.35, wh * 0.35);
             }
           }
