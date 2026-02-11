@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Replace `destination-out` crater hole in `drawVolcano()` with layered rim/lip shading (no hard cutout artifacts). Commit: 30db510
+
 - [x] [project:quine-tv] Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Improve seismograph coupling in `drawSeismograph()` by overlaying threshold markers/alerts tied to `intensityAt(loopT)` so build-up and eruption states are legible. Commit: eab3c69
 
 - [x] [project:quine-tv] Channel `volcanoobs` (src/channels/volcanoobservatory.js): Perf pass — cache sky/ground/vignette gradients (rebuilt on `regen()` / ctx swap) so steady-state render avoids per-frame background/vignette/ground gradient allocations. Commit: 12bb239
