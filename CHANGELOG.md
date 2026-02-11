@@ -1,4 +1,5 @@
 
+- 2026-02-12 00:08 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: ship containers are now persistent entities (drawn from `shipStacks`), and UNLOAD crane moves pop containers off the ship so the stacks visibly empty while the ship moves. Commit: 92a487d
 - 2026-02-11 23:45 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: during REROUTE phase, cranes now move a container from the source bay to the target bay (routeA→routeB). Commit: 4a4855b
 - 2026-02-11 22:46 (Australia/Melbourne) [project:quine-tv] Special moment `containerport` (`src/channels/containerport.js`): added deterministic rare ship arrival event with rare ship type variants. Commit: c84f6c5
 - 2026-02-11 22:19 (Australia/Melbourne) [project:quine-tv] Determinism `containerport` (`src/channels/containerport.js`): split audio RNG from visual PRNG so audio.enabled doesn"t change the visual sequence (FPS-stable). Commit: 1512bd6
