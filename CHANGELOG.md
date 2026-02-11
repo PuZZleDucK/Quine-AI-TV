@@ -1,3 +1,5 @@
+- 2026-02-12 09:19 (Australia/Melbourne) [project:quine-tv] Audio hygiene `duckdebug` (src/channels/rubberduck.js): made room tone start/stop idempotent; `onAudioOn()` keeps our handle if already current and stops our prior handle before restarting; `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: ba050d6
+
 - 2026-02-12 09:02 (Australia/Melbourne) [project:quine-tv] Audio hygiene `kintsugi` (src/channels/kintsugiclinic.js): made `onAudioOn()` idempotent (stop current first, avoids stacking); `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: 0f4232f
 
 - 2026-02-12 08:49 (Australia/Melbourne) [project:quine-tv] Perf pass `duckdebug` (src/channels/rubberduck.js): pre-rendered scanlines as a cached pattern (no per-frame scanline fillRect loop). Commit: d9d8baa
