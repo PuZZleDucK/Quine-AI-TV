@@ -67,10 +67,40 @@ export function createChannel({ seed, audio }){
   let beepCooldown = 0;
   let roomTone = null;
 
+  // Cached gradients (rebuild on resize or ctx swap) to keep render() allocation-free.
+  let gradCtx = null;
+  let gradW = 0, gradH = 0;
+  let bgGrad = null;
+  let vgGrad = null;
+
+  function ensureGradients(ctx){
+    if (ctx !== gradCtx || w !== gradW || h !== gradH || !bgGrad || !vgGrad){
+      gradCtx = ctx;
+      gradW = w; gradH = h;
+
+      bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, '#040812');
+      bgGrad.addColorStop(1, '#00040b');
+
+      vgGrad = ctx.createRadialGradient(
+        w * 0.5, h * 0.5, 0,
+        w * 0.5, h * 0.5, Math.max(w, h) * 0.65
+      );
+      vgGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      vgGrad.addColorStop(1, 'rgba(0,0,0,0.65)');
+    }
+  }
+
   function init({ width, height }){
     w = width; h = height; t = 0;
     font = Math.max(14, Math.floor(Math.min(w, h) / 34));
     lineH = Math.floor(font * 1.25);
+
+    // Force gradient rebuild after any size reset.
+    gradCtx = null;
+    bgGrad = null;
+    vgGrad = null;
+    gradW = 0; gradH = 0;
 
     transcript = [];
     pending = confessional(rand);
@@ -168,16 +198,11 @@ export function createChannel({ seed, audio }){
     ctx.clearRect(0, 0, w, h);
 
     // Nighty background gradient + vignette
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#040812');
-    bg.addColorStop(1, '#00040b');
-    ctx.fillStyle = bg;
+    ensureGradients(ctx);
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
-    const vg = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.65);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.65)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = vgGrad;
     ctx.fillRect(0, 0, w, h);
 
     // Terminal window
