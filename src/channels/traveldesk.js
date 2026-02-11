@@ -439,17 +439,23 @@ export function createChannel({ seed, audio }){
     const mh = Math.floor(h * 0.68);
     const mx = pad;
     const my = Math.floor(h * 0.16);
-    const rr = Math.min(mw, mh) * (0.42 + r() * 0.05);
+    const rr = Math.min(mw, mh) * 0.44;
     const ccx = mx + mw * (0.53 + (r() - 0.5) * 0.05);
     const ccy = my + mh * (0.53 + (r() - 0.5) * 0.05);
+    const targetW = mw * 0.72;
+    const targetH = mh * 0.62;
     const profile = COUNTRY_SHAPES[dest.country];
     if (profile){
       const rot = (r() - 0.5) * (Math.PI / 6);
-      coast = makeCoastFromProfile(profile, ccx, ccy, rr, rot);
+      const raw = makeCoastFromProfile(profile, 0, 0, 1, rot);
+      coast = fitPointsToBox(raw, ccx, ccy, targetW, targetH);
     } else {
-      coast = makeCoast(r, ccx, ccy, rr);
+      const raw = makeCoast(r, 0, 0, 1);
+      coast = fitPointsToBox(raw, ccx, ccy, targetW, targetH);
     }
-    borders = makeInternalBorders(r, ccx, ccy, rr * 0.95);
+    const cb = pointBounds(coast);
+    const borderRadius = Math.max(cb.w, cb.h) * 0.56;
+    borders = makeInternalBorders(r, ccx, ccy, borderRadius);
     islands = [];
     const islandCount = profile ? 0 : (r() < 0.18 ? 1 : 0);
     for (let k = 0; k < islandCount; k++){
