@@ -1,5 +1,6 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
+// REVIEWED: 2026-02-11
 
 // Midnight Library Index
 // Card-catalog drawers and index cards reveal micro-stories, one card at a time.
@@ -114,6 +115,16 @@ const TWISTS = [
   'A note in pencil says: “Return this before you wake.”',
   'The final sentence is missing, but you remember it anyway.',
   'Someone has underlined a word you haven\'t read yet.',
+  'The overdue fine is addressed to your future self.',
+  'The catalogue pauses, then asks if you are still there.',
+  'A margin note says: “this happened to the previous reader too.”',
+];
+
+const RARE_NOTES = [
+  'MARGIN ALERT: A DRAWER JUST CLOSED BY ITSELF',
+  'MARGIN ALERT: SOMEONE TYPED WHILE NO ONE WAS THERE',
+  'MARGIN ALERT: A DIFFERENT CARD HAS YOUR NAME',
+  'MARGIN ALERT: THE INDEX BELL RANG TWICE',
 ];
 
 function makeCallNo(rand, n){
@@ -169,6 +180,9 @@ export function createChannel({ seed, audio }){
 
   let openP = 0; // 0..1 drawer open
   let openFrom = 0;
+  let rarePulse = 0;
+  let rareText = '';
+  let nextRareAt = 0;
 
   let ambience = null;
 
@@ -200,6 +214,9 @@ export function createChannel({ seed, audio }){
     card = buildCard(rand, cardN);
     openP = 0;
     openFrom = 0;
+    rarePulse = 0;
+    rareText = '';
+    nextRareAt = 4 + rand() * 7;
   }
 
   function onResize(width, height, dp){
@@ -233,6 +250,7 @@ export function createChannel({ seed, audio }){
   function update(dt){
     t += dt;
     cardT += dt;
+    rarePulse = Math.max(0, rarePulse - dt * 0.75);
 
     // drawer open animation: open quickly, then settle
     const openTarget = 1;
@@ -247,6 +265,15 @@ export function createChannel({ seed, audio }){
     // flip
     if (cardT >= CARD_DUR + FLIP_DUR){
       nextCard();
+    }
+    if (cardT >= nextRareAt && cardT < CARD_DUR - 2.2){
+      rarePulse = 1;
+      rareText = pick(rand, RARE_NOTES);
+      nextRareAt = CARD_DUR + 99;
+      if (audio.enabled){
+        audio.beep({ freq: 320 + rand() * 50, dur: 0.028, gain: 0.01, type: 'triangle' });
+        audio.beep({ freq: 205 + rand() * 40, dur: 0.04, gain: 0.009, type: 'square' });
+      }
     }
     if (cardT >= CARD_DUR && audio.enabled && cardT - dt < CARD_DUR){
       // pre-flip soft rustle
@@ -532,6 +559,29 @@ export function createChannel({ seed, audio }){
     const rem = Math.max(0, Math.ceil(CARD_DUR - cardT));
     ctx.fillText(`NEXT CARD: ${String(rem).padStart(2,'0')}s`, Math.floor(w * 0.05), Math.floor(h * 0.965));
     ctx.restore();
+
+    if (rarePulse > 0 && rareText) {
+      const p = rarePulse * (0.5 + 0.5 * Math.sin(t * 14) ** 2);
+      const fs = Math.max(12, Math.floor(Math.min(w, h) * 0.023));
+      const pad = Math.max(6, Math.floor(fs * 0.45));
+      ctx.save();
+      ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      const tw = Math.ceil(ctx.measureText(rareText).width);
+      const bw = tw + pad * 2;
+      const bh = fs + pad * 1.6;
+      const bx = Math.floor(w * 0.5 - bw * 0.5);
+      const by = Math.floor(h * 0.84 - bh * 0.5);
+      ctx.globalAlpha = 0.9 * p;
+      ctx.fillStyle = 'rgba(30, 20, 16, 0.88)';
+      ctx.strokeStyle = 'rgba(255, 210, 140, 0.8)';
+      ctx.lineWidth = Math.max(1, Math.floor(fs * 0.12));
+      roundRect(ctx, bx, by, bw, bh, Math.max(8, Math.floor(fs * 0.35)));
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(250, 235, 210, 0.96)';
+      ctx.fillText(rareText, bx + pad, by + fs + pad * 0.35);
+      ctx.restore();
+    }
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
