@@ -23,6 +23,7 @@ const help = document.getElementById('help');
 const guide = document.getElementById('guide');
 
 const audio = new AudioManager();
+const STORAGE_KEY = 'quine-tv:state:v1';
 
 // Default boot state: TV ON and SCAN enabled.
 // (Audio remains OFF until user gesture, due to browser autoplay policies.)
@@ -50,6 +51,44 @@ let _noiseBufCtx = null;
 let _noiseImg = null;
 let _noiseBW = 0;
 let _noiseBH = 0;
+
+function loadPersistedState(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveState(){
+  try {
+    const state = {
+      powered,
+      scanning,
+      osdPinned,
+      currentIndex,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {}
+}
+
+{
+  const st = loadPersistedState();
+  if (st){
+    if (typeof st.powered === 'boolean') powered = st.powered;
+    if (typeof st.scanning === 'boolean') scanning = st.scanning;
+    if (typeof st.osdPinned === 'boolean') osdPinned = st.osdPinned;
+    if (Number.isInteger(st.currentIndex)){
+      currentIndex = clamp(st.currentIndex, 0, CHANNELS.length - 1);
+    }
+  }
+  // Pinned OSD should remain visible across reloads.
+  osdVisible = osdPinned ? true : osdVisible;
+}
 
 // ---- UI wiring
 const $ = (id) => document.getElementById(id);
@@ -204,6 +243,7 @@ function toggleOsdPin(){
   } else {
     showOsdTemporarily();
   }
+  saveState();
 }
 
 function disarmScan(){
@@ -243,6 +283,7 @@ function toggleScan(){
   armScan();
   setOsd();
   showOsdTemporarily();
+  saveState();
 }
 
 async function toggleAudio(){
@@ -270,6 +311,7 @@ async function togglePower(){
   }
   setOsd();
   showOsdTemporarily();
+  saveState();
 }
 
 function seedForChannel(id, idx){
@@ -296,6 +338,7 @@ async function switchTo(idx, {boot=false}={}){
   currentIndex = idx;
   setOsd();
   showOsdTemporarily();
+  saveState();
   if (showGuide) renderGuide();
 
   // dynamic import through Vite's module graph so channel chunks are hashed in production.
