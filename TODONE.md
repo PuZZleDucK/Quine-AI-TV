@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Determinism `containerport` (`src/channels/containerport.js`): decouple audio randomness from visual PRNG (separate RNG) so the same seed yields identical visuals with audio on/off. Accept: same seed yields identical screenshots at 30fps vs 60fps; audio.enabled does not affect visual sequence. Commit: 1512bd6
+
 - [x] [project:quine-tv] visuals `containerport`: crane frame should look sturdier. Commit: bd87b1f
 
 - [x] [project:quine-tv] visuals `containerport`: clouds should look better. Commit: 9dddb4a

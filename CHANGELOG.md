@@ -1,4 +1,5 @@
 
+- 2026-02-11 22:19 (Australia/Melbourne) [project:quine-tv] Determinism `containerport` (`src/channels/containerport.js`): split audio RNG from visual PRNG so audio.enabled doesn"t change the visual sequence (FPS-stable). Commit: 1512bd6
 - 2026-02-11 21:30 (Australia/Melbourne) [project:quine-tv] Perf pass `containerport` (`src/channels/containerport.js`): cached sky/sea/yard/vignette gradients (rebuild on resize/layout change or ctx swap) so steady-state `render()` allocates 0 gradients/frame. Commit: f848d5e
 - 2026-02-11 21:24 (Australia/Melbourne) [project:quine-tv] Review channel `containerport` (src/channels/containerport.js): captured screenshots (0–300s) to `screenshots/review-containerport`, did code+audio pass, added `// REVIEWED` marker, and queued follow-ups. Commit: TBD
 - 2026-02-11 21:00 (Australia/Melbourne) [project:quine-tv] `volcanoobs` (src/channels/volcanoobservatory.js): boosted plume + ash contrast during puff phase (extra gradient stops + ash drop-shadow) and added rare incandescent ejecta arcs (lighter composite) for occasional punch. Commit: 2115be7
