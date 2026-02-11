@@ -260,6 +260,9 @@ export function createChannel({ seed, audio }){
   function onAudioOn(){
     if (!audio.enabled) return;
 
+    // idempotent: stop any existing handles we own first
+    onAudioOff();
+
     const n = audio.noiseSource({ type: 'pink', gain: 0.0033 });
     n.start();
 
@@ -277,6 +280,10 @@ export function createChannel({ seed, audio }){
 
   function onAudioOff(){
     try { ambience?.stop?.(); } catch {}
+
+    // only clear AudioManager.current if we own it
+    if (audio.current === ambience) audio.current = null;
+
     ambience = null;
   }
 
