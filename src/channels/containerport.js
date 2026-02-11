@@ -105,6 +105,13 @@ export function createChannel({ seed, audio }){
   let routeB = 1;
   let routePulse = 0;
 
+  // Special moment: rare ship arrival (deterministic per seed)
+  let rareAt = 0;
+  let rareDur = 0;
+  let rareTimer = 0;
+  let rareTriggered = false;
+  let rareType = 0; // 0=mega carrier, 1=heavy lift, 2=icebreaker
+
   // Audio
   let ambience = null;
 
@@ -171,6 +178,18 @@ export function createChannel({ seed, audio }){
     routeA = (rand() * BAY_COUNT) | 0;
     routeB = (routeA + 4 + ((rand() * 6) | 0)) % BAY_COUNT;
     routePulse = 0;
+
+    // Rare ship arrival event (guaranteed within first ~2 minutes for any seed).
+    // Schedule it during the *second* arrival phase so it's visible in screenshots.
+    const s = (seed | 0);
+    rareAt = CYCLE_DUR + 2 + 12 * hash01(s ^ 0x6d2b79f5); // ~82–94s
+    rareDur = 18 + 8 * hash01(s ^ 0x51e1d1c3); // 18–26s
+    rareTimer = 0;
+    rareTriggered = false;
+    {
+      const h0 = hash01(s ^ 0x1b873593);
+      rareType = h0 < 0.08 ? 2 : (h0 < 0.35 ? 1 : 0);
+    }
 
     ship.x = w * 1.15;
   }
@@ -275,6 +294,18 @@ export function createChannel({ seed, audio }){
       if (phaseIndex === 2) safeBeep({ freq: 140, dur: 0.06, gain: 0.014, type: 'triangle' });
       if (phaseIndex === 4) safeBeep({ freq: 78, dur: 0.08, gain: 0.013, type: 'sine' });
     }
+
+    // Rare ship arrival (special moment)
+    if (!rareTriggered && t >= rareAt){
+      rareTriggered = true;
+      rareTimer = rareDur;
+
+      const base = rareType === 2 ? 178 : (rareType === 1 ? 156 : 132);
+      safeBeep({ freq: base, dur: 0.08, gain: 0.020, type: 'square' });
+      safeBeep({ freq: base * 2, dur: 0.05, gain: 0.014, type: 'triangle' });
+      safeBeep({ freq: base * 3, dur: 0.04, gain: 0.010, type: 'sine' });
+    }
+    if (rareTimer > 0) rareTimer = Math.max(0, rareTimer - dt);
 
     routePulse = Math.max(0, routePulse - dt * 0.55);
 
@@ -449,36 +480,92 @@ export function createChannel({ seed, audio }){
     const sx = ship.x - ship.w;
     const sy = ship.y;
 
+    const rare = rareTimer > 0;
+    const v = rare ? rareType : -1;
+    const elapsed = rare ? (rareDur - rareTimer) : 0;
+    const pulse = rare ? (0.5 + 0.5 * Math.sin(elapsed * 5.2)) : 0;
+
     // hull
     ctx.save();
-    ctx.fillStyle = '#0c1014';
+    ctx.fillStyle = v === 2 ? '#0a0e12' : '#0c1014';
     roundedRect(ctx, sx, sy, ship.w, ship.h, ship.h * 0.22);
     ctx.fill();
 
+    if (rare){
+      ctx.fillStyle = `rgba(108,242,255,${0.05 + 0.10 * pulse})`;
+      ctx.fillRect(sx + ship.w * 0.02, sy + ship.h * 0.58, ship.w * 0.96, ship.h * 0.10);
+    }
+
     // deck
-    ctx.fillStyle = 'rgba(220,240,255,0.10)';
+    const deckA = v === 0 ? 0.14 : (v === 1 ? 0.12 : 0.08);
+    ctx.fillStyle = `rgba(220,240,255,${deckA})`;
     roundedRect(ctx, sx + ship.w * 0.06, sy + ship.h * 0.18, ship.w * 0.88, ship.h * 0.64, ship.h * 0.18);
     ctx.fill();
 
-    // stacked containers on ship
-    const cols = ['#2b2d3a', '#1f2b2a', '#2f2a1f', '#2a2033', '#2f1f2b'];
-    const nx = 11;
-    for (let i = 0; i < nx; i++){
-      const bx = sx + ship.w * (0.10 + i * 0.075);
-      const bw = ship.w * 0.06;
-      const base = sy - ship.h * 0.20;
-      const n = 1 + (((i + (seed|0)) % 4) | 0);
-      for (let j = 0; j < n; j++){
-        const by = base - j * (ship.h * 0.22);
-        ctx.fillStyle = cols[(i + j) % cols.length];
-        roundedRect(ctx, bx, by, bw, ship.h * 0.18, 3);
-        ctx.fill();
+    if (v === 2){
+      // icebreaker striping
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,207,106,${0.22 + 0.25 * pulse})`;
+      ctx.lineWidth = Math.max(2, 2.6 * dpr);
+      for (let i = -2; i < 10; i++){
+        const x0 = sx + i * ship.w * 0.14;
+        ctx.beginPath();
+        ctx.moveTo(x0, sy + ship.h * 0.08);
+        ctx.lineTo(x0 + ship.w * 0.11, sy + ship.h * 0.92);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // stacked containers on ship (none for icebreaker)
+    if (v !== 2){
+      const cols = ['#2b2d3a', '#1f2b2a', '#2f2a1f', '#2a2033', '#2f1f2b'];
+      const nx = v === 0 ? 14 : 9;
+      const step = v === 0 ? 0.062 : 0.078;
+      for (let i = 0; i < nx; i++){
+        const bx = sx + ship.w * (0.08 + i * step);
+        const bw = ship.w * (v === 0 ? 0.055 : 0.062);
+        const base = sy - ship.h * 0.20;
+        const n = v === 0 ? (2 + (((i + (seed|0)) % 5) | 0)) : (1 + (((i + (seed|0)) % 3) | 0));
+        for (let j = 0; j < n; j++){
+          const by = base - j * (ship.h * 0.22);
+          ctx.fillStyle = cols[(i + j) % cols.length];
+          roundedRect(ctx, bx, by, bw, ship.h * 0.18, 3);
+          ctx.fill();
+        }
       }
     }
 
-    // bow highlight
-    ctx.fillStyle = 'rgba(108,242,255,0.10)';
+    if (v === 1){
+      // heavy-lift booms
+      ctx.save();
+      ctx.strokeStyle = `rgba(255,207,106,${0.30 + 0.25 * pulse})`;
+      ctx.lineWidth = Math.max(2, 2.2 * dpr);
+      for (let k = 0; k < 2; k++){
+        const x = sx + ship.w * (0.38 + k * 0.18);
+        const y = sy - ship.h * (0.22 + 0.03 * k);
+        ctx.beginPath();
+        ctx.moveTo(x, y + ship.h * 0.30);
+        ctx.lineTo(x + ship.w * 0.10, y);
+        ctx.lineTo(x + ship.w * 0.22, y + ship.h * 0.30);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // bow highlight + headlight
+    ctx.fillStyle = `rgba(108,242,255,${0.10 + 0.12 * pulse})`;
     ctx.fillRect(sx + ship.w * 0.82, sy + ship.h * 0.10, ship.w * 0.14, ship.h * 0.12);
+
+    if (rare){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = `rgba(108,242,255,${0.14 + 0.28 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(sx + ship.w * 0.93, sy + ship.h * 0.16, ship.h * (0.10 + 0.06 * pulse), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     ctx.restore();
   }
