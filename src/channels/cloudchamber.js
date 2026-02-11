@@ -1,6 +1,7 @@
 import { mulberry32 } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-11
 // Cloud Chamber Live
 // Particle-track wisps drift across a dark chamber with a rolling counter and occasional “big event” flashes.
 
