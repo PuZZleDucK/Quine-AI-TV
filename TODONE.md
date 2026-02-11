@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Improve seismograph coupling in `drawSeismograph()` by overlaying threshold markers/alerts tied to `intensityAt(loopT)` so build-up and eruption states are legible. Commit: eab3c69
+
 - [x] [project:quine-tv] Channel `volcanoobs` (src/channels/volcanoobservatory.js): Perf pass — cache sky/ground/vignette gradients (rebuilt on `regen()` / ctx swap) so steady-state render avoids per-frame background/vignette/ground gradient allocations. Commit: 12bb239
 
 - [x] [project:quine-tv] Channel `volcanoobs` (src/channels/volcanoobservatory.js): Rebuild cone silhouette in `drawVolcano()` so the crater is visually anchored to mountain shoulders instead of reading like a floating disc/UFO. Commit: cc7bef1
