@@ -1,7 +1,22 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
+// REVIEWED: 2026-02-11
 
 export function createChannel({ seed, audio }) {
+  const LOG_LINES = [
+    'FIELD NOTE: EMF SPIKE MATCHED MY OWN HEART RATE',
+    'FIELD NOTE: MAP SCALE CHANGED WHEN I LOOKED AWAY',
+    'FIELD NOTE: CORRIDOR LENGTHS DISAGREE WITH REALITY',
+    'FIELD NOTE: APPRENTICE RECOMMENDS MORE CANDLES',
+    'FIELD NOTE: RUNE LOOKS NEWER THAN THE PAPER',
+    'FIELD NOTE: DOOR SWUNG OPEN AFTER A POLITE KNOCK',
+    'FIELD NOTE: FOOTSTEPS ECHOED ONE ROOM AHEAD',
+    'FIELD NOTE: COMPASS BRIEFLY POINTED AT THE FLOOR',
+    'FIELD NOTE: SECRET PASSAGE DENIED ALL ALLEGATIONS',
+    'FIELD NOTE: INK SMEAR RESEMBLES A WARNING',
+    'FIELD NOTE: TRAP ICON IS NOW WINKING',
+    'FIELD NOTE: THIS HALLWAY HAS MAIN CHARACTER ENERGY',
+  ];
   const baseSeed = seed >>> 0;
 
   let w = 0;
@@ -32,6 +47,13 @@ export function createChannel({ seed, audio }) {
   let lastInkRoom = -1;
   let trapBeeped = new Set();
   let secretBeeped = false;
+  let noteText = '';
+  let noteAge = 999;
+  let pendingEventNote = '';
+  let nextAmbientNoteAt = 9.5;
+  let nextOmenAt = 19;
+  let omenPulse = 0;
+  let omenPos = { x: 0.5, y: 0.5 };
 
   let drone = null;
   let noise = null;
@@ -324,6 +346,13 @@ export function createChannel({ seed, audio }) {
     lastInkRoom = -1;
     trapBeeped = new Set();
     secretBeeped = false;
+    noteText = `FIELD NOTE: NEW DUNGEON DRAFT ${i + 1}`;
+    noteAge = 0;
+    pendingEventNote = '';
+    nextAmbientNoteAt = 8 + rand() * 5;
+    nextOmenAt = 14 + rand() * 14;
+    omenPulse = 0;
+    omenPos = { x: 0.18 + rand() * 0.64, y: 0.2 + rand() * 0.56 };
   }
 
   function onResize(width, height, DPR = 1) {
@@ -394,6 +423,7 @@ export function createChannel({ seed, audio }) {
         if (cycleT >= tr.at && !trapBeeped.has(i)) {
           trapBeeped.add(i);
           audio.beep({ freq: 880 + (rand() * 200) | 0, dur: 0.05, gain: 0.03, type: 'triangle' });
+          pendingEventNote = `FIELD NOTE: ${tr.kind} TRIGGERED IN THE MARGIN`;
         }
       }
     }
@@ -403,7 +433,25 @@ export function createChannel({ seed, audio }) {
       secretBeeped = true;
       audio.beep({ freq: 260, dur: 0.09, gain: 0.03, type: 'sine' });
       audio.beep({ freq: 392, dur: 0.06, gain: 0.02, type: 'sine' });
+      pendingEventNote = 'FIELD NOTE: SECRET DOOR HUMMED OPEN BRIEFLY';
     }
+
+    if (cycleT >= nextAmbientNoteAt) {
+      noteText = pendingEventNote || pick(LOG_LINES);
+      pendingEventNote = '';
+      noteAge = 0;
+      nextAmbientNoteAt = cycleT + 8.5 + rand() * 8;
+    }
+
+    if (cycleT >= nextOmenAt) {
+      omenPulse = 1;
+      omenPos = { x: 0.18 + rand() * 0.64, y: 0.2 + rand() * 0.56 };
+      nextOmenAt = cycleT + 18 + rand() * 20;
+      if (audio.enabled) audio.beep({ freq: 170 + ((rand() * 40) | 0), dur: 0.06, gain: 0.018, type: 'sine' });
+    }
+
+    omenPulse = Math.max(0, omenPulse - dt * 0.8);
+    noteAge += dt;
   }
 
   function drawInkSeg(ctx, a, b, u, width, wobble = 0.0) {
@@ -598,6 +646,48 @@ export function createChannel({ seed, audio }) {
     ctx.globalAlpha = 0.65;
     ctx.fillText(`PHASE: ${phase}`, paper.x + 14 * dpr, paper.y + 42 * dpr);
     ctx.restore();
+
+    if (omenPulse > 0) {
+      const ox = sx(omenPos.x);
+      const oy = sy(omenPos.y);
+      const p = omenPulse * (0.5 + 0.5 * Math.sin(t * 16) ** 2);
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      const rg = ctx.createRadialGradient(ox, oy, 0, ox, oy, Math.min(w, h) * 0.16);
+      rg.addColorStop(0, `rgba(120,210,255,${0.18 * p})`);
+      rg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = rg;
+      ctx.fillRect(ox - 180, oy - 180, 360, 360);
+      ctx.strokeStyle = `rgba(120,210,255,${0.45 * p})`;
+      ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) * 0.004));
+      ctx.beginPath();
+      ctx.arc(ox, oy, Math.min(w, h) * (0.03 + 0.02 * (1 - omenPulse)), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (noteText) {
+      const a = clamp(1 - Math.max(0, noteAge - 3.2) / 4.2, 0, 1);
+      const fs = Math.max(12, Math.floor(Math.min(w, h) * 0.021));
+      const pad = Math.max(6, Math.floor(fs * 0.45));
+      ctx.save();
+      ctx.font = `600 ${fs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      const tw = Math.ceil(ctx.measureText(noteText).width);
+      const bw = tw + pad * 2;
+      const bh = fs + pad * 1.7;
+      const bx = paper.x + paper.w - bw - Math.floor(14 * dpr);
+      const by = paper.y + paper.h - bh - Math.floor(14 * dpr);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(34, 21, 12, 0.9)';
+      ctx.strokeStyle = 'rgba(220, 190, 150, 0.72)';
+      ctx.lineWidth = Math.max(1, Math.floor(fs * 0.11));
+      roundRectPath(ctx, bx, by, bw, bh, Math.max(5, Math.floor(fs * 0.28)));
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 238, 210, 0.96)';
+      ctx.fillText(noteText, bx + pad, by + fs + pad * 0.4);
+      ctx.restore();
+    }
 
     // Reset wipe
     const wipe = clamp((cycleT - 56) / 4, 0, 1);
