@@ -16,7 +16,6 @@ if `TODO.md` has no ready items:
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Visual correctness — clip cracks/dust/gold seams to the pottery ellipse (so no seam/glow lines render outside the bowl). Keep shadow/bench unaffected.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Visual polish — improve CRACK phase readability by varying crack thickness/opacity by depth and adding tiny branching micro-cracks near endpoints (deterministic per crack) without adding per-frame RNG.
 
-- [quine-tv] `duckdebug` (src/channels/rubberduck.js): Determinism — separate audio RNG from visual PRNG (beep pitch/jitter must not consume `rand()` that affects visuals); ensure audio.enabled toggles don’t change transcript/typing cadence.
 - [quine-tv] `duckdebug` (src/channels/rubberduck.js): Determinism — remove per-frame `rand()` in typing speed jitter; use a per-line seeded speed (or time-hash) so 30fps vs 60fps yields identical captures.
 
 - [quine-tv] `flow` (src/channels/flowfield.js): Determinism — replace `for (const p of pts) { p.x += ... * dt; ... }` integration with a fixed-timestep update loop (accumulate `dt`, step at e.g. 1/60) so 30fps vs 60fps yields identical captures for the same seed.

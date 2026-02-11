@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Determinism `duckdebug` (src/channels/rubberduck.js): split audio RNG from visual PRNG so toggling audio doesn’t alter the visual PRNG sequence. Commit: a6683ad
+
 - [x] [project:quine-tv] Cleanup: removed stale TODO entry “Review channel: kaleido” (already completed earlier; see commit 9d50467). Commit: 50ea2e3
 
 - [x] [project:quine-tv] Cleanup: removed duplicate TODO entry “Review channel: deepseasonar” (already completed earlier; see commit 866f413).
