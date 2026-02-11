@@ -187,15 +187,91 @@ function roundedRect(ctx, x, y, w, h, r){
 }
 
 function makeCoast(rand, cx, cy, r){
-  const pts = [];
-  const n = 18 + ((rand() * 14) | 0);
+  const n = 42 + ((rand() * 22) | 0);
+  const base = [];
+  const rough = [];
+  const noise = [];
+  let v = rand() * Math.PI * 2;
   for (let i = 0; i < n; i++){
-    const a = (i / n) * Math.PI * 2;
-    const wob = 0.65 + rand() * 0.65;
-    const rr = r * wob * (0.85 + 0.25 * Math.sin(a * 3 + rand() * 6));
-    pts.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr });
+    v = 0.62 * v + 0.38 * (rand() * 2 - 1);
+    noise.push(v);
   }
-  return pts;
+
+  const e0 = 0.76 + rand() * 0.20;
+  const e1 = 0.64 + rand() * 0.22;
+  const rot = rand() * Math.PI * 2;
+  const peninsulaCount = 1 + ((rand() * 2) | 0);
+  const bayCount = 1 + ((rand() * 2) | 0);
+  const peninsulas = [];
+  const bays = [];
+
+  for (let i = 0; i < peninsulaCount; i++){
+    peninsulas.push({
+      a: rand() * Math.PI * 2,
+      amp: 0.10 + rand() * 0.18,
+      w: 0.20 + rand() * 0.28,
+    });
+  }
+  for (let i = 0; i < bayCount; i++){
+    bays.push({
+      a: rand() * Math.PI * 2,
+      amp: 0.10 + rand() * 0.20,
+      w: 0.16 + rand() * 0.30,
+    });
+  }
+
+  const twopi = Math.PI * 2;
+  const wrapAngle = (a) => {
+    let d = a;
+    while (d > Math.PI) d -= twopi;
+    while (d < -Math.PI) d += twopi;
+    return d;
+  };
+
+  for (let i = 0; i < n; i++){
+    const t = i / n;
+    const a = t * twopi;
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+
+    // smooth continental body with anisotropy
+    const ell = Math.hypot(ca / e0, sa / e1);
+    let rr = (r / Math.max(0.62, ell)) * (0.94 + 0.08 * Math.sin(a * 2 + rot));
+    rr += (noise[i] * r) * 0.055;
+    rr += Math.sin(a * 3 + rot * 0.7) * r * 0.05;
+    rr += Math.sin(a * 5 + rot * 1.3) * r * 0.025;
+
+    // add peninsulas + bays in broad sweeps
+    for (const p of peninsulas){
+      const d = Math.abs(wrapAngle(a - p.a));
+      if (d < p.w){
+        const k = 1 - d / p.w;
+        rr += p.amp * r * k * k;
+      }
+    }
+    for (const b of bays){
+      const d = Math.abs(wrapAngle(a - b.a));
+      if (d < b.w){
+        const k = 1 - d / b.w;
+        rr -= b.amp * r * k * k;
+      }
+    }
+
+    rr = Math.max(r * 0.56, rr);
+    base.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr });
+  }
+
+  // smooth once to avoid spiky "star" look
+  for (let i = 0; i < n; i++){
+    const p0 = base[(i - 1 + n) % n];
+    const p1 = base[i];
+    const p2 = base[(i + 1) % n];
+    rough.push({
+      x: p0.x * 0.2 + p1.x * 0.6 + p2.x * 0.2,
+      y: p0.y * 0.2 + p1.y * 0.6 + p2.y * 0.2,
+    });
+  }
+  return rough;
 }
 
 function makeStreet(rand, ww, hh){
@@ -245,6 +321,7 @@ export function createChannel({ seed, audio }){
   let dest = DESTINATIONS[0];
   let coast = [];
   let coast2 = [];
+  let islands = [];
   let street = null;
 
   let bed = null;
@@ -281,7 +358,20 @@ export function createChannel({ seed, audio }){
     const my = h * 0.40;
     const rr = Math.min(w, h) * (0.18 + r() * 0.04);
     coast = makeCoast(r, mx + r() * w * 0.06, my + r() * h * 0.05, rr);
-    coast2 = makeCoast(r, mx + w * 0.12 + r() * w * 0.05, my + h * 0.07 + r() * h * 0.05, rr * 0.75);
+    coast2 = makeCoast(r, mx + w * 0.11 + r() * w * 0.05, my + h * 0.08 + r() * h * 0.05, rr * 0.72);
+    islands = [];
+    const islandCount = (r() < 0.42 ? 1 : 0) + (r() < 0.16 ? 1 : 0);
+    for (let k = 0; k < islandCount; k++){
+      const ia = r() * Math.PI * 2;
+      const id = rr * (0.95 + r() * 0.55);
+      const ir = rr * (0.14 + r() * 0.12);
+      islands.push(makeCoast(
+        r,
+        mx + Math.cos(ia) * id + (r() - 0.5) * rr * 0.22,
+        my + Math.sin(ia) * id * 0.72 + (r() - 0.5) * rr * 0.22,
+        ir
+      ));
+    }
 
     // street footage in a small "screen"
     street = makeStreet(r, w * 0.34, h * 0.24);
@@ -424,6 +514,9 @@ export function createChannel({ seed, audio }){
 
     strokeCoast(coast);
     strokeCoast(coast2);
+    for (const isl of islands){
+      strokeCoast(isl);
+    }
 
     // route highlight (animated)
     ctx.save();
