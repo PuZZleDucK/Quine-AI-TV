@@ -44,16 +44,41 @@ export function createChannel({ seed, audio }){
   let wallTex = null;
   let grainTex = null;
 
-  // timed structure
+  // timed structure (simple storyboard loop)
   const scenes = [
-    { key: 'hunt', title: 'HUNT' },
-    { key: 'river', title: 'RIVER' },
-    { key: 'stars', title: 'STARS' },
-    { key: 'beast', title: 'BEAST' },
+    {
+      key: 'hunt',
+      titles: ['HUNT', 'TRACKS', 'SPEAR SONG', 'RED OCHRE'],
+      captions: ['KEEP LOW', 'FOLLOW PRINTS', 'LISTEN FOR HOOVES'],
+    },
+    {
+      key: 'river',
+      titles: ['RIVER', 'FISH RUN', 'COLD WATER', 'STONE CURRENT'],
+      captions: ['BONE HOOK', 'SILVER FLASH', 'SHALLOW BENDS'],
+    },
+    {
+      key: 'stars',
+      titles: ['STARS', 'SKY SIGNS', 'SPIRAL', 'NIGHT MARKS'],
+      captions: ['COUNT THEM', 'READ THE TURN', 'KEEP THE FIRE'],
+    },
+    {
+      key: 'beast',
+      titles: ['BEAST', 'SHADOW', 'TEETH', 'ECHO'],
+      captions: ['DO NOT WAKE', 'HOLD STILL', 'NO BREATH'],
+    },
   ];
   const warmupDur = 10;
   const sceneDur = 42;
   const loopDur = warmupDur + scenes.length * sceneDur;
+
+  function sceneText(idx){
+    const loopIdx = Math.floor(t / loopDur);
+    const base = ((loopIdx * 0x9e3779b9) ^ (idx * 0x85ebca6b)) >>> 0;
+    const sc = scenes[idx];
+    const title = sc.titles[hashU32((seed ^ base) >>> 0) % sc.titles.length];
+    const caption = sc.captions[hashU32((seed ^ (base + 1)) >>> 0) % sc.captions.length];
+    return { title, caption };
+  }
 
   // torch flicker (deterministic, FPS-stable)
   let flick = 0;
@@ -69,6 +94,12 @@ export function createChannel({ seed, audio }){
   let handFlash = 0;
   let handX = 0.72;
   let handY = 0.46;
+
+  // rare special moment: bat swarm silhouette (absolute schedule, FPS-stable)
+  const batsDur = 6.0;
+  let nextBatsTime = 1e9;
+  let lastBatsTime = -1e9;
+  let bats = null;
 
   // audio
   let torchAudio = null;
@@ -194,6 +225,10 @@ export function createChannel({ seed, audio }){
     handX = 0.62 + rand()*0.28;
     handY = 0.28 + rand()*0.44;
 
+    nextBatsTime = 45 + rand() * 75;
+    lastBatsTime = -1e9;
+    bats = null;
+
     nextCrackle = 0.3 + rand() * 0.8;
   }
 
@@ -270,6 +305,15 @@ export function createChannel({ seed, audio }){
       if (audio.enabled) audio.beep({ freq: 140 + rand()*60, dur: 0.07, gain: 0.018, type: 'triangle' });
     }
     handFlash = Math.max(0, 1.2 - (t - lastHandTime));
+
+    // bat swarm special moment (absolute schedule so FPS doesn't shift trigger timing)
+    while (t >= nextBatsTime){
+      lastBatsTime = nextBatsTime;
+      nextBatsTime += 90 + rand()*150;
+      bats = spawnBats();
+      if (audio.enabled) audio.beep({ freq: 92 + rand()*18, dur: 0.10, gain: 0.010, type: 'sine' });
+    }
+    if (bats && (t - lastBatsTime) > batsDur) bats = null;
 
     // occasional torch crackle ticks
     nextCrackle -= dt;
@@ -745,6 +789,56 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function spawnBats(){
+    const count = 11 + (rand()*13|0);
+    const dir = rand() < 0.5 ? 1 : -1;
+    const list = Array.from({ length: count }, () => ({
+      t0: rand() * 0.55,
+      y: (0.12 + rand()*0.28) * h,
+      amp: (0.004 + rand()*0.010) * h,
+      s: (0.010 + rand()*0.020) * Math.min(w,h),
+      phase: rand() * Math.PI * 2,
+    }));
+    return { dir, list };
+  }
+
+  function drawBats(ctx){
+    if (!bats) return;
+    const age = t - lastBatsTime;
+    if (age <= 0) return;
+
+    const u = clamp(age / batsDur, 0, 1);
+    const fade = smoothstep(0.00, 0.12, u) * (1 - smoothstep(0.78, 1.00, u));
+    if (fade <= 0) return;
+
+    // subtle "something moved" silhouette pass
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+    ctx.lineWidth = Math.max(1, Math.min(w,h) * 0.003);
+    ctx.globalAlpha = 0.78 * fade;
+
+    const dir = bats.dir;
+    for (const b of bats.list){
+      const uu = clamp(u - b.t0, 0, 1);
+      const x = dir > 0 ? (-w*0.10 + (w*1.20) * uu) : (w*1.10 - (w*1.20) * uu);
+      const y = b.y + Math.sin((uu*2.2 + b.phase) * Math.PI * 2) * b.amp;
+      const flap = Math.sin((uu*10.0 + b.phase) * Math.PI * 2);
+      const s = b.s * (0.85 + 0.35*flap);
+
+      ctx.beginPath();
+      ctx.moveTo(x - s*1.2, y);
+      ctx.quadraticCurveTo(x, y - s*(1.05 + 0.80*flap), x + s*1.2, y);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 0.18 * fade;
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    ctx.fillRect(0,0,w,h);
+
+    ctx.restore();
+  }
+
   function render(ctx){
     drawWall(ctx);
 
@@ -771,14 +865,21 @@ export function createChannel({ seed, audio }){
       const alpha = fadeIn * fadeOut;
       drawScenePainting(ctx, st.idx, alpha, st.p);
 
-      // label
+      // label (deterministic rotating title/caption per loop)
+      const txt = sceneText(st.idx);
       ctx.save();
-      ctx.globalAlpha = 0.45*alpha;
-      ctx.font = `${Math.floor(h/26)}px ui-serif, Georgia, serif`;
+      const baseA = 0.45*alpha;
+      ctx.globalAlpha = baseA;
+      const titleSize = Math.floor(h/26);
+      const capSize = Math.floor(h/38);
+      ctx.font = `${titleSize}px ui-serif, Georgia, serif`;
       ctx.fillStyle = 'rgba(255,220,190,0.95)';
       ctx.shadowColor = 'rgba(0,0,0,0.7)';
       ctx.shadowBlur = 10;
-      ctx.fillText(scenes[st.idx].title, w*0.06, h*0.14);
+      ctx.fillText(txt.title, w*0.06, h*0.14);
+      ctx.globalAlpha = baseA * 0.62;
+      ctx.font = `${capSize}px ui-sans-serif, system-ui, sans-serif`;
+      ctx.fillText(txt.caption, w*0.06, h*0.14 + titleSize*1.05);
       ctx.restore();
     } else {
       // warmup hint
@@ -808,6 +909,7 @@ export function createChannel({ seed, audio }){
 
     drawTorch(ctx);
     drawHandprint(ctx);
+    drawBats(ctx);
 
     // subtle film grain (deterministic, FPS-stable)
     if (grainTex){
