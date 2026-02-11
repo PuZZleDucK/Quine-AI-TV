@@ -158,22 +158,47 @@ export function createChannel({ seed, audio }){
     init({ width, height });
   }
 
+  function stopBed({ clearCurrent = false } = {}){
+    const handle = bed;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    bed = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    stopBed({ clearCurrent: true });
+
     const n = audio.noiseSource({ type: 'pink', gain: 0.008 });
     n.start();
     const d = simpleDrone(audio, { root: 98 + rand() * 22, detune: 0.55, gain: 0.04 });
-    bed = { stop(){ try{ n.stop(); } catch {} try{ d.stop(); } catch {} } };
+
+    bed = {
+      stop(){
+        try { n.stop(); } catch {}
+        try { d.stop(); } catch {}
+      }
+    };
     audio.setCurrent(bed);
   }
 
   function onAudioOff(){
-    try { bed?.stop?.(); } catch {}
-    bed = null;
+    stopBed({ clearCurrent: true });
   }
 
   function destroy(){
-    onAudioOff();
+    stopBed({ clearCurrent: true });
   }
 
   function pushLog(text){
