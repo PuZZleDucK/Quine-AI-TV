@@ -46,7 +46,10 @@ export function createChannel({ seed, audio }){
 
     const calmEnd = loopDur * 0.46;
     const buildEnd = loopDur * 0.70;
-    const puffEnd = loopDur * 0.78;
+
+    // deliberately long eruption window so a viewer always sees a clear event within <= 60s
+    const eruptStart = loopDur * 0.72;
+    const eruptEnd = loopDur * 0.88;
 
     let i = 0.10;
 
@@ -54,17 +57,26 @@ export function createChannel({ seed, audio }){
       i += 0.05 * (0.5 + 0.5 * Math.sin(lt * 0.35 + phaseA));
     } else if (lt < buildEnd){
       const p = smoothstep((lt - calmEnd) / (buildEnd - calmEnd));
-      i += lerp(0.08, 0.48, p);
+      i += lerp(0.08, 0.52, p);
       i += 0.06 * Math.sin(lt * 1.8 + phaseB) * p;
-    } else if (lt < puffEnd){
-      const p = (lt - buildEnd) / (puffEnd - buildEnd);
-      // quick spike then decay
-      const spike = Math.exp(-p * 3.2);
-      i += 0.62 * spike;
-      i += 0.10 * Math.sin(lt * 6.2 + phaseC) * spike;
+    } else if (lt < eruptEnd){
+      // short pre-eruption kick, then sustained pulsing plume
+      const pre = clamp((lt - buildEnd) / Math.max(0.001, eruptStart - buildEnd), 0, 1);
+      const preSpike = Math.exp(-pre * 6.0);
+      i += 0.22 + 0.36 * (1 - preSpike);
+
+      const e = clamp((lt - eruptStart) / (eruptEnd - eruptStart), 0, 1);
+      const rise = smoothstep(Math.min(1, e / 0.15));
+      const fall = smoothstep(clamp((e - 0.45) / 0.55, 0, 1));
+      const env = rise * (1 - fall);
+      const pulses = Math.pow(Math.max(0, Math.sin((lt - eruptStart) * 4.8 + phaseC)), 1.6);
+
+      i += 0.40 * env;
+      i += 0.18 * pulses * env;
+      i += 0.04 * Math.sin(lt * 2.1 + phaseB) * env;
     } else {
-      const p = (lt - puffEnd) / (loopDur - puffEnd);
-      i += lerp(0.22, 0.06, smoothstep(p));
+      const p = (lt - eruptEnd) / (loopDur - eruptEnd);
+      i += lerp(0.26, 0.06, smoothstep(p));
       i += 0.03 * Math.sin(lt * 1.2 + phaseB);
     }
 
@@ -75,14 +87,17 @@ export function createChannel({ seed, audio }){
 
   function puffAmount(){
     const lt = ((loopT % loopDur) + loopDur) % loopDur;
-    const buildEnd = loopDur * 0.70;
-    const puffEnd = loopDur * 0.78;
-    if (lt < buildEnd) return 0;
-    if (lt > puffEnd) return 0;
-    const p = (lt - buildEnd) / (puffEnd - buildEnd);
-    // bell curve-ish
-    const b = Math.sin(p * Math.PI);
-    return clamp(b, 0, 1);
+    const eruptStart = loopDur * 0.72;
+    const eruptEnd = loopDur * 0.88;
+
+    if (lt < eruptStart) return 0;
+    if (lt > eruptEnd) return 0;
+
+    const e = (lt - eruptStart) / (eruptEnd - eruptStart);
+    const env = smoothstep(Math.min(1, e / 0.12)) * smoothstep(Math.min(1, (1 - e) / 0.18));
+    const pulse = Math.max(0, Math.sin((lt - eruptStart) * 6.4 + phaseB));
+    const puff = Math.pow(pulse, 2.3) * env;
+    return clamp(puff, 0, 1);
   }
 
   function sampleSeismo(time){
