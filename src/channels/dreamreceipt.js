@@ -51,6 +51,16 @@ export function createChannel({ seed, audio }){
   let gVignette = null;
   let gPrinterBody = null;
   let gPaper = null;
+  let gSlotInner = null;
+
+  // counter texture (cached seeded grain tile + per-ctx pattern)
+  let grainCanvas = null;
+  let grainCtx = null;
+  let grainPattern = null;
+
+  // paper-top slot shade sprite (cached; avoids per-frame gradients)
+  let slotShadeCanvas = null;
+  let slotShadeKey = '';
 
   function invalidateGradients(){
     gradCtx = null;
@@ -59,11 +69,15 @@ export function createChannel({ seed, audio }){
     gVignette = null;
     gPrinterBody = null;
     gPaper = null;
+    gSlotInner = null;
+
+    grainCtx = null;
+    grainPattern = null;
   }
 
   function ensureGradients(ctx){
     const key = `${w}|${h}|${s}|${cx}|${slotY}|${paperW}`;
-    if (ctx === gradCtx && key === gradKey && gCounter && gVignette && gPrinterBody && gPaper) return;
+    if (ctx === gradCtx && key === gradKey && gCounter && gVignette && gPrinterBody && gPaper && gSlotInner) return;
 
     gradCtx = ctx;
     gradKey = key;
@@ -94,6 +108,80 @@ export function createChannel({ seed, audio }){
     pap.addColorStop(0, 'rgba(255,255,255,0.55)');
     pap.addColorStop(1, 'rgba(0,0,0,0.08)');
     gPaper = pap;
+
+    // slot inner shading (cached)
+    const slotH0 = Math.max(10, Math.floor(s * 0.02));
+    const slotTop = Math.floor(slotY - slotH0 * 0.5);
+    const sg = ctx.createLinearGradient(0, slotTop, 0, slotTop + slotH0);
+    sg.addColorStop(0, 'rgba(255,255,255,0.10)');
+    sg.addColorStop(0.45, 'rgba(0,0,0,0.10)');
+    sg.addColorStop(1, 'rgba(0,0,0,0.55)');
+    gSlotInner = sg;
+  }
+
+  function buildGrainTile(){
+    if (typeof document === 'undefined') return;
+
+    const size = 96;
+    if (!grainCanvas){
+      grainCanvas = document.createElement('canvas');
+      grainCanvas.width = size;
+      grainCanvas.height = size;
+    }
+
+    const g = grainCanvas.getContext('2d', { willReadFrequently: true });
+    const img = g.createImageData(size, size);
+    const prng = mulberry32((seed ^ 0xA7F3C19B) >>> 0);
+
+    for (let i = 0; i < img.data.length; i += 4){
+      const v = 110 + ((prng() * 70) | 0);
+      img.data[i] = v;
+      img.data[i + 1] = v;
+      img.data[i + 2] = v;
+      img.data[i + 3] = 255;
+    }
+
+    g.putImageData(img, 0, 0);
+
+    // pattern is per-ctx; rebuild lazily
+    grainCtx = null;
+    grainPattern = null;
+  }
+
+  function ensureGrainPattern(ctx){
+    if (!grainCanvas) return;
+    if (ctx === grainCtx && grainPattern) return;
+    grainCtx = ctx;
+    grainPattern = ctx.createPattern(grainCanvas, 'repeat');
+  }
+
+  function ensureSlotShade(){
+    if (typeof document === 'undefined') return;
+
+    const sh = Math.max(24, Math.floor(s * 0.06));
+    const key = `${s}|${sh}`;
+    if (slotShadeCanvas && slotShadeKey === key) return;
+
+    const sw = 128;
+    const c = document.createElement('canvas');
+    c.width = sw;
+    c.height = sh;
+    const g = c.getContext('2d');
+
+    // soft shadow band at the paper mouth + a tiny highlight line
+    const lg = g.createLinearGradient(0, 0, 0, sh);
+    lg.addColorStop(0, 'rgba(0,0,0,0.35)');
+    lg.addColorStop(0.6, 'rgba(0,0,0,0.10)');
+    lg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = lg;
+    g.fillRect(0, 0, sw, sh);
+
+    g.globalAlpha = 0.10;
+    g.fillStyle = '#fff';
+    g.fillRect(0, 1, sw, 1);
+
+    slotShadeCanvas = c;
+    slotShadeKey = key;
   }
 
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
@@ -231,6 +319,9 @@ export function createChannel({ seed, audio }){
 
     lastPrintRow = -1;
     printAcc = 0;
+
+    if (!grainCanvas) buildGrainTile();
+    ensureSlotShade();
   }
 
   function init({ width, height, dpr: dprIn }){
@@ -351,6 +442,20 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = gCounter;
     ctx.fillRect(0, 0, w, h);
 
+    // subtle counter texture / film grain
+    ensureGrainPattern(ctx);
+    if (grainPattern){
+      ctx.save();
+      ctx.globalAlpha = 0.10;
+      ctx.globalCompositeOperation = 'overlay';
+      const gx = (Math.floor(t * 12) % grainCanvas.width);
+      const gy = (Math.floor(t * 7) % grainCanvas.height);
+      ctx.translate(gx, gy);
+      ctx.fillStyle = grainPattern;
+      ctx.fillRect(-gx, -gy, w + grainCanvas.width, h + grainCanvas.height);
+      ctx.restore();
+    }
+
     // subtle scan shimmer
     ctx.save();
     ctx.globalAlpha = 0.06;
@@ -425,7 +530,7 @@ export function createChannel({ seed, audio }){
 
     // slot
     ctx.save();
-    ctx.globalAlpha = 0.8;
+    ctx.globalAlpha = 0.85;
     ctx.fillStyle = '#0a0b0e';
     const slotW = Math.floor(paperW * 0.96);
     const slotH = Math.max(10, Math.floor(s * 0.02));
@@ -433,6 +538,25 @@ export function createChannel({ seed, audio }){
     const sy = Math.floor(slotY - slotH * 0.5);
     roundRect(ctx, sx, sy, slotW, slotH, slotH * 0.5);
     ctx.fill();
+
+    // inner shading + lip highlight (adds depth)
+    ensureGradients(ctx);
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = gSlotInner;
+    roundRect(ctx, sx, sy, slotW, slotH, slotH * 0.5);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    roundRect(ctx, sx + 2, sy + 1, slotW - 4, Math.max(2, Math.floor(slotH * 0.35)), slotH * 0.45);
+    ctx.fill();
+
+    // cast a little extra shadow just below the slot (so the paper mouth reads)
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundRect(ctx, sx + 4, sy + slotH - 2, slotW - 8, Math.max(4, Math.floor(slotH * 0.8)), slotH * 0.5);
+    ctx.fill();
+
     ctx.restore();
 
     // LED + button
@@ -524,6 +648,13 @@ export function createChannel({ seed, audio }){
     ctx.save();
     roundRect(ctx, x0, y0, paperW, ph, 10);
     ctx.clip();
+
+    // paper mouth shade (stronger depth under the printer slot)
+    ensureSlotShade();
+    if (slotShadeCanvas){
+      const sh = Math.min(slotShadeCanvas.height, ph);
+      ctx.drawImage(slotShadeCanvas, x0, y0, paperW, sh);
+    }
 
     // text
     const padX = 18;
