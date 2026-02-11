@@ -1,0 +1,307 @@
+
+# Done
+
+- [x] [project:quine-tv] Review channel `cargomanifest` (src/channels/cargomanifest.js): captured screenshots (0–300s), code/audio pass, added REVIEWED marker, and queued follow-ups. Commit: 754beb1
+- [x] [project:quine-tv] UI polish `cargomanifest` (src/channels/cargomanifest.js): remove/replace the in-panel `CH NN` label derived from seed to avoid mismatching OSD. Accept: no misleading channel number appears in the manifest panel. Commit: fe8785f
+- [x] [project:quine-tv] Audio hygiene `cargomanifest` (src/channels/cargomanifest.js): `onAudioOn()` defensively stops any prior drone/noise handles we own; `onAudioOff()`/`destroy()` stop+clear everything and clear AudioManager.current when owned. Accept: repeated A toggles never stack; volume stays stable. Commit: b7a207e
+- [x] [project:quine-tv] Perf pass `cargomanifest` (src/channels/cargomanifest.js): cache background linear gradient + vignette radial gradient (rebuild on resize/ctx swap). Accept: steady-state `render()` allocates 0 gradients/frame. Commit: b61bab9
+- [x] [project:quine-tv] Perf pass `cargomanifest` (src/channels/cargomanifest.js): pre-render the BG grid to an offscreen layer/pattern and blit with drift (remove per-frame grid line loops). Accept: steady-state `drawBG()` does no per-line stroke loops. Commit: 19ce2ed
+- [x] [project:quine-tv] Review channel `candlechess` (src/channels/candlechess.js): captured screenshots (0–300s), code/audio pass, added REVIEWED marker, and queued follow-ups. Commit: 531e104
+- [x] [project:quine-tv] Audio hygiene `candlechess` (src/channels/candlechess.js): `onAudioOn()` defensively stops any existing ambience before starting; `onAudioOff()`/`destroy()` stop+clear everything and only clear AudioManager.current when owned. Accept: repeated A toggles never stack; volume stays stable. Commit: 365e035
+- [x] [project:quine-tv] Perf pass `candlechess` (src/channels/candlechess.js): cache gradients (bg/frame/sheen/vignette/candle) and/or pre-render static layers (board/table) so steady-state `render()` calls no `create*Gradient()`. Accept: no create*Gradient calls in steady-state render path. Commit: 9938437
+- [x] [project:quine-tv] Perf pass `candlechess` (src/channels/candlechess.js): remove per-frame `pieces.slice().sort(...)` allocation/sort in `render()` by drawing in stable order without creating new arrays. Accept: steady-state `render()` allocates 0 new arrays per frame. Commit: 8c31aae
+- [x] [project:quine-tv] Perf pass `candlechess` (src/channels/candlechess.js): remove per-dust `toFixed()` + per-particle `fillStyle` string creation; use fixed color + `globalAlpha` (or cached sprite). Accept: dust loop allocates 0 strings per frame. Commit: 5382f89
+- [x] [project:quine-tv] Determinism `candlechess` (src/channels/candlechess.js): remove `rand()` usage from hot-path dust respawns (update-time boundary triggers) by precomputing a respawn-x table or deterministic hash function. Accept: same seed yields identical dust behavior at 30fps vs 60fps. Commit: a74034f
+- [x] [project:quine-tv] UI polish `candlechess` (src/channels/candlechess.js): remove/replace the hardcoded HUD label `CH 01` (currently mismatches OSD). Accept: no incorrect channel number/placeholder appears on screen. Commit: a3ea805
+- [x] [project:quine-tv] Review channel `circsafari` (src/channels/circuitsafari.js): captured screenshots (0–300s), code/audio pass, added REVIEWED marker, and queued follow-ups. Commit: 47c55d6
+- [x] [project:quine-tv] Perf pass `circsafari` (src/channels/circuitsafari.js): cache background/board gradients + pre-render solder-mask texture (offscreen) so steady-state `render()` allocates 0 gradients/frame and does no per-frame texture dot-loop. Accept: no `create*Gradient()` calls in steady-state render; no nested texture loops in render. Commit: e90a452
+- [x] [project:quine-tv] Determinism `circsafari` (src/channels/circuitsafari.js): replace per-frame `rand() < dt*p` “radio bleep” with scheduled next-bleep timers so results are FPS-stable. Accept: same seed yields identical bleeps/visuals at 30fps vs 60fps. Commit: 82d3b2b
+- [x] [project:quine-tv] Audio hygiene `circsafari` (src/channels/circuitsafari.js): `onAudioOn()` defensively stops any existing ambience before starting; `onAudioOff()`/`destroy()` stop+clear everything and clear current if owned. Accept: repeated A toggles never stack; volume stays stable. Commit: 814d431
+- [x] [project:quine-tv] Time structure `circsafari` (src/channels/circuitsafari.js): add a slower 2–4 min phase cycle (e.g., “quiet survey → active scan → spotlight focus”) + 1–2 rare special moments (glitch pulse / “specimen found” flash) scheduled deterministically (~45–120s). Accept: distinct phases + deterministic per seed. Commit: b1606d9
+
+- [x] [project:quine-tv] Review channel `bughotel` (src/channels/bughotel.js): captured screenshots (0–300s), code/audio pass, added REVIEWED marker, and queued follow-ups. Commit: 58ca27e
+- [x] [project:quine-tv] Audio hygiene `bughotel` (src/channels/bughotel.js): `onAudioOn()` defensively stops any existing ambience before starting; `onAudioOff()`/`destroy()` stop+clear everything and clear current if owned. Accept: repeated A toggles never stack; volume stays stable. Commit: 217c253
+- [x] [project:quine-tv] Perf pass `bughotel` (src/channels/bughotel.js): cache background + vignette gradients and terrarium gradients (glass/substrate) on init/resize/ctx swap. Accept: steady-state `render()` allocates 0 gradients/frame. Commit: 7cfafec
+- [x] [project:quine-tv] Determinism/perf `bughotel` (src/channels/bughotel.js): replace per-frame “macro grain” random arc loop with cached seeded noise layer (offscreen) blitted with slow drift. Accept: no per-frame grain loops/template-rgba strings; same seed yields identical screenshots at 30fps vs 60fps. Commit: 1530c4a
+- [x] [project:quine-tv] Visual polish `bughotel` (src/channels/bughotel.js): add 2–3 midground “bug hotel” elements (bark/tubes/leaf litter) + boost critter readability (contrast/scale) without harming OSD. Accept: 60s screenshot reads clearly as a “bug hotel” scene. Commit: e65f909
+- [x] [project:quine-tv] Time structure `bughotel` (src/channels/bughotel.js): add 2–4 min phase cycle (quiet→busy→night-lamp) + 1–2 rare special moments (flashlight sweep / dew drop) scheduled deterministically (~45–120s). Accept: distinct phases + deterministic per seed. Commit: f7b5350
+
+- [x] [project:quine-tv] Review channel `musicbox` (src/channels/musicbox.js): captured screenshots (0–300s), code/audio pass, added REVIEWED marker, and queued follow-ups. Commit: b3dc793
+- [x] [project:quine-tv] UI polish `musicbox` (src/channels/musicbox.js): remove/replace the in-channel hardcoded `CH 01` label (currently mismatches OSD CH). Accept: no incorrect channel number/placeholder appears on screen. Commit: daad7eb
+- [x] [project:quine-tv] Audio hygiene `musicbox` (src/channels/musicbox.js): `onAudioOn()` defensively stops any existing ambience before starting; `onAudioOff()`/`destroy()` stop+clear everything and clear current if owned. Accept: repeated A toggles never stack; volume stays stable. Commit: 54bfee1
+- [x] [project:quine-tv] Perf pass `musicbox` (src/channels/musicbox.js): cache gradients created in `drawBackground()` (bg + vignette) and other static-ish gradients (plate/top/cg/hg/sparkle) on init/resize/ctx swap so steady-state `render()` allocates 0 gradients/frame. Accept: no `create*Gradient()` calls in steady-state render path. Commit: dfc7bcc
+- [x] [project:quine-tv] Perf pass `musicbox` (src/channels/musicbox.js): pre-render desk wood grain into an offscreen layer on resize and blit in `drawDesk()` (remove per-frame grain stroke loops). Accept: steady-state `drawDesk()` does no per-frame grain loop/strokes. Commit: b8a1877
+- [x] [project:quine-tv] Visual polish `musicbox` (src/channels/musicbox.js): improve gear visibility/readability (contrast, subtle highlights, depth) and add 1–2 small workshop details (e.g., pin-strip, tiny calipers/awl) without harming OSD. Accept: 60s screenshot reads clearly as a “music box workshop” scene. Commit: 58d7d0a
+- [x] [project:quine-tv] Determinism `musicbox` (src/channels/musicbox.js): remove `rand()` usage from per-frame update hot path where feasible (e.g., slip beeps detune/trigger), or schedule randomness via next-* timers so visuals are FPS-stable. Accept: same seed yields identical screenshots at 30fps vs 60fps. Commit: a8571b0
+
+- [x] [project:quine-tv] Review channel `gumballecon` (src/channels/gumballecon.js): capture screenshots (0–300s), code/audio pass, add REVIEWED marker, and queue follow-ups. Commit: 8e34cd0
+- [x] [project:quine-tv] Audio hygiene `gumballecon` (src/channels/gumballecon.js): `onAudioOn()` defensively stops any existing ambience before starting; `onAudioOff()`/`destroy()` stop+clear everything and clear current if owned. Accept: repeated A toggles never stack; volume stays stable. Commit: 2c8a5af
+- [x] [project:quine-tv] Perf pass `gumballecon` (src/channels/gumballecon.js): cache background/base/globe gradients (rebuild on resize/ctx swap). Accept: steady-state `drawBackground()`+`drawMachine()` allocate 0 gradients per frame. Commit: b0ce4c0
+- [x] [project:quine-tv] Perf pass `gumballecon` (src/channels/gumballecon.js): pre-render diagonal candy stripes into an offscreen layer/pattern and blit with drift (remove per-frame stripe fillRect loop). Accept: steady-state `drawBackground()` does no stripe fillRect loop. Commit: 8e5f8e7
+- [x] [project:quine-tv] Determinism `gumballecon` (src/channels/gumballecon.js): replace per-frame `rand()<p` events (demand jitter, restock, coupon spawn/accept) with scheduled next-* times so results are FPS-stable. Accept: same seed yields identical screenshots at 30fps vs 60fps. Commit: 15ab5f8
+- [x] [project:quine-tv] UI polish `gumballecon` (src/channels/gumballecon.js): remove/replace the in-channel placeholder label `CH ??` in the title area. Accept: no `??` appears on screen. Commit: 57a0d81
+- [x] [project:quine-tv] Time structure `gumballecon` (src/channels/gumballecon.js): add 2–4 min boom→bust→steady cycle + 1–2 rare special moments (e.g., “market crash” / “audit”). Accept: distinct phases + deterministic per seed. Commit: 412b697
+- [x] [project:quine-tv] Review channel `bookreturns` (src/channels/bookreturnsorter.js): capture screenshots, code/audio pass, add REVIEWED marker, and queue follow-ups. Commit: TBD
+- [x] [project:quine-tv] Audio hygiene `bookreturns` (src/channels/bookreturnsorter.js): `onAudioOn()` defensively stops any existing ambience before starting; `onAudioOff()`/`destroy()` stop+clear everything and clear current if owned. Accept: repeated A toggles never stack; volume stays stable. Commit: f2c426e
+- [x] [project:quine-tv] Perf pass `bookreturns` (src/channels/bookreturnsorter.js): cache background linear gradient + scan-beam gradient (rebuild on resize/ctx swap) so steady-state `draw()` allocates 0 gradients/frame. Commit: 392bbd0
+- [x] [project:quine-tv] Perf pass `bookreturns` (src/channels/bookreturnsorter.js): replace `books = books.filter(...)` with in-place compaction. Accept: steady-state `update()` allocates 0 new arrays per frame. Commit: 0c55c52
+- [x] [project:quine-tv] Determinism/perf `bookreturns` (src/channels/bookreturnsorter.js): remove per-frame `rand()` usage in the hot loop (e.g., divert-mode rotation); precompute per-book targets. Accept: same seed yields identical visuals across different FPS; no `rand()` inside per-book update loop. Commit: 44e765d
+
+- [x] [project:quine-tv] channel `city` buildings should be opaque
+- [x] [project:quine-tv] channel `city` lights should be random most of the time and occasionally syncronize or rarely wipe accross the scene
+- [x] [project:quine-tv] channel `city` lights still start out doing a wipe pattern accross the scene and are still not random most of the time
+- [x] [project:quine-tv] channel `city` random lights should not be so random, while being random only one or two lights should turn on or off every second or two
+- [x] [project:quine-tv] channel `bonsai` (src/channels/bonsai.js): tree does not look like a tree - improve bonsai graphics
+- [x] [project:quine-tv] channel `baggagecarousel`: bags should not overtake each other
+- [x] [project:quine-tv] channel `cctv`: each cctv should show different scenes
+- [x] [project:quine-tv] channel `cctv`: each cctv should show different items being detected, object detection effect should be on moving objects
+- [x] [project:quine-tv] channel `cctv`: replace moving words with blurred colored emoji
+- [x] [project:quine-tv] channel `fire`: fire does not look good - improve flame effect
+- [x] [project:quine-tv] channel `arcadeattract`: the panels on the right should show funny/sarcastic advertisments
+
+- [x] [project:quine-tv] Review channel `city` (src/channels/city.js): capture screenshots, code/audio pass, add REVIEWED marker, and queue follow-ups. Commit: b5e0b7e
+- [x] [project:quine-tv] Perf pass `city` (src/channels/city.js): cache sky/moon/street gradients on init/resize. Accept: `render()` allocates 0 gradients per frame in steady-state. Commit: 89468fb
+- [x] [project:quine-tv] Perf pass `city` (src/channels/city.js): remove per-building template-literal `fillStyle` allocations (set fillStyle once per layer; vary darkness via `globalAlpha`). Accept: building loop sets fillStyle once per layer per frame. Commit: 9b51cdc
+- [x] [project:quine-tv] Perf pass `city` (src/channels/city.js): optimize rain draw (no per-drop beginPath+stroke; batch paths or use cached sprite/buckets). Accept: rain draw does not stroke per drop in steady-state. Commit: b3e02a5
+- [x] [project:quine-tv] Audio hygiene `city` (src/channels/city.js): `onAudioOn()` defensively stops existing rain/noise; `onAudioOff()`/`destroy()` stop+clear and clear current if owned. Accept: repeated A toggles never stack; volume stays stable. Commit: 2554fa0
+- [x] [project:quine-tv] Time structure `city` (src/channels/city.js): add quiet→rush→late-night phase cycle (~2–4 min) + 1–2 rare special moments (e.g., lightning flash / neon sign flicker). Accept: distinct phases + deterministic per seed; specials occur ~45–120s. Commit: 4baca9a
+- [x] [project:quine-tv] Review channel `coffeetimer` (src/channels/coffeetimer.js): capture screenshots, code/audio pass, add REVIEWED marker, and queue follow-ups. Commit: e873df1
+- [x] [project:quine-tv] Perf pass `coffeetimer` (src/channels/coffeetimer.js): cache background radial gradient + vignette radial gradient (rebuild on resize) so `bg()` allocates 0 gradients per frame in steady-state. Commit: f9f91ac
+- [x] [project:quine-tv] Perf pass `coffeetimer` (src/channels/coffeetimer.js): pre-render warm grain scanlines into an offscreen sprite on resize and blit in `bg()` (remove per-frame scanline loop). Accept: `bg()` does no per-line fillRect loops in steady-state. Commit: 4ca40f4
+- [x] [project:quine-tv] Perf pass `coffeetimer` (src/channels/coffeetimer.js): cache plate radial gradient (or pre-render plate sprite) so steady-state `render()` allocates 0 gradients per frame for the plate. Commit: ba69a9c
+- [x] [project:quine-tv] Audio hygiene `coffeetimer` (src/channels/coffeetimer.js): `onAudioOn()` defensively stops any existing ambience before starting; `onAudioOff()`/`destroy()` stop/clear everything and clear current if set. Accept: repeated A toggles never stack sources; volume stays stable. Commit: 16282f5
+- [x] [project:quine-tv] Determinism `coffeetimer` (src/channels/coffeetimer.js): decouple audio randomness from visual PRNG (separate RNG or consume rand consistently) so tuning with the same seed yields identical visuals regardless of audio.enabled toggles. Accept: method/station/track sequence is unchanged by audio on/off. Commit: d023d92
+
+- [x] [project:quine-tv] Review channel `bonsai` (src/channels/bonsai.js): capture screenshots, code/audio pass, add REVIEWED marker, and queue follow-ups.
+- [x] [project:quine-tv] Perf pass `bonsai` (src/channels/bonsai.js): cache background gradients (bg linear, lamp glow radial, vignette radial) on init/resize. Accept: `drawBackground()` allocates 0 gradients per frame in steady-state.
+- [x] [project:quine-tv] Perf pass `bonsai` (src/channels/bonsai.js): cache bench + pot gradients (bench linear, pot body linear) on init/resize. Accept: `drawBench()` + `drawPot()` allocate 0 gradients per frame in steady-state.
+- [x] [project:quine-tv] Perf pass `bonsai` (src/channels/bonsai.js): replace per-leaf-puff radial gradient allocation with cached sprites/buckets (tint via `globalAlpha`/composite). Accept: leaf puff loop allocates 0 gradients per puff per frame in steady-state.
+- [x] [project:quine-tv] Audio hygiene `bonsai` (src/channels/bonsai.js): `onAudioOn()` defensively stops any existing ambience before starting; `onAudioOff()`/`destroy()` stop/clear everything and clear current if set. Accept: repeated A toggles never stack sources; volume stays stable.
+- [x] [project:quine-tv] Visual polish `bonsai` (src/channels/bonsai.js): rebalance composition (pot/tree x placement + scale) to reduce “empty left” feel while keeping OSD legible. Accept: 10s screenshot shows balanced framing with clear OSD.
+- [x] [project:quine-tv] Special moment `bonsai` (src/channels/bonsai.js): add rare leaf-fall or gentle mist-spray event (~45–120s) that resets cleanly and doesn’t overwhelm OSD. Accept: noticeable but tasteful occasional event; deterministic per seed.
+
+- [x] [project:quine-tv] Review channel `beehivespectrum` (src/channels/beehivespectrum.js): capture screenshots, code/audio pass, add REVIEWED marker, and queue follow-ups.
+- [x] [project:quine-tv] Perf pass `beehivespectrum` (src/channels/beehivespectrum.js): cache background linear gradient + vignette radial gradient (rebuild on resize) so `drawBackground()` allocates 0 gradients per frame in steady-state.
+- [x] [project:quine-tv] Perf pass `beehivespectrum` (src/channels/beehivespectrum.js): avoid per-hex template-literal `hsla(...)` allocations in honeycomb layers (set `strokeStyle` once per frame; vary alpha via `globalAlpha`). Accept: honeycomb loop creates 0 style strings per cell per frame.
+- [x] [project:quine-tv] Perf pass `beehivespectrum` (src/channels/beehivespectrum.js): cache dance-floor glow radial gradient + waterfall sheen gradient (rebuild on resize / band switch). Accept: `drawDanceFloor()` and `drawWaterfallPanel()` allocate 0 gradients per frame in steady-state.
+- [x] [project:quine-tv] Correctness pass `beehivespectrum` (src/channels/beehivespectrum.js): make waterfall decay/breathing dt-based (remove hardcoded ~60fps constants). Accept: visual pacing is stable across variable dt/FPS.
+- [x] [project:quine-tv] Audio hygiene `beehivespectrum` (src/channels/beehivespectrum.js): `onAudioOn()` defensively stops any existing drone before starting; `onAudioOff()`/`destroy()` stop/clear everything and clear current if set. Accept: repeated A toggles never stack; volume stays stable.
+- [x] [project:quine-tv] Perf pass `beehivespectrum` (src/channels/beehivespectrum.js): replace `trails = trails.filter(...)` with in-place compaction or a ring buffer. Accept: steady-state `update()` allocates no new arrays per frame.
+
+- [x] [project:quine-tv] Review follow-up `baggagecarousel` (src/channels/baggagecarousel.js): audio hygiene — make `onAudioOn()` defensively stop any existing ambience before starting; ensure `onAudioOff()` + `destroy()` stop/clear everything (and clear current if set). Accept: repeated A toggles never stack sources; volume stays stable.
+- [x] [project:quine-tv] Perf pass `baggagecarousel` (src/channels/baggagecarousel.js): cache floor gradients + vignette + belt/post gradients on init/resize; reuse in render. Accept: `drawFloor()`+`drawCarousel()` allocate 0 gradients per frame in steady-state.
+- [x] [project:quine-tv] Perf pass `baggagecarousel` (src/channels/baggagecarousel.js): pre-render floor tile grid to offscreen and blit with drift offset (remove per-frame tile-line loops). Accept: `drawFloor()` does no per-tile line loops in steady-state.
+- [x] [project:quine-tv] Perf polish `baggagecarousel` (src/channels/baggagecarousel.js): avoid per-mark rgba/template `strokeStyle` allocations in moving belt ticks — set `strokeStyle` once and vary intensity via `globalAlpha`. Accept: belt tick loop sets `strokeStyle` once per frame.
+- [x] [project:quine-tv] Visual polish `baggagecarousel` (src/channels/baggagecarousel.js): add subtle “camera” vibe (scanlines/noise/auto-exposure) and/or slightly zoom carousel to use more frame, without harming OSD legibility. Accept: 60s screenshot shows fuller composition + clear OSD.
+
+- [x] [project:quine-tv] Add a channel guide overlay (toggle with G)
+- [x] [project:quine-tv] Add a "Scan" button/shortcut that auto-switches channels every 30 seconds (toggle on/off)
+- [x] [project:quine-tv] Review follow-up `antfarm` (src/channels/antfarmtransit.js): audio hygiene — make `onAudioOn()` defensively stop any existing ambience before starting; ensure `onAudioOff()` + `destroy()` stop/clear everything (and clear current if set). Accept: repeated A toggles never stack sources; volume stays stable.
+- [x] [project:quine-tv] Perf pass `antfarm` (src/channels/antfarmtransit.js): cache background gradients + speckle texture + vignette (offscreen canvas on init/resize) and blit in `drawBackground()`. Accept: `drawBackground()` allocates 0 gradients per frame and does no per-frame speckle-dot loop in steady-state.
+- [x] [project:quine-tv] Perf pass `antfarm` (src/channels/antfarmtransit.js): avoid per-ant color string/template allocation in `drawAnts()` (precompute body color per ant on spawn, or use `globalAlpha`+fixed palette). Accept: `drawAnts()` does not create new template literal strings per ant per frame.
+- [x] [project:quine-tv] Visual polish `antfarm` (src/channels/antfarmtransit.js): improve ant readability (slightly larger size and/or subtle highlight) without harming OSD legibility. Accept: ants are clearly visible at a glance in 60s screenshot; OSD remains uncluttered.
+
+- [x] [project:quine-tv] Review follow-up `analogdarkroom` (src/channels/analogdarkroom.js): audio hygiene — make `onAudioOn()` defensively stop any existing ambience before starting; ensure `onAudioOff()` + `destroy()` stop/clear everything. Accept: repeated A toggles never stack sources; volume stays stable.
+- [x] [project:quine-tv] Perf pass `analogdarkroom` (src/channels/analogdarkroom.js): cache static gradients on resize/init (bg, vignette, tray liquid, paper base) and reuse in `draw()`. Accept: `draw()` creates 0 gradients per frame in steady-state.
+- [x] [project:quine-tv] Perf pass `analogdarkroom` (src/channels/analogdarkroom.js): avoid per-bubble `fillStyle` string allocations — set `fillStyle` once and vary intensity via `globalAlpha`. Accept: bubble loop sets `fillStyle` once per frame.
+- [x] [project:quine-tv] Perf polish `analogdarkroom` (src/channels/analogdarkroom.js): pre-render the print “grain” layer for each new `print` (offscreen canvas) and blit it during develop, instead of drawing ~140 arcs per frame. Accept: grain render becomes a single `drawImage` per frame.
+
+- [x] [project:quine-tv] Review follow-up `cctv` (src/channels/cctv.js): replace per-frame `new Date().toLocaleTimeString()` with deterministic seeded clock (base time + t) computed once per frame. Accept: no Date() calls in renderCam; timestamp still looks “real”; deterministic per seed.
+- [x] [project:quine-tv] Audio hygiene for `cctv` (src/channels/cctv.js): make `onAudioOn()` defensively stop existing noise before starting; clear current on off/destroy. Accept: repeated A toggles never stack noise sources.
+- [x] [project:quine-tv] Perf pass for `cctv` (src/channels/cctv.js): eliminate per-frame radial gradient allocation (use cached offscreen light sprite or prebuilt gradients) + avoid repeated fillStyle in dot loop. Accept: renderCam creates 0 gradients per frame; fewer style changes.
+- [x] [project:quine-tv] Add time structure to `cctv`: quiet → patrol → busy window over ~2–4 minutes with seeded variation in motion frequency/box count. Accept: distinct phases, deterministic per seed.
+- [x] [project:quine-tv] Add 1–2 rare “special moments” to `cctv`: brief signal loss/static + reconnect overlay (or “CAM SWITCH” event). Accept: tasteful, doesn’t wreck OSD legibility; occurs occasionally (~45–120s).
+
+### Reviews (completed)
+- [x] [project:quine-tv] Review channel `aquarium` (src/channels/aquarium.js): capture screenshots, code/audio pass, add REVIEWED marker, and add follow-ups to queue.
+- [x] [project:quine-tv] Review channel `cctv` (src/channels/cctv.js): capture screenshots, code/audio pass, add REVIEWED marker, and add follow-ups to queue.
+- [x] [project:quine-tv] Review channel `analogdarkroom` (src/channels/analogdarkroom.js): capture screenshots, code/audio pass, add REVIEWED marker, and add follow-ups to queue.
+- [x] [project:quine-tv] Review channel `fire` (src/channels/fireplace.js): capture screenshots, code/audio pass, add REVIEWED marker, and add follow-ups to queue.
+- [x] [project:quine-tv] Review channel `bookbind` (src/channels/bookbindingbench.js): capture screenshots, code/audio pass, add REVIEWED marker, and add follow-ups to queue. Commit: 1716c7a
+
+- [x] [project:quine-tv] Review channel `antfarm` (src/channels/antfarmtransit.js): capture screenshots, code/audio pass, add REVIEWED marker, and add follow-ups to queue.
+### Review follow-ups — `aquarium`
+- [x] [project:quine-tv] Fix fish vertical motion accumulating drift in `src/channels/aquarium.js` (store baseY per fish and compute y = baseY + sin(...) * amp). Accept: fish swim with smooth periodic motion and don’t “walk” to clamp edges over long runs.
+- [x] [project:quine-tv] Reduce hot-path allocations in `src/channels/aquarium.js` by caching: (1) water gradient, (2) vignette gradient, (3) bubble gradients (bucket by radius). Accept: render() no longer creates a new gradient per bubble per frame.
+- [x] [project:quine-tv] Add time-structure phases to `aquarium` (e.g., calm → schooling → deep-glow) driven by a timer and seeded variation. Accept: clearly distinct phases over ~2–4 minutes, deterministic per seed.
+- [x] [project:quine-tv] Add 1–2 “special moments” to `aquarium` (e.g., bioluminescent plankton bloom, passing silhouette/jellyfish) with rare trigger and tasteful glow. Accept: visible occasional event without distracting from OSD legibility.
+- [x] [project:quine-tv] Audio hygiene pass for `aquarium` (ensure toggling audio doesn’t leak/stack sources; consider clearing current on off). Accept: repeated on/off toggles never increase volume/instances; destroy stops everything.
+
+### Review follow-ups — `bookbind`
+- [x] [project:quine-tv] Perf pass `bookbind` (src/channels/bookbindingbench.js): cache bench wood + spotlight gradients on init/resize; reuse in `drawBench()`. Accept: `drawBench()` allocates 0 gradients per frame in steady-state. Commit: a08126d
+- [x] [project:quine-tv] Perf pass `bookbind` (src/channels/bookbindingbench.js): avoid per-signature `createLinearGradient` in `drawStack()` (pre-render signature stack layer to offscreen on init/resize, or cache gradients per signature). Accept: steady-state `drawStack()` allocates 0 gradients per signature per frame. Commit: 814446b
+- [x] [project:quine-tv] Perf pass `bookbind` (src/channels/bookbindingbench.js): replace `dust = dust.filter(...)` with in-place compaction. Accept: stamp dust update allocates 0 new arrays per frame. Commit: d4dc896
+- [x] [project:quine-tv] Audio hygiene `bookbind` (src/channels/bookbindingbench.js): onAudioOn defensively stop existing ambience; onAudioOff/destroy stop+clear and clear AudioManager.current when owned. Accept: repeated A toggles never stack; volume stays stable. Commit: a817916
+- [x] [project:quine-tv] Visual polish `bookbind` (src/channels/bookbindingbench.js): add 2–3 recognizable tools (needle+thread, awl, glue pot/brush, press board) around the stack for stronger identity + depth; keep OSD legible. Accept: 10s screenshot reads “bookbinding bench” immediately. Commit: 74e0ea3
+- [x] [project:quine-tv] Special moment `bookbind` (src/channels/bookbindingbench.js): add rare “perfect stamp” gold-foil glint / wax seal sheen event (~45–120s) that resets cleanly and is deterministic per seed. Accept: tasteful occasional event; deterministic. Commit: 26af2ba
+
+### Review follow-ups — `fire`
+- [x] [project:quine-tv] `fire` (src/channels/fireplace.js): audio hygiene — make `onAudioOn()` defensively stop any existing crackle/noise before starting; ensure `onAudioOff()` + `destroy()` stop/clear everything. Accept: repeated A toggles never stack sources; volume stays stable.
+- [x] [project:quine-tv] `fire` (src/channels/fireplace.js): perf pass — cache static background/hearth/log layer(s) (offscreen canvas on init/resize) so steady-state `render()` creates 0 gradients for these parts. Accept: background/hearth/log layers draw via `drawImage` and allocate 0 gradients per frame.
+- [x] [project:quine-tv] `fire` (src/channels/fireplace.js): perf pass — replace per-spark radial gradients with cached spark sprites (bucket by radius; tint via globalAlpha/composite). Accept: sparks loop creates 0 gradients per frame.
+- [x] [project:quine-tv] `fire` (src/channels/fireplace.js): add time-structure (calm → roaring → embers) over ~2–4 minutes with seeded variation (spark count, flame height, glow). Accept: distinct phases + deterministic per seed.
+- [x] [project:quine-tv] `fire` (src/channels/fireplace.js): add 1–2 rare “special moments” (log shift + ember burst / gust flare) that reset cleanly and don’t overwhelm OSD. Accept: tasteful, seeded, occurs ~45–120s.
+
+### Refill ideas (auto)
+- [x] [project:quine-tv] Channel idea: **Late Night Rubber Duck Debugging** — Cozy late-night "code confessionals" where creators talk through bugs and fixes in real time.
+- [x] [project:quine-tv] Channel idea: **Kitchen Science Club** — Short, safe experiments you can do with pantry ingredients, explained like a mini-doc.
+- [x] [project:quine-tv] Channel idea: **One Tool, Ten Uses** — Each episode picks one everyday tool and shows ten clever applications.
+- [x] [project:quine-tv] Channel idea: **Micro-Mysteries** — 5–8 minute mystery stories with a twist and a final clue recap.
+- [x] [project:quine-tv] Channel idea: **The Tiny Travel Desk** — Desk-based travel: maps, street footage, local food, and history in bite-size segments.
+- [x] [project:quine-tv] Channel idea: **Fix-It ASMR** — Calm, close-up repair sessions (electronics, zips, chairs) with minimal talking and satisfying sounds.
+- [x] [project:quine-tv] Channel idea: **History’s Weird Patents** — A fast tour of bizarre inventions that were actually patented, with quick context.
+- [x] [project:quine-tv] Channel idea: **Speed-Run Cooking** — One recipe, one pan, one timer: efficient cooking with clear steps and zero fluff.
+- [x] [project:quine-tv] Channel idea: **The 3-Minute Music Theory** — Small music theory concepts explained visually, each in three minutes.
+- [x] [project:quine-tv] Channel idea: **Future Archaeology** — Speculative "museum tours" of modern objects as if discovered 1,000 years from now.
+
+### Refill ideas (auto) — 2026-02-07
+- [x] [project:quine-tv] Channel idea: **Circuit Safari** — Guided tours through everyday electronics (teardowns, signals, parts) with a playful nature-doc narration style.
+- [x] [project:quine-tv] Channel idea: **Rainy Window Radio** — Lo-fi visual loops of rain-on-glass + tiny “radio dial” that flips between mellow micro-genres.
+- [x] [project:quine-tv] Channel idea: **Small Town UFO Hotline** — Call-in style faux radio drama: odd sightings, skeptical hosts, escalating lore, and periodic “commercials.”
+- [x] [project:quine-tv] Channel idea: **Origami After Hours** — Slow, relaxing paperfold sessions with step highlights and satisfying crease sounds (optional).
+- [x] [project:quine-tv] Channel idea: **Minute Museum** — One artwork/object per minute: quick context, one detail zoom, one takeaway.
+- [x] [project:quine-tv] Channel idea: **Bonsai Time Machine** — Calm plant care + subtle time-lapse jumps that show growth, pruning, wiring, and tiny seasonal changes.
+- [x] [project:quine-tv] Channel idea: **Retro Boot Sequence** — Vintage computer boot-ups, UI tours, and “software archaeology” with CRT shaders and disk sounds (optional).
+- [x] [project:quine-tv] Channel idea: **Subway Map Stories** — A transit map becomes a story engine: pick a line, meet a character, follow stops, reveal a twist.
+- [x] [project:quine-tv] Channel idea: **Tidy Desk Reset** — 10-minute desk clean/organize loops with checklist overlays and gentle ASMR (optional).
+- [x] [project:quine-tv] Channel idea: **Weather Factory** — Build-a-forecast visuals: clouds, pressure, fronts, and quirky “weather widgets” that explain what’s happening.
+
+### Refill ideas (auto) — 2026-02-07 09:00
+- [x] [project:quine-tv] Channel idea: **Analog Signal Garden** — Oscilloscope-style “flowers” that bloom from waveforms (sine/saw/FM) with gentle HUD labels.
+- [x] [project:quine-tv] Channel idea: **The Lost Instruction Manual** — A faux manual page flips every minute, explaining absurd devices with diagrams and safety warnings.
+- [x] [project:quine-tv] Channel idea: **Midnight Library Index** — Card-catalog drawers and index cards reveal micro-stories, one card at a time.
+- [x] [project:quine-tv] Channel idea: **Tiny Orchestra Workshop** — Build-a-band visuals: each loop “adds” an instrument with simple notation and moving parts.
+- [x] [project:quine-tv] Channel idea: **Mapmaker’s Weathered Atlas** — Hand-drawn map pages with animated routes, marginalia, and little historical footnotes.
+- [x] [project:quine-tv] Channel idea: **Minimalist Workout Clock** — Silent interval training prompts (stretch/strength/mobility) with clean typography and a big timer.
+- [x] [project:quine-tv] Channel idea: **Robot Petting Zoo** — Cute micro-robots exhibit simple behaviors (curious/shy/playful) in a stylized enclosure UI.
+- [x] [project:quine-tv] Channel idea: **Planetarium Postcards** — Rotating “postcards” from planets/moons with a single wow-fact and slow starfield parallax.
+- [x] [project:quine-tv] Channel idea: **Studio Foley Lab** — Close-up “sound recipes” (steps + props) for common effects: rain, footsteps, doors, etc.
+- [x] [project:quine-tv] Channel idea: **Railway Timetable ASMR** — Flipping timetable pages, platform boards, and rolling departures with cozy, orderly motion.
+
+### Refill ideas (auto) — 2026-02-07 14:30
+- [x] [project:quine-tv] Channel idea: **Pocket Planet Weather** — Tiny rotating planet with playful fronts, pressure rings, and one “wow” fact.
+- [x] [project:quine-tv] Channel idea: **Satisfying Mechanisms** — Slow cams of linkages, gears, cams, and escapements with labeled motion paths.
+- [x] [project:quine-tv] Channel idea: **Bug Hotel Live** — Cozy macro “wildlife cam” of tiny insects with faux field-notes and sightings log.
+- [x] [project:quine-tv] Channel idea: **Type Specimen Theatre** — Fonts as characters: each loop “performs” a mood with kerning jokes and glyph close-ups.
+- [x] [project:quine-tv] Channel idea: **Ocean Floor Postcards** — Gentle parallax seafloor scenes + one creature fact per card; slow drifting silt.
+- [x] [project:quine-tv] Channel idea: **Coffee Timer Radio** — Brew-method prompts (V60/AeroPress/etc.) with a big timer and tiny “station” info.
+- [x] [project:quine-tv] Channel idea: **The Cozy Compiler** — Code snippets “compile” into little animations; errors become punchlines and fixes.
+- [x] [project:quine-tv] Channel idea: **Found Footage: Miniature Worlds** — Diorama scenes shot like a documentary: labels, scale bars, and gentle pans.
+- [x] [project:quine-tv] Channel idea: **Museum of Obsolete Media** — Rotating VHS/floppy/minidisc exhibits with quick history and UI-style metadata.
+- [x] [project:quine-tv] Channel idea: **Night Signals** — Railway/aviation/maritime signal lamps + short “what it means” captions in the dark.
+
+### Refill ideas (auto) — 2026-02-07 21:01
+- [x] [project:quine-tv] Channel idea: **Packet Sniffer FM** — Turn packets into a neon spectrum: tune TCP/UDP/ICMP “stations” with bursts, waterfalls, and protocol IDs.
+- [x] [project:quine-tv] Channel idea: **Cloud Chamber Live** — Particle-track wisps drift across a dark chamber with a rolling counter and occasional ‘big event’ flashes.
+- [x] [project:quine-tv] Channel idea: **Sand Table Cartography** — Zen sand table draws evolving topographic patterns: ridges, rivers, and compass headings across timed phases.
+- [x] [project:quine-tv] Channel idea: **Analog Photo Darkroom** — Red-light darkroom loop: expose → agitate → reveal; prints slowly appear with a tiny timer HUD.
+- [x] [project:quine-tv] Channel idea: **Candlelit Chess Engine** — A calm chessboard plays a slow game: moves, eval bar, and endgame ‘special moments’ (sacrifice, promotion).
+- [x] [project:quine-tv] Channel idea: **Mechanical Pencil Geometry** — Procedural drafting: compass arcs, ruler lines, construction marks; phases build a clean geometric diagram.
+- [x] [project:quine-tv] Channel idea: **Dream Receipt Printer** — Thermal printer spits surreal receipts; barcode glitches, subtotal jokes, and periodic ‘coupon drop’ moments.
+- [x] [project:quine-tv] Channel idea: **Tiny Volcano Observatory** — Mini crater scene with seismograph strip + gas plume; timed tremors escalate to a gentle ash puff.
+- [x] [project:quine-tv] Channel idea: **Bookbinding Bench ASMR** — Close-up bookbinding: fold signatures, stitch, press, stamp; minimal UI with satisfying, orderly motion.
+- [x] [project:quine-tv] Channel idea: **Glassblower’s Studio Loop** — Molten glass forms on the pipe: heat, gather, blow, shape; glowing gradients and occasional spark pop.
+
+### Refill ideas (auto) — 2026-02-08 02:30
+- [x] [project:quine-tv] Channel idea: **Post Office Sorting Desk** — Crisp overhead of a sorting bench: stamps, postmarks, route labels, and bins that fill/empty in timed waves.
+- [x] [project:quine-tv] Channel idea: **Neon Night Market Ledger** — A glowing stall scene with handwritten receipts, price tags, and rotating ‘deal of the minute’ cards; rain-slick reflections.
+- [x] [project:quine-tv] Channel idea: **Tiny Lighthouse Watch** — Coastal vignette: rotating Fresnel beam, fog banks, ship silhouettes; timed storm pulses and a calm dawn reset.
+- [x] [project:quine-tv] Channel idea: **Airport Baggage Carousel Cam** — Looping carousel with luggage tags, destination flips, occasional ‘lost bag’ alert card; satisfying conveyor motion.
+- [x] [project:quine-tv] Channel idea: **Subterranean Mushroom Lab** — Bioluminescent fungus terrariums that ‘grow’ across phases; microscope inset + spore-count ticker; moody cave parallax.
+- [x] [project:quine-tv] Channel idea: **Gumball Machine Economics** — Coins drop, gumballs dispense, stock levels & tiny charts animate; periodic ‘price spike’ gag and coupon tokens.
+- [x] [project:quine-tv] Channel idea: **Paper City Fold-Out** — A papercraft city unfolds in segments: streets pop up, lights turn on; occasional paper-crane flyover ‘special moment’.
+- [x] [project:quine-tv] Channel idea: **Semaphore Signal School** — Clean training board teaches flag/semaphore letters in timed lessons; quiz flashes + ‘message received’ end card.
+- [x] [project:quine-tv] Channel idea: **Snow Globe Weather Lab** — A desk snow-globe becomes a tiny climate sim: fronts, pressure rings, and ‘shake’ events that reset snowfall patterns.
+- [x] [project:quine-tv] Channel idea: **Domino Factory Floor** — Top-down domino layout machine builds patterns → triggers cascades; phase-based motifs (spiral, wave, logo) with slow cams.
+
+### Refill ideas (auto) — 2026-02-08 08:00
+- [x] [project:quine-tv] Channel idea: **Kintsugi Clinic** — Broken pottery repaired with gold seams; crack→glue→dust→polish phases with glint “special moments”.
+- [x] [project:quine-tv] Channel idea: **Telephone Switchboard Nights** — Old-school operator board: patch cords, blinking calls, timed rush hours, and occasional “mystery call” glitch.
+- [x] [project:quine-tv] Channel idea: **Container Port Logistics** — Crane choreography stacking containers on a yard map; ship arrival phases, reroutes, and a satisfying end-of-shift sweep.
+- [x] [project:quine-tv] Channel idea: **Weather Balloon Ascent** — Balloon climbs through atmosphere layers with live sensor HUD; burst→parachute descent as a looping finale.
+- [x] [project:quine-tv] Channel idea: **Stargazer’s Logbook** — Telescope view + handwritten notes: target→track→sketch phases, with timed meteor streaks and focus “breathing”.
+- [x] [project:quine-tv] Channel idea: **Haunted Floorplan Tour** — Blueprint map slowly explores rooms; annotations appear, lights flicker, and one periodic “door slam” event resets the route.
+- [x] [project:quine-tv] Channel idea: **Paper Marbling Studio** — Ink drops swirl on water, comb patterns form, paper lifts to reveal prints; occasional “perfect pull” moment.
+- [x] [project:quine-tv] Channel idea: **Arcade Attract Mode Archives** — CRT arcade attract loops with high-score initials, demo play, coin-in flashes, and rotating cabinet art cards.
+- [x] [project:quine-tv] Channel idea: **Deep Sea Sonar Survey** — Submarine sonar sweep + range rings; contacts bloom/fade, classification tags, and a rare “big echo” event.
+- [x] [project:quine-tv] Channel idea: **Model Railway Control Room** — Miniature rail network with block signals and turnout toggles; schedule phases and satisfying signal clears.
+
+### Refill ideas (auto) — 2026-02-08 14:00
+- [x] [project:quine-tv] Channel idea: **Timekeeper’s Bench ASMR** — Watchmaker bench loop: sort parts → assemble → regulate; loupe inset + “perfect tick” moment.
+- [x] [project:quine-tv] Channel idea: **Weatherfax Terminal** — Retro weatherfax receiver prints synoptic charts; phases: receive → print → annotate → archive with dot-matrix vibes.
+- [x] [project:quine-tv] Channel idea: **Ant Farm Transit Authority** — Ant tunnels as subway lines; rush-hour waves, route map UI, and tiny “service change” alerts.
+- [x] [project:quine-tv] Channel idea: **Subsea Cable Pulse Monitor** — Ocean cross-section with repeater nodes; light pulses travel, packet storms, rare “fault isolate” sequence.
+- [x] [project:quine-tv] Channel idea: **Botanical Blueprint Studio** — Drafting-table plant schematics (venation/cross-sections) drawn in timed layers with crisp label callouts.
+- [x] [project:quine-tv] Channel idea: **Rooftop Water Tank Nights** — City rooftops with gauges + pump cycles; maintenance walk-bys and occasional storm lightning reset.
+- [x] [project:quine-tv] Channel idea: **Museum Diorama Restoration** — Miniature exhibit restoration: dust → paint-match → brush → reveal; before/after flip “special moment”.
+- [x] [project:quine-tv] Channel idea: **Mailroom Tube Network** — Pneumatic tube canisters zip between stations; routing map UI, jam-clear event, end-of-shift sweep.
+- [x] [project:quine-tv] Channel idea: **Desert Radio Telescope Array** — Dish field tracks targets; interference bursts, scanning sweeps, and rare “wow” transient spike.
+- [x] [project:quine-tv] Channel idea: **Vending Machine Oracle** — Items reshuffle like tarot; fortunes on tiny receipts, rare “mystery spiral” glitch, cozy neon hum.
+
+### Refill ideas (auto) — 2026-02-08 20:00
+- [x] [project:quine-tv] Channel idea: **Dungeon Cartographer’s Desk** — A candlelit map table draws a dungeon in phases; rooms reveal, traps ping, and an occasional “secret door” shimmer resets the route.
+- [x] [project:quine-tv] Channel idea: **Robotic Arm Ballet** — Industrial robot arms perform choreographed loops on a stage; safety HUD, timed “maintenance pause,” and a rare perfectly-synced finale.
+- [x] [project:quine-tv] Channel idea: **Neon Sign Repair Bench** — Diagnose → bend → seal → light cycles for neon tubes; crackle tests, flicker fixes, and a satisfying “steady glow” moment.
+- [x] [project:quine-tv] Channel idea: **Exposure Triangle School** — Vintage camera + swinging light-meter needle teaches ISO/shutter/aperture in timed lessons with a clean diagram overlay and test shots.
+- [x] [project:quine-tv] Channel idea: **Mythical Creature Field Station** — A ranger desk logs cryptid “evidence” (casts, sketches, maps); periodic camera glitches and a calm “specimen filed” end card.
+- [x] [project:quine-tv] Channel idea: **Ship-in-a-Bottle Workshop** — Slow assembly loop inside a glass bottle: hull → mast → rigging → reveal; tiny waves + “perfect knot” special moment.
+- [x] [project:quine-tv] Channel idea: **Constellation Stitch‑Along** — Embroidery hoop stitches star patterns in phases; thread shimmer, gentle parallax fabric weave, and an occasional “gold thread” highlight.
+- [x] [project:quine-tv] Channel idea: **Wind Tunnel Toy Lab** — Smoke lines visualize airflow over little shapes; lift/drag HUD, phase-based test series, and a rare “stall recovery” swoop.
+- [x] [project:quine-tv] Channel idea: **Forge & Anvil Rhythm** — Cozy smithy loop: heat → hammer → quench → polish; sparks, glow gradients, and a timed “perfect ring” moment.
+- [x] [project:quine-tv] Channel idea: **Miniature Paint Swatch Factory** — Pigments mix into satisfying swatches; palette cards slide, harmony grids animate, and a “perfect match” lock-in moment.
+
+### Refill ideas (auto) — 2026-02-09 02:00
+- [x] [project:quine-tv] Channel idea: **Geologist’s Polarized Microscope** — Thin-section slides under rotating polarizers: interference colors, grain labels, and timed “phase flip” moments.
+- [x] [project:quine-tv] Channel idea: **Laser Cutter Cutfile Studio** — Vector paths preview → cut passes → peel reveal; smoky glow, kerf lines, and a “perfect pop-out” finale.
+- [x] [project:quine-tv] Channel idea: **Airport Tower Strip Board** — Flight strips slide/stack across phases (arrivals/deps/holds), with calm “handoff” highlights and occasional runway-change events.
+- [x] [project:quine-tv] Channel idea: **Book Return Sorting Machine** — Conveyor intake → scan → divert to bins; library metadata HUD, jam-clear interlude, and end-of-shift tidy sweep.
+- [x] [project:quine-tv] Channel idea: **Reel‑to‑Reel Tape Splicing Desk** — Spool tension, VU meters, cut→splice→playback loops, with a rare “clean edit” sparkle moment.
+- [x] [project:quine-tv] Channel idea: **Cipher Wheel Classroom** — Rotating cipher discs teach quick puzzles; timed quiz flashes, “message decoded” stamp, and subtle chalkboard motion.
+- [x] [project:quine-tv] Channel idea: **Streetlight Night Repair Crew** — Lift basket rises, swap bulb/ballast, flicker tests, then a satisfying steady-glow street reset.
+- [x] [project:quine-tv] Channel idea: **Beehive Spectrum Radio** — Honeycomb parallax with waggle-dance traces rendered as a spectrum/waterfall; occasional “queen check” special moment.
+- [x] [project:quine-tv] Channel idea: **Mechanical Music Box Workshop** — Pin drum patterns “compose” a melody: align → punch → test; gear motion layers and a perfect-tune finale.
+- [x] [project:quine-tv] Channel idea: **Observatory Dome Scheduler** — Big dome silhouette rotates through targets; calendar cards, cloud-cover rolls, and a meteor-window “go” event.
+
+### Refill ideas (auto) — 2026-02-09 07:30
+- [x] [project:quine-tv] Channel idea: **Microfilm Archive Reader** — Dim reader desk: reels advance, zoom window scans frames, and a periodic “found note” highlight.
+- [x] [project:quine-tv] Channel idea: **Locksmith’s Pin‑Tumbler Bench** — Key blank cutting → pin stack alignment → satisfying turn; occasional “perfect click” moment.
+- [x] [project:quine-tv] Channel idea: **Starship Cargo Manifest** — Futuristic bay UI: scan pulses, routing arrows, and rare “anomaly container” quarantine sequence.
+- [x] [project:quine-tv] Channel idea: **Seed Vault Inventory** — Drawer pull → packet inspect → reseal; humidity/temp gauges drift with a calm end-of-shift tally.
+- [x] [project:quine-tv] Channel idea: **Ceramic Kiln Firing Curve** — Glow-through peep hole + rising temperature chart; bisque→glaze phases and a “cone bend” special moment.
+- [x] [project:quine-tv] Channel idea: **Elevator Control Panel Dreams** — Retro floor indicator + call queue; lights chase, service mode interlude, and a satisfying arrival chime.
+- [x] [project:quine-tv] Channel idea: **Telegraph Key Practice Hour** — Morse pulses on a paper tape; timed decode quizzes and a “message received” stamp finale.
+- [x] [project:quine-tv] Channel idea: **Street Map Folding Gym** — Paper map unfolds, creases highlight, route animates; rare “perfect fold” snap-to-grid moment.
+- [x] [project:quine-tv] Channel idea: **Nanobot Repair Swarm** — Microscope view: swarm scans → patches → polishes a crack; occasional sparkle “repair complete.”
+- [x] [project:quine-tv] Channel idea: **Ice Core Analysis Lab** — Stratified core rotates under light; sample cut marks, isotope chart wiggles, and a “volcanic layer” highlight.
+
+
+### Refill ideas (auto) — 2026-02-09 13:30
+- [x] [project:quine-tv] Channel idea: **Marble Run Dispatch** — Marble-run routing network: SORT → EXPRESS → JAM CLEAR phases with switch-gates, route labels, and a satisfying cascade finale.
+- [x] [project:quine-tv] Channel idea: **Neon Laundromat Spin Cycle** — Cozy neon laundromat: wash→rinse→spin→dry cycles with reflections, timer HUD, and periodic “lost sock” alerts.
+- [x] [project:quine-tv] Channel idea: **Cave Torch Storyboard** — Torch-lit cave wall where paintings animate into micro-scenes; drip parallax, charcoal dust motes, and a rare handprint flash moment.
+- [x] [project:quine-tv] Channel idea: **Vinyl Pressing Plant** — Press cycle visuals: heat→press→cool→sleeve with label stamps, waveform QC panel, and a “perfect press” glint.
+- [x] [project:quine-tv] Channel idea: **Sushi Conveyor Night Shift** — Conveyor belt of plates + order tickets: prep→plate→serve rush-hour waves with a rare “chef’s special” sparkle card.
+- [x] [project:quine-tv] Channel idea: **Signal Flag Regatta** — Tiny sailboats communicate with semaphore/flag codes; lesson→quiz→message received phases over calm ocean parallax.
+- [x] [project:quine-tv] Channel idea: **Mini Greenhouse Climate Console** — Greenhouse gauges drive mist/fan/heat cycles; subtle plant growth phases and periodic dew-burst sparkles.
+- [x] [project:quine-tv] Channel idea: **Snowplow Route Planner** — Winter city grid map with plow routes, salt hopper gauge, snowfall overlay, reroute events, and an end-of-shift cleared-map sweep.
+- [x] [project:quine-tv] Channel idea: **Harbor Tug Dispatch** — Port map dispatch: tug lines guide ship silhouettes; tide gauge + squall pulses, with a satisfying docked “all clear” stamp.
+- [x] [project:quine-tv] Channel idea: **Vintage Cash Counter** — Bank back-office sorter: count→bundle→audit phases with note/coin motion, fraud-detect stamps, and end-of-day reconciliation card.
+
+
+- [x] [project:quine-tv] Review channel `cipherwheel` (src/channels/cipherwheel.js): captured screenshots (0–300s), code/audio pass, added REVIEWED marker, and queued follow-ups. Commit: 53725f8
+- [x] [project:quine-tv] Perf pass `cipherwheel` (src/channels/cipherwheel.js): cache wheel disk radial gradient(s) + vignette gradient (rebuild on resize/ctx swap). Accept: steady-state `render()`/`drawWheel()` allocate 0 gradients/frame. Commit: e9ef6f5
+- [x] [project:quine-tv] Perf pass `cipherwheel` (src/channels/cipherwheel.js): avoid per-letter and per-dust template-literal `rgba(...)` allocations (set `fillStyle` once per loop; vary brightness via `globalAlpha`). Accept: letter loops and dust loop allocate 0 style strings per frame. Commit: 5bc06e1
+- [x] [project:quine-tv] Visual polish `cipherwheel` (src/channels/cipherwheel.js): add 2–3 classroom/desk details to reduce empty space (chalk pieces/eraser, faint chalk diagram/notes, subtle desk edge) without harming OSD. Accept: 60s screenshot reads clearly as “cipher classroom”, composition feels less empty. Commit: 1294283
+- [x] [project:quine-tv] Content polish `cipherwheel` (src/channels/cipherwheel.js): expand `phrases` substantially (>= 25) and vary `stampText` by segment/lesson (few fun variants). Accept: within a 5-minute capture, phrases/stamps don’t feel repetitious. Commit: 8fbcdce
+- [x] [project:quine-tv] UX polish `cipherwheel` (src/channels/cipherwheel.js): add a tiny “shift hint” during DEMO/QUIZ (e.g., `A→E` or small tick mark/offset label). Accept: viewer can infer the shift faster at a glance. Commit: fa21e9c
+
+- [x] [project:quine-tv] Review channel `cozycompiler` (src/channels/cozycompiler.js): captured screenshots (0–300s), code/audio pass, added REVIEWED marker, and queued follow-ups. Commit: 5ad9a1e
+- [x] [project:quine-tv] Perf pass `cozycompiler` (src/channels/cozycompiler.js): cache background linear gradient + warm glow radial gradient (rebuild on resize/ctx swap). Accept: steady-state `render()` allocates 0 gradients/frame. Commit: afdbec2
+- [x] [project:quine-tv] Determinism `cozycompiler` (src/channels/cozycompiler.js): remove `rand()` usage from per-frame update hot paths (typing speed, log reveal, beep timings) by precomputing per-segment params and scheduling randomness via deterministic next-* timers. Accept: same seed yields identical visuals at 30fps vs 60fps. Commit: 476a942
+- [x] [project:quine-tv] Audio hygiene `cozycompiler` (src/channels/cozycompiler.js): `onAudioOn()` defensively stops any existing ambience we own before starting; `onAudioOff()`/`destroy()` stop+clear everything and only clear AudioManager.current when owned. Accept: repeated A toggles never stack; volume stays stable. Commit: 6ca2aa3
+
+- [x] [project:quine-tv] Review channel `exposuretriangle` (src/channels/exposuretriangle.js): captured screenshots (0–300s) to `screenshots/review-exposuretriangle` (and quick after-pass to `screenshots/review-exposuretriangle-after`), did code+audio pass, added `// REVIEWED` marker, and queued concrete follow-ups. Commit: 89af1fc
+- [x] [project:quine-tv] Determinism `exposuretriangle` (src/channels/exposuretriangle.js): remove per-frame `rand()` usage in the QUIZ segment by precomputing/storing the “attempt” settings on quiz segment start (and avoid consuming RNG in hot path). Accept: same seed yields identical screenshots at 30fps vs 60fps. Commit: f512dbd
+- [x] [project:quine-tv] Perf pass `exposuretriangle` (src/channels/exposuretriangle.js): cache paper linear gradient + vignette radial gradient (rebuild on resize/ctx swap) and pre-render scanlines so steady-state `drawBg()` allocates 0 gradients/frame and does no per-line loops. Accept: no `create*Gradient()` in steady-state render; scanlines are a single blit. Commit: 3dcafb2
+- [x] [project:quine-tv] Audio hygiene `exposuretriangle` (src/channels/exposuretriangle.js): make `onAudioOn()` idempotent (stop any existing bed we own first); `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Accept: repeated A toggles never stack; volume stays stable. Commit: 73d5d3d
+- [x] [project:quine-tv] Composition polish `exposuretriangle` (src/channels/exposuretriangle.js): use the empty right-side space for a small “reference card”/camera UI (e.g., EV scale / exposure compensation / histogram) that updates with meter delta, without harming OSD. Accept: 60s screenshot feels balanced; OSD remains clean. Commit: 908aa1f
