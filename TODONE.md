@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Audio hygiene `elevatorpanel` (src/channels/elevatorpanel.js): made `onAudioOn()` idempotent (stops any existing handle we own before starting) and `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: 9ecfa53
+
 - [x] [project:quine-tv] Review channel `flow` (src/channels/flowfield.js): captured screenshots (0–300s) to `screenshots/review-flow-before` + completion shots to `screenshots/review-flow-after` (errors/warnings: 0), did code/perf pass, confirmed `// REVIEWED: 2026-02-12`, and confirmed/queued concrete follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: ff11544
 
 - [x] [project:quine-tv] Review channel `stitchalong` (src/channels/constellationstitch.js): captured screenshots (0–300s) to `screenshots/review-stitchalong` (errors/warnings: 0), did code+audio/perf/determinism pass, added `// REVIEWED: 2026-02-12`, and queued concrete follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: 329ad4a
