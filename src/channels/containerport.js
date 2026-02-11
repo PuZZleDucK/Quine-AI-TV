@@ -405,7 +405,7 @@ export function createChannel({ seed, audio }){
     shipStacks = [];
     for (let i = 0; i < slotCount; i++){
       const hi = hash01(s ^ Math.imul(cyc + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca6b));
-      const n = 2 + ((hi * 4) | 0); // 2–5
+      const n = 1 + ((hi * 3) | 0); // 1–3 (cap ship stacks at 3 high)
 
       const st = [];
       for (let j = 0; j < n; j++){
