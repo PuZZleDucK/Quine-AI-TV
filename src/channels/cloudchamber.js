@@ -43,6 +43,18 @@ export function createChannel({ seed, audio }){
   let nextBigAt = 0;
   let spawnNextAt = 0;
 
+  const BIG_BANNERS = [
+    'COSMIC RAY',
+    'MUON SHOWER',
+    'ALPHA HIT',
+    'BETA BURST',
+    'GAMMA SPIKE',
+    'ION TRAIL',
+    'NEUTRINO BLIP',
+  ];
+  let bigEventCount = 0;
+  let bannerText = BIG_BANNERS[(seed >>> 0) % BIG_BANNERS.length];
+
   let hits = 0;
   let displayHits = 0;
 
@@ -133,6 +145,9 @@ export function createChannel({ seed, audio }){
     bigFlash = 0;
     banner = 0;
     nextBigAt = 8 + rand() * 10;
+
+    bigEventCount = 0;
+    bannerText = BIG_BANNERS[(seed >>> 0) % BIG_BANNERS.length];
 
     hits = 0;
     displayHits = 0;
@@ -228,6 +243,9 @@ export function createChannel({ seed, audio }){
     // deterministic across FPS: apply the impulse at eventTime, but compute its decayed value at the current t
     bigFlash = Math.max(bigFlash, 1.0 - age * 1.35);
     banner = Math.max(banner, 1.0 - age * 1.1);
+
+    bannerText = BIG_BANNERS[bigEventCount % BIG_BANNERS.length];
+    bigEventCount++;
 
     const burst = 6 + ((rand() * 7) | 0);
     for (let i = 0; i < burst; i++) spawnTrack({ kind: 'big', age });
@@ -326,7 +344,10 @@ export function createChannel({ seed, audio }){
 
         // tiny cue (applied at boundaryTime, evaluated at current t)
         const cue = 0.6 - (t - boundaryTime) * 1.1;
-        if (cue > 0) banner = Math.max(banner, cue);
+        if (cue > 0) {
+          banner = Math.max(banner, cue);
+          bannerText = `PHASE ${PHASES[phaseIdx].name}`;
+        }
         if (audio.enabled) audio.beep({ freq: 160 + rand() * 120, dur: 0.03, gain: 0.02, type: 'sine' });
       }
 
@@ -438,8 +459,9 @@ export function createChannel({ seed, audio }){
 
   function drawRollingNumber(ctx, x, y, value, alpha){
     const v = Math.max(0, value);
-    const base = Math.floor(v);
-    const frac = clamp01(v - base);
+    const baseRaw = Math.floor(v);
+    const frac = clamp01(v - baseRaw);
+    const base = baseRaw % 100000;
     const str = String(base).padStart(5, '0');
 
     ctx.save();
@@ -515,7 +537,7 @@ export function createChannel({ seed, audio }){
       ctx.font = `${Math.max(14, Math.floor(Math.min(w, h) * 0.026))}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('BIG EVENT', bx2 + bw / 2, by2 + bh / 2);
+      ctx.fillText(bannerText, bx2 + bw / 2, by2 + bh / 2);
       ctx.restore();
     }
 
