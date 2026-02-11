@@ -354,6 +354,141 @@ function fitPointsToBox(pts, cx, cy, targetW, targetH){
   return pts.map((p) => ({ x: cx + (p.x - ox) * s, y: cy + (p.y - oy) * s }));
 }
 
+function pointInPolygon(x, y, poly){
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++){
+    const xi = poly[i].x;
+    const yi = poly[i].y;
+    const xj = poly[j].x;
+    const yj = poly[j].y;
+    const intersect = ((yi > y) !== (yj > y))
+      && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-6) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function dist2(a, b){
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
+function sampleRouteStops(rand, coast){
+  const b = pointBounds(coast);
+  const stopCount = 2 + ((rand() * 4) | 0); // 2..5
+  const minGap = Math.max(18, Math.min(b.w, b.h) * 0.12);
+  const minGap2 = minGap * minGap;
+  const pts = [];
+  let tries = 0;
+
+  while (pts.length < stopCount && tries < 1200){
+    tries++;
+    const x = b.minX + rand() * b.w;
+    const y = b.minY + rand() * b.h;
+    if (!pointInPolygon(x, y, coast)) continue;
+    const p = { x, y };
+    let ok = true;
+    for (const q of pts){
+      if (dist2(p, q) < minGap2){
+        ok = false;
+        break;
+      }
+    }
+    if (!ok) continue;
+    pts.push(p);
+  }
+
+  if (pts.length < 2){
+    const cx = (b.minX + b.maxX) * 0.5;
+    const cy = (b.minY + b.maxY) * 0.5;
+    pts.push({ x: cx - b.w * 0.12, y: cy + b.h * 0.08 });
+    pts.push({ x: cx + b.w * 0.12, y: cy - b.h * 0.08 });
+  }
+
+  let start = 0;
+  for (let i = 1; i < pts.length; i++){
+    if (pts[i].x < pts[start].x) start = i;
+  }
+  const ordered = [pts[start]];
+  const used = new Set([start]);
+  while (ordered.length < pts.length){
+    const last = ordered[ordered.length - 1];
+    let best = -1;
+    let bestD = Infinity;
+    for (let i = 0; i < pts.length; i++){
+      if (used.has(i)) continue;
+      const d = dist2(last, pts[i]);
+      if (d < bestD){
+        bestD = d;
+        best = i;
+      }
+    }
+    if (best < 0) break;
+    used.add(best);
+    ordered.push(pts[best]);
+  }
+  return ordered;
+}
+
+function buildRoutePlan(stops, cycleSeconds){
+  if (!stops || stops.length === 0){
+    return { stops: [], pausePerStop: cycleSeconds, legDurations: [], cycleSeconds };
+  }
+  if (stops.length === 1){
+    return { stops, pausePerStop: cycleSeconds, legDurations: [], cycleSeconds };
+  }
+  const legs = [];
+  let totalLen = 0;
+  for (let i = 0; i < stops.length - 1; i++){
+    const dx = stops[i + 1].x - stops[i].x;
+    const dy = stops[i + 1].y - stops[i].y;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    legs.push(len);
+    totalLen += len;
+  }
+  const pausePerStop = Math.min(2.6, (cycleSeconds * 0.28) / stops.length);
+  const totalPause = pausePerStop * stops.length;
+  const travelBudget = Math.max(1, cycleSeconds - totalPause);
+  const legDurations = legs.map((len) => (len / totalLen) * travelBudget);
+  return { stops, pausePerStop, legDurations, cycleSeconds };
+}
+
+function routePositionAtTime(route, timeSeconds){
+  const stops = route.stops || [];
+  if (stops.length === 0) return null;
+  if (stops.length === 1) return { x: stops[0].x, y: stops[0].y, stopIndex: 0 };
+
+  const cycle = Math.max(1e-3, route.cycleSeconds || 60);
+  let tt = ((timeSeconds % cycle) + cycle) % cycle;
+  const pause = route.pausePerStop || 0;
+
+  if (tt < pause){
+    return { x: stops[0].x, y: stops[0].y, stopIndex: 0 };
+  }
+  tt -= pause;
+
+  for (let i = 0; i < route.legDurations.length; i++){
+    const leg = route.legDurations[i];
+    if (tt < leg){
+      const f = leg > 0 ? (tt / leg) : 0;
+      return {
+        x: stops[i].x + (stops[i + 1].x - stops[i].x) * f,
+        y: stops[i].y + (stops[i + 1].y - stops[i].y) * f,
+        stopIndex: -1,
+      };
+    }
+    tt -= leg;
+    if (tt < pause){
+      return { x: stops[i + 1].x, y: stops[i + 1].y, stopIndex: i + 1 };
+    }
+    tt -= pause;
+  }
+
+  const last = stops[stops.length - 1];
+  return { x: last.x, y: last.y, stopIndex: stops.length - 1 };
+}
+
 function makeStreet(rand, ww, hh){
   const horizon = hh * (0.72 + rand() * 0.14);
   const layers = [0.4, 0.7, 1.0].map((depth, i) => {
@@ -395,13 +530,14 @@ export function createChannel({ seed, audio }){
   let w = 0, h = 0;
   let t = 0;
 
-  const SEG_DUR = 52; // seconds per destination
+  const SEG_DUR = 60; // seconds per destination/route cycle
   let segIx = 0;
   let segT = 0;
   let dest = DESTINATIONS[0];
   let coast = [];
   let islands = [];
   let borders = [];
+  let route = { stops: [], pausePerStop: SEG_DUR, legDurations: [], cycleSeconds: SEG_DUR };
   let street = null;
 
   let bed = null;
@@ -456,6 +592,7 @@ export function createChannel({ seed, audio }){
     const cb = pointBounds(coast);
     const borderRadius = Math.max(cb.w, cb.h) * 0.56;
     borders = makeInternalBorders(r, ccx, ccy, borderRadius);
+    route = buildRoutePlan(sampleRouteStops(r, coast), SEG_DUR);
     islands = [];
     const islandCount = profile ? 0 : (r() < 0.18 ? 1 : 0);
     for (let k = 0; k < islandCount; k++){
@@ -633,34 +770,48 @@ export function createChannel({ seed, audio }){
     }
     ctx.restore();
 
-    // route highlight (animated)
-    ctx.save();
-    ctx.globalAlpha = 0.85;
-    ctx.strokeStyle = 'rgba(196, 65, 42, 0.65)';
-    ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) / 240));
-    ctx.setLineDash([8, 10]);
-    ctx.lineDashOffset = -t * 28;
-    ctx.beginPath();
-    ctx.moveTo(mx + mw * 0.2, my + mh * 0.75);
-    ctx.bezierCurveTo(mx + mw * 0.35, my + mh * 0.55, mx + mw * 0.45, my + mh * 0.52, mx + mw * 0.62, my + mh * 0.35);
-    ctx.stroke();
+    // Route: dotted links between in-country stops + moving highlight that pauses at stops.
+    if (route.stops.length > 0){
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = 'rgba(196, 65, 42, 0.65)';
+      ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) / 240));
+      ctx.setLineDash([8, 10]);
+      ctx.lineDashOffset = -t * 18;
+      for (let i = 0; i < route.stops.length - 1; i++){
+        const a = route.stops[i];
+        const b = route.stops[i + 1];
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
 
-    // destination pin
-    const px = mx + mw * 0.62;
-    const py = my + mh * 0.35;
-    const pr = Math.max(5, Math.floor(Math.min(w, h) * 0.012));
-    const pulse = 0.55 + 0.45 * Math.sin(t * 2.2);
-    ctx.setLineDash([]);
-    ctx.fillStyle = `rgba(196, 65, 42, ${0.75 + 0.2 * pulse})`;
-    ctx.beginPath();
-    ctx.arc(px, py, pr, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = 'rgba(196, 65, 42, 1)';
-    ctx.beginPath();
-    ctx.arc(px, py, pr * 2.2 * pulse, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+      ctx.setLineDash([]);
+      const stopR = Math.max(3, Math.floor(Math.min(w, h) * 0.007));
+      ctx.fillStyle = 'rgba(196, 65, 42, 0.52)';
+      for (const p of route.stops){
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, stopR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const p = routePositionAtTime(route, segT);
+      if (p){
+        const pulse = 0.55 + 0.45 * Math.sin(t * 3.2);
+        const pr = Math.max(5, Math.floor(Math.min(w, h) * 0.012));
+        ctx.fillStyle = `rgba(196, 65, 42, ${0.76 + 0.2 * pulse})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, pr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.2;
+        ctx.fillStyle = 'rgba(196, 65, 42, 1)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, pr * 2.15 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
 
     // channel title above map
     const font = Math.max(16, Math.floor(Math.min(w, h) / 34));
