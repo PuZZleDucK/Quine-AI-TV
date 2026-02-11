@@ -286,3 +286,4 @@
 - 2026-02-11 09:15 (Australia/Melbourne) [project:quine-tv] Perf pass `candlechess`: dust draw now sets fillStyle once and uses globalAlpha (no per-particle rgba/toFixed strings). Commit: 5382f89
 - 2026-02-11 09:30 (Australia/Melbourne) [project:quine-tv] Perf pass `candlechess`: cached board/vignette gradients + replaced candle gradients with cached sprites so steady-state render executes 0 create*Gradient() calls. Commit: 9938437
 - 2026-02-11 14:45 (Australia/Melbourne) [project:quine-tv] Perf pass `exposuretriangle`: cached paper/vignette gradients (rebuild on resize/ctx swap) and pre-rendered scanlines into an offscreen canvas (single drawImage blit). Commit: 3dcafb2
+- 2026-02-11 18:49 (Australia/Melbourne) [project:quine-tv] Visual polish `dreamreceipt`: print coupon on-receipt (no side drop; cue aligned to print head). Commit: 9a18fe3

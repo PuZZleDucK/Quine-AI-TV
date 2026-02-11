@@ -7,6 +7,8 @@
 
 - [x] [project:quine-tv] Perf pass `dreamreceipt` (src/channels/dreamreceipt.js): cache background gradients (counter linear + vignette radial) and any paper/slot gradients on init/resize/ctx swap so steady-state `draw*()` creates 0 gradients/frame. Accept: no `create*Gradient()` in steady-state render path. Commit: 05d1221
 
+- [x] [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): coupons are printed on the receipt (flash cue aligned to print head); removed side coupon drop. Commit: 9a18fe3
+
 - 2026-02-11 17:45 — quine-tv: reviewed channel `dreamreceipt` (screenshots/review-dreamreceipt); commit 4549f7f.
 
 - [x] [project:quine-tv] Review channel `cavetorch` (src/channels/cavetorch.js): captured screenshots (0–300s) to `screenshots/review-cavetorch`, did code+audio pass, added `// REVIEWED` marker, and queued concrete follow-ups. Commit: 05887db
