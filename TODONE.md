@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Channel `volcanoobs` (src/channels/volcanoobservatory.js): Add explicit, long-window eruption phases in `intensityAt()`/`puffAmount()` so at least one clearly visible eruptive event occurs within each 60s viewing window. Commit: 85eae5d
+
 - [x] [project:quine-tv] Content polish `dreamreceipt` (src/channels/dreamreceipt.js): expanded receipt text variety (more headers/footers/notes) + added deterministic rare special moment (VOID stamp or TOTAL ??? scramble) every ~45–120s. Accept: 5min capture shows at least one additional special moment; deterministic per seed. Commit: ecaabcb
 
 - [x] [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): added subtle counter film grain + stronger printer-slot lip/shadow (paper mouth shade) so the scene reads less “flat”. Commit: c13d109
