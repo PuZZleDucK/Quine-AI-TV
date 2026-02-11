@@ -496,11 +496,54 @@ export function createChannel({ seed, audio }){
     }
     ctx.stroke();
 
+    // thresholds / alert meter (tied to intensityAt(loopT))
+    const iNow = intensityAt(loopT);
+    const buildT = 0.32;
+    const alertT = 0.55;
+    const eruptT = 0.75;
+    const state = iNow >= eruptT ? 'ERUPT' : iNow >= alertT ? 'ALERT' : iNow >= buildT ? 'BUILD' : 'CALM';
+
+    const meterPad = 10;
+    const meterW = Math.max(6, Math.floor(s * 0.012));
+    const meterH = Math.max(12, sh - 34);
+    const meterX = x0 + sw - meterPad - meterW;
+    const meterY = y0 + 24;
+
+    const col = (state === 'ERUPT') ? 'rgba(255, 110, 90, 0.95)'
+      : (state === 'ALERT') ? 'rgba(255, 210, 120, 0.92)'
+      : (state === 'BUILD') ? 'rgba(200, 235, 255, 0.85)'
+      : 'rgba(140, 230, 190, 0.85)';
+
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fillRect(meterX, meterY, meterW, meterH);
+
+    const fillH = meterH * clamp(iNow, 0, 1);
+    ctx.globalAlpha = 0.78;
+    ctx.fillStyle = col;
+    ctx.fillRect(meterX, meterY + meterH - fillH, meterW, fillH);
+
+    ctx.globalAlpha = 0.40;
+    ctx.strokeStyle = 'rgba(200, 220, 255, 0.55)';
+    ctx.lineWidth = Math.max(1, s / 720);
+    for (const thr of [buildT, alertT, eruptT]){
+      const yy = meterY + (1 - thr) * meterH;
+      ctx.beginPath();
+      ctx.moveTo(meterX - 3, yy);
+      ctx.lineTo(meterX + meterW + 3, yy);
+      ctx.stroke();
+    }
+
     // label
+    ctx.font = `${Math.max(11, Math.floor(s / 54))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     ctx.globalAlpha = 0.35;
     ctx.fillStyle = 'rgba(200, 220, 255, 0.9)';
-    ctx.font = `${Math.max(11, Math.floor(s / 54))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     ctx.fillText('SEISMOGRAPH  •  TINY VOLCANO OBS', x0 + 10, y0 + 18);
+
+    ctx.globalAlpha = 0.60;
+    ctx.fillStyle = col;
+    const tw = ctx.measureText(state).width;
+    ctx.fillText(state, meterX - 8 - tw, y0 + 18);
 
     ctx.restore();
   }
