@@ -371,16 +371,29 @@ export function createChannel({ seed, audio }){
     return { id: nextContainerId++, col };
   }
 
+  function shipSlotCount(){
+    const { cw } = containerDims();
+    const margin = ship.w * 0.08;
+    const usableW = Math.max(1, ship.w - margin * 2);
+    // Choose a count that fits the fixed container width without obvious overlap.
+    return Math.max(6, Math.min(9, Math.round(usableW / Math.max(1, cw))));
+  }
+
   function shipSlotLayout(){
     // Match the drawShip() slot placement so crane pickups originate from the actual stack top.
-    const n = Math.max(1, shipStacks.length || 9);
-    const step = n >= 12 ? 0.062 : 0.078;
-    const bw = ship.w * (n >= 12 ? 0.055 : 0.062);
+    const dims = containerDims();
+    const n = Math.max(1, shipStacks.length || shipSlotCount());
+
     const sx = ship.x - ship.w;
     const baseY = ship.y - ship.h * 0.20;
-    const dy = ship.h * 0.22;
-    const ch = ship.h * 0.18;
-    return { n, step, bw, sx, baseY, dy, ch };
+
+    // Lay out stacks across the deck with a fixed container width so ship/yard/crane containers match.
+    const margin = ship.w * 0.08;
+    const usableW = Math.max(1, ship.w - margin * 2);
+    const bw = dims.cw;
+    const stepPx = n <= 1 ? 0 : (usableW - bw) / (n - 1);
+
+    return { n, sx, baseY, bw, dy: dims.dy, ch: dims.ch, margin, stepPx };
   }
 
   function regenShipStacks(cycle){
@@ -388,7 +401,7 @@ export function createChannel({ seed, audio }){
     const s = seed | 0;
     const cyc = cycle | 0;
 
-    const slotCount = 9;
+    const slotCount = shipSlotCount();
     shipStacks = [];
     for (let i = 0; i < slotCount; i++){
       const hi = hash01(s ^ Math.imul(cyc + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca6b));
@@ -414,7 +427,8 @@ export function createChannel({ seed, audio }){
 
   function tryScheduleOneMove(ci){
     // Returns true if a job started on this crane.
-    const u = yardContainerUnit();
+    const dims = containerDims();
+    const u = dims.u;
     const baseY = yardY + yardH;
 
     // phase 1: ship -> yard
@@ -447,13 +461,13 @@ export function createChannel({ seed, audio }){
       const container = stShip.pop();
       if (!container) return false;
 
-      const bx = lay.sx + ship.w * (0.08 + srcSlot * lay.step);
+      const bx = lay.sx + lay.margin + srcSlot * lay.stepPx;
       const startX = bx + lay.bw * 0.5;
       const topY = lay.baseY - (prevLen - 1) * lay.dy;
       const startY = topY + lay.ch * 0.5;
 
       const endX = bays[dest].x + bays[dest].w * 0.5;
-      const endY = baseY - (stackCount(dest) + 1) * (u * 0.78);
+      const endY = baseY - (stackCount(dest) + 1) * dims.dy + dims.ch * 0.5;
 
       const dur = 2.5 + 0.8 * moveRand01(container.id ^ (ci<<8));
       craneJobs[ci] = { kind: 'toYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
@@ -480,13 +494,13 @@ export function createChannel({ seed, audio }){
       if (dest === src || stackCount(dest) >= maxH) return false;
 
       const st = bayStacks[src];
-      const startY = baseY - (st.length) * (u * 0.78);
+      const startY = baseY - (st.length) * dims.dy + dims.ch * 0.5;
       const startX = bays[src].x + bays[src].w * 0.5;
       const container = st.pop();
       if (!container) return false;
 
       const endX = bays[dest].x + bays[dest].w * 0.5;
-      const endY = baseY - (stackCount(dest) + 1) * (u * 0.78);
+      const endY = baseY - (stackCount(dest) + 1) * dims.dy + dims.ch * 0.5;
 
       const dur = 2.3 + 0.9 * moveRand01(container.id ^ 0x51ed270b);
       craneJobs[ci] = { kind: 'yardToYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
@@ -506,13 +520,13 @@ export function createChannel({ seed, audio }){
       if (stackCount(dest) >= maxH) return false;
 
       const st = bayStacks[src];
-      const startY = baseY - (st.length) * (u * 0.78);
+      const startY = baseY - (st.length) * dims.dy + dims.ch * 0.5;
       const startX = bays[src].x + bays[src].w * 0.5;
       const container = st.pop();
       if (!container) return false;
 
       const endX = bays[dest].x + bays[dest].w * 0.5;
-      const endY = baseY - (stackCount(dest) + 1) * (u * 0.78);
+      const endY = baseY - (stackCount(dest) + 1) * dims.dy + dims.ch * 0.5;
 
       const dur = 2.1 + 0.7 * moveRand01(container.id ^ 0x27d4eb2d);
       craneJobs[ci] = { kind: 'yardToYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
@@ -795,7 +809,7 @@ export function createChannel({ seed, audio }){
         const st = shipStacks[i];
         if (!st || st.length === 0) continue;
 
-        const bx = lay.sx + ship.w * (0.08 + i * lay.step);
+        const bx = lay.sx + lay.margin + i * lay.stepPx;
         const bw = lay.bw;
 
         for (let j = 0; j < st.length; j++){
@@ -843,9 +857,19 @@ export function createChannel({ seed, audio }){
   function yardContainerUnit(){
     return Math.max(10, Math.floor(Math.min(yardW / (BAY_COUNT * 1.1), yardH / 11)));
   }
-  function bayTopY(i){
+
+  function containerDims(){
+    // One consistent container size used across yard/ship/crane.
     const u = yardContainerUnit();
-    return yardY + yardH - stackCount(i) * (u * 0.78);
+    const ch = Math.max(10, Math.round(u * 0.62));
+    const dy = Math.max(12, Math.round(u * 0.78));
+    const cw = Math.max(26, Math.round(u * 2.2));
+    return { u, cw, ch, dy };
+  }
+
+  function bayTopY(i){
+    const { dy } = containerDims();
+    return yardY + yardH - stackCount(i) * dy;
   }
 
   function drawYard(ctx){
@@ -876,18 +900,19 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // container stacks (persistent)
-    const u = yardContainerUnit();
+    const dims = containerDims();
+    const u = dims.u;
     for (let i = 0; i < BAY_COUNT; i++){
       const b = bays[i];
       const st = bayStacks[i] || [];
       const baseY = yardY + yardH;
-      const bw = b.w * 0.92;
+      const bw = Math.min(b.w * 0.92, dims.cw);
       const bx = b.x + (b.w - bw) * 0.5;
 
       for (let j = 0; j < st.length; j++){
-        const by = baseY - (j + 1) * (u * 0.78);
+        const by = baseY - (j + 1) * dims.dy;
         const c = st[j];
-        drawContainer(ctx, bx, by, bw, u * 0.62, c.col, c.id, dpr);
+        drawContainer(ctx, bx, by, bw, dims.ch, c.col, c.id, dpr);
       }
 
       // bay label
@@ -1018,7 +1043,8 @@ export function createChannel({ seed, audio }){
       if (mv.active && mv.container){
         // moving container (persistent entity)
         const col = mv.container.col;
-        drawContainer(ctx, mv.x - 18, mv.y - 8, 36, 16, col, mv.container.id, dpr);
+        const { cw, ch } = containerDims();
+        drawContainer(ctx, mv.x - cw * 0.5, mv.y - ch * 0.5, cw, ch, col, mv.container.id, dpr);
       }
     }
 
