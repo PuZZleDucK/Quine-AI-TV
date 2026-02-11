@@ -238,18 +238,40 @@ export function createChannel({ seed, audio }){
     invalidateGradients();
   }
 
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = ambience;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // Clears audio.current and stops via handle.stop().
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ambience = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    stopAmbience({ clearCurrent: true });
+
     // quiet shop hum
     const n = audio.noiseSource({ type: 'pink', gain: 0.0022 });
     n.start();
-    ambience = { stop(){ try{ n.stop(); } catch {} } };
-    audio.setCurrent(ambience);
+
+    const handle = { stop(){ try{ n.stop(); } catch {} } };
+    ambience = handle;
+    audio.setCurrent(handle);
   }
 
   function onAudioOff(){
-    try{ ambience?.stop?.(); } catch {}
-    ambience = null;
+    // Stop our ambience and clear AudioManager.current only if we own it.
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy(){ onAudioOff(); }
