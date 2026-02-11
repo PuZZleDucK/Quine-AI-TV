@@ -1,5 +1,6 @@
 
 # TODO Queue
 
+- [ ] [project:quine-tv] visuals `containerport`: containers on the ships are the wrong size, should be the same size as all other containers.
 - [ ] [project:quine-tv] visuals `containerport`: containers should be loaded and unloaded from ships when ship is stopped only. some ships unload, some load, some both.
-- [ ] [project:quine-tv] visuals `containerport`: cranes should only lift containers vertically and should be consistant and not jump around
+- [ ] [project:quine-tv] visuals `containerport`: cranes should only lift containers vertically and should be consistant and not jump around.
