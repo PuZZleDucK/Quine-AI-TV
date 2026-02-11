@@ -429,6 +429,7 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(ix, iy, iw, ih);
     ctx.restore();
 
+    const groundY = Math.floor(iy + street.horizon);
     for (const layer of street.layers){
       const tone = Math.floor(12 + (1 - layer.depth) * 24);
       const layerParallax = 0.3 + 0.8 * layer.depth;
@@ -436,22 +437,29 @@ export function createChannel({ seed, audio }){
       const layerShift = -((baseShift * layerParallax) % wrap);
       for (const b of layer.buildings){
         for (let rep = -1; rep <= 2; rep++){
-          const bx = ix + (b.x - layer.stripStart) + layerShift + rep * wrap;
-          const by = iy + street.horizon - b.h;
-          if (bx + b.w < ix || bx > ix + iw) continue;
+          const bx = Math.floor(ix + (b.x - layer.stripStart) + layerShift + rep * wrap);
+          const by = Math.floor(groundY - b.h);
+          const bw = Math.ceil(b.w);
+          const bh = Math.ceil(b.h) + 1;
+          if (bx + bw < ix || bx > ix + iw) continue;
           ctx.fillStyle = `rgb(${tone}, ${tone + 3}, ${tone + 7})`;
-          ctx.fillRect(bx, by, b.w, b.h);
+          ctx.fillRect(bx, by, bw, bh);
 
           // rare-event windows: mostly stable with occasional on/off changes
-          const ww = b.w / (b.cols + 1);
-          const wh = b.h / (b.rows + 1);
+          const ww = bw / (b.cols + 1);
+          const wh = bh / (b.rows + 1);
           for (let r0 = 1; r0 <= b.rows; r0++){
             for (let c0 = 1; c0 <= b.cols; c0++){
               const wi = (r0 - 1) * b.cols + (c0 - 1);
               if (!b.lights[wi]) continue;
               const twinkle = 0.82 + 0.18 * Math.sin(t * 0.35 + b.seed + wi * 0.17);
               ctx.fillStyle = `rgba(255, 210, 140, ${(0.06 + 0.08 * layer.depth) * twinkle})`;
-              ctx.fillRect(bx + c0 * ww, by + r0 * wh, ww * 0.35, wh * 0.35);
+              ctx.fillRect(
+                Math.floor(bx + c0 * ww),
+                Math.floor(by + r0 * wh),
+                Math.max(1, Math.floor(ww * 0.35)),
+                Math.max(1, Math.floor(wh * 0.35))
+              );
             }
           }
         }
@@ -460,7 +468,7 @@ export function createChannel({ seed, audio }){
 
     // anchor silhouettes to a ground strip so skylines never appear to float
     ctx.fillStyle = 'rgba(12, 17, 29, 0.96)';
-    ctx.fillRect(ix, iy + street.horizon, iw, Math.max(2, Math.floor(ih * 0.06)));
+    ctx.fillRect(ix, groundY, iw, Math.max(3, Math.floor(ih * 0.06)));
 
     // scanlines
     ctx.save();
