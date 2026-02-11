@@ -101,6 +101,8 @@ export function createChannel({ seed, audio }){
     seed: 0,
     drift: 0,
     energy: 1,
+    strokeStyle: 'hsla(175, 92%, 70%, 0.12)',
+    shadowColor: 'hsla(175, 92%, 70%, 0.25)',
   }));
 
   // audio
@@ -183,6 +185,10 @@ export function createChannel({ seed, audio }){
     tr.hue = kind === 'big' ? (168 + rand() * 34) : (175 + rand() * 22);
     tr.seed = (rand() * 1e9) | 0;
     tr.drift = (rand() * 4.5 + (kind === 'big' ? 4.0 : 2.0)) * (rand() < 0.5 ? -1 : 1);
+
+    // perf: precompute style strings per track; fade via ctx.globalAlpha in drawTracks()
+    tr.strokeStyle = `hsla(${tr.hue}, 92%, 70%, ${0.12 * tr.energy})`;
+    tr.shadowColor = `hsla(${tr.hue}, 92%, 70%, 0.25)`;
 
     // path
     const margin = Math.min(cw, ch) * 0.06;
@@ -364,9 +370,11 @@ export function createChannel({ seed, audio }){
       const dx = (Math.sin(t * 0.33 + tr.seed * 0.00002) * 1.4 + wob) * 0.35;
       const dy = (Math.cos(t * 0.27 + tr.seed * 0.000015) * 1.7 - wob) * 0.35;
 
-      ctx.strokeStyle = `hsla(${tr.hue}, 92%, 70%, ${a * 0.12 * glow * tr.energy})`;
+      // perf: no per-frame template literal allocations; fade via globalAlpha
+      ctx.globalAlpha = a * glow;
+      ctx.strokeStyle = tr.strokeStyle;
       ctx.lineWidth = tr.width * (1.0 + a * 0.35);
-      ctx.shadowColor = `hsla(${tr.hue}, 92%, 70%, ${a * 0.25 * glow})`;
+      ctx.shadowColor = tr.shadowColor;
       ctx.shadowBlur = 10 + a * 18;
 
       ctx.beginPath();
