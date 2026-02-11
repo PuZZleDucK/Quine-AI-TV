@@ -156,6 +156,7 @@ export function createChannel({ seed, audio }){
   let ship = { x: 0, y: 0, w: 0, h: 0, dockX: 0 };
   let shipStacks = []; // Array<Array<{id:number, col:string}>> (persistent on-ship containers)
   let shipCycle = -1;
+  let shipOp = 0; // 0=unload-only, 1=load-only, 2=unload+load
 
   // Special moment: reroute
   let routeA = 0;
@@ -260,7 +261,8 @@ export function createChannel({ seed, audio }){
     ship.x = w + ship.w * 1.10;
 
     shipCycle = 0;
-    regenShipStacks(shipCycle);
+    shipOp = pickShipOp(shipCycle);
+    regenShipStacks(shipCycle, shipOp);
   }
 
   function init({ width, height, dpr: dprIn }){
@@ -371,6 +373,16 @@ export function createChannel({ seed, audio }){
     return { id: nextContainerId++, col };
   }
 
+  const SHIP_MAX_H = 3;
+  function pickShipOp(cycle){
+    // Deterministic per seed + ship cycle.
+    // 0=unload-only (arrives full, leaves empty)
+    // 1=load-only (arrives empty, leaves with cargo)
+    // 2=both (unload then load)
+    const r = hash01(((seed|0) ^ Math.imul((cycle|0) + 1, 0x9e3779b1) ^ 0x3c6ef372) | 0);
+    return r < 0.34 ? 0 : (r < 0.67 ? 1 : 2);
+  }
+
   function shipSlotCount(){
     const { cw } = containerDims();
     const margin = ship.w * 0.08;
@@ -396,16 +408,21 @@ export function createChannel({ seed, audio }){
     return { n, sx, baseY, bw, dy: dims.dy, ch: dims.ch, margin, stepPx };
   }
 
-  function regenShipStacks(cycle){
+  function regenShipStacks(cycle, op){
     // New ship load per cycle: deterministic per seed + cycle (does not consume visual PRNG).
+    // NOTE: For load-only ships, we still create empty stacks so layout remains stable.
     const s = seed | 0;
     const cyc = cycle | 0;
+    op = (op | 0);
 
     const slotCount = shipSlotCount();
     shipStacks = [];
     for (let i = 0; i < slotCount; i++){
-      const hi = hash01(s ^ Math.imul(cyc + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca6b));
-      const n = 1 + ((hi * 3) | 0); // 1–3 (cap ship stacks at 3 high)
+      let n = 0;
+      if (op !== 1){
+        const hi = hash01(s ^ Math.imul(cyc + 1, 0x9e3779b1) ^ Math.imul(i + 1, 0x85ebca6b));
+        n = 1 + ((hi * 3) | 0); // 1–3 (cap ship stacks at 3 high)
+      }
 
       const st = [];
       for (let j = 0; j < n; j++){
@@ -419,6 +436,13 @@ export function createChannel({ seed, audio }){
 
   function completeCraneJob(job){
     if (!job) return;
+
+    if (job.kind === 'toShip'){
+      const st = shipStacks[job.destSlot];
+      if (st && st.length < SHIP_MAX_H) st.push(job.container);
+      return;
+    }
+
     if (job.kind === 'toYard' || job.kind === 'yardToYard'){
       const st = bayStacks[job.destBay];
       if (st && st.length < 9) st.push(job.container);
@@ -431,47 +455,114 @@ export function createChannel({ seed, audio }){
     const u = dims.u;
     const baseY = yardY + yardH;
 
-    // phase 1: ship -> yard
+    // phase 1: ship <-> yard (only while the ship is docked/stopped)
     if (phaseIndex === 1){
-      const maxH = 9;
-      let start = (moveRand01(moveCursor + 1) * BAY_COUNT) | 0;
-      let dest = -1;
-      for (let k = 0; k < BAY_COUNT; k++){
-        const i = (start + k) % BAY_COUNT;
-        if (stackCount(i) < maxH){ dest = i; break; }
+      // Only move cargo when the ship is fully docked (stopped).
+      if (Math.abs(ship.x - ship.dockX) > 0.5) return false;
+
+      const maxYardH = 9;
+      const maxShipH = SHIP_MAX_H;
+
+      const phaseT = (t % PHASE_DUR) / PHASE_DUR;
+      const preferUnload = shipOp === 0 || (shipOp === 2 && phaseT < 0.55);
+      const preferLoad = shipOp === 1 || (shipOp === 2 && phaseT >= 0.55);
+
+      const scheduleShipToYard = () => {
+        let start = (moveRand01(moveCursor + 1) * BAY_COUNT) | 0;
+        let dest = -1;
+        for (let k = 0; k < BAY_COUNT; k++){
+          const i = (start + k) % BAY_COUNT;
+          if (stackCount(i) < maxYardH){ dest = i; break; }
+        }
+        moveCursor++;
+        if (dest < 0) return false;
+
+        const slotCount = shipStacks.length;
+        if (slotCount <= 0) return false;
+
+        // Choose a non-empty ship slot deterministically (so the ship visibly empties).
+        let startSlot = (moveRand01(moveCursor + 11 + ci * 17) * slotCount) | 0;
+        let srcSlot = -1;
+        for (let k = 0; k < slotCount; k++){
+          const i = (startSlot + k) % slotCount;
+          if (shipStacks[i] && shipStacks[i].length > 0){ srcSlot = i; break; }
+        }
+        if (srcSlot < 0) return false;
+
+        const lay = shipSlotLayout();
+        const stShip = shipStacks[srcSlot];
+        const prevLen = stShip.length;
+        const container = stShip.pop();
+        if (!container) return false;
+
+        const bx = lay.sx + lay.margin + srcSlot * lay.stepPx;
+        const startX = bx + lay.bw * 0.5;
+        const topY = lay.baseY - (prevLen - 1) * lay.dy;
+        const startY = topY + lay.ch * 0.5;
+
+        const endX = bays[dest].x + bays[dest].w * 0.5;
+        const endY = baseY - (stackCount(dest) + 1) * dims.dy + dims.ch * 0.5;
+
+        const dur = 2.5 + 0.8 * moveRand01(container.id ^ (ci<<8));
+        craneJobs[ci] = { kind: 'toYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
+        return true;
+      };
+
+      const scheduleYardToShip = () => {
+        let start = (moveRand01(moveCursor + 5) * BAY_COUNT) | 0;
+        let src = -1;
+        for (let k = 0; k < BAY_COUNT; k++){
+          const i = (start + k) % BAY_COUNT;
+          if (stackCount(i) > 0){ src = i; break; }
+        }
+        moveCursor++;
+        if (src < 0) return false;
+
+        const slotCount = shipStacks.length;
+        if (slotCount <= 0) return false;
+
+        // Choose a not-full ship slot deterministically (so the ship visibly fills).
+        let startSlot = (moveRand01(moveCursor + 23 + ci * 19) * slotCount) | 0;
+        let destSlot = -1;
+        for (let k = 0; k < slotCount; k++){
+          const i = (startSlot + k) % slotCount;
+          if (shipStacks[i] && shipStacks[i].length < maxShipH){ destSlot = i; break; }
+        }
+        if (destSlot < 0) return false;
+
+        const st = bayStacks[src];
+        const prevLen = st.length;
+        const container = st.pop();
+        if (!container) return false;
+
+        const startX = bays[src].x + bays[src].w * 0.5;
+        const startY = baseY - (prevLen) * dims.dy + dims.ch * 0.5;
+
+        const lay = shipSlotLayout();
+        const bx = lay.sx + lay.margin + destSlot * lay.stepPx;
+        const endX = bx + lay.bw * 0.5;
+        const newLen = shipStacks[destSlot].length + 1;
+        const topY = lay.baseY - (newLen - 1) * lay.dy;
+        const endY = topY + lay.ch * 0.5;
+
+        const dur = 2.4 + 0.9 * moveRand01(container.id ^ 0x2f1a0d19 ^ (ci<<8));
+        craneJobs[ci] = { kind: 'toShip', container, destSlot, startT: t, dur, startX, startY, endX, endY };
+        return true;
+      };
+
+      if (preferUnload){
+        if (scheduleShipToYard()) return true;
+        if (shipOp === 2) return scheduleYardToShip();
+        return false;
       }
-      moveCursor++;
-      if (dest < 0) return false;
 
-      const slotCount = shipStacks.length;
-      if (slotCount <= 0) return false;
-
-      // Choose a non-empty ship slot deterministically (so the ship visibly empties).
-      let startSlot = (moveRand01(moveCursor + 11 + ci * 17) * slotCount) | 0;
-      let srcSlot = -1;
-      for (let k = 0; k < slotCount; k++){
-        const i = (startSlot + k) % slotCount;
-        if (shipStacks[i] && shipStacks[i].length > 0){ srcSlot = i; break; }
+      if (preferLoad){
+        if (scheduleYardToShip()) return true;
+        if (shipOp === 2) return scheduleShipToYard();
+        return false;
       }
-      if (srcSlot < 0) return false;
 
-      const lay = shipSlotLayout();
-      const stShip = shipStacks[srcSlot];
-      const prevLen = stShip.length;
-      const container = stShip.pop();
-      if (!container) return false;
-
-      const bx = lay.sx + lay.margin + srcSlot * lay.stepPx;
-      const startX = bx + lay.bw * 0.5;
-      const topY = lay.baseY - (prevLen - 1) * lay.dy;
-      const startY = topY + lay.ch * 0.5;
-
-      const endX = bays[dest].x + bays[dest].w * 0.5;
-      const endY = baseY - (stackCount(dest) + 1) * dims.dy + dims.ch * 0.5;
-
-      const dur = 2.5 + 0.8 * moveRand01(container.id ^ (ci<<8));
-      craneJobs[ci] = { kind: 'toYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
-      return true;
+      return false;
     }
 
     // phase 2: yard -> yard
@@ -550,7 +641,8 @@ export function createChannel({ seed, audio }){
         const cyc = ((t / CYCLE_DUR) | 0);
         if (cyc !== shipCycle){
           shipCycle = cyc;
-          regenShipStacks(shipCycle);
+          shipOp = pickShipOp(shipCycle);
+          regenShipStacks(shipCycle, shipOp);
         }
       }
 
@@ -583,6 +675,18 @@ export function createChannel({ seed, audio }){
       }
     }
 
+    // ship motion (arrival + sweep)
+    const phaseT = (t % PHASE_DUR) / PHASE_DUR;
+    if (phaseIndex === 0){
+      const u = ease(phaseT);
+      ship.x = lerp(w + ship.w * 1.10, ship.dockX, u);
+    } else if (phaseIndex === 4){
+      const u = ease(phaseT);
+      ship.x = lerp(ship.dockX, -ship.w * 0.25, u);
+    } else {
+      ship.x = ship.dockX;
+    }
+
     if (phaseIndex === 1 || phaseIndex === 2 || phaseIndex === 3){
       const interval = 60 / Math.max(1, movesPerMin);
       while (t >= moveNextT){
@@ -598,18 +702,6 @@ export function createChannel({ seed, audio }){
         if (!started) moveCursor++;
         moveNextT += interval;
       }
-    }
-
-    // ship motion (arrival + sweep)
-    const phaseT = (t % PHASE_DUR) / PHASE_DUR;
-    if (phaseIndex === 0){
-      const u = ease(phaseT);
-      ship.x = lerp(w + ship.w * 1.10, ship.dockX, u);
-    } else if (phaseIndex === 4){
-      const u = ease(phaseT);
-      ship.x = lerp(ship.dockX, -ship.w * 0.25, u);
-    } else {
-      ship.x = ship.dockX;
     }
 
     // occasional tiny crane click
