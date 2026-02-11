@@ -474,13 +474,47 @@ export function createChannel({ seed, audio }) {
     }
   }
 
+  function stopAmbience({ clearCurrent = false } = {}) {
+    // Cancel pending beeps regardless of whether we have an active handle.
+    beepTimers.forEach((id) => clearTimeout(id));
+    beepTimers = [];
+
+    const handle = audioHandle;
+
+    // If we somehow have sources without a registered handle, stop them anyway.
+    if (!handle) {
+      try { drone?.stop?.(); } catch {}
+      try { noise?.stop?.(); } catch {}
+      drone = null;
+      noise = null;
+      return;
+    }
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent) {
+      // Stops via handle.stop() and clears AudioManager.current.
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    audioHandle = null;
+    drone = null;
+    noise = null;
+  }
+
   function onAudioOn() {
+    if (!audio?.enabled) return;
+
+    // Defensive: keep repeated audio toggles idempotent (no stacked sources).
+    stopAmbience({ clearCurrent: true });
+
     try {
       drone = simpleDrone(audio, { root: 55 + ((rand() * 40) | 0), gain: 0.035 });
       noise = audio.noiseSource({ type: 'brown', gain: 0.018 });
       noise.start();
 
-      audioHandle = {
+      const handle = {
         stop() {
           beepTimers.forEach((id) => clearTimeout(id));
           beepTimers = [];
@@ -488,17 +522,14 @@ export function createChannel({ seed, audio }) {
           try { noise?.stop?.(); } catch {}
         },
       };
-      audio.setCurrent(audioHandle);
+      audioHandle = handle;
+      audio.setCurrent(handle);
     } catch {}
   }
 
   function onAudioOff() {
-    beepTimers.forEach((id) => clearTimeout(id));
-    beepTimers = [];
-    try { audioHandle?.stop?.(); } catch {}
-    audioHandle = null;
-    drone = null;
-    noise = null;
+    // Stop our handle; clear AudioManager.current only if we own it.
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy() {
