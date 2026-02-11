@@ -43,6 +43,59 @@ export function createChannel({ seed, audio }){
   let printAcc = 0;
   let lastPrintRow = -1;
 
+
+  // gradients (cached; rebuilt on init/resize or ctx swap)
+  let gradCtx = null;
+  let gradKey = '';
+  let gCounter = null;
+  let gVignette = null;
+  let gPrinterBody = null;
+  let gPaper = null;
+
+  function invalidateGradients(){
+    gradCtx = null;
+    gradKey = '';
+    gCounter = null;
+    gVignette = null;
+    gPrinterBody = null;
+    gPaper = null;
+  }
+
+  function ensureGradients(ctx){
+    const key = `${w}|${h}|${s}|${cx}|${slotY}|${paperW}`;
+    if (ctx === gradCtx && key === gradKey && gCounter && gVignette && gPrinterBody && gPaper) return;
+
+    gradCtx = ctx;
+    gradKey = key;
+
+    // counter background gradient
+    const cg = ctx.createLinearGradient(0, 0, 0, h);
+    cg.addColorStop(0, '#12161c');
+    cg.addColorStop(0.55, '#0e1014');
+    cg.addColorStop(1, '#050608');
+    gCounter = cg;
+
+    // vignette gradient
+    const vg = ctx.createRadialGradient(cx, h * 0.42, s * 0.08, cx, h * 0.5, s * 0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.55)');
+    gVignette = vg;
+
+    // printer body gradient
+    const bodyH = Math.floor(s * 0.18);
+    const y = Math.floor(slotY - bodyH * 0.55);
+    const pg = ctx.createLinearGradient(0, y, 0, y + bodyH);
+    pg.addColorStop(0, '#2a2f38');
+    pg.addColorStop(1, '#151922');
+    gPrinterBody = pg;
+
+    // paper overlay (world-space; avoids per-frame gradient rebuild as paper extends)
+    const pap = ctx.createLinearGradient(0, 0, 0, h);
+    pap.addColorStop(0, 'rgba(255,255,255,0.55)');
+    pap.addColorStop(1, 'rgba(0,0,0,0.08)');
+    gPaper = pap;
+  }
+
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
   function mkReceipt(prng){
@@ -173,6 +226,7 @@ export function createChannel({ seed, audio }){
     loopT = 0;
     receiptNo = 1;
     regen();
+    invalidateGradients();
   }
 
   function onResize(width, height, dprIn){
@@ -181,6 +235,7 @@ export function createChannel({ seed, audio }){
     h = height;
     dpr = dprIn || 1;
     regen();
+    invalidateGradients();
   }
 
   function onAudioOn(){
@@ -255,11 +310,8 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = '#0b0d10';
     ctx.fillRect(0, 0, w, h);
 
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#12161c');
-    g.addColorStop(0.55, '#0e1014');
-    g.addColorStop(1, '#050608');
-    ctx.fillStyle = g;
+    ensureGradients(ctx);
+    ctx.fillStyle = gCounter;
     ctx.fillRect(0, 0, w, h);
 
     // subtle scan shimmer
@@ -271,10 +323,7 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // vignette
-    const v = ctx.createRadialGradient(cx, h * 0.42, s * 0.08, cx, h * 0.5, s * 0.75);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = v;
+    ctx.fillStyle = gVignette;
     ctx.fillRect(0, 0, w, h);
   }
 
@@ -304,10 +353,8 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // body
-    const gg = ctx.createLinearGradient(0, y, 0, y + bodyH);
-    gg.addColorStop(0, '#2a2f38');
-    gg.addColorStop(1, '#151922');
-    ctx.fillStyle = gg;
+    ensureGradients(ctx);
+    ctx.fillStyle = gPrinterBody;
     roundRect(ctx, x, y, bodyW, bodyH, 18);
     ctx.fill();
 
@@ -379,11 +426,9 @@ export function createChannel({ seed, audio }){
     ctx.fill();
 
     // subtle paper gradient
-    const pg = ctx.createLinearGradient(0, y0, 0, y0 + ph);
-    pg.addColorStop(0, 'rgba(255,255,255,0.55)');
-    pg.addColorStop(1, 'rgba(0,0,0,0.08)');
+    ensureGradients(ctx);
     ctx.globalAlpha = 0.55;
-    ctx.fillStyle = pg;
+    ctx.fillStyle = gPaper;
     roundRect(ctx, x0, y0, paperW, ph, 10);
     ctx.fill();
     ctx.globalAlpha = 1;
