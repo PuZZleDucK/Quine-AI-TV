@@ -7,6 +7,17 @@ function lerp(a,b,t){ return a + (b-a)*t; }
 function ease(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
 function fract(x){ return x - Math.floor(x); }
 
+// Deterministic hash → [0,1). (Avoids consuming the channel PRNG, which is used elsewhere.)
+function hash01(n){
+  n = (n | 0) >>> 0;
+  n ^= n >>> 16;
+  n = Math.imul(n, 0x7feb352d);
+  n ^= n >>> 15;
+  n = Math.imul(n, 0x846ca68b);
+  n ^= n >>> 16;
+  return (n >>> 0) / 4294967296;
+}
+
 function roundedRect(ctx, x, y, w, h, r){
   r = Math.min(r, w*0.5, h*0.5);
   ctx.beginPath();
@@ -326,20 +337,57 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = gSky;
     ctx.fillRect(0, 0, w, h);
 
-    // clouds
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = 'rgba(120,210,255,0.07)';
-    for (let i = 0; i < 7; i++){
-      const sp = 0.01 + i * 0.006;
-      const x = (w * (0.12 + i * 0.13) + (t * 38 * sp)) % (w * 1.2) - w * 0.1;
-      const y = h * (0.10 + i * 0.04);
-      const r = w * (0.06 + i * 0.008);
-      ctx.beginPath();
-      ctx.ellipse(x, y, r * 1.25, r * 0.55, 0, 0, Math.PI * 2);
-      ctx.fill();
+    // clouds (layered puffs; deterministic by seed, no rand() calls)
+    for (let pass = 0; pass < 2; pass++){
+      ctx.save();
+      ctx.globalCompositeOperation = pass === 0 ? 'source-over' : 'screen';
+
+      for (let i = 0; i < 7; i++){
+        const h0 = hash01((seed|0) + i * 1013);
+        const h1 = hash01((seed|0) + i * 1619);
+        const h2 = hash01((seed|0) + i * 2713);
+
+        const sp = (0.006 + i * 0.004) * (0.70 + 0.80 * h0);
+        const x0 = (w * (0.10 + i * 0.14) + (t * 34 * sp)) % (w * 1.25) - w * 0.12 + (h1 - 0.5) * w * 0.04;
+        const y0 = h * (0.09 + i * 0.043) + (h2 - 0.5) * h * 0.015;
+
+        const r0 = w * (0.050 + i * 0.009) * (0.85 + 0.55 * h1);
+        const puffN = 4 + ((h2 * 5) | 0);
+
+        const a = 0.040 + 0.030 * (1 - i / 7);
+        if (pass === 0){
+          ctx.fillStyle = `rgba(0,0,0,${0.020 + a * 0.55})`;
+        } else {
+          ctx.fillStyle = `rgba(140,225,255,${a})`;
+        }
+
+        for (let p = 0; p < puffN; p++){
+          const hp = hash01((seed|0) + i * 9001 + p * 97);
+          const hq = hash01((seed|0) + i * 9001 + p * 131);
+          const hr = hash01((seed|0) + i * 9001 + p * 193);
+
+          const px = x0 + (hp - 0.5) * r0 * 1.25;
+          const py = y0 + (hq - 0.5) * r0 * 0.22 + (pass === 0 ? r0 * 0.10 : 0);
+          const pr = r0 * (0.32 + 0.46 * hr);
+
+          ctx.beginPath();
+          ctx.ellipse(px, py, pr * 1.10, pr * 0.64, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // small highlight cap
+        if (pass === 1){
+          const hx = x0 + (hash01((seed|0) + i * 6007) - 0.5) * r0 * 0.6;
+          const hy = y0 - r0 * 0.12;
+          ctx.fillStyle = `rgba(225,250,255,${a * 0.50})`;
+          ctx.beginPath();
+          ctx.ellipse(hx, hy, r0 * 0.55, r0 * 0.18, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
     }
-    ctx.restore();
 
     // horizon glow
     ctx.save();
