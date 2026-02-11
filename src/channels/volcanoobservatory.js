@@ -40,6 +40,36 @@ export function createChannel({ seed, audio }){
   let rumble = null; // {src,gain,start,stop}
   let lastPuffTick = false;
 
+  // perf: cache gradients that depend only on layout (rebuilt on regen/ctx swap)
+  let gradVer = 0;
+  let gradVerBuilt = -1;
+  let gradCtx = null;
+  let skyGradient = null;
+  let groundGradient = null;
+  let vignetteGradient = null;
+
+  function invalidateGradients(){ gradVer++; }
+
+  function ensureGradients(ctx){
+    if (gradCtx === ctx && gradVerBuilt === gradVer && skyGradient && groundGradient && vignetteGradient) return;
+    gradCtx = ctx;
+    gradVerBuilt = gradVer;
+
+    skyGradient = ctx.createLinearGradient(0, 0, 0, h);
+    skyGradient.addColorStop(0, '#070a12');
+    skyGradient.addColorStop(0.55, '#0a0f18');
+    skyGradient.addColorStop(1, '#04050a');
+
+    const groundY = horizon + h * 0.18;
+    groundGradient = ctx.createLinearGradient(0, groundY, 0, h);
+    groundGradient.addColorStop(0, '#05070d');
+    groundGradient.addColorStop(1, '#020306');
+
+    vignetteGradient = ctx.createRadialGradient(cx, h * 0.46, s * 0.12, cx, h * 0.52, s * 0.82);
+    vignetteGradient.addColorStop(0, 'rgba(0,0,0,0)');
+    vignetteGradient.addColorStop(1, 'rgba(0,0,0,0.55)');
+  }
+
   function intensityAt(time){
     // phase windows in seconds (relative within loop)
     const lt = ((time % loopDur) + loopDur) % loopDur;
@@ -147,6 +177,8 @@ export function createChannel({ seed, audio }){
         a: 0.08 + prng() * 0.18,
       };
     });
+
+    invalidateGradients();
   }
 
   function init({ width, height, dpr: dprIn }){
@@ -210,11 +242,9 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBackground(ctx){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#070a12');
-    g.addColorStop(0.55, '#0a0f18');
-    g.addColorStop(1, '#04050a');
-    ctx.fillStyle = g;
+    ensureGradients(ctx);
+
+    ctx.fillStyle = skyGradient;
     ctx.fillRect(0, 0, w, h);
 
     // stars
@@ -356,10 +386,8 @@ export function createChannel({ seed, audio }){
 
     // ground plane
     const groundY = horizon + h * 0.18;
-    const gg = ctx.createLinearGradient(0, groundY, 0, h);
-    gg.addColorStop(0, '#05070d');
-    gg.addColorStop(1, '#020306');
-    ctx.fillStyle = gg;
+    ensureGradients(ctx);
+    ctx.fillStyle = groundGradient;
     ctx.fillRect(0, groundY, w, h - groundY);
 
     ctx.restore();
@@ -506,10 +534,8 @@ export function createChannel({ seed, audio }){
     drawHud(ctx);
 
     // subtle vignette
-    const v = ctx.createRadialGradient(cx, h * 0.46, s * 0.12, cx, h * 0.52, s * 0.82);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = v;
+    ensureGradients(ctx);
+    ctx.fillStyle = vignetteGradient;
     ctx.fillRect(0, 0, w, h);
   }
 
