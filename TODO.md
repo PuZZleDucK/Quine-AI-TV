@@ -4,7 +4,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- Review channel: kintsugi
 - Review channel: deepseasonar
 - Review channel: kaleido
 
