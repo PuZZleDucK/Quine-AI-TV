@@ -112,6 +112,8 @@ export function createChannel({ seed, audio }){
     warn2: '#ffcf6a',
   };
 
+  const CONTAINER_COLS = ['#2b2d3a','#2f1f2b','#1f2b2a','#2f2a1f','#1f2430','#2a3322','#2a2033'];
+
   const PHASES = [
     { id: 'arrival', label: 'SHIP ARRIVAL' },
     { id: 'unload', label: 'UNLOAD' },
@@ -140,12 +142,16 @@ export function createChannel({ seed, audio }){
   let movesPerMin = 18;
 
   const BAY_COUNT = 14;
-  let bays = []; // {x, w, h, col, h0, ht}
-  let heights = new Float32Array(BAY_COUNT);
-  let targets = new Float32Array(BAY_COUNT);
+  let bays = []; // {x, w, col}
+  let bayStacks = []; // Array<Array<{id:number, col:string}>>
+  let nextContainerId = 1;
 
   const CRANE_COUNT = 3;
   let cranes = []; // {x, y, s, off}
+  let craneJobs = new Array(CRANE_COUNT).fill(null); // {startT,dur,startX,startY,endX,endY,container,destBay,kind}
+
+  let moveNextT = 0;
+  let moveCursor = 0;
 
   let ship = { x: 0, y: 0, w: 0, h: 0, dockX: 0 };
 
@@ -199,7 +205,7 @@ export function createChannel({ seed, audio }){
     const bayW = (yardW - gap * (BAY_COUNT - 1)) / BAY_COUNT;
     for (let i = 0; i < BAY_COUNT; i++){
       const x = yardX + i * (bayW + gap);
-      const col = pick(rand, ['#2b2d3a','#2f1f2b','#1f2b2a','#2f2a1f','#1f2430','#2a3322','#2a2033']);
+      const col = pick(rand, CONTAINER_COLS);
       bays.push({ x, w: bayW, col });
     }
 
@@ -212,17 +218,25 @@ export function createChannel({ seed, audio }){
 
     gradientsDirty = true;
   }
-
   function reset(){
     t = 0;
     phaseIndex = -1;
 
-    // base stack heights
+    // base stacks (persistent container entities)
+    bayStacks = [];
+    nextContainerId = 1;
     for (let i = 0; i < BAY_COUNT; i++){
-      const v = 1 + ((rand() * 3) | 0);
-      heights[i] = v;
-      targets[i] = v;
+      const n = 1 + ((rand() * 3) | 0);
+      const st = [];
+      for (let j = 0; j < n; j++){
+        st.push({ id: nextContainerId++, col: pick(rand, CONTAINER_COLS) });
+      }
+      bayStacks.push(st);
     }
+
+    craneJobs = new Array(CRANE_COUNT).fill(null);
+    moveNextT = 1.0;
+    moveCursor = 0;
 
     routeA = (rand() * BAY_COUNT) | 0;
     routeB = (routeA + 4 + ((rand() * 6) | 0)) % BAY_COUNT;
@@ -285,32 +299,17 @@ export function createChannel({ seed, audio }){
   function destroy(){
     onAudioOff();
   }
-
   function chooseTargetsForPhase(p){
-    // copy current targets by default
-    for (let i = 0; i < BAY_COUNT; i++) targets[i] = heights[i];
-
+    // phase controls pacing + alerts; container entities are moved via cranes (no height lerping)
     if (p === 0){
-      // arrival: keep modest stacks
+      // arrival: slower cadence
       movesPerMin = 14 + ((rand() * 6) | 0);
-      for (let i = 0; i < BAY_COUNT; i++) targets[i] = clamp(targets[i], 1, 4);
     } else if (p === 1){
-      // unload: build up a few bays
+      // unload: busiest
       movesPerMin = 20 + ((rand() * 10) | 0);
-      const k = 4 + ((rand() * 3) | 0);
-      for (let j = 0; j < k; j++){
-        const idx = (rand() * BAY_COUNT) | 0;
-        targets[idx] = clamp(targets[idx] + 2 + rand()*2.2, 1, 9);
-      }
     } else if (p === 2){
-      // stack & sort: redistribute heights
+      // stack & sort: busiest
       movesPerMin = 22 + ((rand() * 12) | 0);
-      for (let i = 0; i < BAY_COUNT; i++){
-        const j = (rand() * BAY_COUNT) | 0;
-        const a = heights[i];
-        targets[i] = heights[j];
-        targets[j] = a;
-      }
     } else if (p === 3){
       // reroute: keep stacks, but choose a route highlight
       movesPerMin = 16 + ((rand() * 10) | 0);
@@ -321,12 +320,102 @@ export function createChannel({ seed, audio }){
       safeBeep({ freq: 220, dur: 0.08, gain: 0.018, type: 'square' });
       safeBeep({ freq: 440, dur: 0.05, gain: 0.014, type: 'triangle' });
     } else {
-      // sweep: gently reduce heights (ship departs)
+      // sweep: calm/idle (containers should not just vanish)
       movesPerMin = 10 + ((rand() * 6) | 0);
-      for (let i = 0; i < BAY_COUNT; i++){
-        targets[i] = clamp(heights[i] - (0.8 + rand()*1.6), 1, 7);
-      }
     }
+
+    // reset move schedule on phase transitions so cadence changes are clean
+    moveNextT = t + Math.max(0.25, 60 / Math.max(1, movesPerMin));
+  }
+
+
+  function moveRand01(k){
+    // deterministic per-seed move randomness (doesn't consume the visual PRNG)
+    return hash01((((seed|0) ^ 0x9e3779b9) + (k|0) * 1013904223) | 0);
+  }
+
+  function stackCount(i){
+    const st = bayStacks[i];
+    return st ? st.length : 0;
+  }
+
+  function makeMoveContainer(){
+    const k = moveCursor * 7 + 13;
+    const col = CONTAINER_COLS[(moveRand01(k) * CONTAINER_COLS.length) | 0];
+    return { id: nextContainerId++, col };
+  }
+
+  function completeCraneJob(job){
+    if (!job) return;
+    if (job.kind === 'toYard' || job.kind === 'yardToYard'){
+      const st = bayStacks[job.destBay];
+      if (st && st.length < 9) st.push(job.container);
+    }
+  }
+
+  function tryScheduleOneMove(ci){
+    // Returns true if a job started on this crane.
+    const u = yardContainerUnit();
+    const baseY = yardY + yardH;
+
+    // phase 1: ship -> yard
+    if (phaseIndex === 1){
+      const maxH = 9;
+      let start = (moveRand01(moveCursor + 1) * BAY_COUNT) | 0;
+      let dest = -1;
+      for (let k = 0; k < BAY_COUNT; k++){
+        const i = (start + k) % BAY_COUNT;
+        if (stackCount(i) < maxH){ dest = i; break; }
+      }
+      moveCursor++;
+      if (dest < 0) return false;
+
+      const container = makeMoveContainer();
+      const shipSlotX = ship.x - ship.w * (0.75 - ci * 0.10);
+      const startX = shipSlotX;
+      const startY = ship.y - ship.h * 0.22;
+      const endX = bays[dest].x + bays[dest].w * 0.5;
+      const endY = baseY - (stackCount(dest) + 1) * (u * 0.78);
+
+      const dur = 2.5 + 0.8 * moveRand01(container.id ^ (ci<<8));
+      craneJobs[ci] = { kind: 'toYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
+      return true;
+    }
+
+    // phase 2: yard -> yard
+    if (phaseIndex === 2){
+      const maxH = 9;
+      let start = (moveRand01(moveCursor + 2) * BAY_COUNT) | 0;
+      let src = -1;
+      for (let k = 0; k < BAY_COUNT; k++){
+        const i = (start + k) % BAY_COUNT;
+        if (stackCount(i) > 0){ src = i; break; }
+      }
+      moveCursor++;
+      if (src < 0) return false;
+
+      let dest = (src + 1 + (((moveRand01(moveCursor + 3) * (BAY_COUNT - 1)) | 0))) % BAY_COUNT;
+      for (let k = 0; k < BAY_COUNT; k++){
+        const i = (dest + k) % BAY_COUNT;
+        if (i !== src && stackCount(i) < maxH){ dest = i; break; }
+      }
+      if (dest === src || stackCount(dest) >= maxH) return false;
+
+      const st = bayStacks[src];
+      const startY = baseY - (st.length) * (u * 0.78);
+      const startX = bays[src].x + bays[src].w * 0.5;
+      const container = st.pop();
+      if (!container) return false;
+
+      const endX = bays[dest].x + bays[dest].w * 0.5;
+      const endY = baseY - (stackCount(dest) + 1) * (u * 0.78);
+
+      const dur = 2.3 + 0.9 * moveRand01(container.id ^ 0x51ed270b);
+      craneJobs[ci] = { kind: 'yardToYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
+      return true;
+    }
+
+    return false;
   }
 
   function update(dt){
@@ -358,10 +447,30 @@ export function createChannel({ seed, audio }){
 
     routePulse = Math.max(0, routePulse - dt * 0.55);
 
-    // move stack heights toward targets
-    const k = 1 - Math.exp(-dt * 1.05);
-    for (let i = 0; i < BAY_COUNT; i++){
-      heights[i] = lerp(heights[i], targets[i], k);
+    // schedule/complete crane moves (persistent container entities)
+    for (let i = 0; i < CRANE_COUNT; i++){
+      const job = craneJobs[i];
+      if (job && (t - job.startT) >= job.dur){
+        completeCraneJob(job);
+        craneJobs[i] = null;
+      }
+    }
+
+    if (phaseIndex === 1 || phaseIndex === 2){
+      const interval = 60 / Math.max(1, movesPerMin);
+      while (t >= moveNextT){
+        let started = false;
+        const start = (moveCursor + ((moveRand01(moveCursor + 9) * CRANE_COUNT) | 0)) % CRANE_COUNT;
+        for (let k = 0; k < CRANE_COUNT; k++){
+          const ci = (start + k) % CRANE_COUNT;
+          if (!craneJobs[ci]){
+            started = tryScheduleOneMove(ci) || started;
+            break;
+          }
+        }
+        if (!started) moveCursor++;
+        moveNextT += interval;
+      }
     }
 
     // ship motion (arrival + sweep)
@@ -621,11 +730,9 @@ export function createChannel({ seed, audio }){
   function yardContainerUnit(){
     return Math.max(10, Math.floor(Math.min(yardW / (BAY_COUNT * 1.1), yardH / 11)));
   }
-
   function bayTopY(i){
     const u = yardContainerUnit();
-    const hh = Math.floor(heights[i] + 0.0001);
-    return yardY + yardH - hh * (u * 0.78);
+    return yardY + yardH - stackCount(i) * (u * 0.78);
   }
 
   function drawYard(ctx){
@@ -655,18 +762,19 @@ export function createChannel({ seed, audio }){
     }
     ctx.restore();
 
-    // container stacks
+    // container stacks (persistent)
     const u = yardContainerUnit();
     for (let i = 0; i < BAY_COUNT; i++){
       const b = bays[i];
-      const hh = Math.floor(heights[i] + 0.0001);
+      const st = bayStacks[i] || [];
       const baseY = yardY + yardH;
       const bw = b.w * 0.92;
       const bx = b.x + (b.w - bw) * 0.5;
 
-      for (let j = 0; j < hh; j++){
+      for (let j = 0; j < st.length; j++){
         const by = baseY - (j + 1) * (u * 0.78);
-        drawContainer(ctx, bx, by, bw, u * 0.62, b.col, (i << 8) ^ j, dpr);
+        const c = st[j];
+        drawContainer(ctx, bx, by, bw, u * 0.62, c.col, c.id, dpr);
       }
 
       // bay label
@@ -686,37 +794,36 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(yardX, yardY + yardH - u * 0.12, yardW, u * 0.18);
     ctx.restore();
   }
-
   function craneMoveFor(i){
-    // one procedural move per crane in unload/stack, otherwise idle
-    const c = cranes[i];
-    const base = t * (0.10 + c.s * 0.06) + c.off;
-    const u = fract(base);
+    const job = craneJobs[i];
+    if (!job) return { active: false, x: cranes[i].x, y: dockY - h * 0.16, tx: 0.5 };
 
-    // choose source/dest bay indices deterministically
-    const a = (Math.floor(base * 3.1) + i * 2) % BAY_COUNT;
-    const b = (a + 3 + ((Math.floor(base * 5.7) + i) % 7)) % BAY_COUNT;
+    const u = clamp((t - job.startT) / job.dur, 0, 1);
 
-    const shipSlotX = ship.x - ship.w * (0.75 - i * 0.10);
-    const dockX = c.x;
-    const yardX1 = bays[b].x + bays[b].w * 0.5;
-
-    const startX = phaseIndex === 2 ? bays[a].x + bays[a].w * 0.5 : shipSlotX;
-    const endX = phaseIndex === 2 ? yardX1 : yardX1;
-
-    const topY = (phaseIndex === 2) ? bayTopY(a) : (ship.y - ship.h * 0.22);
-    const endY = bayTopY(b);
-
-    // path: up over dock, then down
+    // motion: lift (vertical), traverse (horizontal), lower (vertical)
     const midY = dockY - h * 0.16;
-    const e = ease(u);
-    const x = lerp(startX, endX, e);
-    const y = lerp(lerp(topY, midY, ease(Math.min(1, u*1.25))), endY, ease(Math.max(0, (u-0.25) / 0.75)));
+    let x = job.startX;
+    let y = job.startY;
 
-    // trolley position along crane beam
+    if (u < 0.35){
+      const e = ease(u / 0.35);
+      x = job.startX;
+      y = lerp(job.startY, midY, e);
+    } else if (u < 0.75){
+      const e = ease((u - 0.35) / 0.40);
+      x = lerp(job.startX, job.endX, e);
+      y = midY;
+    } else {
+      const e = ease((u - 0.75) / 0.25);
+      x = job.endX;
+      y = lerp(midY, job.endY, e);
+    }
+
+    const c = cranes[i];
+    const dockX = c.x;
     const tx = clamp((x - (dockX - w * 0.14)) / (w * 0.28), 0, 1);
 
-    return { u, x, y, tx, a, b, active: (phaseIndex === 1 || phaseIndex === 2) };
+    return { active: true, x, y, tx, container: job.container };
   }
 
   function drawCranes(ctx){
@@ -795,10 +902,10 @@ export function createChannel({ seed, audio }){
       ctx.lineTo(mv.x, mv.y);
       ctx.stroke();
 
-      if (mv.active){
-        // moving container
-        const col = (i === 0 && phaseIndex === 1) ? pal.warn2 : pal.accent;
-        drawContainer(ctx, mv.x - 18, mv.y - 8, 36, 16, col, (phaseIndex << 10) ^ (i << 6) ^ mv.a ^ (mv.b << 4), dpr);
+      if (mv.active && mv.container){
+        // moving container (persistent entity)
+        const col = mv.container.col;
+        drawContainer(ctx, mv.x - 18, mv.y - 8, 36, 16, col, mv.container.id, dpr);
       }
     }
 
@@ -858,7 +965,7 @@ export function createChannel({ seed, audio }){
 
     // right stats
     let occ = 0;
-    for (let i = 0; i < BAY_COUNT; i++) occ += heights[i];
+    for (let i = 0; i < BAY_COUNT; i++) occ += stackCount(i);
     const util = Math.round((occ / (BAY_COUNT * 9)) * 100);
     const routeTxt = phaseIndex === 3 ? `ROUTE: B${String(routeA+1).padStart(2,'0')}→B${String(routeB+1).padStart(2,'0')}` : 'ROUTE: AUTO';
 
