@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Content polish `dreamreceipt` (src/channels/dreamreceipt.js): expanded receipt text variety (more headers/footers/notes) + added deterministic rare special moment (VOID stamp or TOTAL ??? scramble) every ~45–120s. Accept: 5min capture shows at least one additional special moment; deterministic per seed. Commit: ecaabcb
+
 - [x] [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): added subtle counter film grain + stronger printer-slot lip/shadow (paper mouth shade) so the scene reads less “flat”. Commit: c13d109
 
 - [x] [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): widen printer body + slot so paper fits; added bevel highlight + screws for interest. Commit: 9c00b79

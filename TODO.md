@@ -1,7 +1,5 @@
 
 # TODO Queue
-- Content polish `dreamreceipt` (src/channels/dreamreceipt.js): expand receipt text variety (more headers/footers/notes) and add 1 rare special moment beyond glitch/coupon (e.g., VOID stamp / “TOTAL: ???” scramble) scheduled deterministically (~45–120s). Accept: 5min capture shows at least one additional special moment; deterministic per seed.
-
 - Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Rebuild cone silhouette in `drawVolcano()` (around the current `quadraticCurveTo` at `src/channels/volcanoobservatory.js:259`) so the crater is visually anchored to mountain shoulders instead of reading like a floating disc/UFO.
 - Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Replace `destination-out` crater hole in `drawVolcano()` (`src/channels/volcanoobservatory.js:265`) with layered rim/lip shading that keeps mountain mass visible and prevents hard cutout artifacts.
 - Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Add explicit, long-window eruption phases in `intensityAt()`/`puffAmount()` (`src/channels/volcanoobservatory.js:42` and `src/channels/volcanoobservatory.js:75`) so at least one clearly visible eruptive event occurs within each 60s viewing window.

@@ -1,4 +1,5 @@
 
+- 2026-02-11 19:30 (Australia/Melbourne) [project:quine-tv] Content polish `dreamreceipt` (src/channels/dreamreceipt.js): expanded receipt text variety (more headers/footers/notes) + added deterministic rare special moment (VOID stamp or TOTAL ??? scramble) every ~45–120s. Commit: ecaabcb
 - 2026-02-11 19:21 (Australia/Melbourne) [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): added subtle counter film grain + stronger printer-slot lip/shadow (paper mouth shade) so the scene reads less “flat”. Commit: c13d109
 - 2026-02-11 19:01 (Australia/Melbourne) [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): widened printer body + slot (paper no longer feels wider than the hole); added subtle bevel highlight + screws for extra interest. Commit: 9c00b79
 - 2026-02-11 18:32 (Australia/Melbourne) [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): increased post-print pause and added a fall-off-screen motion after tear. Commit: 582e5c1
