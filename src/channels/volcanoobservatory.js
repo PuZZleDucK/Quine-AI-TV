@@ -317,22 +317,52 @@ export function createChannel({ seed, audio }){
     ctx.closePath();
     ctx.fill();
 
-    // rim cutout
+    // crater (layered rim/lip shading — keep cone mass, avoid hard cutout)
+    const craterRx = coneW * 0.18;
+    const craterRy = coneH * 0.06;
+
+    // shallow depression
     ctx.save();
-    ctx.globalCompositeOperation = 'destination-out';
+    const dep = ctx.createRadialGradient(cx, craterY - craterRy * 0.15, 1, cx, craterY, craterRx * 1.7);
+    dep.addColorStop(0, 'rgba(0,0,0,0.50)');
+    dep.addColorStop(1, 'rgba(0,0,0,0.06)');
+    ctx.fillStyle = dep;
     ctx.beginPath();
-    ctx.ellipse(cx, craterY, coneW * 0.18, coneH * 0.06, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, craterY, craterRx, craterRy, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-    // rim outline
+    // rim outline + subtle highlight/shadow (far edge bright, near edge dark)
     ctx.save();
-    ctx.globalAlpha = 0.35;
-    ctx.strokeStyle = 'rgba(160,170,200,0.35)';
-    ctx.lineWidth = Math.max(1, s / 380);
+    ctx.lineWidth = Math.max(1, s / 400);
+
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = 'rgba(170,180,210,0.40)';
     ctx.beginPath();
-    ctx.ellipse(cx, craterY, coneW * 0.18, coneH * 0.06, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, craterY, craterRx, craterRy, 0, 0, Math.PI * 2);
     ctx.stroke();
+
+    // far-edge highlight (top half)
+    ctx.globalAlpha = 0.24;
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(cx, craterY - craterRy * 0.18, craterRx * 0.98, craterRy * 0.82, 0, Math.PI, Math.PI * 2);
+    ctx.stroke();
+
+    // near-edge shadow (bottom half)
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = 'rgba(0,0,0,0.42)';
+    ctx.beginPath();
+    ctx.ellipse(cx, craterY + craterRy * 0.18, craterRx * 1.02, craterRy * 0.90, 0, 0, Math.PI);
+    ctx.stroke();
+
+    // inner rim to add depth
+    ctx.globalAlpha = 0.20;
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(cx, craterY + craterRy * 0.05, craterRx * 0.72, craterRy * 0.55, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
     ctx.restore();
 
     // lava glow inside crater
