@@ -454,16 +454,13 @@ export function createChannel({ seed, audio }){
     ctx.fill();
     ctx.restore();
 
-    // header text
+    // channel title above map
     const font = Math.max(16, Math.floor(Math.min(w, h) / 34));
+    const titleY = Math.max(10, my - Math.floor(font * 1.35));
     ctx.font = `bold ${Math.floor(font * 1.08)}px ui-sans-serif, system-ui`;
-    ctx.fillStyle = 'rgba(20, 18, 16, 0.88)';
+    ctx.fillStyle = 'rgba(232, 226, 208, 0.88)';
     ctx.textBaseline = 'top';
-    ctx.fillText('THE TINY TRAVEL DESK', mx + Math.floor(mw * 0.05), my + Math.floor(font * 0.8));
-
-    ctx.font = `${Math.floor(font * 0.9)}px ui-sans-serif, system-ui`;
-    ctx.fillStyle = 'rgba(20, 18, 16, 0.72)';
-    ctx.fillText('desk-based travel • maps • street footage • food • history', mx + Math.floor(mw * 0.05), my + Math.floor(font * 2.1));
+    ctx.fillText('THE TINY TRAVEL DESK', mx + Math.floor(mw * 0.05), titleY);
 
     ctx.restore();
 
@@ -594,9 +591,6 @@ export function createChannel({ seed, audio }){
     ctx.textBaseline = 'top';
     ctx.strokeText('STREET FEED', sx + Math.floor(sw * 0.08), sy + Math.floor(sh * 0.06));
     ctx.fillText('STREET FEED', sx + Math.floor(sw * 0.08), sy + Math.floor(sh * 0.06));
-    ctx.font = `${Math.floor(font * 0.84)}px ui-sans-serif, system-ui`;
-    ctx.fillStyle = 'rgba(235, 240, 245, 0.82)';
-    ctx.fillText(`${dest.city.toUpperCase()} • ${dest.vibe}`, sx + Math.floor(sw * 0.08), sy + Math.floor(sh * 0.13));
     ctx.restore();
 
     ctx.restore();
