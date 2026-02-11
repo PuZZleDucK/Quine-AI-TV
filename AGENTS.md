@@ -108,7 +108,7 @@ Look for opportunities in these buckets:
 - Uncommon and rare elements.
 
 ### 4) Create TODO items for every identified improvement
-- For each improvement, add a checklist task (in `/home/puzzleduck/clawd/TODO.md`).
+- For each improvement, add a checklist task (in `/home/puzzleduck/x/quine-tv/TODO.md`).
 - Every TODO must include:
   - channel id and file path (`src/channels/<id>.js`),
   - exactly what to change and where,
