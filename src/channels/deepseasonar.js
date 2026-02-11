@@ -1,6 +1,7 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-12
 // Deep Sea Sonar Survey
 // - circular sonar scope + range rings
 // - phase-based "mission" loop
