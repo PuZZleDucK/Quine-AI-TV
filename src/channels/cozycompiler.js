@@ -5,6 +5,17 @@ import { simpleDrone } from '../util/audio.js';
 
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 
+function hashFloat(x){
+  // Deterministic integer hash -> [0, 1)
+  x |= 0;
+  x = (x ^ 61) ^ (x >>> 16);
+  x = (x + (x << 3)) | 0;
+  x = x ^ (x >>> 4);
+  x = Math.imul(x, 0x27d4eb2d);
+  x = x ^ (x >>> 15);
+  return (x >>> 0) / 4294967296;
+}
+
 const VARS = ['duck', 'bean', 'pixel', 'orbit', 'crumb', 'spark', 'moss', 'byte', 'petal', 'kettle'];
 const FUNCS = ['render', 'compile', 'bake', 'hydrate', 'stitch', 'glow', 'bundle', 'lint', 'optimize'];
 
@@ -84,7 +95,11 @@ function makeSegment(rand){
 }
 
 export function createChannel({ seed, audio }){
-  const rand = mulberry32(seed);
+  const baseSeed = (seed | 0) >>> 0;
+  const rand = mulberry32(baseSeed);
+
+  // Keep audio randomness on a separate RNG so audio on/off doesn’t affect visuals.
+  const audioRand = mulberry32((baseSeed ^ 0xA53C9E37) >>> 0);
 
   let w = 0, h = 0, t = 0;
   let font = 16;
@@ -96,18 +111,25 @@ export function createChannel({ seed, audio }){
   // typing state
   let codeIdx = 0;
   let codeShown = 0;
+  let linePause = 0;
+  let keyBeepNext = 0;
 
   // log state
   let log = []; // {text, shown}
   let logQueue = [];
   let logTimer = 0;
+  let stepIdx = 0;
+  let logBeepCooldown = 0;
 
   // build artifact state
   let buildPulse = 0;
   let artifact = 0;
 
-  let beepCooldown = 0;
   let bed = null;
+
+  // per-segment params (precomputed; avoids per-frame rand() so FPS doesn’t matter)
+  let segId = 0;
+  let segParams = null;
 
   // cached gradients (rebuild on resize / ctx swap)
   let bgGrad = null;
@@ -133,15 +155,44 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function makeSegParams(){
+    // Derived PRNG so tweaking params doesn’t perturb content generation.
+    const r = mulberry32((baseSeed ^ Math.imul(segId, 0x9E3779B9)) >>> 0);
+
+    const lineSpeeds = [];
+    for (let i = 0; i < seg.code.length; i++) lineSpeeds.push(40 + r() * 18);
+
+    const stepDelays = [];
+    for (let i = 0; i < seg.steps.length; i++) stepDelays.push(0.45 + r() * 0.35);
+
+    return {
+      lineSpeeds,
+      linePause: 0.09,
+      compileStartDelay: 0.2,
+      stepDelays,
+      fixDelay: 0.9,
+      successHold: 2.2 + r() * 1.6,
+      logRevealSpeed: 52 + r() * 25,
+      keyStride: 2 + ((r() * 2) | 0), // 2 or 3
+      keyFreqBase: 1150 + r() * 160,
+    };
+  }
+
   function resetSegment(){
     seg = makeSegment(rand);
+    segId = (segId + 1) | 0;
+    segParams = makeSegParams();
+
     phase = 'typing';
     codeIdx = 0;
     codeShown = 0;
+    linePause = 0;
+    keyBeepNext = segParams.keyStride;
 
     log = [];
     logQueue = seg.steps.slice();
     logTimer = 0.35;
+    stepIdx = 0;
 
     buildPulse = 0;
     artifact = (artifact + 1) % 6;
@@ -182,7 +233,7 @@ export function createChannel({ seed, audio }){
 
     const n = audio.noiseSource({ type: 'pink', gain: 0.008 });
     n.start();
-    const d = simpleDrone(audio, { root: 98 + rand() * 22, detune: 0.55, gain: 0.04 });
+    const d = simpleDrone(audio, { root: 98 + audioRand() * 22, detune: 0.55, gain: 0.04 });
 
     bed = {
       stop(){
@@ -206,25 +257,49 @@ export function createChannel({ seed, audio }){
     const maxLines = Math.max(8, Math.floor((h * 0.22) / lineH));
     while (log.length > maxLines) log.shift();
 
-    if (audio.enabled && beepCooldown <= 0){
-      beepCooldown = 0.12;
+    if (audio.enabled && logBeepCooldown <= 0){
+      logBeepCooldown = 0.12;
       const base = text.startsWith('error') ? 210 : 620;
-      audio.beep({ freq: base + rand() * 120, dur: 0.045, gain: 0.02, type: text.startsWith('error') ? 'sawtooth' : 'triangle' });
+      audio.beep({
+        freq: base + audioRand() * 120,
+        dur: 0.045,
+        gain: 0.02,
+        type: text.startsWith('error') ? 'sawtooth' : 'triangle'
+      });
     }
   }
 
   function updateTyping(dt){
+    if (linePause > 0){
+      linePause -= dt;
+      if (linePause <= 0){
+        codeIdx++;
+        codeShown = 0;
+        keyBeepNext = segParams.keyStride;
+      }
+      return;
+    }
+
     const line = seg.code[codeIdx] || '';
-    const speed = 40 + rand() * 18; // chars/sec
+    const speed = segParams.lineSpeeds[codeIdx] ?? 48;
 
     const prev = codeShown;
     codeShown = Math.min(line.length, codeShown + dt * speed);
 
-    // keystrokes
-    const gained = Math.floor(codeShown) - Math.floor(prev);
-    if (gained > 0 && audio.enabled && beepCooldown <= 0){
-      beepCooldown = 0.055 + rand() * 0.03;
-      audio.beep({ freq: 1200 + rand() * 400, dur: 0.012, gain: 0.012, type: 'square' });
+    // keystrokes (deterministic per character count; no rand() calls)
+    if (audio.enabled){
+      const shownInt = Math.floor(codeShown);
+      while (shownInt >= keyBeepNext && keyBeepNext <= line.length){
+        const h0 = (baseSeed ^ Math.imul(segId, 0x85ebca6b) ^ Math.imul(codeIdx + 1, 0xc2b2ae35) ^ (keyBeepNext * 131)) | 0;
+        const hf = hashFloat(h0);
+        audio.beep({
+          freq: segParams.keyFreqBase + hf * 420,
+          dur: 0.012,
+          gain: 0.012,
+          type: 'square'
+        });
+        keyBeepNext += segParams.keyStride;
+      }
     }
 
     if (codeShown >= line.length){
@@ -232,19 +307,14 @@ export function createChannel({ seed, audio }){
       if (line.length === 0){
         codeIdx++;
         codeShown = 0;
+        keyBeepNext = segParams.keyStride;
       } else {
-        // advance when a little time passes (using buildPulse as a cheap timer)
-        buildPulse += dt;
-        if (buildPulse > 0.09){
-          buildPulse = 0;
-          codeIdx++;
-          codeShown = 0;
-        }
+        linePause = segParams.linePause;
       }
 
       if (codeIdx >= seg.code.length){
         phase = 'compiling';
-        logTimer = 0.2;
+        logTimer = segParams.compileStartDelay;
       }
     }
   }
@@ -254,17 +324,18 @@ export function createChannel({ seed, audio }){
     if (logTimer <= 0){
       if (logQueue.length > 0){
         pushLog(logQueue.shift());
-        logTimer = 0.45 + rand() * 0.35;
+        logTimer = segParams.stepDelays[stepIdx] ?? 0.55;
+        stepIdx++;
         buildPulse = 1;
       } else {
         if (seg.error){
           pushLog(seg.error);
           phase = 'fixing';
-          logTimer = 0.9;
+          logTimer = segParams.fixDelay;
         } else {
           pushLog('Build succeeded.');
           phase = 'success';
-          logTimer = 2.2 + rand() * 1.6;
+          logTimer = segParams.successHold;
         }
       }
     }
@@ -277,7 +348,7 @@ export function createChannel({ seed, audio }){
       if (seg.fix) pushLog(seg.fix);
       pushLog('Build succeeded.');
       phase = 'success';
-      logTimer = 2.2 + rand() * 1.6;
+      logTimer = segParams.successHold;
     }
   }
 
@@ -290,7 +361,7 @@ export function createChannel({ seed, audio }){
 
   function update(dt){
     t += dt;
-    beepCooldown -= dt;
+    logBeepCooldown -= dt;
 
     // animate "build" pulse always
     buildPulse += dt;
@@ -303,8 +374,9 @@ export function createChannel({ seed, audio }){
     else if (phase === 'success') updateSuccess(dt);
 
     // reveal logs gradually
+    const rs = segParams?.logRevealSpeed ?? 64;
     for (const l of log){
-      l.shown = Math.min(l.text.length, l.shown + dt * (52 + rand() * 25));
+      l.shown = Math.min(l.text.length, l.shown + dt * rs);
     }
   }
 
