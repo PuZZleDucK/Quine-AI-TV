@@ -36,6 +36,10 @@ export function createChannel({ seed, audio }){
   ];
   const pal = pick(rand, palettes);
 
+  // hot-path draw colors (avoid per-frame template-literal `rgba(...)` allocations)
+  const COLOR_DUST = 'rgb(210,235,255)';
+  const COLOR_HILITE = 'rgb(180,255,255)';
+
   // layout
   let key = { x:0, y:0, w:0, h:0 };
   let lock = { x:0, y:0, w:0, h:0 };
@@ -503,7 +507,8 @@ export function createChannel({ seed, audio }){
           const a = clickFlash * (0.25 + 0.25 * Math.sin(t*22 + i*1.7));
           ctx.save();
           ctx.globalCompositeOperation = 'screen';
-          ctx.fillStyle = `rgba(180,255,255,${a})`;
+          ctx.globalAlpha = a;
+          ctx.fillStyle = COLOR_HILITE;
           ctx.fillRect(cxp - pinW*0.55, shearY - plugH*0.03, pinW*1.1, plugH*0.06);
           ctx.restore();
         }
@@ -625,9 +630,10 @@ export function createChannel({ seed, audio }){
     // dust motes
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = COLOR_DUST;
     for (const p0 of dust){
       const a = 0.06 + 0.08 * Math.sin(t*0.6 + p0.x*0.01);
-      ctx.fillStyle = `rgba(210,235,255,${a})`;
+      ctx.globalAlpha = a;
       ctx.fillRect(p0.x, p0.y, p0.r, p0.r);
     }
     ctx.restore();
