@@ -280,11 +280,11 @@ export function createChannel({ seed, audio }){
     t += dt;
     loopT += dt;
 
-    // phase timings
+    // phase timings (keep in sync with drawPaper)
     const printStart = 0.7;
     const printDur = 18.0;
-    const tearT0 = printStart + printDur + 3.2;
-    const tearDur = 1.0;
+    const tearT0 = printStart + printDur + 4.8; // longer post-print pause
+    const tearDur = 0.9;
 
     const pPrint = clamp((loopT - printStart) / printDur, 0, 1);
 
@@ -420,8 +420,10 @@ export function createChannel({ seed, audio }){
   function drawPaper(ctx){
     const printStart = 0.7;
     const printDur = 18.0;
-    const tearT0 = printStart + printDur + 3.2;
-    const tearDur = 1.0;
+    const tearT0 = printStart + printDur + 4.8; // longer post-print pause
+    const tearDur = 0.9;
+    const fallT0 = tearT0 + tearDur + 0.15;
+    const fallDur = 3.2;
 
     const pPrint = clamp((loopT - printStart) / printDur, 0, 1);
     const printedLen = Math.floor(pPrint * paperH);
@@ -429,8 +431,13 @@ export function createChannel({ seed, audio }){
     const pTear = clamp((loopT - tearT0) / tearDur, 0, 1);
     const hang = ease(pTear);
 
+    const pFall = clamp((loopT - fallT0) / fallDur, 0, 1);
+    const fall = pFall * pFall; // ease-in quad
+
+    const fallDist = (h - slotY) + paperH + s * 0.25;
+
     const x0 = Math.floor(cx - paperW * 0.5);
-    const y0 = Math.floor(slotY + 2 + hang * (s * 0.14));
+    const y0 = Math.floor(slotY + 2 + hang * (s * 0.08) + fall * fallDist);
     const ph = Math.floor(lerp(12, paperH, pPrint));
 
     // paper shadow
@@ -566,7 +573,7 @@ export function createChannel({ seed, audio }){
     ctx.restore(); // clip
 
     // tear edge
-    if (pTear > 0){
+    if (pTear > 0 && pTear < 1){
       const yT = y0 + ph - 10;
       ctx.save();
       ctx.globalAlpha = 0.12 + 0.18 * (1 - pTear);
