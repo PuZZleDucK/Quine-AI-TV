@@ -148,12 +148,31 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // idempotent: stop any existing handles we own first
+    onAudioOff();
+
     const n = audio.noiseSource({ type: 'brown', gain: 0.012 });
     n.start();
-    torchAudio = { stop(){ n.stop(); } };
+
+    torchAudio = {
+      stop(){
+        try { n.stop(); } catch {}
+      }
+    };
+
     audio.setCurrent(torchAudio);
   }
-  function onAudioOff(){ try{ torchAudio?.stop?.(); }catch{} torchAudio=null; }
+
+  function onAudioOff(){
+    try { torchAudio?.stop?.(); } catch {}
+
+    // only clear AudioManager.current if we own it
+    if (audio.current === torchAudio) audio.current = null;
+
+    torchAudio = null;
+  }
+
   function destroy(){ onAudioOff(); }
 
   function update(dt){
