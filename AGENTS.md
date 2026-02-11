@@ -10,6 +10,7 @@ The repository includes a Playwright-based capture tool: `scripts/capture-channe
 
 **Channel quality bar / example to copy:**
 - Use `src/channels/synthwave.js` as the *canonical* example of what “good” looks like.
+- `src/channels/traveldesk.js` is a great example of how to generate complex interesting shapes and element composition.
 - Channels should aim to have (most of):
   - A strong visual identity (palette + composition) with **layered motion** (background/midground/foreground).
   - **Time structure** (beats/segments/phases) rather than a single infinite loop.
