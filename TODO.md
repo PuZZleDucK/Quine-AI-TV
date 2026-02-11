@@ -4,7 +4,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- Review channel: deepseasonar
 - Review channel: kaleido
 
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Buttons — replace simple chase light with persistent “selected floor” LEDs tied to CALL/QUEUE, plus press animation when a call is queued.
