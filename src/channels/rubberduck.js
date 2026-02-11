@@ -73,6 +73,11 @@ export function createChannel({ seed, audio }){
   let bgGrad = null;
   let vgGrad = null;
 
+  // Cached scanline pattern (rebuild on ctx swap) so we don't loop fillRect per frame.
+  let scanCtx = null;
+  let scanTile = null;
+  let scanPattern = null;
+
   function ensureGradients(ctx){
     if (ctx !== gradCtx || w !== gradW || h !== gradH || !bgGrad || !vgGrad){
       gradCtx = ctx;
@@ -91,16 +96,37 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function ensureScanPattern(ctx){
+    if (ctx === scanCtx && scanPattern) return;
+
+    scanCtx = ctx;
+
+    if (!scanTile){
+      scanTile = document.createElement('canvas');
+      scanTile.width = 8;
+      scanTile.height = 3;
+      const sctx = scanTile.getContext('2d');
+      sctx.clearRect(0, 0, scanTile.width, scanTile.height);
+      sctx.fillStyle = 'rgba(108,242,255,1)';
+      sctx.fillRect(0, 0, scanTile.width, 1);
+    }
+
+    scanPattern = ctx.createPattern(scanTile, 'repeat');
+  }
+
   function init({ width, height }){
     w = width; h = height; t = 0;
     font = Math.max(14, Math.floor(Math.min(w, h) / 34));
     lineH = Math.floor(font * 1.25);
 
-    // Force gradient rebuild after any size reset.
+    // Force cache rebuild after any size reset.
     gradCtx = null;
     bgGrad = null;
     vgGrad = null;
     gradW = 0; gradH = 0;
+
+    scanCtx = null;
+    scanPattern = null;
 
     transcript = [];
     pending = confessional(rand);
@@ -264,13 +290,12 @@ export function createChannel({ seed, audio }){
     const aw = tw - pad * 2;
     const ah = th - hh - Math.floor(pad * 1.2);
 
-    // scanline-ish tint
+    // scanline-ish tint (cached pattern; no per-frame loop)
+    ensureScanPattern(ctx);
     ctx.save();
     ctx.globalAlpha = 0.12;
-    ctx.fillStyle = 'rgba(108,242,255,1)';
-    for (let y = ay; y < ay + ah; y += 3){
-      ctx.fillRect(ax, y, aw, 1);
-    }
+    ctx.fillStyle = scanPattern;
+    ctx.fillRect(ax, ay, aw, ah);
     ctx.restore();
 
     ctx.save();
