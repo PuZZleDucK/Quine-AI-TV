@@ -561,8 +561,11 @@ export function createChannel({ seed, audio }){
     }
 
     // anchor silhouettes to a ground strip so skylines never appear to float
-    ctx.fillStyle = 'rgba(12, 17, 29, 0.96)';
-    ctx.fillRect(ix, groundY, iw, Math.max(3, Math.floor(ih * 0.06)));
+    const groundH = Math.max(4, Math.floor(ih * 0.07));
+    ctx.fillStyle = 'rgba(12, 17, 29, 1)';
+    ctx.fillRect(ix, groundY - 1, iw, groundH);
+    ctx.fillStyle = 'rgba(52, 86, 158, 0.85)';
+    ctx.fillRect(ix, groundY - 1, iw, 1);
 
     // scanlines
     ctx.save();
@@ -572,11 +575,12 @@ export function createChannel({ seed, audio }){
     for (let y = 0; y < ih; y += sl){
       if ((y / sl) % 2 === 0) ctx.fillRect(ix, iy + y, iw, 1);
     }
-    // moving tape-glitch bar
-    const gy = iy + ((t * 48) % (ih + 40)) - 40;
+    // moving tape-glitch bar: keep it in upper sky so it never intersects skyline contact
+    const glitchBand = Math.max(18, Math.floor((groundY - iy) * 0.45));
+    const gy = iy + ((t * 48) % glitchBand) - 8;
     ctx.globalAlpha = 0.08;
     ctx.fillStyle = 'rgba(255,255,255,1)';
-    ctx.fillRect(ix, gy, iw, 18);
+    ctx.fillRect(ix, gy, iw, 14);
     ctx.restore();
     ctx.restore();
 
@@ -661,9 +665,8 @@ export function createChannel({ seed, audio }){
 
     // info bullets (highlighted by phase)
     const phase = (segT / SEG_DUR);
-    const hi = Math.min(4, Math.floor(phase * 5));
+    const hi = Math.min(3, Math.floor(phase * 4));
     const items = [
-      { k: 'MAP', v: dest.region },
       { k: 'STREET', v: dest.vibe },
       { k: 'FOOD', v: dest.food },
       { k: 'HISTORY', v: dest.fact },
