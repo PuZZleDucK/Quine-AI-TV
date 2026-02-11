@@ -254,7 +254,8 @@ export function createChannel({ seed, audio }){
       rareType = h0 < 0.08 ? 2 : (h0 < 0.35 ? 1 : 0);
     }
 
-    ship.x = w * 1.15;
+    // Start fully off-screen to the right (ship.x is the ship's right edge; draw uses sx = x - w).
+    ship.x = w + ship.w * 1.10;
   }
 
   function init({ width, height, dpr: dprIn }){
@@ -477,7 +478,7 @@ export function createChannel({ seed, audio }){
     const phaseT = (t % PHASE_DUR) / PHASE_DUR;
     if (phaseIndex === 0){
       const u = ease(phaseT);
-      ship.x = lerp(w * 1.15, ship.dockX, u);
+      ship.x = lerp(w + ship.w * 1.10, ship.dockX, u);
     } else if (phaseIndex === 4){
       const u = ease(phaseT);
       ship.x = lerp(ship.dockX, -ship.w * 0.25, u);
