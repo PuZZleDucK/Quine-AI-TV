@@ -108,7 +108,7 @@ Look for opportunities in these buckets:
 - Uncommon and rare elements.
 
 ### 4) Create TODO items for every identified improvement
-- For each improvement, add a checklist task (in `/home/puzzleduck/clawd/AUTOPILOT.md` under `## Queue`).
+- For each improvement, add a checklist task (in `/home/puzzleduck/clawd/TODO.md`).
 - Every TODO must include:
   - channel id and file path (`src/channels/<id>.js`),
   - exactly what to change and where,
