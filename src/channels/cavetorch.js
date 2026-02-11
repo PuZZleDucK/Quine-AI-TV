@@ -8,9 +8,32 @@ function smoothstep(a, b, t){
   return t*t*(3 - 2*t);
 }
 
-export function createChannel({ seed, audio }){
+// Small deterministic hash utilities for FPS-stable "randomness".
+function hashU32(n){
+  n = (n + 0x7ed55d16) >>> 0;
+  n = (n ^ (n >>> 15)) >>> 0;
+  n = Math.imul(n, 0x85ebca6b) >>> 0;
+  n = (n ^ (n >>> 13)) >>> 0;
+  n = Math.imul(n, 0xc2b2ae35) >>> 0;
+  return (n ^ (n >>> 16)) >>> 0;
+}
+function hash01(n){
+  return hashU32(n) / 4294967296;
+}
+function noise1D(time, rate, salt){
+  const x = time * rate;
+  const i = Math.floor(x);
+  const f = x - i;
+  const u = f*f*(3 - 2*f);
+  const a = hash01((i + salt) >>> 0);
+  const b = hash01((i + 1 + salt) >>> 0);
+  return a + (b - a) * u;
+}
+
+export function createChannel({ seed, audio }){ 
   const rand = mulberry32(seed);
   const grainRand = mulberry32((seed ^ 0x9E3779B9) >>> 0);
+  const flickSalt = (seed ^ 0xA73F7C15) >>> 0;
 
   let w = 0, h = 0, dpr = 1;
   let t = 0;
@@ -19,6 +42,7 @@ export function createChannel({ seed, audio }){
   let motes = [];
   let drips = [];
   let wallTex = null;
+  let grainTex = null;
 
   // timed structure
   const scenes = [
@@ -31,12 +55,17 @@ export function createChannel({ seed, audio }){
   const sceneDur = 42;
   const loopDur = warmupDur + scenes.length * sceneDur;
 
-  // torch flicker
+  // torch flicker (deterministic, FPS-stable)
   let flick = 0;
-  let flickVel = 0;
+  const flickerAt = (time) => {
+    const a = noise1D(time, 8.5, flickSalt) * 2 - 1;
+    const b = noise1D(time, 23.0, (flickSalt + 1) >>> 0) * 2 - 1;
+    return clamp((a*0.75 + b*0.25) * 1.05, -1.2, 1.2);
+  };
 
   // special moment
-  let nextHand = 22 + rand() * 48;
+  let nextHandTime = 22 + rand() * 48;
+  let lastHandTime = -1e9;
   let handFlash = 0;
   let handX = 0.72;
   let handY = 0.46;
@@ -99,7 +128,34 @@ export function createChannel({ seed, audio }){
     return c;
   }
 
-  function resetParticles(){
+  function makeGrainTexture(){
+    // Pre-generated grain tile so render path stays deterministic across FPS.
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 256;
+    const g = c.getContext('2d');
+    g.clearRect(0,0,c.width,c.height);
+
+    g.fillStyle = 'rgba(0,0,0,0.55)';
+    // sparse single-pixel pepper
+    for (let i=0;i<4200;i++){
+      const x = grainRand() * c.width;
+      const y = grainRand() * c.height;
+      g.fillRect(x, y, 1, 1);
+    }
+    // a few 2x1/1x2 clumps
+    g.fillStyle = 'rgba(0,0,0,0.40)';
+    for (let i=0;i<900;i++){
+      const x = grainRand() * c.width;
+      const y = grainRand() * c.height;
+      if ((grainRand()*2|0)===0) g.fillRect(x, y, 2, 1);
+      else g.fillRect(x, y, 1, 2);
+    }
+
+    return c;
+  }
+
+  function resetParticles(){ 
     const moteN = Math.floor(180 + (w*h) / (900*520) * 120);
     motes = Array.from({length: moteN}, () => ({
       x: rand()*w,
@@ -127,12 +183,13 @@ export function createChannel({ seed, audio }){
     t = 0;
 
     wallTex = makeWallTexture();
+    grainTex = makeGrainTexture();
     resetParticles();
 
     flick = 0;
-    flickVel = 0;
 
-    nextHand = 22 + rand() * 48;
+    nextHandTime = 22 + rand() * 48;
+    lastHandTime = -1e9;
     handFlash = 0;
     handX = 0.62 + rand()*0.28;
     handY = 0.28 + rand()*0.44;
@@ -178,12 +235,8 @@ export function createChannel({ seed, audio }){
   function update(dt){
     t += dt;
 
-    // torch flicker as a critically damped noisy spring
-    const target = (rand()*2-1) * 0.9;
-    flickVel += (target - flick) * 12 * dt;
-    flickVel *= Math.pow(0.08, dt);
-    flick += flickVel * dt;
-    flick = clamp(flick, -1.2, 1.2);
+    // torch flicker (deterministic, FPS-stable)
+    flick = flickerAt(t);
 
     // motes drift upward
     for (let i=0;i<motes.length;i++){
@@ -208,16 +261,15 @@ export function createChannel({ seed, audio }){
       }
     }
 
-    // handprint special moment
-    nextHand -= dt;
-    if (nextHand <= 0){
-      nextHand = 48 + rand()*90;
-      handFlash = 1.2;
+    // handprint special moment (absolute schedule so FPS doesn't shift trigger timing)
+    while (t >= nextHandTime){
+      lastHandTime = nextHandTime;
+      nextHandTime += 48 + rand()*90;
       handX = 0.60 + rand()*0.30;
       handY = 0.26 + rand()*0.50;
       if (audio.enabled) audio.beep({ freq: 140 + rand()*60, dur: 0.07, gain: 0.018, type: 'triangle' });
     }
-    if (handFlash > 0) handFlash = Math.max(0, handFlash - dt);
+    handFlash = Math.max(0, 1.2 - (t - lastHandTime));
 
     // occasional torch crackle ticks
     nextCrackle -= dt;
@@ -757,16 +809,19 @@ export function createChannel({ seed, audio }){
     drawTorch(ctx);
     drawHandprint(ctx);
 
-    // subtle film grain
-    ctx.save();
-    ctx.globalAlpha = 0.05;
-    ctx.fillStyle = '#000';
-    for (let i=0;i<140;i++){
-      const x = grainRand()*w;
-      const y = grainRand()*h;
-      ctx.fillRect(x,y, 1,1);
+    // subtle film grain (deterministic, FPS-stable)
+    if (grainTex){
+      ctx.save();
+      ctx.globalAlpha = 0.06;
+      const ox = (t*32) % grainTex.width;
+      const oy = (t*19) % grainTex.height;
+      for (let yy=-grainTex.height; yy<h+grainTex.height; yy+=grainTex.height){
+        for (let xx=-grainTex.width; xx<w+grainTex.width; xx+=grainTex.width){
+          ctx.drawImage(grainTex, xx - ox, yy - oy);
+        }
+      }
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
