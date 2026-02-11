@@ -1,4 +1,5 @@
 import { mulberry32, clamp } from '../util/prng.js';
+// REVIEWED: 2026-02-11
 
 // The Lost Instruction Manual
 // A faux manual page flips periodically, explaining absurd devices with diagrams and safety warnings.
@@ -94,6 +95,9 @@ const WARNINGS = [
   'If the device begins offering career advice, power down immediately.',
   'Do not fold, spindle, or emotionally anthropomorphize.',
   'For indoor use unless outdoors is feeling particularly reasonable.',
+  'Do not run this unit during a haunting unless supervised by accounting.',
+  'If the manual starts updating itself, do not make eye contact with page 4.',
+  'Keep fingers clear of any slot labelled \"DESTINY\".',
 ];
 
 const PARTS = [
@@ -108,6 +112,18 @@ const STEPS = [
   'Wait for the Status Eye to blink “approved”. (This may be symbolic.)',
   'Open the Output Hatch and retrieve results using tongs or optimism.',
   'If results are philosophical, repeat Step 2 with less sincerity.',
+  'Record all unusual humming in triplicate for warranty purposes.',
+  'If the indicator points at you, pretend to recalibrate and leave.',
+  'When the chassis whispers, ask it to repeat at half speed.',
+];
+
+const ERRATA = [
+  'ERRATA: DEVICE NOW CERTIFIED FOR MILD HAUNTINGS',
+  'ERRATA: STEP 3 REQUIRES A BRAVER TECHNICIAN',
+  'ERRATA: OUTPUT MAY INCLUDE UNSOLICITED PROPHECIES',
+  'ERRATA: KNOB B IS THE NEW PANIC BUTTON',
+  'ERRATA: WEAPONIZED POLITENESS MODE ENABLED',
+  'ERRATA: DO NOT FEED AFTER MIDNIGHT (STILL TRUE)',
 ];
 
 function buildPage(rand, pageNo){
@@ -166,6 +182,9 @@ export function createChannel({ seed, audio }){
   let page = null;
   let pageT = 0;
   let flipPlayed = false;
+  let nextErrataAt = 0;
+  let errataPulse = 0;
+  let errataText = '';
 
   const PAGE_DUR = 60; // seconds
   const FLIP_DUR = 1.15;
@@ -175,6 +194,9 @@ export function createChannel({ seed, audio }){
     pageT = 0;
     flipPlayed = false;
     page = buildPage(rand, pageNo);
+    nextErrataAt = 14 + rand() * 26;
+    errataPulse = 0;
+    errataText = '';
   }
 
   function init({ width, height, dpr: dp }){
@@ -190,6 +212,9 @@ export function createChannel({ seed, audio }){
     pageT = 0;
     flipPlayed = false;
     page = buildPage(rand, pageNo);
+    nextErrataAt = 12 + rand() * 24;
+    errataPulse = 0;
+    errataText = '';
   }
 
   function onResize(width, height, dp){
@@ -210,6 +235,17 @@ export function createChannel({ seed, audio }){
   function update(dt){
     t += dt;
     pageT += dt;
+    errataPulse = Math.max(0, errataPulse - dt * 0.55);
+
+    if (pageT >= nextErrataAt && pageT < PAGE_DUR - 6){
+      errataPulse = 1;
+      errataText = pick(rand, ERRATA);
+      nextErrataAt = PAGE_DUR + 99;
+      if (audio.enabled){
+        paperRustle(audio, rand, { gain: 0.04 });
+        audio.beep({ freq: 140 + rand() * 45, dur: 0.06, gain: 0.017, type: 'sawtooth' });
+      }
+    }
 
     if (pageT >= PAGE_DUR && !flipPlayed){
       flipPlayed = true;
@@ -568,6 +604,29 @@ export function createChannel({ seed, audio }){
     const tw = ctx.measureText(right).width;
     ctx.fillText(right, Math.floor(pw * 0.93 - tw), Math.floor(ph * 0.96));
     ctx.restore();
+
+    if (errataPulse > 0 && errataText) {
+      const pulse = errataPulse * (0.45 + 0.55 * Math.sin(t * 12) ** 2);
+      ctx.save();
+      ctx.translate(pw * 0.72, ph * 0.26);
+      ctx.rotate(-0.24);
+      const fs = Math.max(11, Math.floor(font * 0.78));
+      ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      const pad = Math.floor(fs * 0.5);
+      const tw = Math.ceil(ctx.measureText(errataText).width);
+      const bw = tw + pad * 2;
+      const bh = fs + pad * 1.5;
+      ctx.globalAlpha = 0.9 * pulse;
+      ctx.fillStyle = 'rgba(150, 12, 16, 0.16)';
+      ctx.strokeStyle = 'rgba(190, 20, 28, 0.75)';
+      ctx.lineWidth = Math.max(1, 1.4 * dpr);
+      roundRect(ctx, -bw * 0.5, -bh * 0.5, bw, bh, Math.max(6, Math.floor(fs * 0.36)));
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(125, 14, 18, 0.95)';
+      ctx.fillText(errataText, -tw * 0.5, fs * 0.35);
+      ctx.restore();
+    }
 
     // flip effect overlay
     if (flipP > 0){
