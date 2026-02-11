@@ -1,7 +1,10 @@
 
 # TODO Queue
 - [project:quine-tv] Audio hygiene `dreamreceipt` (src/channels/dreamreceipt.js): make `onAudioOn()` idempotent (stop existing ambience we own first); `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Accept: repeated A toggles never stack; volume stays stable.
-- [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): add subtle counter texture/film grain and stronger printer-slot lighting/shadow so the scene reads less “flat”. Accept: 0–60s capture shows visible texture + depth without reducing receipt legibility.
+- [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): paper is wider than the hole, the machine needs to be wider.
+- [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): pause once printed should be longer. then receipt should fall down off screen.
+- [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): add subtle counter texture/film grain and stronger printer-slot lighting/shadow so the scene reads less “flat”. Accept: 0–60s capture shows visible texture + depth improve receipt legibility.
+- [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): coupons should be printed as part of a receipt.
 - [project:quine-tv] Content polish `dreamreceipt` (src/channels/dreamreceipt.js): expand receipt text variety (more headers/footers/notes) and add 1 rare special moment beyond glitch/coupon (e.g., VOID stamp / “TOTAL: ???” scramble) scheduled deterministically (~45–120s). Accept: 5min capture shows at least one additional special moment; deterministic per seed.
 
 
