@@ -31,6 +31,8 @@ function roundedRect(ctx, x, y, w, h, r){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  // Audio must never consume the visual PRNG (visuals must match with audio on/off).
+  const randAudio = mulberry32(((seed | 0) ^ 0x9e3779b9) >>> 0);
 
   let w = 0;
   let h = 0;
@@ -195,7 +197,7 @@ export function createChannel({ seed, audio }){
 
     const n = audio.noiseSource({ type: 'brown', gain: 0.0035 });
     n.start();
-    const d = simpleDrone(audio, { root: 44 + rand()*12, detune: 0.75, gain: 0.013 });
+    const d = simpleDrone(audio, { root: 44 + randAudio()*12, detune: 0.75, gain: 0.013 });
 
     ambience = {
       stop(){
@@ -297,12 +299,12 @@ export function createChannel({ seed, audio }){
     // occasional tiny crane click
     if (audio.enabled && phaseIndex === 1){
       const u = fract(t * 0.9);
-      if (u < dt * 0.9 && rand() < 0.35) safeBeep({ freq: 520 + rand()*220, dur: 0.02, gain: 0.006, type: 'square' });
+      if (u < dt * 0.9 && randAudio() < 0.35) safeBeep({ freq: 520 + randAudio()*220, dur: 0.02, gain: 0.006, type: 'square' });
     }
 
     if (audio.enabled && phaseIndex === 3){
       const u = fract(t * 0.45);
-      if (u < dt * 0.45 && rand() < 0.55) safeBeep({ freq: 260 + rand()*80, dur: 0.03, gain: 0.008, type: 'triangle' });
+      if (u < dt * 0.45 && randAudio() < 0.55) safeBeep({ freq: 260 + randAudio()*80, dur: 0.03, gain: 0.008, type: 'triangle' });
     }
   }
 
