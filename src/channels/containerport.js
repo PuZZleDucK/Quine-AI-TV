@@ -957,9 +957,14 @@ export function createChannel({ seed, audio }){
       y = lerp(midY, job.endY, e);
     }
 
+    // Clamp to beam span so the hoist stays vertical (trolley always above the load).
     const c = cranes[i];
-    const dockX = c.x;
-    const tx = clamp((x - (dockX - w * 0.14)) / (w * 0.28), 0, 1);
+    const beamW = w * 0.32;
+    const leftX = c.x - beamW * 0.5;
+    const rightX = c.x + beamW * 0.5;
+
+    x = clamp(x, leftX, rightX);
+    const tx = clamp((x - leftX) / Math.max(1e-6, beamW), 0, 1);
 
     return { active: true, x, y, tx, container: job.container };
   }
@@ -972,7 +977,7 @@ export function createChannel({ seed, audio }){
 
       const mastH = h * 0.20;
       const mastW = Math.max(w * 0.012, 4 * dpr);
-      const beamW = w * 0.28;
+      const beamW = w * 0.32;
       const beamH = Math.max(h * 0.007, 3 * dpr);
 
       const beamY = dockY - mastH;
@@ -1025,7 +1030,7 @@ export function createChannel({ seed, audio }){
       }
 
       const mv = craneMoveFor(i);
-      const trolleyX = lerp(leftX, rightX, mv.tx);
+      const trolleyX = mv.x;
 
       // trolley
       ctx.fillStyle = 'rgba(108,242,255,0.22)';
@@ -1037,7 +1042,7 @@ export function createChannel({ seed, audio }){
       ctx.strokeStyle = 'rgba(180,220,255,0.22)';
       ctx.beginPath();
       ctx.moveTo(trolleyX, beamY);
-      ctx.lineTo(mv.x, mv.y);
+      ctx.lineTo(trolleyX, mv.y);
       ctx.stroke();
 
       if (mv.active && mv.container){

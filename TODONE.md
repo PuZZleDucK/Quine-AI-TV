@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] visuals `containerport`: cranes should only lift containers vertically and should be consistant and not jump around. Commit: 2426d66
+
 - [x] [project:quine-tv] visuals `containerport`: containers should be limited to stacks of three on ships. Commit: 532568c
 
 - [x] [project:quine-tv] visuals `containerport`: containers on the ships are the wrong size, should be the same size as all other containers. Commit: 90a7316

@@ -1,4 +1,5 @@
 
+- 2026-02-12 00:48 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: crane hoist stays vertical (clamped to beam span; trolley tracks load). Commit: 2426d66
 - 2026-02-12 00:32 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: capped on-ship container stacks to max 3 high. Commit: 532568c
 - 2026-02-12 00:24 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: unified container sizing across ship/yard/crane so ship containers match yard containers. Commit: 90a7316
 - 2026-02-12 00:08 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: ship containers are now persistent entities (drawn from `shipStacks`), and UNLOAD crane moves pop containers off the ship so the stacks visibly empty while the ship moves. Commit: 92a487d
