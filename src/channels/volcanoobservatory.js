@@ -265,14 +265,25 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);
 
-    // cone
+    // cone (shape the shoulders so the crater reads anchored, not floating)
     const x0 = cx - coneW * 0.5;
     const x1 = cx + coneW * 0.5;
     const topY = baseY - coneH;
+    const craterY = topY + coneH * 0.085;
     ctx.fillStyle = '#111723';
     ctx.beginPath();
     ctx.moveTo(x0, baseY);
-    ctx.quadraticCurveTo(cx, topY + coneH * 0.06, x1, baseY);
+
+    // left slope → shoulder
+    ctx.quadraticCurveTo(cx - coneW * 0.38, baseY - coneH * 0.55, cx - coneW * 0.22, craterY);
+
+    // summit ridge (slight saddle)
+    ctx.quadraticCurveTo(cx - coneW * 0.10, topY + coneH * 0.01, cx, topY + coneH * 0.055);
+    ctx.quadraticCurveTo(cx + coneW * 0.10, topY + coneH * 0.01, cx + coneW * 0.22, craterY);
+
+    // right shoulder → slope
+    ctx.quadraticCurveTo(cx + coneW * 0.38, baseY - coneH * 0.55, x1, baseY);
+
     ctx.closePath();
     ctx.fill();
 
@@ -280,7 +291,7 @@ export function createChannel({ seed, audio }){
     ctx.save();
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
-    ctx.ellipse(cx, topY + coneH * 0.08, coneW * 0.18, coneH * 0.06, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, craterY, coneW * 0.18, coneH * 0.06, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
@@ -290,7 +301,7 @@ export function createChannel({ seed, audio }){
     ctx.strokeStyle = 'rgba(160,170,200,0.35)';
     ctx.lineWidth = Math.max(1, s / 380);
     ctx.beginPath();
-    ctx.ellipse(cx, topY + coneH * 0.08, coneW * 0.18, coneH * 0.06, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, craterY, coneW * 0.18, coneH * 0.06, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
 
