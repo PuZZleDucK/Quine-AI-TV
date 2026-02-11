@@ -27,12 +27,15 @@ export function createChannel({ seed, audio }) {
 
   let noteText = '';
   let noteAge = 0;
+  let noteAnchor = { x: 0.5, y: 0.5 };
+  let noteRoom = 0;
 
   let flicker = 0;
   let nextFlickerAt = 0;
 
   let slam = 0;
   let nextSlamAt = 0;
+  let slamRoom = -1;
 
   let drone = null;
   let noise = null;
@@ -451,9 +454,12 @@ export function createChannel({ seed, audio }) {
     curRoomStep = -1;
     noteText = '';
     noteAge = 0;
+    noteAnchor = { x: 0.5, y: 0.5 };
+    noteRoom = 0;
 
     flicker = 0;
     slam = 0;
+    slamRoom = -1;
 
     buildPlan();
     renderBg();
@@ -501,8 +507,18 @@ export function createChannel({ seed, audio }) {
     onAudioOff();
   }
 
-  function slamEvent() {
+  function slamEvent(currentRoom) {
     slam = 1;
+    slamRoom = -1;
+    if (rooms.length > 1) {
+      let pickRoom = currentRoom;
+      let guard = 0;
+      while (pickRoom === currentRoom && guard < 20) {
+        pickRoom = (rand() * rooms.length) | 0;
+        guard += 1;
+      }
+      if (pickRoom !== currentRoom) slamRoom = pickRoom;
+    }
 
     if (audio.enabled) {
       audio.beep({ freq: 70, dur: 0.12, gain: 0.08, type: 'triangle' });
@@ -513,6 +529,7 @@ export function createChannel({ seed, audio }) {
   function update(dt) {
     t += dt;
     tourClock += dt;
+    const cur = getCursor();
 
     noteAge += dt;
 
@@ -525,7 +542,7 @@ export function createChannel({ seed, audio }) {
     }
 
     if (t >= nextSlamAt) {
-      slamEvent();
+      slamEvent(cur.room);
       nextSlamAt = t + 24 + rand() * 22;
     }
 
@@ -544,6 +561,8 @@ export function createChannel({ seed, audio }) {
       ];
       noteText = `NOTE: ${pick(notePhrases)}`;
       noteAge = 0;
+      noteRoom = roomOrder[stepIdx % roomOrder.length];
+      noteAnchor = { x: cur.x + (rand() - 0.5) * 0.02, y: cur.y + (rand() - 0.5) * 0.02 };
       flicker = Math.max(flicker, 0.5);
     }
   }
@@ -648,11 +667,45 @@ export function createChannel({ seed, audio }) {
       ctx.restore();
     }
 
-    const fs = Math.max(12, Math.floor(Math.min(w, h) * 0.03));
-    ctx.font = `${fs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    const a = clamp(1 - noteAge / 4.5, 0, 1);
-    ctx.fillStyle = `rgba(180, 255, 255, ${0.6 * a})`;
-    ctx.fillText(noteText, m * 0.8, h - m * 0.55);
+    if (noteText) {
+      const hold = 2.0;
+      const fade = 3.8;
+      const a = noteAge <= hold ? 1 : clamp(1 - (noteAge - hold) / fade, 0, 1);
+      const fs = Math.max(13, Math.floor(Math.min(w, h) * 0.024));
+      ctx.font = `600 ${fs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      const pad = Math.max(6, Math.floor(fs * 0.48));
+      const tw = Math.ceil(ctx.measureText(noteText).width);
+      const bw = tw + pad * 2;
+      const bh = fs + pad * 1.7;
+      const tx = sx(noteAnchor.x);
+      const ty = sy(noteAnchor.y);
+      const bx = clamp(tx + 16, m * 0.7, w - m * 0.7 - bw);
+      const by = clamp(ty - bh - 14, m * 0.7, h - m * 0.7 - bh);
+
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(2, 14, 25, 0.94)';
+      ctx.strokeStyle = 'rgba(175, 248, 255, 0.82)';
+      ctx.lineWidth = Math.max(1, Math.floor(fs * 0.11));
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, Math.max(6, Math.floor(fs * 0.3)));
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(clamp(tx + 6, bx + 10, bx + bw - 10), by + bh);
+      ctx.lineTo(clamp(tx + 18, bx + 18, bx + bw - 2), by + bh);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(238, 254, 255, 1)';
+      ctx.shadowColor = 'rgba(120, 240, 255, 0.5)';
+      ctx.shadowBlur = 8;
+      ctx.fillText(noteText, bx + pad, by + fs + pad * 0.45);
+      ctx.restore();
+    }
 
     if (slam > 0) {
       const s = clamp(slam, 0, 1);
@@ -661,6 +714,32 @@ export function createChannel({ seed, audio }) {
       ctx.fillRect(0, 0, w, h);
       ctx.fillStyle = `rgba(160,0,20,${0.25 * s})`;
       ctx.fillRect(0, 0, w, h);
+
+      if (slamRoom >= 0 && slamRoom < rooms.length && slamRoom !== cur.room) {
+        const target = rooms[slamRoom];
+        const rx = sx(target.x);
+        const ry = sy(target.y);
+        const rw = target.w * (w - 2 * m);
+        const rh = target.h * (h - 2 * m);
+        const flash = 0.55 + 0.45 * Math.sin(t * 34);
+        ctx.fillStyle = `rgba(255, 232, 235, ${0.2 * s * flash})`;
+        ctx.fillRect(rx, ry, rw, rh);
+        const glow = ctx.createRadialGradient(
+          rx + rw * 0.5,
+          ry + rh * 0.5,
+          0,
+          rx + rw * 0.5,
+          ry + rh * 0.5,
+          Math.max(rw, rh) * 0.9,
+        );
+        glow.addColorStop(0, `rgba(255, 215, 220, ${0.6 * s * flash})`);
+        glow.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(rx - rw * 0.25, ry - rh * 0.25, rw * 1.5, rh * 1.5);
+        ctx.strokeStyle = `rgba(255, 240, 244, ${0.95 * s * flash})`;
+        ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) * 0.006));
+        ctx.strokeRect(rx, ry, rw, rh);
+      }
 
       const big = Math.max(20, Math.floor(Math.min(w, h) * 0.08));
       ctx.font = `${big}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
