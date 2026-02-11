@@ -153,6 +153,12 @@ export function createChannel({ seed, audio }){
     out.push({ left: 'DREAM TAX', right: money(tax), kind: 'sum' });
     if (weirdFee > 0) out.push({ left: 'SOFT FEE (JUST VIBES)', right: money(weirdFee), kind: 'sum' });
     out.push({ left: 'TOTAL', right: money(total), kind: 'total' });
+    out.push({ left: '', right: '', kind: 'blank' });
+
+    // coupon is printed on-receipt (text filled in later during regen)
+    out.push({ left: '----- COUPON -----', right: '', kind: 'coupon_hdr' });
+    out.push({ left: '', right: '', kind: 'coupon' });
+    out.push({ left: '-------------------------------', right: '', kind: 'rule' });
 
     out.push({ left: '', right: '', kind: 'blank' });
     out.push({ left: 'PAYMENT: ???', right: '', kind: 'foot' });
@@ -174,15 +180,19 @@ export function createChannel({ seed, audio }){
     paperMaxH = Math.floor(s * 0.86);
     lineH = Math.max(14, Math.floor(s * 0.026));
     margin = Math.max(16, Math.floor(s * 0.032));
-
     const raw = mkReceipt(prng);
+
+    // coupon content is chosen *after* receipt generation so it doesn't perturb item content
+    const couponJ = prng();
+    const couponText = (prng() < 0.5) ? 'COUPON: 10% OFF REALITY' : 'COUPON: FREE EXTRA MEANING';
+    const couponSeed = (prng() * 1e9) | 0;
 
     lines = [];
     let y = 0;
     for (const r of raw){
       lines.push({
         y,
-        left: r.left,
+        left: (r.kind === 'coupon') ? couponText : r.left,
         right: r.right,
         kind: r.kind,
       });
@@ -206,12 +216,17 @@ export function createChannel({ seed, audio }){
       y0: 0,
       y1: 0,
     };
+    // coupon moment: align the cue to when the coupon line reaches the print head
+    const printStart = 0.7;
+    const printDur = 18.0;
+    const couponRow = lines.find((r) => r.kind === 'coupon');
+    const couponY = couponRow ? couponRow.y : Math.floor(paperH * 0.65);
 
     coupon = {
-      t0: 14.0 + prng() * 2.5,
-      dur: 2.6,
-      text: (prng() < 0.5) ? 'COUPON: 10% OFF REALITY' : 'COUPON: FREE EXTRA MEANING',
-      seed: (prng() * 1e9) | 0,
+      t0: printStart + printDur * clamp((couponY + lineH * 0.2) / paperH, 0, 1) + couponJ * 0.25,
+      dur: 1.15,
+      text: couponText,
+      seed: couponSeed,
     };
 
     lastPrintRow = -1;
@@ -428,6 +443,9 @@ export function createChannel({ seed, audio }){
     const pPrint = clamp((loopT - printStart) / printDur, 0, 1);
     const printedLen = Math.floor(pPrint * paperH);
 
+    const pCoupon = clamp((loopT - coupon.t0) / coupon.dur, 0, 1);
+    const couponFlash = (pCoupon > 0 && pCoupon < 1) ? (1 - Math.abs(pCoupon * 2 - 1)) : 0;
+
     const pTear = clamp((loopT - tearT0) / tearDur, 0, 1);
     const hang = ease(pTear);
 
@@ -499,6 +517,13 @@ export function createChannel({ seed, audio }){
       if (r.kind === 'hdr' || r.kind === 'hdr2') { a = 0.18; col = 'rgba(0,0,0,0.72)'; }
       if (r.kind === 'total') { a = 0.24; col = 'rgba(0,0,0,0.82)'; }
       if (r.kind === 'rule') { a = 0.12; col = 'rgba(0,0,0,0.55)'; }
+
+      if (r.kind === 'coupon_hdr') { a = 0.17; col = 'rgba(0,0,0,0.70)'; }
+      if (r.kind === 'coupon') { a = 0.20; col = 'rgba(0,0,0,0.78)'; }
+      if ((r.kind === 'coupon_hdr' || r.kind === 'coupon') && couponFlash > 0){
+        a += 0.14 * couponFlash;
+        col = 'rgba(0,0,0,0.88)';
+      }
 
       ctx.globalAlpha = a + 0.7 * ease(clamp((printedLen - r.y) / (lineH * 1.0), 0, 1));
       ctx.fillStyle = col;
@@ -595,71 +620,6 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
-  function drawCoupon(ctx){
-    const p = clamp((loopT - coupon.t0) / coupon.dur, 0, 1);
-    if (p <= 0 || p >= 1) return;
-
-    const prng = mulberry32((coupon.seed ^ (seed * 1664525)) >>> 0);
-    const ww = Math.floor(s * 0.34);
-    const hh = Math.floor(s * 0.12);
-
-    const x0 = Math.floor(cx + paperW * 0.5 + 16);
-    const y0 = Math.floor(slotY + s * 0.05);
-
-    const drop = ease(p);
-    const x = x0 + Math.sin((t * 3.2) + prng() * 6) * 10;
-    const y = y0 + drop * (s * 0.22);
-    const rot = (prng() * 0.2 - 0.1) + Math.sin(t * 1.3) * 0.03;
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rot);
-
-    // shadow
-    ctx.globalAlpha = 0.25;
-    ctx.fillStyle = '#000';
-    roundRect(ctx, 6, 8, ww, hh, 10);
-    ctx.fill();
-
-    // card
-    ctx.globalAlpha = 0.92;
-    ctx.fillStyle = '#fff6cc';
-    roundRect(ctx, 0, 0, ww, hh, 10);
-    ctx.fill();
-
-    // perforation
-    ctx.globalAlpha = 0.25;
-    ctx.strokeStyle = '#111';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(12, hh * 0.62);
-    ctx.lineTo(ww - 12, hh * 0.62);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // text
-    ctx.globalAlpha = 0.62;
-    ctx.fillStyle = '#111';
-    ctx.font = `${Math.max(10, Math.floor(s / 60))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-    ctx.fillText('COUPON DROP', 14, 22);
-
-    ctx.globalAlpha = 0.72;
-    ctx.font = `${Math.max(11, Math.floor(s / 54))}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-    const msg = coupon.text;
-    ctx.fillText(msg, 14, 44);
-
-    // stamp
-    ctx.globalAlpha = 0.18 + 0.2 * (1 - p);
-    ctx.strokeStyle = '#b01a2c';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(ww - 44, hh * 0.35, 18, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
   function drawHud(ctx){
     ctx.save();
     ctx.globalAlpha = 0.25;
@@ -677,7 +637,6 @@ export function createChannel({ seed, audio }){
     drawBackground(ctx);
     drawPrinter(ctx);
     drawPaper(ctx);
-    drawCoupon(ctx);
     drawHud(ctx);
   }
 
