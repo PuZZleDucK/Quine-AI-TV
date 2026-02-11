@@ -1,5 +1,6 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
+// REVIEWED: 2026-02-11
 
 export function createChannel({ seed, audio }) {
   const rand = mulberry32(seed);
@@ -14,6 +15,8 @@ export function createChannel({ seed, audio }) {
   let rooms = [];
   let roomOrder = [];
   let corridors = [];
+  let walls = [];
+  let house = null;
 
   let tourClock = 0;
   const dwellDur = 2.8;
@@ -51,43 +54,121 @@ export function createChannel({ seed, audio }) {
     return { x: r.x + r.w * 0.5, y: r.y + r.h * 0.5 };
   }
 
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = (rand() * (i + 1)) | 0;
+      const tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  function splitLeaf(leaves, idx, orientation, minW, minH) {
+    const leaf = leaves[idx];
+
+    if (orientation === 'v') {
+      const cut = leaf.x + leaf.w * (0.38 + rand() * 0.24);
+      const a = { x: leaf.x, y: leaf.y, w: cut - leaf.x, h: leaf.h };
+      const b = { x: cut, y: leaf.y, w: leaf.x + leaf.w - cut, h: leaf.h };
+      if (a.w < minW || b.w < minW) return false;
+
+      const doorPad = Math.min(0.06, leaf.h * 0.22);
+      const doorPos = leaf.y + doorPad + rand() * Math.max(0.001, leaf.h - doorPad * 2);
+      const doorSize = Math.min(0.11, Math.max(0.05, leaf.h * (0.17 + rand() * 0.08)));
+
+      walls.push({
+        x1: cut,
+        y1: leaf.y,
+        x2: cut,
+        y2: leaf.y + leaf.h,
+        vertical: true,
+        doorPos,
+        doorSize,
+      });
+
+      leaves.splice(idx, 1, a, b);
+      return true;
+    }
+
+    const cut = leaf.y + leaf.h * (0.36 + rand() * 0.28);
+    const a = { x: leaf.x, y: leaf.y, w: leaf.w, h: cut - leaf.y };
+    const b = { x: leaf.x, y: cut, w: leaf.w, h: leaf.y + leaf.h - cut };
+    if (a.h < minH || b.h < minH) return false;
+
+    const doorPad = Math.min(0.06, leaf.w * 0.22);
+    const doorPos = leaf.x + doorPad + rand() * Math.max(0.001, leaf.w - doorPad * 2);
+    const doorSize = Math.min(0.12, Math.max(0.05, leaf.w * (0.16 + rand() * 0.08)));
+
+    walls.push({
+      x1: leaf.x,
+      y1: cut,
+      x2: leaf.x + leaf.w,
+      y2: cut,
+      vertical: false,
+      doorPos,
+      doorSize,
+    });
+
+    leaves.splice(idx, 1, a, b);
+    return true;
+  }
+
   function buildPlan() {
-    const cols = 4;
-    const rows = 3;
-    const count = 8 + ((rand() * 4) | 0); // 8–11
+    house = {
+      x: 0.08 + rand() * 0.02,
+      y: 0.09 + rand() * 0.02,
+      w: 0.82 - rand() * 0.04,
+      h: 0.78 - rand() * 0.04,
+    };
 
-    const used = new Set();
-    rooms = [];
+    const targetRooms = 8 + ((rand() * 3) | 0);
+    const minW = 0.14;
+    const minH = 0.11;
 
-    for (let i = 0; i < count; i++) {
-      for (let tries = 0; tries < 60; tries++) {
-        const c = (rand() * cols) | 0;
-        const r = (rand() * rows) | 0;
-        const key = `${c},${r}`;
-        if (used.has(key)) continue;
-        used.add(key);
+    const leaves = [house];
+    walls = [];
 
-        const cw = 1 / cols;
-        const rh = 1 / rows;
-        const pad = 0.06;
+    let guard = 0;
+    while (leaves.length < targetRooms && guard < 160) {
+      guard += 1;
 
-        const x0 = c * cw + pad * cw + rand() * cw * 0.1;
-        const y0 = r * rh + pad * rh + rand() * rh * 0.1;
-        const rw = cw * (0.72 + rand() * 0.18);
-        const rhh = rh * (0.62 + rand() * 0.22);
+      let pickIdx = -1;
+      let bestArea = 0;
+      for (let i = 0; i < leaves.length; i++) {
+        const leaf = leaves[i];
+        const canV = leaf.w >= minW * 2.1;
+        const canH = leaf.h >= minH * 2.1;
+        if (!canV && !canH) continue;
 
-        rooms.push({
-          x: x0,
-          y: y0,
-          w: Math.min(rw, 1 - x0 - pad * cw),
-          h: Math.min(rhh, 1 - y0 - pad * rh),
-          label: '',
-        });
-        break;
+        const area = leaf.w * leaf.h;
+        if (area > bestArea) {
+          bestArea = area;
+          pickIdx = i;
+        }
+      }
+
+      if (pickIdx < 0) break;
+      const leaf = leaves[pickIdx];
+
+      const canV = leaf.w >= minW * 2.1;
+      const canH = leaf.h >= minH * 2.1;
+
+      let orientation = 'v';
+      if (canV && canH) {
+        if (leaf.w > leaf.h * 1.15) orientation = 'v';
+        else if (leaf.h > leaf.w * 1.15) orientation = 'h';
+        else orientation = rand() < 0.5 ? 'v' : 'h';
+      } else if (canH) {
+        orientation = 'h';
+      }
+
+      if (!splitLeaf(leaves, pickIdx, orientation, minW, minH)) {
+        if (!splitLeaf(leaves, pickIdx, orientation === 'v' ? 'h' : 'v', minW, minH)) break;
       }
     }
 
-    const labels = [
+    const labels = shuffle([
       'FOYER',
       'HALL',
       'PARLOUR',
@@ -97,21 +178,25 @@ export function createChannel({ seed, audio }) {
       'PANTRY',
       'CELLAR',
       'ATTIC',
-      'STORAGE',
-      'GUEST',
+      'DINING',
       'STAIRS',
       'LAUNDRY',
       'LIBRARY',
       'BATH',
-      'SERVANT',
-      'WORKSHOP',
-    ];
+      'GUEST',
+      'BEDROOM',
+      'SUNROOM',
+      'HEARTH',
+    ]);
 
-    rooms.forEach((rm) => {
-      rm.label = pick(labels);
-    });
+    rooms = leaves.map((leaf, i) => ({
+      x: leaf.x,
+      y: leaf.y,
+      w: leaf.w,
+      h: leaf.h,
+      label: labels[i % labels.length],
+    }));
 
-    // Deterministic tour order: greedy nearest-neighbour walk.
     roomOrder = [];
     if (!rooms.length) return;
 
@@ -141,7 +226,7 @@ export function createChannel({ seed, audio }) {
     for (let i = 0; i < roomOrder.length; i++) {
       const a = center(roomOrder[i]);
       const b = center(roomOrder[(i + 1) % roomOrder.length]);
-      const corner = rand() < 0.5 ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
+      const corner = i % 2 === 0 ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
       corridors.push([a, corner, b]);
     }
   }
@@ -205,41 +290,102 @@ export function createChannel({ seed, audio }) {
     pctx.lineJoin = 'round';
     pctx.lineCap = 'round';
 
-    // Corridors
-    pctx.strokeStyle = 'rgba(120, 220, 255, 0.22)';
-    pctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) * 0.004));
-    for (const poly of corridors) {
-      pctx.beginPath();
-      pctx.moveTo(sx(poly[0].x), sy(poly[0].y));
-      for (let k = 1; k < poly.length; k++) pctx.lineTo(sx(poly[k].x), sy(poly[k].y));
-      pctx.stroke();
-    }
-
-    // Rooms
-    const lw = Math.max(2, Math.floor(Math.min(w, h) * 0.0045));
-    pctx.lineWidth = lw;
-
-    const fs = Math.max(10, Math.floor(Math.min(w, h) * 0.024));
-    pctx.font = `${fs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-
     for (const rm of rooms) {
       const x = sx(rm.x);
       const y = sy(rm.y);
       const rw = rm.w * (w - 2 * m);
       const rh = rm.h * (h - 2 * m);
-
-      pctx.fillStyle = 'rgba(10, 60, 90, 0.12)';
+      pctx.fillStyle = 'rgba(10, 60, 90, 0.11)';
       pctx.fillRect(x, y, rw, rh);
-
-      pctx.strokeStyle = 'rgba(160, 250, 255, 0.5)';
-      pctx.strokeRect(x, y, rw, rh);
-
-      pctx.fillStyle = 'rgba(160, 250, 255, 0.35)';
-      pctx.fillText(rm.label, x + lw * 2, y + fs + lw);
     }
 
-    // Border
-    pctx.strokeStyle = 'rgba(160, 250, 255, 0.28)';
+    pctx.strokeStyle = 'rgba(95, 190, 220, 0.2)';
+    pctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) * 0.0025));
+    pctx.setLineDash([6, 7]);
+    for (const poly of corridors) {
+      pctx.beginPath();
+      pctx.moveTo(sx(poly[0].x), sy(poly[0].y));
+      pctx.lineTo(sx(poly[1].x), sy(poly[1].y));
+      pctx.lineTo(sx(poly[2].x), sy(poly[2].y));
+      pctx.stroke();
+    }
+    pctx.setLineDash([]);
+
+    const wallW = Math.max(2, Math.floor(Math.min(w, h) * 0.0048));
+    pctx.strokeStyle = 'rgba(165, 248, 255, 0.58)';
+    pctx.lineWidth = wallW;
+
+    if (house) {
+      const x0 = sx(house.x);
+      const y0 = sy(house.y);
+      const x1 = sx(house.x + house.w);
+      const y1 = sy(house.y + house.h);
+
+      pctx.beginPath();
+      pctx.rect(x0, y0, x1 - x0, y1 - y0);
+      pctx.stroke();
+    }
+
+    pctx.strokeStyle = 'rgba(150, 245, 255, 0.5)';
+    pctx.lineWidth = Math.max(2, wallW - 1);
+    for (const wall of walls) {
+      if (wall.vertical) {
+        const x = sx(wall.x1);
+        const y0 = sy(wall.y1);
+        const y1 = sy(wall.y2);
+        const d = sy(wall.doorPos);
+        const halfGap = ((h - 2 * m) * wall.doorSize) * 0.5;
+
+        pctx.beginPath();
+        pctx.moveTo(x, y0);
+        pctx.lineTo(x, d - halfGap);
+        pctx.moveTo(x, d + halfGap);
+        pctx.lineTo(x, y1);
+        pctx.stroke();
+
+        pctx.strokeStyle = 'rgba(210, 255, 255, 0.45)';
+        pctx.lineWidth = Math.max(1, wallW - 2);
+        pctx.beginPath();
+        pctx.moveTo(x - wallW * 0.9, d);
+        pctx.lineTo(x + wallW * 0.9, d);
+        pctx.stroke();
+      } else {
+        const y = sy(wall.y1);
+        const x0 = sx(wall.x1);
+        const x1 = sx(wall.x2);
+        const d = sx(wall.doorPos);
+        const halfGap = ((w - 2 * m) * wall.doorSize) * 0.5;
+
+        pctx.strokeStyle = 'rgba(150, 245, 255, 0.5)';
+        pctx.lineWidth = Math.max(2, wallW - 1);
+        pctx.beginPath();
+        pctx.moveTo(x0, y);
+        pctx.lineTo(d - halfGap, y);
+        pctx.moveTo(d + halfGap, y);
+        pctx.lineTo(x1, y);
+        pctx.stroke();
+
+        pctx.strokeStyle = 'rgba(210, 255, 255, 0.45)';
+        pctx.lineWidth = Math.max(1, wallW - 2);
+        pctx.beginPath();
+        pctx.moveTo(d, y - wallW * 0.9);
+        pctx.lineTo(d, y + wallW * 0.9);
+        pctx.stroke();
+      }
+      pctx.strokeStyle = 'rgba(150, 245, 255, 0.5)';
+      pctx.lineWidth = Math.max(2, wallW - 1);
+    }
+
+    const fs = Math.max(10, Math.floor(Math.min(w, h) * 0.022));
+    pctx.font = `${fs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    pctx.fillStyle = 'rgba(160, 250, 255, 0.35)';
+    for (const rm of rooms) {
+      const x = sx(rm.x);
+      const y = sy(rm.y);
+      pctx.fillText(rm.label, x + wallW * 1.6, y + fs + wallW * 1.2);
+    }
+
+    pctx.strokeStyle = 'rgba(160, 250, 255, 0.25)';
     pctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) * 0.003));
     pctx.strokeRect(m * 0.6, m * 0.6, w - m * 1.2, h - m * 1.2);
 
@@ -309,7 +455,6 @@ export function createChannel({ seed, audio }) {
     slam = 1;
     tourClock = 0;
 
-    // Rotate the tour order for variety.
     if (roomOrder.length > 2) {
       const shift = 1 + ((rand() * (roomOrder.length - 1)) | 0);
       roomOrder = roomOrder.slice(shift).concat(roomOrder.slice(0, shift));
@@ -377,8 +522,6 @@ export function createChannel({ seed, audio }) {
 
     const a = center(aIdx);
     const b = center(bIdx);
-
-    // Stable per-step corner choice: parity.
     const corner = stepIdx % 2 === 0 ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
 
     const leg1 = Math.abs(corner.x - a.x) + Math.abs(corner.y - a.y);
