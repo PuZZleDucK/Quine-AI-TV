@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] visuals `containerport`: reroute events should cause a container to be moved from the source to the target column. Commit: 4a4855b
+
 - [x] [project:quine-tv] visuals `containerport`: the boat should start off screen at the start, and go all the way offscreen at the end. Commit: fec9124
 
 - [x] [project:quine-tv] visuals `containerport`: containers should look more like shipping containers. Commit: 7b8d2e3

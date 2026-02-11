@@ -1,4 +1,5 @@
 
+- 2026-02-11 23:45 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: during REROUTE phase, cranes now move a container from the source bay to the target bay (routeA→routeB). Commit: 4a4855b
 - 2026-02-11 22:46 (Australia/Melbourne) [project:quine-tv] Special moment `containerport` (`src/channels/containerport.js`): added deterministic rare ship arrival event with rare ship type variants. Commit: c84f6c5
 - 2026-02-11 22:19 (Australia/Melbourne) [project:quine-tv] Determinism `containerport` (`src/channels/containerport.js`): split audio RNG from visual PRNG so audio.enabled doesn"t change the visual sequence (FPS-stable). Commit: 1512bd6
 - 2026-02-11 21:30 (Australia/Melbourne) [project:quine-tv] Perf pass `containerport` (`src/channels/containerport.js`): cached sky/sea/yard/vignette gradients (rebuild on resize/layout change or ctx swap) so steady-state `render()` allocates 0 gradients/frame. Commit: f848d5e
