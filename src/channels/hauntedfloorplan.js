@@ -36,6 +36,11 @@ export function createChannel({ seed, audio }) {
   let slam = 0;
   let nextSlamAt = 0;
   let slamRoom = -1;
+  let nextRareAt = 0;
+  let rareRoom = -1;
+  let rareKind = '';
+  let rarePulse = 0;
+  let pendingEventNote = '';
 
   let drone = null;
   let noise = null;
@@ -64,6 +69,17 @@ export function createChannel({ seed, audio }) {
 
   function getPortal(a, b) {
     return portals.get(pairKey(a, b)) || null;
+  }
+
+  function pickOtherRoom(currentRoom) {
+    if (rooms.length <= 1) return -1;
+    let idx = currentRoom;
+    let guard = 0;
+    while (idx === currentRoom && guard < 20) {
+      idx = (rand() * rooms.length) | 0;
+      guard += 1;
+    }
+    return idx === currentRoom ? -1 : idx;
   }
 
   function shuffle(arr) {
@@ -460,6 +476,10 @@ export function createChannel({ seed, audio }) {
     flicker = 0;
     slam = 0;
     slamRoom = -1;
+    rareRoom = -1;
+    rareKind = '';
+    rarePulse = 0;
+    pendingEventNote = '';
 
     buildPlan();
     renderBg();
@@ -467,6 +487,7 @@ export function createChannel({ seed, audio }) {
 
     nextFlickerAt = 1 + rand() * 4;
     nextSlamAt = 18 + rand() * 18;
+    nextRareAt = 12 + rand() * 16;
   }
 
   function onResize(width, height) {
@@ -509,20 +530,48 @@ export function createChannel({ seed, audio }) {
 
   function slamEvent(currentRoom) {
     slam = 1;
-    slamRoom = -1;
-    if (rooms.length > 1) {
-      let pickRoom = currentRoom;
-      let guard = 0;
-      while (pickRoom === currentRoom && guard < 20) {
-        pickRoom = (rand() * rooms.length) | 0;
-        guard += 1;
-      }
-      if (pickRoom !== currentRoom) slamRoom = pickRoom;
-    }
+    slamRoom = pickOtherRoom(currentRoom);
+    pendingEventNote = 'NOTE: A DOOR SLAMMED NEARBY';
 
     if (audio.enabled) {
       audio.beep({ freq: 70, dur: 0.12, gain: 0.08, type: 'triangle' });
       audio.beep({ freq: 190, dur: 0.04, gain: 0.03, type: 'square' });
+    }
+  }
+
+  function rareEvent(currentRoom) {
+    const room = pickOtherRoom(currentRoom);
+    if (room < 0) return;
+
+    const events = [
+      { kind: 'WHISPER', note: 'NOTE: WHISPERS CAME FROM THE NEXT ROOM' },
+      { kind: 'SCRATCH', note: 'NOTE: SCRATCHING HEARD BEHIND A WALL' },
+      { kind: 'RATTLE', note: 'NOTE: METAL RATTLED SOMEWHERE CLOSE' },
+      { kind: 'KNOCK', note: 'NOTE: THREE KNOCKS ECHOED NEARBY' },
+    ];
+    const ev = pick(events);
+
+    rareRoom = room;
+    rareKind = ev.kind;
+    rarePulse = 1;
+    pendingEventNote = ev.note;
+
+    if (!audio.enabled) return;
+    if (ev.kind === 'WHISPER') {
+      audio.beep({ freq: 420, dur: 0.08, gain: 0.028, type: 'triangle' });
+      audio.beep({ freq: 365, dur: 0.11, gain: 0.024, type: 'sine' });
+    } else if (ev.kind === 'SCRATCH') {
+      audio.beep({ freq: 1250, dur: 0.03, gain: 0.03, type: 'sawtooth' });
+      audio.beep({ freq: 980, dur: 0.04, gain: 0.028, type: 'square' });
+      audio.beep({ freq: 760, dur: 0.03, gain: 0.025, type: 'sawtooth' });
+    } else if (ev.kind === 'RATTLE') {
+      audio.beep({ freq: 310, dur: 0.03, gain: 0.026, type: 'square' });
+      audio.beep({ freq: 292, dur: 0.03, gain: 0.024, type: 'square' });
+      audio.beep({ freq: 278, dur: 0.03, gain: 0.022, type: 'triangle' });
+    } else {
+      audio.beep({ freq: 180, dur: 0.05, gain: 0.032, type: 'square' });
+      audio.beep({ freq: 180, dur: 0.05, gain: 0.03, type: 'square' });
+      audio.beep({ freq: 150, dur: 0.06, gain: 0.026, type: 'triangle' });
     }
   }
 
@@ -535,6 +584,11 @@ export function createChannel({ seed, audio }) {
 
     flicker = Math.max(0, flicker - dt * 6);
     slam = Math.max(0, slam - dt * 1.3);
+    rarePulse = Math.max(0, rarePulse - dt * 0.55);
+    if (rarePulse <= 0.001) {
+      rareRoom = -1;
+      rareKind = '';
+    }
 
     if (t >= nextFlickerAt) {
       flicker = 1;
@@ -544,6 +598,11 @@ export function createChannel({ seed, audio }) {
     if (t >= nextSlamAt) {
       slamEvent(cur.room);
       nextSlamAt = t + 24 + rand() * 22;
+    }
+
+    if (t >= nextRareAt) {
+      rareEvent(cur.room);
+      nextRareAt = t + 42 + rand() * 78;
     }
 
     const stepIdx = Math.floor(tourClock / stepDur);
@@ -559,7 +618,8 @@ export function createChannel({ seed, audio }) {
         'DO NOT ENTER',
         'STILLNESS TOO LOUD',
       ];
-      noteText = `NOTE: ${pick(notePhrases)}`;
+      noteText = pendingEventNote || `NOTE: ${pick(notePhrases)}`;
+      pendingEventNote = '';
       noteAge = 0;
       noteRoom = roomOrder[stepIdx % roomOrder.length];
       noteAnchor = { x: cur.x + (rand() - 0.5) * 0.02, y: cur.y + (rand() - 0.5) * 0.02 };
@@ -704,6 +764,26 @@ export function createChannel({ seed, audio }) {
       ctx.shadowColor = 'rgba(120, 240, 255, 0.5)';
       ctx.shadowBlur = 8;
       ctx.fillText(noteText, bx + pad, by + fs + pad * 0.45);
+      ctx.restore();
+    }
+
+    if (rareRoom >= 0 && rareRoom < rooms.length && rarePulse > 0) {
+      const rr = rooms[rareRoom];
+      const rx = sx(rr.x);
+      const ry = sy(rr.y);
+      const rw = rr.w * (w - 2 * m);
+      const rh = rr.h * (h - 2 * m);
+      const amp = (0.35 + 0.65 * Math.sin(t * 18) ** 2) * rarePulse;
+      const hue = rareKind === 'WHISPER' ? '120,255,210' : rareKind === 'SCRATCH' ? '255,180,150' : '210,190,255';
+      ctx.save();
+      ctx.strokeStyle = `rgba(${hue}, ${0.58 * amp})`;
+      ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) * 0.005));
+      ctx.strokeRect(rx, ry, rw, rh);
+      const rg = ctx.createRadialGradient(rx + rw * 0.5, ry + rh * 0.5, 0, rx + rw * 0.5, ry + rh * 0.5, Math.max(rw, rh));
+      rg.addColorStop(0, `rgba(${hue}, ${0.22 * amp})`);
+      rg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = rg;
+      ctx.fillRect(rx - rw * 0.3, ry - rh * 0.3, rw * 1.6, rh * 1.6);
       ctx.restore();
     }
 
