@@ -67,6 +67,8 @@ export function createChannel({ seed, audio }) {
   ];
 
   const rand = mulberry32(seed);
+  const PLAN_COUNT = 4; // current house plan + three more
+  const PLAN_ROTATE_SEC = 300;
 
   let w = 0;
   let h = 0;
@@ -81,6 +83,8 @@ export function createChannel({ seed, audio }) {
   let walls = [];
   let house = null;
   let portals = new Map();
+  let planBank = [];
+  let activePlanIdx = 0;
 
   let tourClock = 0;
   const dwellDur = 2.8;
@@ -364,6 +368,57 @@ export function createChannel({ seed, audio }) {
     }
   }
 
+  function clonePortalMap(src) {
+    const out = new Map();
+    for (const [k, v] of src.entries()) out.set(k, { x: v.x, y: v.y });
+    return out;
+  }
+
+  function snapshotCurrentPlan() {
+    const prevPlanCanvas = planC;
+    renderPlan();
+    const snap = {
+      rooms: rooms.map((r) => ({ ...r })),
+      roomOrder: [...roomOrder],
+      corridors: corridors.map((poly) => poly.map((p) => ({ x: p.x, y: p.y }))),
+      walls: walls.map((w0) => ({ ...w0 })),
+      house: house ? { ...house } : null,
+      portals: clonePortalMap(portals),
+      canvas: planC,
+    };
+    planC = prevPlanCanvas;
+    return snap;
+  }
+
+  function setActivePlan(idx, resetTour = false) {
+    if (!planBank.length) return;
+    const clamped = ((idx % planBank.length) + planBank.length) % planBank.length;
+    const p = planBank[clamped];
+    activePlanIdx = clamped;
+    rooms = p.rooms;
+    roomOrder = p.roomOrder;
+    corridors = p.corridors;
+    walls = p.walls;
+    house = p.house;
+    portals = p.portals;
+    planC = p.canvas;
+
+    slamRoom = -1;
+    rareRoom = -1;
+    rareKind = '';
+    rarePulse = 0;
+
+    if (resetTour) {
+      tourClock = 0;
+      curRoomStep = -1;
+      pendingEventNote = `NOTE: SWITCHING TO FLOORPLAN ${clamped + 1}`;
+      const c = rooms.length ? center(0) : { x: 0.5, y: 0.5 };
+      noteAnchor = { x: c.x, y: c.y };
+      noteRoom = 0;
+      noteAge = 999;
+    }
+  }
+
   function renderBg() {
     bgC = document.createElement('canvas');
     bgC.width = w;
@@ -544,9 +599,15 @@ export function createChannel({ seed, audio }) {
     rarePulse = 0;
     pendingEventNote = '';
 
-    buildPlan();
+    planBank = [];
+    for (let i = 0; i < PLAN_COUNT; i++) {
+      buildPlan();
+      planBank.push(snapshotCurrentPlan());
+    }
+    activePlanIdx = 0;
+    setActivePlan(0, true);
+
     renderBg();
-    renderPlan();
 
     nextFlickerAt = 1 + rand() * 4;
     nextSlamAt = 18 + rand() * 18;
@@ -640,6 +701,10 @@ export function createChannel({ seed, audio }) {
 
   function update(dt) {
     t += dt;
+    if (planBank.length > 1) {
+      const idx = Math.floor(t / PLAN_ROTATE_SEC) % planBank.length;
+      if (idx !== activePlanIdx) setActivePlan(idx, true);
+    }
     tourClock += dt;
     const cur = getCursor();
 
