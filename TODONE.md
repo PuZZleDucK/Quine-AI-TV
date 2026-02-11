@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Perf polish `kintsugi` (src/channels/kintsugiclinic.js): replaced `dust = dust.filter(...)` with in-place compaction to avoid per-frame array allocation. Commit: 597ff20
+
 - [x] [project:quine-tv] Audio hygiene `duckdebug` (src/channels/rubberduck.js): made `onAudioOn()` idempotent (keeps our room tone if already current; stops our prior handle before restarting); `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: ba050d6
 
 - [x] [project:quine-tv] Audio hygiene `kintsugi` (src/channels/kintsugiclinic.js): made `onAudioOn()` idempotent (stop current first, then start new sources); `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: 0f4232f

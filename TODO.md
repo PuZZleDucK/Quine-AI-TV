@@ -14,7 +14,6 @@ if `TODO.md` has no ready items:
 
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Determinism — decouple audio randomness from visual PRNG (no `rand()` consumption inside `if (audio.enabled)` paths); use separate RNG or deterministic hash based on time/phase.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Perf pass — cache gradients created in render path (`drawBench`, `drawPotteryBase`, `drawGoldSeams`, vignette) and rebuild on resize/regen/ctx swap (0 `create*Gradient()` calls per frame in steady state).
-- [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Perf polish — replace `dust = dust.filter(...)` with in-place compaction to avoid per-frame array allocation.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Long-run interest — make the polish glint a true rare “special moment” (~45–120s) with a more dramatic, clearly visible signature + clean reset.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Text/dialog — add a rotating “case notes” line/panel (seeded, no repeats too quickly) with ~40–80 variants so it stays entertaining over 5 minutes; keep it subtle and OSD-safe.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Visual correctness — clip cracks/dust/gold seams to the pottery ellipse (so no seam/glow lines render outside the bowl). Keep shadow/bench unaffected.
