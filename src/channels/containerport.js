@@ -312,10 +312,30 @@ export function createChannel({ seed, audio }){
       // stack & sort: busiest
       movesPerMin = 22 + ((rand() * 12) | 0);
     } else if (p === 3){
-      // reroute: keep stacks, but choose a route highlight
+      // reroute: choose a route and physically shift containers along it
       movesPerMin = 16 + ((rand() * 10) | 0);
-      routeA = (rand() * BAY_COUNT) | 0;
-      routeB = (routeA + 3 + ((rand() * 8) | 0)) % BAY_COUNT;
+
+      // pick a source bay with at least one container
+      {
+        let start = (rand() * BAY_COUNT) | 0;
+        routeA = 0;
+        for (let k = 0; k < BAY_COUNT; k++){
+          const i = (start + k) % BAY_COUNT;
+          if (stackCount(i) > 0){ routeA = i; break; }
+        }
+      }
+
+      // pick a destination bay (not full, not the source)
+      {
+        const maxH = 9;
+        let start = (routeA + 1 + ((rand() * (BAY_COUNT - 1)) | 0)) % BAY_COUNT;
+        routeB = (routeA + 1) % BAY_COUNT;
+        for (let k = 0; k < BAY_COUNT; k++){
+          const i = (start + k) % BAY_COUNT;
+          if (i !== routeA && stackCount(i) < maxH){ routeB = i; break; }
+        }
+      }
+
       routePulse = 1;
 
       safeBeep({ freq: 220, dur: 0.08, gain: 0.018, type: 'square' });
@@ -416,6 +436,32 @@ export function createChannel({ seed, audio }){
       return true;
     }
 
+    // phase 3: reroute (routeA -> routeB)
+    if (phaseIndex === 3){
+      const maxH = 9;
+      const src = routeA;
+      const dest = routeB;
+      moveCursor++;
+
+      if (src < 0 || dest < 0) return false;
+      if (src === dest) return false;
+      if (stackCount(src) <= 0) return false;
+      if (stackCount(dest) >= maxH) return false;
+
+      const st = bayStacks[src];
+      const startY = baseY - (st.length) * (u * 0.78);
+      const startX = bays[src].x + bays[src].w * 0.5;
+      const container = st.pop();
+      if (!container) return false;
+
+      const endX = bays[dest].x + bays[dest].w * 0.5;
+      const endY = baseY - (stackCount(dest) + 1) * (u * 0.78);
+
+      const dur = 2.1 + 0.7 * moveRand01(container.id ^ 0x27d4eb2d);
+      craneJobs[ci] = { kind: 'yardToYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
+      return true;
+    }
+
     return false;
   }
 
@@ -457,7 +503,7 @@ export function createChannel({ seed, audio }){
       }
     }
 
-    if (phaseIndex === 1 || phaseIndex === 2){
+    if (phaseIndex === 1 || phaseIndex === 2 || phaseIndex === 3){
       const interval = 60 / Math.max(1, movesPerMin);
       while (t >= moveNextT){
         let started = false;
