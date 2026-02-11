@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): added subtle counter film grain + stronger printer-slot lip/shadow (paper mouth shade) so the scene reads less “flat”. Commit: c13d109
+
 - [x] [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): widen printer body + slot so paper fits; added bevel highlight + screws for interest. Commit: 9c00b79
 
 - [x] [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): longer post-print pause, then receipt falls off-screen. Commit: 582e5c1
