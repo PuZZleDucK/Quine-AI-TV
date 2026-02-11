@@ -513,6 +513,119 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function drawReferenceCard(ctx, x, y, w0, h0, deltaStops, focusHint){
+    ctx.save();
+
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    roundRect(ctx, x, y, w0, h0, 16);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = hudDim;
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, w0, h0, 16);
+    ctx.stroke();
+
+    const pad0 = font * 0.7;
+    let yy = y + pad0;
+
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = hud;
+    ctx.font = `800 ${Math.floor(font * 0.92)}px ui-sans-serif, system-ui`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('REFERENCE', x + pad0, yy);
+
+    ctx.fillStyle = 'rgba(231,238,246,0.75)';
+    ctx.font = `700 ${Math.floor(font * 0.78)}px ui-sans-serif, system-ui`;
+    ctx.textAlign = 'right';
+    ctx.fillText(`FOCUS: ${(focusHint || '—').toUpperCase()}`, x + w0 - pad0, yy + font * 0.08);
+
+    yy += font * 1.55;
+
+    // EV scale
+    const scaleX = x + pad0;
+    const scaleW = w0 - pad0 * 2;
+    const scaleY = yy + font * 1.25;
+    const mid = scaleX + scaleW * 0.5;
+
+    ctx.globalAlpha = 0.75;
+    ctx.strokeStyle = 'rgba(231,238,246,0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(scaleX, scaleY);
+    ctx.lineTo(scaleX + scaleW, scaleY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    for (let i = -3; i <= 3; i++){
+      const tx = mid + (i / 3) * (scaleW * 0.46);
+      const th = i === 0 ? font * 0.8 : (i % 2 === 0 ? font * 0.6 : font * 0.45);
+      ctx.moveTo(tx, scaleY - th * 0.5);
+      ctx.lineTo(tx, scaleY + th * 0.5);
+    }
+    ctx.stroke();
+
+    const d = clamp(deltaStops, -3, 3);
+    const nx = mid + (d / 3) * (scaleW * 0.46);
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = Math.abs(deltaStops) <= 0.5 ? hud : warn;
+    ctx.beginPath();
+    ctx.moveTo(nx, scaleY - font * 0.95);
+    ctx.lineTo(nx - font * 0.35, scaleY - font * 0.35);
+    ctx.lineTo(nx + font * 0.35, scaleY - font * 0.35);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.font = `800 ${Math.floor(font * 0.92)}px ui-sans-serif, system-ui`;
+    const evTxt = deltaStops === 0 ? 'EV 0.0' : `EV ${deltaStops > 0 ? '+' : ''}${deltaStops.toFixed(0)}.0`;
+    ctx.fillText(evTxt, x + w0 * 0.5, scaleY + font * 0.55);
+
+    // fake histogram panel
+    const hx = x + pad0;
+    const hy = scaleY + font * 2.25;
+    const hw = w0 - pad0 * 2;
+    const hh = Math.max(font * 2.2, h0 - (hy - y) - pad0);
+
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    roundRect(ctx, hx, hy, hw, hh, 12);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = 'rgba(231,238,246,0.55)';
+    ctx.font = `700 ${Math.floor(font * 0.72)}px ui-sans-serif, system-ui`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('HISTOGRAM', hx + font * 0.55, hy + font * 0.45);
+
+    const bars = 14;
+    const bx0 = hx + font * 0.55;
+    const bw = hw - font * 1.1;
+    const by0 = hy + font * 1.25;
+    const bh = hh - font * 1.6;
+
+    const mean = clamp(0.5 + deltaStops * 0.085, 0.08, 0.92);
+    const sigma = 0.18;
+
+    ctx.fillStyle = hud;
+    for (let i = 0; i < bars; i++){
+      const u = (i + 0.5) / bars;
+      const g = Math.exp(-((u - mean) * (u - mean)) / (2 * sigma * sigma));
+      const hh0 = clamp(g, 0, 1) * bh;
+      const x1 = bx0 + (i / bars) * bw;
+      const w1 = (bw / bars) * 0.78;
+      ctx.globalAlpha = 0.22 + g * 0.65;
+      ctx.fillRect(x1, by0 + (bh - hh0), w1, hh0);
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
   function drawTestShot(ctx, x, y, w0, h0){
     const iso = ISO[isoI];
     const f = FSTOPS[fI];
@@ -665,7 +778,20 @@ export function createChannel({ seed, audio }){
 
     // meter
     const mY = dy + (rowH + gap) * 3 + gap * 0.3;
-    drawMeter(ctx, dx, mY, dialW, Math.floor(font * 2.6), meterStopDelta());
+    const deltaStops = meterStopDelta();
+    drawMeter(ctx, dx, mY, dialW, Math.floor(font * 2.6), deltaStops);
+
+    // Composition polish: use right-side negative space for a compact reference card
+    // (kept small + non-invasive so it doesn't compete with the OSD).
+    const rx = dx + dialW + pad * 0.9;
+    const rw = w - pad - rx;
+    const ry = dy;
+    const testY = triY + triSize + pad * 0.75;
+    const maxH = s.kind === 'test' ? (testY - pad * 0.35 - ry) : (h - pad - ry);
+    const rh = Math.min(maxH, Math.floor(font * 16.5));
+    if (rw > font * 8 && rh > font * 8){
+      drawReferenceCard(ctx, rx, ry, rw, rh, deltaStops, focus || s.kind);
+    }
 
     // quiz prompt + reveal
     if (s.kind === 'quiz' && quiz){
