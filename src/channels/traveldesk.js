@@ -106,6 +106,75 @@ const DESTINATIONS = [
   },
 ];
 
+const FANTASY_DESTINATIONS = [
+  {
+    city: 'Luminara Quay',
+    country: 'Aether Isles',
+    region: 'Cloud Harbors',
+    vibe: 'airships, lantern fog, gulls with badges',
+    food: 'Nebula noodle bowl',
+    fact: 'Dockworkers tie knots to clouds that drift in from the east.',
+    humor: 'Parking ticketed if your dragon idles.',
+    palette: { sky0: '#10142b', sky1: '#355596', accent: '#ffd166', ink: '#10131f' },
+    speed: 34,
+  },
+  {
+    city: 'Mosskeep',
+    country: 'Verdant Realm',
+    region: 'Rootbound Boroughs',
+    vibe: 'tree-trams, glowing fungi, owl traffic',
+    food: 'Thimbleberry hand pies',
+    fact: 'Neighborhoods connect by suspended branchwalks and rope lifts.',
+    humor: 'Squirrels run the lost-and-found desk.',
+    palette: { sky0: '#09120f', sky1: '#1f4a3d', accent: '#9ef28f', ink: '#0f1714' },
+    speed: 29,
+  },
+  {
+    city: 'Brasshaven',
+    country: 'Clockwork Marches',
+    region: 'Gearline District',
+    vibe: 'steam valves, copper roofs, bell towers',
+    food: 'Clockface biscuits',
+    fact: 'Streetlights are wound by hand at dusk to keep them humming.',
+    humor: 'Late trains blame philosophical gears.',
+    palette: { sky0: '#120d0a', sky1: '#5f3622', accent: '#f7b267', ink: '#1a120d' },
+    speed: 37,
+  },
+];
+
+const HUMOR_BY_CITY = {
+  Lisbon: 'Pigeons act like unpaid tram inspectors.',
+  Kyoto: 'Even vending machines seem to bow politely.',
+  Marrakesh: 'Directions include two lefts and one cat.',
+  'Reykjavík': 'Sidewalk steam doubles as dramatic stage fog.',
+  'Mexico City': 'Traffic lanes are a collaborative suggestion.',
+  Hanoi: 'Crosswalk strategy: confidence plus vibes.',
+  Istanbul: 'Local cats review your itinerary silently.',
+  Edinburgh: 'Wind speed measured in lost umbrellas per hour.',
+  'New Orleans': 'Powdered sugar may reach critical mass.',
+  Copenhagen: 'Bikes outnumber excuses by a wide margin.',
+};
+
+function destinationKey(d){
+  return `${d.city}|${d.country}`;
+}
+
+function buildCycleOrder(baseSeed, block, count){
+  const r = mulberry32((baseSeed ^ ((block + 1) * 0x85ebca6b)) >>> 0);
+  const order = Array.from({ length: count }, (_, i) => i);
+  for (let i = order.length - 1; i > 0; i--){
+    const j = (r() * (i + 1)) | 0;
+    const tmp = order[i];
+    order[i] = order[j];
+    order[j] = tmp;
+  }
+  return order;
+}
+
+function humorForDestination(d){
+  return d.humor || HUMOR_BY_CITY[d.city] || 'Local ducks are unionized and on break.';
+}
+
 function roundedRect(ctx, x, y, w, h, r){
   const rr = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -179,12 +248,33 @@ export function createChannel({ seed, audio }){
   let street = null;
 
   let bed = null;
+  let lastDestKey = '';
+  const normalCycleCache = new Map();
+
+  function getNormalDestination(i){
+    const len = DESTINATIONS.length;
+    const block = Math.floor(i / len);
+    const offset = i % len;
+    if (!normalCycleCache.has(block)){
+      normalCycleCache.set(block, buildCycleOrder(seed, block, len));
+    }
+    const order = normalCycleCache.get(block);
+    return DESTINATIONS[order[offset]];
+  }
+
+  function pickDestinationForSegment(i, r){
+    let next = r() < 0.08 ? pick(r, FANTASY_DESTINATIONS) : getNormalDestination(i);
+    if (destinationKey(next) === lastDestKey){
+      next = getNormalDestination(i + 1);
+    }
+    lastDestKey = destinationKey(next);
+    return next;
+  }
 
   function setSegment(i){
     segIx = i;
-    segT = 0;
     const r = mulberry32((seed ^ (i * 0x9e3779b9)) >>> 0);
-    dest = pick(r, DESTINATIONS);
+    dest = pickDestinationForSegment(i, r);
 
     // map blobs (desk-map fiction, not real geography)
     const mx = w * 0.27;
@@ -200,6 +290,9 @@ export function createChannel({ seed, audio }){
   function init({ width, height }){
     w = width; h = height; t = 0;
     segIx = 0;
+    segT = 0;
+    lastDestKey = '';
+    normalCycleCache.clear();
     setSegment(0);
   }
 
@@ -228,7 +321,8 @@ export function createChannel({ seed, audio }){
   function update(dt){
     t += dt;
     segT += dt;
-    if (segT >= SEG_DUR){
+    while (segT >= SEG_DUR){
+      segT -= SEG_DUR;
       setSegment(segIx + 1);
     }
 
@@ -567,15 +661,16 @@ export function createChannel({ seed, audio }){
 
     // info bullets (highlighted by phase)
     const phase = (segT / SEG_DUR);
-    const hi = Math.min(3, Math.floor(phase * 4));
+    const hi = Math.min(4, Math.floor(phase * 5));
     const items = [
       { k: 'MAP', v: dest.region },
       { k: 'STREET', v: dest.vibe },
       { k: 'FOOD', v: dest.food },
       { k: 'HISTORY', v: dest.fact },
+      { k: 'HUMOR', v: humorForDestination(dest) },
     ];
 
-    let y = py + ph * 0.44;
+    let y = py + ph * 0.40;
     const x = px + pw * 0.08;
     for (let i = 0; i < items.length; i++){
       const it = items[i];
@@ -587,7 +682,7 @@ export function createChannel({ seed, audio }){
 
       ctx.font = `${Math.floor(layout.font * 0.84)}px ui-sans-serif, system-ui`;
       const tx = x + pw * 0.16;
-      // wrap-ish: split long history into two lines
+      // wrap-ish: split long values for postcard width
       const text = String(it.v);
       const maxW = pw * 0.44;
       const words = text.split(' ');
@@ -603,11 +698,11 @@ export function createChannel({ seed, audio }){
         }
       }
       if (line) lines.push(line);
-      const maxLines = it.k === 'HISTORY' ? 2 : 1;
+      const maxLines = 1;
       for (let li = 0; li < Math.min(maxLines, lines.length); li++){
         ctx.fillText(lines[li], tx, y + li * Math.floor(layout.font * 0.98));
       }
-      y += Math.floor(layout.font * 1.22) + (it.k === 'HISTORY' ? Math.floor(layout.font * 0.70) : 0);
+      y += Math.floor(layout.font * 0.98);
     }
 
     // tiny coffee steam (desk ambience)
