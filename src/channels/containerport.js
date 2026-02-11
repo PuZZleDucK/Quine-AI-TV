@@ -29,6 +29,55 @@ function roundedRect(ctx, x, y, w, h, r){
   ctx.closePath();
 }
 
+function drawContainer(ctx, x, y, w, h, col, id, dpr){
+  // Shipping-container-ish look: boxy body, corrugation ribs, corner castings, door seam.
+  ctx.fillStyle = col;
+  ctx.fillRect(x, y, w, h);
+
+  // panel shading (no gradients; cheap overlays)
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(x, y, w, Math.max(1, h * 0.18));
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillRect(x, y + h * 0.78, w, Math.max(1, h * 0.22));
+
+  // corrugation ribs
+  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+  ctx.lineWidth = Math.max(1, 0.9 * dpr);
+  ctx.beginPath();
+  for (const f of [0.16, 0.32, 0.48, 0.64, 0.80]){
+    const xx = x + w * f;
+    ctx.moveTo(xx, y + 1);
+    ctx.lineTo(xx, y + h - 1);
+  }
+  ctx.stroke();
+
+  // door seam (flip side deterministically)
+  const seamF = (id & 1) ? 0.84 : 0.16;
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+  ctx.lineWidth = Math.max(1, 1.0 * dpr);
+  ctx.beginPath();
+  ctx.moveTo(x + w * seamF, y + 1);
+  ctx.lineTo(x + w * seamF, y + h - 1);
+  ctx.stroke();
+
+  // corner castings
+  const c = Math.max(1, Math.min(w, h) * 0.14);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(x, y, c, c);
+  ctx.fillRect(x + w - c, y, c, c);
+  ctx.fillRect(x, y + h - c, c, c);
+  ctx.fillRect(x + w - c, y + h - c, c, c);
+
+  // subtle outline so stacks read as separate containers
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+  ctx.lineWidth = Math.max(1, 0.9 * dpr);
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+
+  // tiny placard patch
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.fillRect(x + w * 0.10, y + h * 0.42, w * 0.22, h * 0.22);
+}
+
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
   // Audio must never consume the visual PRNG (visuals must match with audio on/off).
@@ -529,9 +578,8 @@ export function createChannel({ seed, audio }){
         const n = v === 0 ? (2 + (((i + (seed|0)) % 5) | 0)) : (1 + (((i + (seed|0)) % 3) | 0));
         for (let j = 0; j < n; j++){
           const by = base - j * (ship.h * 0.22);
-          ctx.fillStyle = cols[(i + j) % cols.length];
-          roundedRect(ctx, bx, by, bw, ship.h * 0.18, 3);
-          ctx.fill();
+          const col = cols[(i + j) % cols.length];
+          drawContainer(ctx, bx, by, bw, ship.h * 0.18, col, ((v + 1) << 12) ^ (i << 4) ^ j, dpr);
         }
       }
     }
@@ -618,12 +666,7 @@ export function createChannel({ seed, audio }){
 
       for (let j = 0; j < hh; j++){
         const by = baseY - (j + 1) * (u * 0.78);
-        ctx.fillStyle = b.col;
-        roundedRect(ctx, bx, by, bw, u * 0.62, 3);
-        ctx.fill();
-
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
-        ctx.fillRect(bx + bw * 0.08, by + u * 0.18, bw * 0.84, Math.max(1, u * 0.06));
+        drawContainer(ctx, bx, by, bw, u * 0.62, b.col, (i << 8) ^ j, dpr);
       }
 
       // bay label
@@ -754,11 +797,8 @@ export function createChannel({ seed, audio }){
 
       if (mv.active){
         // moving container
-        ctx.fillStyle = (i === 0 && phaseIndex === 1) ? pal.warn2 : pal.accent;
-        roundedRect(ctx, mv.x - 18, mv.y - 8, 36, 16, 3);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.fillRect(mv.x - 12, mv.y - 3, 24, 3);
+        const col = (i === 0 && phaseIndex === 1) ? pal.warn2 : pal.accent;
+        drawContainer(ctx, mv.x - 18, mv.y - 8, 36, 16, col, (phaseIndex << 10) ^ (i << 6) ^ mv.a ^ (mv.b << 4), dpr);
       }
     }
 

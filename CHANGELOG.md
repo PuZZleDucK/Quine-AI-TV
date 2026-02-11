@@ -302,3 +302,4 @@
 - 2026-02-11 20:30 (Australia/Melbourne) [project:quine-tv] `volcanoobs`: seismograph overlay — intensity threshold ticks + alert state label/meter (tied to intensityAt(loopT)). Commit: eab3c69
 - 2026-02-11 21:49 (Australia/Melbourne) [project:quine-tv] `containerport`: improved clouds (layered deterministic puffs; no rand() calls). Commit: 9dddb4a
 - 2026-02-11 22:04 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: made crane frame sturdier (filled mast/beam + truss braces). Commit: bd87b1f
+- 2026-02-11 23:05 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: containers now render with a more shipping-container look (corrugation ribs, corner castings, door seam). Commit: 4d53cd1
