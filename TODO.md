@@ -1,6 +1,6 @@
 
 # TODO Queue
-- [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): paper is wider than the hole, the machine needs to be wider.
+- [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): paper is wider than the hole, the machine needs to be wider and more interesting.
 - [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): pause once printed should be longer. then receipt should fall down off screen.
 - [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): add subtle counter texture/film grain and stronger printer-slot lighting/shadow so the scene reads less “flat”. Accept: 0–60s capture shows visible texture + depth improve receipt legibility.
 - [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): coupons should be printed as part of a receipt.
