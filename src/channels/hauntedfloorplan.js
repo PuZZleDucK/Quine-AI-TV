@@ -17,6 +17,7 @@ export function createChannel({ seed, audio }) {
   let corridors = [];
   let walls = [];
   let house = null;
+  let portals = new Map();
 
   let tourClock = 0;
   const dwellDur = 2.8;
@@ -52,6 +53,14 @@ export function createChannel({ seed, audio }) {
   function center(idx) {
     const r = rooms[idx];
     return { x: r.x + r.w * 0.5, y: r.y + r.h * 0.5 };
+  }
+
+  function pairKey(a, b) {
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+  }
+
+  function getPortal(a, b) {
+    return portals.get(pairKey(a, b)) || null;
   }
 
   function shuffle(arr) {
@@ -197,37 +206,79 @@ export function createChannel({ seed, audio }) {
       label: labels[i % labels.length],
     }));
 
+    portals = new Map();
+    const graph = Array.from({ length: rooms.length }, () => []);
+    const edgeSeen = new Set();
+    const eps = 1e-4;
+
+    function addDoorEdge(a, b, door) {
+      if (a < 0 || b < 0 || a === b) return;
+      const key = pairKey(a, b);
+      if (edgeSeen.has(key)) return;
+      edgeSeen.add(key);
+      portals.set(key, door);
+      graph[a].push(b);
+      graph[b].push(a);
+    }
+
+    for (const wall of walls) {
+      if (wall.vertical) {
+        let left = -1;
+        let right = -1;
+        for (let i = 0; i < rooms.length; i++) {
+          const r = rooms[i];
+          const doorInside = wall.doorPos > r.y + eps && wall.doorPos < r.y + r.h - eps;
+          if (!doorInside) continue;
+          if (Math.abs(r.x + r.w - wall.x1) < eps) left = i;
+          if (Math.abs(r.x - wall.x1) < eps) right = i;
+        }
+        if (left >= 0 && right >= 0) addDoorEdge(left, right, { x: wall.x1, y: wall.doorPos });
+      } else {
+        let top = -1;
+        let bottom = -1;
+        for (let i = 0; i < rooms.length; i++) {
+          const r = rooms[i];
+          const doorInside = wall.doorPos > r.x + eps && wall.doorPos < r.x + r.w - eps;
+          if (!doorInside) continue;
+          if (Math.abs(r.y + r.h - wall.y1) < eps) top = i;
+          if (Math.abs(r.y - wall.y1) < eps) bottom = i;
+        }
+        if (top >= 0 && bottom >= 0) addDoorEdge(top, bottom, { x: wall.doorPos, y: wall.y1 });
+      }
+    }
+
     roomOrder = [];
     if (!rooms.length) return;
 
-    const remaining = new Set(rooms.map((_, i) => i));
-    let cur = 0;
-    roomOrder.push(cur);
-    remaining.delete(cur);
-
-    while (remaining.size) {
-      const c0 = center(cur);
-      let best = null;
-      let bestD = Infinity;
-      for (const j of remaining) {
-        const c1 = center(j);
-        const d = (c1.x - c0.x) ** 2 + (c1.y - c0.y) ** 2;
-        if (d < bestD) {
-          bestD = d;
-          best = j;
+    if (rooms.length === 1) {
+      roomOrder = [0];
+    } else {
+      const seen = new Set();
+      function walk(node, parent) {
+        seen.add(node);
+        roomOrder.push(node);
+        const neighbors = [...graph[node]].sort((a, b) => a - b);
+        for (const nxt of neighbors) {
+          if (nxt === parent) continue;
+          walk(nxt, node);
+          roomOrder.push(node);
         }
       }
-      cur = best;
-      roomOrder.push(cur);
-      remaining.delete(cur);
+      walk(0, -1);
+
+      if (seen.size !== rooms.length) {
+        // Fallback if graph recovery failed for any room.
+        roomOrder = rooms.map((_, i) => i);
+      }
     }
 
     corridors = [];
     for (let i = 0; i < roomOrder.length; i++) {
       const a = center(roomOrder[i]);
       const b = center(roomOrder[(i + 1) % roomOrder.length]);
-      const corner = i % 2 === 0 ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
-      corridors.push([a, corner, b]);
+      const door = getPortal(roomOrder[i], roomOrder[(i + 1) % roomOrder.length]);
+      if (door) corridors.push([a, door, b]);
+      else corridors.push([a, b]);
     }
   }
 
@@ -305,8 +356,7 @@ export function createChannel({ seed, audio }) {
     for (const poly of corridors) {
       pctx.beginPath();
       pctx.moveTo(sx(poly[0].x), sy(poly[0].y));
-      pctx.lineTo(sx(poly[1].x), sy(poly[1].y));
-      pctx.lineTo(sx(poly[2].x), sy(poly[2].y));
+      for (let i = 1; i < poly.length; i++) pctx.lineTo(sx(poly[i].x), sy(poly[i].y));
       pctx.stroke();
     }
     pctx.setLineDash([]);
@@ -453,12 +503,6 @@ export function createChannel({ seed, audio }) {
 
   function slamEvent() {
     slam = 1;
-    tourClock = 0;
-
-    if (roomOrder.length > 2) {
-      const shift = 1 + ((rand() * (roomOrder.length - 1)) | 0);
-      roomOrder = roomOrder.slice(shift).concat(roomOrder.slice(0, shift));
-    }
 
     if (audio.enabled) {
       audio.beep({ freq: 70, dur: 0.12, gain: 0.08, type: 'triangle' });
@@ -519,23 +563,30 @@ export function createChannel({ seed, audio }) {
 
     const u = clamp((within - dwellDur) / moveDur, 0, 1);
     const e = ease(u);
-
     const a = center(aIdx);
     const b = center(bIdx);
-    const corner = stepIdx % 2 === 0 ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
+    const door = getPortal(aIdx, bIdx);
+    const path = door ? [a, door, b] : [a, b];
 
-    const leg1 = Math.abs(corner.x - a.x) + Math.abs(corner.y - a.y);
-    const leg2 = Math.abs(b.x - corner.x) + Math.abs(b.y - corner.y);
-    const total = Math.max(1e-6, leg1 + leg2);
-
-    const d = e * total;
-    if (d <= leg1) {
-      const f = leg1 ? d / leg1 : 1;
-      return { x: lerp(a.x, corner.x, f), y: lerp(a.y, corner.y, f), room: aIdx, moving: true };
+    if (path.length === 2) {
+      return {
+        x: lerp(path[0].x, path[1].x, e),
+        y: lerp(path[0].y, path[1].y, e),
+        room: e < 0.5 ? aIdx : bIdx,
+        moving: true,
+      };
     }
 
-    const f = leg2 ? (d - leg1) / leg2 : 1;
-    return { x: lerp(corner.x, b.x, f), y: lerp(corner.y, b.y, f), room: bIdx, moving: true };
+    const l1 = Math.hypot(path[1].x - path[0].x, path[1].y - path[0].y);
+    const l2 = Math.hypot(path[2].x - path[1].x, path[2].y - path[1].y);
+    const total = Math.max(1e-6, l1 + l2);
+    const d = e * total;
+    if (d <= l1) {
+      const f = l1 ? d / l1 : 1;
+      return { x: lerp(path[0].x, path[1].x, f), y: lerp(path[0].y, path[1].y, f), room: aIdx, moving: true };
+    }
+    const f = l2 ? (d - l1) / l2 : 1;
+    return { x: lerp(path[1].x, path[2].x, f), y: lerp(path[1].y, path[2].y, f), room: bIdx, moving: true };
   }
 
   function draw(ctx) {
