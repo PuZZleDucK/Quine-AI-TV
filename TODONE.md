@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] visuals `containerport`: the boat should start off screen at the start, and go all the way offscreen at the end. Commit: fec9124
+
 - [x] [project:quine-tv] visuals `containerport`: containers should look more like shipping containers. Commit: 7b8d2e3
 
 - [x] [project:quine-tv] Special moment `containerport` (`src/channels/containerport.js`): add 1–2 rare deterministic events (~45–120s) uncommon and rare ship types. Accept: 5min capture shows at least one special moment; deterministic per seed. Commit: c84f6c5
