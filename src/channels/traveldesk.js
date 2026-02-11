@@ -141,7 +141,7 @@ function makeStreet(rand, ww, hh){
       const rows = Math.max(2, Math.floor(bh / 26));
       const lights = new Uint8Array(cols * rows);
       for (let wi = 0; wi < lights.length; wi++){
-        lights[wi] = rand() < (0.03 + 0.02 * depth) ? 1 : 0;
+        lights[wi] = rand() < (0.22 + 0.10 * depth) ? 1 : 0;
       }
       b.push({
         x,
@@ -156,7 +156,11 @@ function makeStreet(rand, ww, hh){
       });
       x += bw + (10 + rand() * 40);
     }
-    return { depth, buildings: b };
+    const stripStart = b.length ? b[0].x : 0;
+    const last = b[b.length - 1];
+    const stripEnd = last ? (last.x + last.w) : ww;
+    const stripWidth = Math.max(ww * 0.8, stripEnd - stripStart);
+    return { depth, buildings: b, stripStart, stripWidth };
   });
 
   return { horizon, layers, rand };
@@ -413,7 +417,7 @@ export function createChannel({ seed, audio }){
 
     // parallax street
     const sp = (dest.speed || 36) * (w / 960);
-    const off = -((t * sp) % iw);
+    const baseShift = t * sp;
 
     // horizon glow
     ctx.save();
@@ -427,9 +431,12 @@ export function createChannel({ seed, audio }){
 
     for (const layer of street.layers){
       const tone = Math.floor(12 + (1 - layer.depth) * 24);
+      const layerParallax = 0.3 + 0.8 * layer.depth;
+      const wrap = layer.stripWidth;
+      const layerShift = -((baseShift * layerParallax) % wrap);
       for (const b of layer.buildings){
-        for (let rep = 0; rep < 2; rep++){
-          const bx = ix + b.x + off * (0.3 + 0.8 * layer.depth) + rep * iw;
+        for (let rep = -1; rep <= 2; rep++){
+          const bx = ix + (b.x - layer.stripStart) + layerShift + rep * wrap;
           const by = iy + street.horizon - b.h;
           if (bx + b.w < ix || bx > ix + iw) continue;
           ctx.fillStyle = `rgb(${tone}, ${tone + 3}, ${tone + 7})`;
@@ -450,6 +457,10 @@ export function createChannel({ seed, audio }){
         }
       }
     }
+
+    // anchor silhouettes to a ground strip so skylines never appear to float
+    ctx.fillStyle = 'rgba(12, 17, 29, 0.96)';
+    ctx.fillRect(ix, iy + street.horizon, iw, Math.max(2, Math.floor(ih * 0.06)));
 
     // scanlines
     ctx.save();
