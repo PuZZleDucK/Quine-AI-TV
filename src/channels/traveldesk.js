@@ -130,13 +130,13 @@ function makeCoast(rand, cx, cy, r){
 }
 
 function makeStreet(rand, ww, hh){
-  const horizon = hh * (0.45 + rand() * 0.18);
+  const horizon = hh * (0.72 + rand() * 0.14);
   const layers = [0.4, 0.7, 1.0].map((depth, i) => {
     const b = [];
     let x = -ww * 0.2;
     while (x < ww * 1.3){
-      const bw = (30 + rand() * 90) * (0.9 + 0.25 * (1 / depth));
-      const bh = (hh * (0.18 + rand() * 0.55)) * depth;
+      const bw = (20 + rand() * 54) * (0.82 + 0.18 * (1 / depth));
+      const bh = (hh * (0.10 + rand() * 0.36)) * depth;
       b.push({ x, w: bw, h: bh, seed: rand() * 999, hue: 210 + i * 10 });
       x += bw + (10 + rand() * 40);
     }
@@ -370,6 +370,10 @@ export function createChannel({ seed, audio }){
     const iw = sw - pad * 2;
     const ih = sh - pad * 2;
 
+    ctx.save();
+    roundedRect(ctx, ix, iy, iw, ih, Math.floor(r * 0.65));
+    ctx.clip();
+
     // sky
     const g = ctx.createLinearGradient(ix, iy, ix, iy + ih);
     g.addColorStop(0, dest.palette.sky0);
@@ -392,13 +396,13 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     for (const layer of street.layers){
-      const a = 0.18 + 0.55 * layer.depth;
+      const tone = Math.floor(12 + (1 - layer.depth) * 24);
       for (const b of layer.buildings){
         for (let rep = 0; rep < 2; rep++){
           const bx = ix + b.x + off * (0.3 + 0.8 * layer.depth) + rep * iw;
           const by = iy + street.horizon - b.h;
           if (bx + b.w < ix || bx > ix + iw) continue;
-          ctx.fillStyle = `rgba(0,0,0,${a})`;
+          ctx.fillStyle = `rgb(${tone}, ${tone + 3}, ${tone + 7})`;
           ctx.fillRect(bx, by, b.w, b.h);
 
           // windows flicker
@@ -431,6 +435,7 @@ export function createChannel({ seed, audio }){
     ctx.globalAlpha = 0.08;
     ctx.fillStyle = 'rgba(255,255,255,1)';
     ctx.fillRect(ix, gy, iw, 18);
+    ctx.restore();
     ctx.restore();
 
     // caption
