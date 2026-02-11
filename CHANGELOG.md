@@ -1,4 +1,5 @@
 
+- 2026-02-11 21:00 (Australia/Melbourne) [project:quine-tv] `volcanoobs` (src/channels/volcanoobservatory.js): boosted plume + ash contrast during puff phase (extra gradient stops + ash drop-shadow) and added rare incandescent ejecta arcs (lighter composite) for occasional punch. Commit: 2115be7
 - 2026-02-11 20:47 (Australia/Melbourne) [project:quine-tv] `volcanoobs` (src/channels/volcanoobservatory.js): replaced crater `destination-out` hole with layered rim/lip shading to keep mountain mass visible (no hard cutout). Commit: 30db510
 - 2026-02-11 20:15 (Australia/Melbourne) [project:quine-tv] Perf pass `volcanoobs` (src/channels/volcanoobservatory.js): cached sky/ground/vignette gradients (rebuild on regen/ctx swap) to reduce hot-path gradient allocations. Commit: 12bb239
 - 2026-02-11 20:03 (Australia/Melbourne) [project:quine-tv] `volcanoobs` (src/channels/volcanoobservatory.js): reshaped cone silhouette (multi-curve shoulders + shared craterY) so the crater rim reads anchored to the mountain. Commit: cc7bef1

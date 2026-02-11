@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Increase eruption readability by scaling ash and plume contrast during puff phase; added rare incandescent ejecta arcs. Commit: 2115be7
+
 - [x] [project:quine-tv] Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Replace `destination-out` crater hole in `drawVolcano()` with layered rim/lip shading (no hard cutout artifacts). Commit: 30db510
 
 - [x] [project:quine-tv] Channel `volcanoobs` (`src/channels/volcanoobservatory.js`): Improve seismograph coupling in `drawSeismograph()` by overlaying threshold markers/alerts tied to `intensityAt(loopT)` so build-up and eruption states are legible. Commit: eab3c69
