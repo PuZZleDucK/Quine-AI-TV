@@ -1,6 +1,5 @@
 
 # TODO Queue
-- [project:quine-tv] Audio hygiene `dreamreceipt` (src/channels/dreamreceipt.js): make `onAudioOn()` idempotent (stop existing ambience we own first); `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Accept: repeated A toggles never stack; volume stays stable.
 - [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): paper is wider than the hole, the machine needs to be wider.
 - [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): pause once printed should be longer. then receipt should fall down off screen.
 - [project:quine-tv] Visual polish `dreamreceipt` (src/channels/dreamreceipt.js): add subtle counter texture/film grain and stronger printer-slot lighting/shadow so the scene reads less “flat”. Accept: 0–60s capture shows visible texture + depth improve receipt legibility.
@@ -31,4 +30,3 @@
 - Space Meal Tray Assembly — Modular tray parts click into place across menu phases with nutrition HUD, vacuum-seal moment, and end-of-shift tally.
 - Pneumatic Tube Maintenance Bay — Canister tests (pressure/leak/route) with gauge dance, jam-clear interlude, and “system green” finale.
 - Solar Observatory Spectrograph — Sun disk + slit view with spectrum waterfall, calibration lines, flare alert moments, and a calm cooldown phase.
-
