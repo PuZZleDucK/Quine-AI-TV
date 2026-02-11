@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] visuals `containerport`: crane frame should look sturdier. Commit: bd87b1f
+
 - [x] [project:quine-tv] visuals `containerport`: clouds should look better. Commit: 9dddb4a
 
 - [x] [project:quine-tv] Perf pass `containerport` (`src/channels/containerport.js`): cache gradients created in render path (bg/sea/yard/vignette) on init/resize/ctx swap. Accept: steady-state `render()` allocates 0 gradients/frame. Commit: f848d5e

@@ -299,3 +299,4 @@
 - 2026-02-11 18:49 (Australia/Melbourne) [project:quine-tv] Visual polish `dreamreceipt`: print coupon on-receipt (no side drop; cue aligned to print head). Commit: 9a18fe3
 - 2026-02-11 20:30 (Australia/Melbourne) [project:quine-tv] `volcanoobs`: seismograph overlay — intensity threshold ticks + alert state label/meter (tied to intensityAt(loopT)). Commit: eab3c69
 - 2026-02-11 21:49 (Australia/Melbourne) [project:quine-tv] `containerport`: improved clouds (layered deterministic puffs; no rand() calls). Commit: 9dddb4a
+- 2026-02-11 22:04 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: made crane frame sturdier (filled mast/beam + truss braces). Commit: bd87b1f
