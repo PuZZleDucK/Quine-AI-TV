@@ -1,3 +1,5 @@
+- 2026-02-12 10:05 (Australia/Melbourne) [project:quine-tv] Cleanup: removed duplicate TODO entry “Review channel: deepseasonar” (already completed earlier; see commit 866f413). Commit: 2a3ba5f
+
 - 2026-02-12 09:34 (Australia/Melbourne) [project:quine-tv] Perf polish `kintsugi` (src/channels/kintsugiclinic.js): replaced `dust = dust.filter(...)` with in-place compaction to avoid per-frame array allocation. Commit: 597ff20
 
 - 2026-02-12 09:19 (Australia/Melbourne) [project:quine-tv] Audio hygiene `duckdebug` (src/channels/rubberduck.js): made room tone start/stop idempotent; `onAudioOn()` keeps our handle if already current and stops our prior handle before restarting; `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: ba050d6
