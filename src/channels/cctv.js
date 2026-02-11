@@ -1,7 +1,17 @@
-// REVIEWED: 2026-02-10
+// REVIEWED: 2026-02-11
 import { mulberry32 } from '../util/prng.js';
 
 export function createChannel({ seed, audio }){
+  const INCIDENT_NOTES = [
+    'INCIDENT: SHOPPING CART MOVED AGAINST WIND',
+    'INCIDENT: SERVICE DOOR OPENED THEN RECONSIDERED',
+    'INCIDENT: UNCLAIMED UMBRELLA CHANGED CAMERAS',
+    'INCIDENT: ELEVATOR ARRIVED WITHOUT CALL',
+    'INCIDENT: UNUSUAL HEAT SIGNATURE NEAR LOADING BAY',
+    'INCIDENT: MOTION FLAGGED, NOBODY ADMITTED TO MOVING',
+    'INCIDENT: NIGHT SHIFT REPORTED A FAMILIAR STRANGER',
+    'INCIDENT: STATIC BRIEFLY FORMED A FACE-LIKE PATTERN',
+  ];
   const rand = mulberry32(seed);
   const seed32 = (seed|0) >>> 0;
   const clockBaseSeconds = (Math.imul(seed32 ^ 0x9e3779b9, 2654435761) >>> 0) % 86400;
@@ -11,6 +21,8 @@ export function createChannel({ seed, audio }){
   let noiseHandle=null; // audio.noiseSource handle
   let audioHandle=null; // {stop()}
   let nextMotion=0;
+  let incidentText = '';
+  let incidentAge = 999;
 
   // Time structure (quiet → patrol → busy) over a 2–4 min seeded cycle.
   let phasePlan=null; // {cycle:number, phases:[{name,dur,motion:[min,max], boxes:[min,max]}]}
@@ -19,7 +31,7 @@ export function createChannel({ seed, audio }){
 
   // Rare “special moments” (deterministic per seed): signal loss/static + reconnect, or a brief CAM SWITCH overlay.
   let nextSpecial=0;
-  let special=null; // { kind:'LOSS'|'SWITCH', camId?:number, stage?:'LOSS'|'RECONNECT', t:number, dur:number, dur2?:number }
+  let special=null; // { kind:'LOSS'|'SWITCH'|'ANOMALY', camId?:number, stage?:'LOSS'|'RECONNECT', t:number, dur:number, dur2?:number }
 
   // Perf: avoid per-frame gradient allocation by using cached radial "light" sprites.
   // Also use per-cam "scene" palettes so each CCTV feed feels distinct.
@@ -195,6 +207,8 @@ export function createChannel({ seed, audio }){
     // Schedule first special moment after ~45–120s.
     nextSpecial = 45 + rand()*75;
     special = null;
+    incidentText = 'INCIDENT: ALL FEEDS STABLE (PROBABLY)';
+    incidentAge = 0;
 
     cams = Array.from({length: 4}, (_,i)=>{
       const scene = makeScene(i);
@@ -316,6 +330,7 @@ export function createChannel({ seed, audio }){
 
   function update(dt){
     t += dt;
+    incidentAge += dt;
     const phase = getPhaseAtTime(t);
 
     // Special moments.
@@ -330,6 +345,8 @@ export function createChannel({ seed, audio }){
         } else if (special.stage === 'RECONNECT' && special.t >= (special.dur2 ?? 1.2)){
           special = null;
         }
+      } else if (special.kind === 'ANOMALY'){
+        if (special.t >= special.dur) special = null;
       } else {
         if (special.t >= special.dur) special = null;
       }
@@ -338,7 +355,7 @@ export function createChannel({ seed, audio }){
       if (nextSpecial <= 0){
         nextSpecial = 45 + rand()*75; // ~45–120s
 
-        if (rand() < 0.72){
+        if (rand() < 0.64){
           special = {
             kind: 'LOSS',
             camId: (rand()*cams.length) | 0,
@@ -347,14 +364,31 @@ export function createChannel({ seed, audio }){
             dur: 0.55 + rand()*0.65,
             dur2: 0.9 + rand()*1.0,
           };
+          incidentText = 'INCIDENT: TEMPORARY SIGNAL LOSS DETECTED';
+          incidentAge = 0;
           if (audio.enabled) audio.beep({freq: 70 + rand()*30, dur: 0.06, gain: 0.03, type:'sawtooth'});
-        } else {
+        } else if (rand() < 0.78) {
           special = {
             kind: 'SWITCH',
             t: 0,
             dur: 0.55 + rand()*0.85,
           };
+          incidentText = 'INCIDENT: CONTROL ROOM FORCED CAMERA SWITCH';
+          incidentAge = 0;
           if (audio.enabled) audio.beep({freq: 300 + rand()*90, dur: 0.04, gain: 0.02, type:'square'});
+        } else {
+          special = {
+            kind: 'ANOMALY',
+            camId: (rand()*cams.length) | 0,
+            t: 0,
+            dur: 1.6 + rand()*1.3,
+          };
+          incidentText = 'INCIDENT: ANOMALY TRACE MOVING BETWEEN FRAMES';
+          incidentAge = 0;
+          if (audio.enabled){
+            audio.beep({freq: 240 + rand()*60, dur: 0.05, gain: 0.016, type:'triangle'});
+            audio.beep({freq: 510 + rand()*90, dur: 0.03, gain: 0.012, type:'sine'});
+          }
         }
       }
     }
@@ -398,6 +432,10 @@ export function createChannel({ seed, audio }){
       else cam = cams[(rand()*cams.length)|0];
 
       spawnMotion(cam, { boxRange: phase.boxes });
+      if (rand() < 0.24) {
+        incidentText = INCIDENT_NOTES[(rand()*INCIDENT_NOTES.length)|0];
+        incidentAge = 0;
+      }
 
       // In BUSY windows, occasionally trigger a second camera too.
       if (phase.name === 'BUSY' && rand() < 0.22){
@@ -536,6 +574,7 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     const loss = !!(specialState && specialState.kind === 'LOSS' && specialState.camId === cam.id);
+    const anomaly = !!(specialState && specialState.kind === 'ANOMALY' && specialState.camId === cam.id);
     const msg = loss
       ? (specialState.stage === 'LOSS' ? 'NO SIGNAL' : 'RECONNECT')
       : (cam.targets.length ? cam.msg : 'IDLE');
@@ -582,6 +621,24 @@ export function createChannel({ seed, audio }){
       ctx.restore();
     }
 
+    if (anomaly){
+      const a = 1 - Math.max(0, Math.min(1, specialState.t / Math.max(0.001, specialState.dur)));
+      const p = 0.55 + 0.45*Math.sin(t*22)**2;
+      ctx.save();
+      ctx.globalAlpha = 0.2 * a * p;
+      ctx.fillStyle = 'rgba(180,220,255,0.9)';
+      ctx.fillRect(x, y, cw, ch);
+      ctx.globalCompositeOperation = 'screen';
+      ctx.strokeStyle = `rgba(180,220,255,${0.85*a*p})`;
+      ctx.lineWidth = Math.max(2, Math.floor(Math.min(cw,ch)*0.015));
+      const sx = x + cw*(0.2 + 0.6*(0.5 + 0.5*Math.sin(t*2.1 + cam.id)));
+      const sy = y + ch*(0.2 + 0.6*(0.5 + 0.5*Math.cos(t*2.7 + cam.id)));
+      ctx.beginPath();
+      ctx.arc(sx, sy, Math.max(10, Math.min(cw,ch)*0.09), 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // overlays
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -624,6 +681,28 @@ export function createChannel({ seed, audio }){
     ctx.font = `${Math.floor(h/18)}px ui-sans-serif, system-ui`;
     ctx.fillText(`CCTV NIGHT WATCH — ${phase.name}`, w*0.05, h*0.09);
     ctx.restore();
+
+    if (incidentText) {
+      const a = Math.max(0.25, Math.min(1, 1 - Math.max(0, incidentAge - 4.5) / 5.5));
+      const fs = Math.max(12, Math.floor(h / 36));
+      const pad = Math.max(6, Math.floor(fs * 0.42));
+      ctx.save();
+      ctx.font = `700 ${fs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      const tw = Math.ceil(ctx.measureText(incidentText).width);
+      const bw = tw + pad * 2;
+      const bh = fs + pad * 1.55;
+      const bx = Math.floor(w * 0.5 - bw * 0.5);
+      const by = Math.floor(h * 0.94 - bh);
+      ctx.globalAlpha = 0.92 * a;
+      ctx.fillStyle = 'rgba(8, 14, 22, 0.88)';
+      ctx.strokeStyle = 'rgba(150, 215, 255, 0.82)';
+      ctx.lineWidth = 2;
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+      ctx.fillStyle = 'rgba(220, 242, 255, 0.95)';
+      ctx.fillText(incidentText, bx + pad, by + fs + pad * 0.35);
+      ctx.restore();
+    }
 
     // Brief global overlay.
     if (special && special.kind === 'SWITCH'){
