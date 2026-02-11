@@ -45,11 +45,23 @@ export function createChannel({ seed, audio }){
   let vignetteW = 0;
   let vignetteH = 0;
 
+  // cached grid tile/pattern (rebuilt on resize or ctx swap)
+  let gridTile = null; // CanvasImageSource | false | null
+  let gridTileStep = 40;
+  let gridTileLineW = 0;
+  let gridTileColor = '';
+  let gridPattern = null; // CanvasPattern | null
+  let gridPatternCtx = null;
+
   function invalidateGradients(){
     bgGrad = null;
     bgGradCtx = null;
     vignetteGrad = null;
     vignetteGradCtx = null;
+
+    gridTile = null;
+    gridPattern = null;
+    gridPatternCtx = null;
   }
 
   function getBGGrad(ctx){
@@ -78,6 +90,59 @@ export function createChannel({ seed, audio }){
       vignetteH = h;
     }
     return vignetteGrad;
+  }
+
+  function makeCanvas(W, H){
+    if (!(W > 0 && H > 0)) return null;
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+    if (typeof document !== 'undefined'){
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    }
+    return null;
+  }
+
+  function rebuildGridTile(){
+    const step = gridTileStep | 0;
+    const lineW = Math.max(1, h / 820);
+    const col = `hsla(${hue}, 70%, 58%, 0.12)`;
+
+    if (gridTile && gridTile !== false && gridTileLineW === lineW && gridTileColor === col) return;
+
+    gridTileLineW = lineW;
+    gridTileColor = col;
+    gridPattern = null;
+    gridPatternCtx = null;
+
+    const c = makeCanvas(step, step);
+    if (!c){
+      gridTile = false;
+      return;
+    }
+
+    const g = c.getContext('2d');
+    g.clearRect(0, 0, step, step);
+    g.fillStyle = col;
+    g.fillRect(0, 0, lineW, step);
+    g.fillRect(0, 0, step, lineW);
+    gridTile = c;
+  }
+
+  function ensureGridPattern(ctx){
+    rebuildGridTile();
+    if (!gridTile || gridTile === false) return null;
+    if (!gridPattern || gridPatternCtx !== ctx){
+      try {
+        gridPattern = ctx.createPattern(gridTile, 'repeat');
+        gridPatternCtx = ctx;
+      } catch {
+        gridPattern = null;
+        gridPatternCtx = null;
+      }
+    }
+    return gridPattern;
   }
 
   // Visual identity: starship cargo bay HUD
@@ -362,26 +427,19 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = getBGGrad(ctx);
     ctx.fillRect(0, 0, w, h);
 
-    // subtle drifting grid
-    const gx = (t * 18) % 40;
-    const gy = (t * 10) % 40;
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.strokeStyle = `hsla(${hue}, 70%, 58%, 0.12)`;
-    ctx.lineWidth = Math.max(1, h / 820);
-    for (let x = -40; x < w + 40; x += 40){
-      ctx.beginPath();
-      ctx.moveTo(x + gx, 0);
-      ctx.lineTo(x + gx, h);
-      ctx.stroke();
+    // subtle drifting grid (pre-rendered tile; avoid per-line stroke loops)
+    const step = gridTileStep | 0;
+    const gx = (t * 18) % step;
+    const gy = (t * 10) % step;
+    const pat = ensureGridPattern(ctx);
+    if (pat){
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.translate(gx, gy);
+      ctx.fillStyle = pat;
+      ctx.fillRect(-gx - step, -gy - step, w + step * 2, h + step * 2);
+      ctx.restore();
     }
-    for (let y = -40; y < h + 40; y += 40){
-      ctx.beginPath();
-      ctx.moveTo(0, y + gy);
-      ctx.lineTo(w, y + gy);
-      ctx.stroke();
-    }
-    ctx.restore();
   }
 
   function drawPanels(ctx){
