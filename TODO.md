@@ -12,7 +12,6 @@ if `TODO.md` has no ready items:
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Visual depth — add subtle glass reflection + edge vignette/panel bloom that varies by segment (MOVE/ARRIVE/SERVICE) without cluttering OSD.
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Text/dialog — expand the status strip into themed, mildly funny annunciator messages that can last 5 minutes (seeded rotation, no repeats too quickly).
 
-- [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Audio hygiene — make `onAudioOn()` idempotent (stop existing `ambience`/`audio.current` before starting new sources); `onAudioOff()`/`destroy()` should stop+null and clear current when owned.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Determinism — decouple audio randomness from visual PRNG (no `rand()` consumption inside `if (audio.enabled)` paths); use separate RNG or deterministic hash based on time/phase.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Perf pass — cache gradients created in render path (`drawBench`, `drawPotteryBase`, `drawGoldSeams`, vignette) and rebuild on resize/regen/ctx swap (0 `create*Gradient()` calls per frame in steady state).
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Perf polish — replace `dust = dust.filter(...)` with in-place compaction to avoid per-frame array allocation.
