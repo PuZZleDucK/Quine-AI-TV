@@ -16,8 +16,6 @@ if `TODO.md` has no ready items:
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Visual correctness — clip cracks/dust/gold seams to the pottery ellipse (so no seam/glow lines render outside the bowl). Keep shadow/bench unaffected.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Visual polish — improve CRACK phase readability by varying crack thickness/opacity by depth and adding tiny branching micro-cracks near endpoints (deterministic per crack) without adding per-frame RNG.
 
-- [quine-tv] `duckdebug` (src/channels/rubberduck.js): Determinism — remove per-frame `rand()` in typing speed jitter; use a per-line seeded speed (or time-hash) so 30fps vs 60fps yields identical captures.
-
 - [quine-tv] `flow` (src/channels/flowfield.js): Determinism — replace `for (const p of pts) { p.x += ... * dt; ... }` integration with a fixed-timestep update loop (accumulate `dt`, step at e.g. 1/60) so 30fps vs 60fps yields identical captures for the same seed.
 - [quine-tv] `flow` (src/channels/flowfield.js): Perf — remove per-point template-literal `hsla(...)` allocations in `render()` by quantizing hue to N buckets (e.g. 48) and precomputing `fillStyle` strings per bucket; vary per-point intensity via `globalAlpha`.
 - [quine-tv] `flow` (src/channels/flowfield.js): Long-run interest — add a 2–4 min phase cycle (CALM→SURGE→DRIFT) that modulates `fieldScale`, fade amount, and speed; schedule phase boundaries deterministically from `seed`.

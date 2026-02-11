@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Determinism `duckdebug` (src/channels/rubberduck.js): removed per-frame `rand()` typing-speed jitter; now uses per-line seeded speed (FPS-stable at 30fps vs 60fps). Commit: faebeff
+
 - [x] [project:quine-tv] Determinism `duckdebug` (src/channels/rubberduck.js): split audio RNG from visual PRNG so toggling audio doesn’t alter the visual PRNG sequence. Commit: a6683ad
 
 - [x] [project:quine-tv] Cleanup: removed stale TODO entry “Review channel: kaleido” (already completed earlier; see commit 9d50467). Commit: 50ea2e3
