@@ -4,6 +4,11 @@ import { mulberry32, clamp } from '../util/prng.js';
 function lerp(a, b, t){ return a + (b - a) * t; }
 function smoothstep(t){ t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
 
+function hash01(n){
+  const x = Math.sin(n) * 43758.5453123;
+  return x - Math.floor(x);
+}
+
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
 
@@ -389,10 +394,13 @@ export function createChannel({ seed, audio }){
       const p = yy / plumeH;
       const ww = s * (0.06 + p * 0.11 + puff * 0.08);
       const xx = cx + sway * (0.2 + p * 1.1) + Math.sin(t * (0.9 + p * 0.8) + yy * 0.03) * s * 0.01;
-      const a = (0.14 + (1 - p) * 0.12) * (0.7 + i * 0.55);
+      const puffBoost = 1 + puff * 0.85;
+      const a = (0.14 + (1 - p) * 0.12) * (0.7 + i * 0.55) * puffBoost;
 
       const fog = ctx.createRadialGradient(xx, y, 1, xx, y, ww * 1.6);
-      fog.addColorStop(0, `hsla(${plumeHue}, 45%, 74%, ${a})`);
+      // boost contrast during puff so the eruption reads clearly at a glance
+      fog.addColorStop(0, `hsla(${plumeHue}, ${48 + puff * 18}%, ${78 + puff * 8}%, ${a})`);
+      fog.addColorStop(0.58, `hsla(${plumeHue}, ${38 + puff * 8}%, ${58 - puff * 10}%, ${a * 0.55})`);
       fog.addColorStop(1, `hsla(${plumeHue}, 45%, 74%, 0)`);
       ctx.fillStyle = fog;
       ctx.beginPath();
@@ -406,7 +414,8 @@ export function createChannel({ seed, audio }){
       const ay = plumeBaseY - plumeH * 0.92;
       const r = s * (0.12 + puff * 0.18);
       const cloud = ctx.createRadialGradient(ax, ay, 1, ax, ay, r * 2.3);
-      cloud.addColorStop(0, `rgba(210, 215, 225, ${0.10 + puff * 0.22})`);
+      cloud.addColorStop(0, `rgba(245, 248, 255, ${0.10 + puff * 0.34})`);
+      cloud.addColorStop(0.55, `rgba(90, 96, 108, ${0.05 + puff * 0.18})`);
       cloud.addColorStop(1, 'rgba(210,215,225,0)');
       ctx.fillStyle = cloud;
       ctx.beginPath();
@@ -457,16 +466,75 @@ export function createChannel({ seed, audio }){
       const y = srcY + (a.vy * tt * s * 2.2) + (lifeP * lifeP) * s * 0.08; // slight fall back down
 
       const alpha = a.a * (1 - smoothstep(lifeP));
-      ctx.fillStyle = `rgba(220, 224, 232, ${alpha})`;
+      const ashA = alpha * (0.80 + puff * 0.75);
+
+      // simple drop-shadow pass for contrast against the plume
+      ctx.fillStyle = `rgba(0, 0, 0, ${ashA * 0.16})`;
+      ctx.fillRect(x + 1, y + 1, a.sz, a.sz);
+
+      ctx.fillStyle = `rgba(235, 238, 245, ${ashA})`;
       ctx.fillRect(x, y, a.sz, a.sz);
 
       if (lifeP < 0.25 && drift > 0.2){
         // tiny bright sparklets early in puff
-        ctx.fillStyle = `rgba(255, 235, 210, ${alpha * 0.35})`;
+        ctx.fillStyle = `rgba(255, 235, 210, ${ashA * 0.40})`;
         ctx.fillRect(x + 1, y - 1, 1, 1);
       }
     }
 
+
+
+    // rare incandescent ejecta arcs (brief, high-contrast moments)
+    if (puff > 0.22 && p > 0.05 && p < 0.75){
+      const eruptStart = loopDur * 0.72;
+      const burstSpan = 1.15;
+      const burstId = Math.max(0, Math.floor((lt - eruptStart) / burstSpan));
+      const burstRand = hash01(seed * 0.013 + burstId * 12.345 + phaseA);
+
+      if (burstRand > 0.88){
+        const bt = (lt - eruptStart) - burstId * burstSpan;
+        const g = s * 0.22;
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineCap = 'round';
+        ctx.lineWidth = Math.max(1, s / 520);
+
+        for (let j = 0; j < 3; j++){
+          const r0 = hash01(seed * 0.071 + burstId * 9.17 + j * 3.33 + phaseB);
+          const r1 = hash01(seed * 0.119 + burstId * 4.91 + j * 8.07 + phaseC);
+          const delay = r0 * 0.22;
+          const tt = bt - delay;
+          const life = 0.75 + r1 * 0.55;
+          if (tt <= 0 || tt >= life) continue;
+
+          const ang = (-Math.PI * 0.74) + r1 * (Math.PI * 0.28);
+          const sp = (0.22 + r0 * 0.26) * s * (0.55 + puff * 0.75);
+          const vx = Math.cos(ang) * sp;
+          const vy = Math.sin(ang) * sp - s * 0.06;
+
+          const x = srcX + vx * tt;
+          const y = srcY + vy * tt + 0.5 * g * tt * tt;
+
+          const hot = 1 - (tt / life);
+          const aHot = (0.10 + puff * 0.25) * hot;
+
+          // streak
+          ctx.strokeStyle = `rgba(255, 170, 90, ${aHot})`;
+          ctx.beginPath();
+          ctx.moveTo(x - vx * 0.02, y - vy * 0.02);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+
+          // head glow
+          const sz = 1 + ((s / 520) | 0);
+          ctx.fillStyle = `rgba(255, 220, 160, ${aHot * 0.85})`;
+          ctx.fillRect(x, y, sz, sz);
+        }
+
+        ctx.restore();
+      }
+    }
     ctx.restore();
   }
 
