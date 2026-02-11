@@ -55,6 +55,9 @@ function confessional(rand){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  // Determinism: keep audio randomness from consuming the visual PRNG so the same
+  // seed yields identical visuals with audio on/off.
+  const audioRand = mulberry32(((seed | 0) ^ 0xA11D0BEE) >>> 0);
 
   let w = 0, h = 0, t = 0;
   let font = 18;
@@ -208,7 +211,7 @@ export function createChannel({ seed, audio }){
         pushLine(next, color);
         if (audio.enabled && beepCooldown <= 0){
           beepCooldown = 0.05;
-          audio.beep({ freq: 520 + rand() * 90, dur: 0.02, gain: 0.02, type: 'triangle' });
+          audio.beep({ freq: 520 + audioRand() * 90, dur: 0.02, gain: 0.02, type: 'triangle' });
         }
       }
 
@@ -221,8 +224,8 @@ export function createChannel({ seed, audio }){
         // subtle key clicks, rate-limited
         const gained = Math.floor(cur.shown) - Math.floor(prev);
         if (gained > 0 && audio.enabled && beepCooldown <= 0){
-          beepCooldown = 0.06 + rand() * 0.05;
-          audio.beep({ freq: 1200 + rand() * 400, dur: 0.012, gain: 0.012, type: 'square' });
+          beepCooldown = 0.06 + audioRand() * 0.05;
+          audio.beep({ freq: 1200 + audioRand() * 400, dur: 0.012, gain: 0.012, type: 'square' });
         }
       }
     }
