@@ -4,8 +4,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- Review channel: kaleido
-
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Buttons — replace simple chase light with persistent “selected floor” LEDs tied to CALL/QUEUE, plus press animation when a call is queued.
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Long-run interest — add 1–2 rare deterministic “special moments” (~45–120s) (e.g., fire-service key mode, overload alarm, inspection glitch) with clear visual signature and clean reset.
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Visual depth — add subtle glass reflection + edge vignette/panel bloom that varies by segment (MOVE/ARRIVE/SERVICE) without cluttering OSD.
