@@ -4,7 +4,7 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [quine-tv] `duckdebug` (src/channels/rubberduck.js): add more bugs and fix dialog, allow multiline
+<!-- DONE (moved to TODONE): duckdebug add more bugs + wrap multiline dialog -->
 <!-- DONE (moved to TODONE): duckdebug add variation to the usernames and dialog -->
 
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Buttons — replace simple chase light with persistent “selected floor” LEDs tied to CALL/QUEUE, plus press animation when a call is queued.

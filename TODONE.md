@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): wrapped long dialog lines within the terminal viewport (multiline), expanded bug/confessional text variety. Commit: c4ab24b
+
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): added uncommon + rare ASCII art stingers for BUG/FIX lines (seeded). Commit: 76689dc
 
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): added variation to usernames + confessional opener/BUG/FIX/LESSON line templates (seeded). Commit: 22b17d9
