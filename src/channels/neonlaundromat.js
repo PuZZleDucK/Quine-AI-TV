@@ -64,6 +64,10 @@ export function createChannel({ seed, audio }){
   let neonFlicker = 0;
   let nextFlickerAt = 0;
 
+  let surgeRand = mulberry32((seed ^ 0x5a17f3d1) >>> 0);
+  let powerSurge = { a: 0, startAt: 0, dur: 0 };
+  let nextSurgeAt = 0;
+
   let alert = { a: 0, machine: 0, msg: '' };
   let nextAlertAt = 0;
 
@@ -108,6 +112,10 @@ export function createChannel({ seed, audio }){
 
     neonFlicker = 0;
     nextFlickerAt = 1.2 + rand() * 3.4;
+
+    surgeRand = mulberry32((seed ^ 0x5a17f3d1) >>> 0);
+    powerSurge = { a: 0, startAt: 0, dur: 0 };
+    nextSurgeAt = 45 + surgeRand() * 75;
 
     alert = { a: 0, machine: 0, msg: '' };
     nextAlertAt = 12 + rand() * 18;
@@ -212,6 +220,30 @@ export function createChannel({ seed, audio }){
       m.rot = (m.rot + dt * P.rot * local) % (Math.PI * 2);
     }
 
+    // rare deterministic power surge (special moment)
+    if (t >= nextSurgeAt){
+      while (t >= nextSurgeAt){
+        const startAt = nextSurgeAt;
+        const dur = 2.0 + surgeRand() * 3.0;
+        powerSurge = { a: 0, startAt, dur };
+        nextSurgeAt += 45 + surgeRand() * 75;
+      }
+      safeBeep({ freq: 110, dur: 0.08, gain: 0.016, type: 'sawtooth' });
+      safeBeep({ freq: 55, dur: 0.14, gain: 0.014, type: 'square' });
+    }
+
+    if (powerSurge.dur > 0){
+      const u = (t - powerSurge.startAt) / powerSurge.dur;
+      if (u >= 1){
+        powerSurge = { a: 0, startAt: 0, dur: 0 };
+      } else {
+        const tri = 1 - Math.abs(u * 2 - 1);
+        powerSurge.a = ease(tri);
+      }
+    } else {
+      powerSurge.a = 0;
+    }
+
     // neon flicker moments
     neonFlicker = Math.max(0, neonFlicker - dt * 5.0);
     if (t >= nextFlickerAt){
@@ -280,8 +312,11 @@ export function createChannel({ seed, audio }){
     ctx.globalCompositeOperation = 'source-over';
 
     // neon sign
-    const flick = neonFlicker > 0 ? (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 42))) : 1;
-    const neonA = (0.85 + 0.15 * flick) * (0.72 + P.glow);
+    const surge = powerSurge.a;
+    const flick = (neonFlicker > 0 || surge > 0)
+      ? ((surge > 0 ? 0.12 : 0.35) + (surge > 0 ? 0.88 : 0.65) * (0.5 + 0.5 * Math.sin(t * (surge > 0 ? 86 : 42))))
+      : 1;
+    const neonA = (0.85 + 0.15 * flick) * (0.72 + P.glow) * (1 + 0.35 * surge);
 
     ctx.save();
     ctx.textBaseline = 'middle';
@@ -605,6 +640,35 @@ export function createChannel({ seed, audio }){
 
     ctx.restore();
 
+    // POWER SURGE banner (special moment)
+    if (powerSurge.a > 0){
+      const a = powerSurge.a;
+      const bw = Math.min(w * 0.30, 340);
+      const bh = Math.min(h * 0.06, 56);
+      const bx = w * 0.5 - bw * 0.5;
+      const by = h * 0.055;
+      const blink = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(t * 18));
+
+      ctx.save();
+      ctx.globalAlpha = 0.92 * a;
+      ctx.fillStyle = `rgba(10,12,14,${0.78 * blink})`;
+      roundedRect(ctx, bx, by, bw, bh, 12);
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = `rgba(255,207,106,${0.85 * blink})`;
+      ctx.lineWidth = Math.max(2, Math.floor(dpr * 1.2));
+      roundedRect(ctx, bx, by, bw, bh, 12);
+      ctx.stroke();
+
+      ctx.font = `${Math.floor(small * 0.95)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = `rgba(255,207,106,${0.95 * blink})`;
+      ctx.fillText('POWER SURGE', bx + 16, by + bh * 0.5);
+
+      ctx.restore();
+    }
+
     // alert card
     if (alert.a > 0){
       const a = ease(alert.a);
@@ -662,6 +726,13 @@ export function createChannel({ seed, audio }){
     // machines (foreground)
     for (let i = 0; i < machines.length; i++){
       drawMachine(ctx, machines[i], P, i);
+    }
+
+    // dim room briefly during POWER SURGE, but keep OSD crisp by applying before overlay
+    if (powerSurge.a > 0){
+      const a = 0.18 + 0.45 * powerSurge.a;
+      ctx.fillStyle = `rgba(0,0,0,${a})`;
+      ctx.fillRect(0, 0, w, h);
     }
 
     drawOverlay(ctx, P);
