@@ -52,6 +52,11 @@ export function createChannel({ seed, audio }) {
   let statusMsgIdx = 0;
   let statusMsg = 'BOOTING…';
 
+  // ---- building diagram (right-side schematic; separate RNG so it doesn't perturb visuals)
+  const diagRng = mulberry32((seed ^ 0xB1D1A6) >>> 0);
+  const shaftCount = 2 + ((diagRng() * 3) | 0); // 2..4
+  const elevatorHomeFloors = Array.from({ length: shaftCount }, () => 1 + ((diagRng() * floorCount) | 0));
+
   // ---- audio state
   let drone = null;
   let noise = null;
@@ -467,6 +472,139 @@ export function createChannel({ seed, audio }) {
     ctx.restore();
   }
 
+  function drawBuildingDiagram(ctx, { carFloor, activeShaft, targetFloor, pulse, tt }) {
+    // In the right margin: a tiny schematic of shafts + elevator cars.
+    const x0 = panelX + panelW + w * 0.025;
+    const ww = w - x0 - w * 0.04;
+    const y0 = panelY + panelH * 0.12;
+    const hh = panelH * 0.78;
+    if (ww < 42 || hh < 60) return;
+
+    const r = Math.max(10, Math.min(ww, hh) * 0.10);
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    roundRect(ctx, x0, y0, ww, hh, r);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(120,255,240,0.10)';
+    ctx.lineWidth = Math.max(1.5, h / 720);
+    roundRect(ctx, x0 + 1, y0 + 1, ww - 2, hh - 2, r);
+    ctx.stroke();
+
+    drawText(ctx, 'SHAFTS', x0 + ww * 0.10, y0 + hh * 0.12, Math.max(10, hh * 0.10), 'rgba(240,255,252,0.42)');
+
+    const topPad = hh * 0.16;
+    const botPad = hh * 0.08;
+    const usableH = Math.max(1, hh - topPad - botPad);
+
+    const fy = (f) => {
+      const ff = clamp(Number(f) || 1, 1, floorCount);
+      const u = floorCount <= 1 ? 0 : (floorCount - ff) / (floorCount - 1);
+      return y0 + topPad + u * usableH;
+    };
+
+    // floor guide lines (subtle; a bit brighter every 2 floors)
+    ctx.save();
+    for (let f = 1; f <= floorCount; f++) {
+      const yy = fy(f);
+      const major = (f % 2) === 0;
+      ctx.globalAlpha = major ? 0.10 : 0.06;
+      ctx.fillStyle = 'rgba(120,255,240,1)';
+      ctx.fillRect(x0 + ww * 0.12, yy, ww * 0.82, Math.max(1, h / 980));
+
+      if (major && (f % 4) === 0) {
+        ctx.globalAlpha = 0.28;
+        drawText(ctx, String(f), x0 + ww * 0.08, yy + hh * 0.018, Math.max(9, hh * 0.06), 'rgba(240,255,252,0.38)', 'right');
+      }
+    }
+    ctx.restore();
+
+    // shafts
+    const innerX = x0 + ww * 0.16;
+    const innerW = ww * 0.78;
+    const gap = Math.max(3, innerW * 0.04);
+    const shaftW = (innerW - gap * (shaftCount - 1)) / shaftCount;
+
+    const carH = Math.max(6, usableH / Math.max(6, floorCount) * 0.68);
+
+    for (let s = 0; s < shaftCount; s++) {
+      const sx = innerX + s * (shaftW + gap);
+
+      // shaft outline
+      ctx.save();
+      const hi = s === activeShaft;
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = hi ? `rgba(120,255,240,${0.20 + pulse * 0.10})` : 'rgba(120,255,240,0.10)';
+      ctx.lineWidth = Math.max(1.5, h / 860);
+      roundRect(ctx, sx, y0 + topPad, shaftW, usableH, Math.max(6, shaftW * 0.18));
+      ctx.stroke();
+      ctx.restore();
+
+      const home = elevatorHomeFloors[s] ?? 1;
+      const f = (s === activeShaft) ? carFloor : home;
+      const cy = fy(f);
+
+      // elevator car
+      const carW = shaftW * 0.72;
+      const cx = sx + (shaftW - carW) * 0.5;
+      const carY = cy - carH * 0.5;
+
+      // bloom for active car
+      if (s === activeShaft) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.18 + pulse * 0.16;
+        ctx.fillStyle = 'rgba(120,255,240,1)';
+        roundRect(ctx, cx - carW * 0.18, carY - carH * 0.35, carW * 1.36, carH * 1.70, Math.max(6, carW * 0.20));
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      roundRect(ctx, cx, carY, carW, carH, Math.max(6, carW * 0.18));
+      ctx.fill();
+
+      const a = s === activeShaft ? (0.36 + pulse * 0.26) : 0.14;
+      ctx.strokeStyle = `rgba(120,255,240,${a})`;
+      ctx.lineWidth = Math.max(1.5, h / 860);
+      roundRect(ctx, cx, carY, carW, carH, Math.max(6, carW * 0.18));
+      ctx.stroke();
+
+      // tiny indicator dot
+      const dotR = Math.max(2.2, carH * 0.16);
+      ctx.beginPath();
+      ctx.arc(cx + carW * 0.82, carY + carH * 0.30, dotR, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(120,255,240,${0.10 + a * 1.4})`;
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // target floor marker (only on active shaft)
+    if (typeof targetFloor === 'number') {
+      const sx = innerX + activeShaft * (shaftW + gap);
+      const yy = fy(targetFloor);
+      ctx.save();
+      ctx.globalAlpha = 0.16 + pulse * 0.16;
+      ctx.fillStyle = 'rgba(120,255,240,1)';
+      ctx.fillRect(sx + shaftW * 0.10, yy - Math.max(1, h / 980), shaftW * 0.80, Math.max(2, h / 520));
+      ctx.restore();
+    }
+
+    // little drift scan (keeps it alive without shouting)
+    ctx.save();
+    const sy = y0 + topPad + ((tt * 40) % (usableH + 40)) - 20;
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = 'rgba(120,255,240,1)';
+    ctx.fillRect(x0 + ww * 0.08, sy, ww * 0.86, Math.max(1, h / 780));
+    ctx.restore();
+
+    ctx.restore();
+  }
+
   function drawPanelGlass(ctx, segType, segT, pulse, tt) {
     // Subtle overlay to add depth without competing with OSD.
     let edgeV = 0.11;
@@ -824,6 +962,9 @@ export function createChannel({ seed, audio }) {
     const tt = t;
     const { idx, seg, segT } = segmentAt(tt);
 
+    // deterministic per-segment mapping to a shaft (cheap hash; stable across FPS)
+    const activeShaft = (((seed ^ (idx * 0x9E3779B9)) >>> 0) % shaftCount) | 0;
+
     // draw base
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(panelC, 0, 0);
@@ -882,6 +1023,10 @@ export function createChannel({ seed, audio }) {
       if (typeof v === 'number') selected.add(v);
     }
     drawButtons(ctx, { selected, primaryFloor, pressEvents, tt, pulse: pulse * 0.35 });
+
+    // right-side building diagram (shafts + cars)
+    const targetFloor = seg.type === 'MOVE' ? seg.to : seg.type === 'CALL' ? seg.call : null;
+    drawBuildingDiagram(ctx, { carFloor: floorNow, activeShaft, targetFloor, pulse: pulse * 0.35, tt });
 
     // small status strip
     ctx.save();
