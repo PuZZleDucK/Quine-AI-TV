@@ -239,6 +239,9 @@ const REPAIRS = [
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
 
+  // Separate RNG for rare deterministic “special moments” (~45–120s cadence; seeded).
+  const momentRand = mulberry32(((seed ^ 0x2c1b3c6d) >>> 0));
+
   // Separate RNG so captions stay deterministic without consuming the visual PRNG.
   const captionRand = mulberry32(((seed ^ 0x9e3779b9) >>> 0));
   const captionOrder = shuffleInPlace(captionRand, FOOTER_CAPTIONS.slice());
@@ -259,6 +262,59 @@ export function createChannel({ seed, audio }){
   let phaseWarm = 0.2;
   let phaseVig = 0.4;
   let phasePace = 1.0;
+
+  // Rare deterministic “special moments”: scheduled off a separate PRNG and timer so
+  // they don’t consume the visual RNG or drift with framerate.
+  const SPECIAL_MOMENTS = ['lamp-flicker', 'success-stamp', 'dust-puff'];
+  let momentNext = 60;
+  let momentKind = null;
+  let momentT = 0;
+  let momentDur = 0;
+  let dustPuff = null;
+
+  function scheduleNextMoment(){
+    momentNext = 45 + momentRand() * 75;
+  }
+
+  function clearMoment(){
+    momentKind = null;
+    momentT = 0;
+    momentDur = 0;
+    dustPuff = null;
+  }
+
+  function startMoment(){
+    momentKind = pick(momentRand, SPECIAL_MOMENTS);
+    momentT = 0;
+
+    if (momentKind === 'lamp-flicker') momentDur = 1.8 + momentRand() * 1.0;
+    else if (momentKind === 'success-stamp') momentDur = 2.2 + momentRand() * 1.2;
+    else if (momentKind === 'dust-puff') momentDur = 1.7 + momentRand() * 1.0;
+    else momentDur = 2.2;
+
+    if (momentKind === 'dust-puff'){
+      const n = 14 + ((momentRand() * 8) | 0);
+      dustPuff = Array.from({ length: n }, () => ({
+        ox: (momentRand() * 2 - 1),
+        oy: (momentRand() * 2 - 1),
+        vx: (momentRand() * 2 - 1),
+        vy: (momentRand() * 2 - 1),
+        r: 1.5 + momentRand() * 6,
+      }));
+    }
+
+    // Small audio signature (subtle, OSD-safe).
+    if (audio.enabled){
+      if (momentKind === 'success-stamp'){
+        audio.beep({ freq: 880, dur: 0.02, gain: 0.01, type: 'sine' });
+        audio.beep({ freq: 1320, dur: 0.02, gain: 0.008, type: 'sine' });
+      } else if (momentKind === 'lamp-flicker'){
+        audio.beep({ freq: 420, dur: 0.03, gain: 0.008, type: 'triangle' });
+      } else if (momentKind === 'dust-puff'){
+        audio.beep({ freq: 760, dur: 0.018, gain: 0.006, type: 'triangle' });
+      }
+    }
+  }
 
   function smooth01(x){ return x * x * (3 - 2 * x); }
   function lerp(a, b, x){ return a + (b - a) * x; }
@@ -331,6 +387,9 @@ export function createChannel({ seed, audio }){
     small = Math.max(11, Math.floor(font * 0.78));
 
     nextRepair();
+
+    clearMoment();
+    scheduleNextMoment();
   }
 
   function onResize(width, height){
@@ -403,6 +462,20 @@ export function createChannel({ seed, audio }){
   }
 
   function update(dt){
+    // Special moments: schedule/advance using real dt (not phase-paced t).
+    if (momentKind){
+      momentT += dt;
+      if (momentT >= momentDur){
+        clearMoment();
+        scheduleNextMoment();
+      }
+    } else {
+      momentNext -= dt;
+      if (momentNext <= 0){
+        startMoment();
+      }
+    }
+
     updatePhase(dt);
     t += dt * phasePace;
 
@@ -508,6 +581,24 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
+
+    // Special: LAMP FLICKER — subtle exposure/brightness modulation.
+    if (momentKind === 'lamp-flicker'){
+      const mp = clamp(momentT / Math.max(0.001, momentDur), 0, 1);
+      const env = Math.sin(mp * Math.PI); // 0→1→0
+      const f = (Math.sin(momentT * 34) * 0.55 + Math.sin(momentT * 61 + 1.1) * 0.45);
+      const a = clamp((0.08 + 0.14 * Math.max(0, f)) * env, 0, 0.22);
+
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = `rgba(0,0,0,${a})`;
+      ctx.fillRect(0, 0, w, h);
+      // slight warm flash on some peaks
+      const wa = clamp((0.03 + 0.06 * Math.max(0, -f)) * env, 0, 0.09);
+      ctx.fillStyle = `rgba(255,200,140,${wa})`;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
   }
 
   function drawMat(ctx, x, y, ww, hh, accent){
@@ -780,6 +871,101 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function drawMomentBadge(ctx, label, accent){
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.font = `${small}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.textBaseline = 'middle';
+
+    const padX = 10;
+    const padY = 7;
+    const txt = `SPECIAL: ${label}`;
+    const tw = Math.ceil(ctx.measureText(txt).width);
+    const bw = tw + padX * 2;
+    const bh = Math.max(22, small + padY * 2);
+    const bx = Math.floor(w - bw - w * 0.04);
+    const by = Math.floor(h * 0.06);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    roundRect(ctx, bx + 4, by + 5, bw, bh, bh / 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(16, 22, 30, 0.82)';
+    roundRect(ctx, bx, by, bw, bh, bh / 2);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 1;
+    roundRect(ctx, bx, by, bw, bh, bh / 2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(231,238,246,0.85)';
+    ctx.globalAlpha = 0.92;
+    ctx.fillText(txt, bx + padX, by + bh / 2);
+
+    ctx.restore();
+  }
+
+  function drawSpecialMoment(ctx, cx, cy, scale, accentA, accentB){
+    if (!momentKind) return;
+
+    const mp = clamp(momentT / Math.max(0.001, momentDur), 0, 1);
+    const env = Math.sin(mp * Math.PI);
+
+    if (momentKind === 'success-stamp'){
+      ctx.save();
+      ctx.translate(cx, cy - 20 * scale);
+      ctx.rotate(-0.35);
+
+      const s = 1.0 + 0.06 * Math.sin(mp * Math.PI);
+      ctx.scale(s, s);
+
+      ctx.globalAlpha = 0.14 * env;
+      ctx.fillStyle = '#000';
+      ctx.font = `${Math.floor(74 * scale)}px ui-sans-serif, system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('SUCCESS', 10 * scale, 10 * scale);
+
+      ctx.globalAlpha = 0.72 * env;
+      ctx.strokeStyle = accentB;
+      ctx.lineWidth = Math.max(2, Math.floor(4 * scale));
+      ctx.lineJoin = 'round';
+      ctx.strokeText('SUCCESS', 0, 0);
+
+      ctx.globalAlpha = 0.25 * env;
+      ctx.fillStyle = accentA;
+      ctx.fillText('SUCCESS', 0, 0);
+
+      ctx.restore();
+      drawMomentBadge(ctx, 'SUCCESS STAMP', accentB);
+    } else if (momentKind === 'dust-puff' && dustPuff){
+      const spread = 140 * scale;
+      const pp = clamp(mp, 0, 1);
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(231,238,246,1)';
+
+      for (const d of dustPuff){
+        const x = cx + d.ox * spread * 0.45 + d.vx * spread * pp * 0.28;
+        const y = cy + d.oy * spread * 0.28 + d.vy * spread * pp * 0.22 - pp * pp * spread * 0.08;
+        const r = (d.r * scale) * (0.85 + pp * 0.95);
+        const a = (0.12 + 0.25 * (1 - pp)) * env;
+
+        ctx.globalAlpha = a;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+      drawMomentBadge(ctx, 'DUST PUFF', accentA);
+    } else if (momentKind === 'lamp-flicker'){
+      drawMomentBadge(ctx, 'LAMP FLICKER', accentA);
+    }
+  }
+
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -806,6 +992,9 @@ export function createChannel({ seed, audio }){
 
     // tool pass
     drawTool(ctx, repair?.tool, cx, cy, scale, step?.action || 'hover', p, accentB);
+
+    // rare special moments
+    drawSpecialMoment(ctx, cx, cy, scale, accentA, accentB);
 
     // title strip
     ctx.save();
