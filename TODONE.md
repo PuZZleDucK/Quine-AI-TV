@@ -1,7 +1,7 @@
 
 # Done
 
-- [x] [project:quine-tv] Review channel `foleylab` (src/channels/foleylab.js): captured screenshots (0–300s) to `screenshots/review-foleylab-pre` + completion shots to `screenshots/review-foleylab-post` (errors/warnings: 0), did code+audio/perf/determinism review, added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+- [x] [project:quine-tv] Review channel `foleylab` (src/channels/foleylab.js): captured screenshots (0–300s) to `screenshots/review-foleylab-pre` + completion shots to `screenshots/review-foleylab-post` (errors/warnings: 0), did code+audio/perf/determinism review, added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`. Commit: a178562
 
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): added explicit calm→crisis→resolution phase cycle modulating typing speed, scanline intensity, and between-confessional hold durations (with a short crossfade at boundaries). Commit: 98981b6
 
