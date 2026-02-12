@@ -13,6 +13,12 @@ export function createChannel({ seed, audio }){
   let hiss=null;
   let nextClick=0;
 
+  // OSD-safer overlay title: smaller banner + gentle fade + deterministic rotation.
+  let titlePeriod = 360;      // seconds (set in init)
+  let titleFadePeriod = 20;   // seconds (set in init)
+  let titleFadePhase0 = 0;    // 0..1 (set in init)
+  let titles = ['TERMINAL RAIN — ACCESS GRANTED'];
+
   function init({width,height}){
     w=width; h=height; t=0;
     cell = Math.max(14, Math.floor(Math.min(w,h)/34));
@@ -31,6 +37,29 @@ export function createChannel({ seed, audio }){
       };
     });
     nextClick = 0.4;
+
+    // deterministic title list + cadence
+    const baseTitles = [
+      'TERMINAL RAIN — ACCESS GRANTED',
+      'TERMINAL RAIN — AUTH OK',
+      'TERMINAL RAIN — SHELL READY',
+      'TERMINAL RAIN — LINK STABLE',
+      'TERMINAL RAIN — PACKET TRACE',
+      'TERMINAL RAIN — KEY EXCHANGE',
+      'TERMINAL RAIN — NODE ONLINE',
+      'TERMINAL RAIN — GREEN MODE',
+    ];
+    titles = baseTitles.slice();
+    for (let i=titles.length-1;i>0;i--){
+      const j = (rand()*(i+1))|0;
+      const tmp = titles[i];
+      titles[i] = titles[j];
+      titles[j] = tmp;
+    }
+
+    titlePeriod = 300 + ((rand()*180)|0); // 5–8 min
+    titleFadePeriod = 14 + rand()*10;    // 14–24 s
+    titleFadePhase0 = rand();
   }
 
   function onResize(width,height){ w=width; h=height; init({width,height}); }
@@ -124,13 +153,23 @@ export function createChannel({ seed, audio }){
       }
     }
 
-    // overlay title
+    // overlay title (OSD-safer)
+    const overlayH = Math.max(cell*2, Math.floor(h*0.085));
+    const phase = ((t / titleFadePeriod) + titleFadePhase0) % 1;
+    const pulse = 0.5 - 0.5*Math.cos(Math.PI*2*phase); // cosine ease 0..1
+    const bannerA = 0.05 + 0.14*pulse;
+    const textA = 0.55 + 0.35*pulse;
+    const title = titles[(Math.floor(t / titlePeriod) % titles.length) | 0] || titles[0];
+
     ctx.save();
-    ctx.fillStyle = 'rgba(80,255,140,0.35)';
-    ctx.fillRect(0,0,w, Math.floor(h*0.12));
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
-    ctx.font = `${Math.floor(h/22)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.fillText('TERMINAL RAIN — ACCESS GRANTED', w*0.05, h*0.045);
+    ctx.globalAlpha = bannerA;
+    ctx.fillStyle = 'rgb(80,255,140)';
+    ctx.fillRect(0,0,w, overlayH);
+
+    ctx.globalAlpha = textA;
+    ctx.fillStyle = 'rgb(0,0,0)';
+    ctx.font = `${Math.floor(h/24)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.fillText(title, w*0.05, overlayH*0.28);
     ctx.restore();
   }
 
