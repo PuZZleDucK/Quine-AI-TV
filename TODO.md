@@ -19,7 +19,6 @@ if `TODO.md` has no ready items:
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Visual polish — improve CRACK phase readability by varying crack thickness/opacity by depth and adding tiny branching micro-cracks near endpoints (deterministic per crack) without adding per-frame RNG.
 
 - [quine-tv] `flow` (src/channels/flowfield.js): Determinism — replace `for (const p of pts) { p.x += ... * dt; ... }` integration with a fixed-timestep update loop (accumulate `dt`, step at e.g. 1/60) so 30fps vs 60fps yields identical captures for the same seed.
-- [quine-tv] `flow` (src/channels/flowfield.js): Perf — remove per-point template-literal `hsla(...)` allocations in `render()` by quantizing hue to N buckets (e.g. 48) and precomputing `fillStyle` strings per bucket; vary per-point intensity via `globalAlpha`.
 - [quine-tv] `flow` (src/channels/flowfield.js): Long-run interest — add a 2–4 min phase cycle (CALM→SURGE→DRIFT) that modulates `fieldScale`, fade amount, and speed; schedule phase boundaries deterministically from `seed`.
 - [quine-tv] `flow` (src/channels/flowfield.js): Special moment — add 1–2 rare deterministic events (~45–120s) (e.g., brief “field inversion” or ripple shockwave that temporarily bends trajectories) with a clear visual signature + clean reset.
 - [quine-tv] `flow` (src/channels/flowfield.js): Visual identity — add a subtle, cached background gradient + slow midground “mist”/grain layer (seeded) so the scene reads less empty/digital; keep OSD-safe and avoid per-frame allocations.

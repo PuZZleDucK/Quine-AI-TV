@@ -7,6 +7,11 @@ export function createChannel({ seed, audio }){
   let pts=[];
   let fieldScale=0.0025;
 
+  const HUE_BUCKETS = 48;
+  const hueStyles = Array.from({ length: HUE_BUCKETS }, (_, i) =>
+    `hsl(${Math.round((i * 360) / HUE_BUCKETS)},90%,60%)`
+  );
+
   function init({width,height}){
     w=width; h=height; t=0;
     fieldScale = 0.0015 + (Math.min(w,h)/1000)*0.0012;
@@ -54,8 +59,14 @@ export function createChannel({ seed, audio }){
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    let lastB = -1;
     for (const p of pts){
-      ctx.fillStyle = `hsla(${p.hue},90%,60%,${p.a})`;
+      const b = ((p.hue * HUE_BUCKETS) / 360) | 0;
+      if (b !== lastB){
+        ctx.fillStyle = hueStyles[b];
+        lastB = b;
+      }
+      ctx.globalAlpha = p.a;
       ctx.fillRect(p.x, p.y, 1.2, 1.2);
     }
     ctx.restore();
