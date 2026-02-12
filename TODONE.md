@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Visual correctness `kintsugi` (src/channels/kintsugiclinic.js): clipped cracks/dust/gold seams (and glints) to the pottery ellipse so stroke/glow doesn’t bleed outside the bowl silhouette. Commit: 6623587
+
 - [x] [project:quine-tv] Perf `flow` (src/channels/flowfield.js): removed per-point `hsla(...)` template allocations by bucketizing hue (48 buckets) + varying intensity via `globalAlpha` (precomputed `hsl(...)` styles). Screenshots: screenshots/autopilot-flow-perf-before + screenshots/autopilot-flow-perf-after. Commit: 205df54
 
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): wrapped long dialog lines within the terminal viewport (multiline), expanded bug/confessional text variety. Commit: c4ab24b
