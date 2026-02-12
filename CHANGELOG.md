@@ -1,4 +1,4 @@
-- 2026-02-12 19:17 (Australia/Melbourne) [project:quine-tv] Micro-perf `lava` (src/channels/lava.js): quantized + cached `ctx.filter = blur(...)` string so it only updates when the blur bucket changes (avoids per-frame template string churn). Commit: 889da11
+- 2026-02-12 19:17 (Australia/Melbourne) [project:quine-tv] Micro-perf `lava` (src/channels/lava.js): quantized + cached `ctx.filter = blur(...)` string so it only updates when the blur bucket changes (avoids per-frame template string churn). Commit: bd74466
 
 - 2026-02-12 18:06 (Australia/Melbourne) [project:quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): replaced chase-light button highlight with persistent queue-selected LEDs + press animation when calls are queued. Screenshots: screenshots/autopilot-elevatorpanel-before + screenshots/autopilot-elevatorpanel-after. Commit: 74b1a2d
 
