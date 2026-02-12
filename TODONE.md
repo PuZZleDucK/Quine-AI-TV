@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `foleylab` (src/channels/foleylab.js): determinism — split audio RNG from visual PRNG so audio.enabled toggles don’t change recipe selection/visual sequence. Commit: 1df1700
+
 - [x] [project:quine-tv] `foleylab` (src/channels/foleylab.js): audio hygiene — made `onAudioOn()` idempotent (stops any prior ambience we own before restarting) and `onAudioOff()`/`destroy()` now stop+clear and only clear AudioManager.current when owned. Commit: c4c8dc3
 
 - [x] [project:quine-tv] Review channel `foleylab` (src/channels/foleylab.js): captured screenshots (0–300s) to `screenshots/review-foleylab-pre` + completion shots to `screenshots/review-foleylab-post` (errors/warnings: 0), did code+audio/perf/determinism review, added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`. Commit: a178562
