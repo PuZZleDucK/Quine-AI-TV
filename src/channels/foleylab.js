@@ -129,20 +129,32 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // idempotent: stop any existing handles we own first
+    onAudioOff();
+
     const n = audio.noiseSource({ type: 'pink', gain: 0.006 });
     n.start();
-    ambience = { stop(){ n.stop(); } };
+
+    ambience = {
+      stop(){
+        try { n.stop(); } catch {}
+      }
+    };
+
     audio.setCurrent(ambience);
   }
 
   function onAudioOff(){
     try { ambience?.stop?.(); } catch {}
+
+    // only clear AudioManager.current if we own it
+    if (audio.current === ambience) audio.current = null;
+
     ambience = null;
   }
 
-  function destroy(){
-    onAudioOff();
-  }
+  function destroy(){ onAudioOff(); }
 
   function transitionBlip(){
     if (!audio.enabled) return;
