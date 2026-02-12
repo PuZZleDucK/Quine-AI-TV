@@ -1,3 +1,5 @@
+- 2026-02-12 22:30 (Australia/Melbourne) [project:quine-tv] `dominofactory` (src/channels/dominofactory.js): determinism — alarm/spark schedules now compute intensity relative to the exact scheduled time (FPS-stable at 30fps vs 60fps). Commit: (pending)
+
 - 2026-02-12 22:00 (Australia/Melbourne) [project:quine-tv] `dominofactory` (src/channels/dominofactory.js): audio hygiene — made `onAudioOn()` idempotent (no stacking), and `onAudioOff()`/`destroy()` stop+clear only when the AudioManager current handle is owned; `AudioManager.setCurrent()` now returns the stored handle. Commit: 3479944
 
 - 2026-02-12 21:30 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): composition — added lamp silhouette (glass outline + cap/base) and clipped blobs to the glass. Commit: 533d974

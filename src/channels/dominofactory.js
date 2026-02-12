@@ -183,9 +183,13 @@ export function createChannel({ seed, audio }){
 
   // effects
   let alarm = 0;
-  let nextAlarmAt = 0;
+  let alarmSchedule = [];
+  let alarmI = 0;
+
   let spark = 0;
-  let nextSparkAt = 0;
+  let sparkSchedule = [];
+  let sparkI = 0;
+
   let cam = { x: 0, y: 0, z: 1 };
 
   // audio
@@ -267,9 +271,26 @@ export function createChannel({ seed, audio }){
     motif = { ...m, pts, samples };
 
     alarm = 0;
+    alarmSchedule = [];
+    alarmI = 0;
+    {
+      let at = 3 + rr() * 14;
+      while (at < CYCLE_DUR - 0.1){
+        alarmSchedule.push(at);
+        at += 7 + rr() * 10;
+      }
+    }
+
     spark = 0;
-    nextAlarmAt = 3 + rr() * 14;
-    nextSparkAt = BUILD_DUR + PAUSE_DUR + 1.2 + rr() * 4.6;
+    sparkSchedule = [];
+    sparkI = 0;
+    {
+      let at = BUILD_DUR + PAUSE_DUR + 1.2 + rr() * 4.6;
+      while (at < CYCLE_DUR - 0.1){
+        sparkSchedule.push(at);
+        at += 2.6 + rr() * 4.8;
+      }
+    }
 
     lastPlaceCount = -1;
     lastFallNote = -1;
@@ -327,17 +348,28 @@ export function createChannel({ seed, audio }){
     cam.y = (Math.cos(t * 0.14 + 0.8) + Math.sin(t * 0.06)) * 0.006;
     cam.z = 1 + 0.01 * Math.sin(t * 0.09);
 
-    alarm = Math.max(0, alarm - dt * 2.4);
-    spark = Math.max(0, spark - dt * 2.8);
+    const ALARM_DECAY = 2.4;
+    const SPARK_DECAY = 2.8;
 
-    if (cycleT >= nextAlarmAt){
-      alarm = 1;
-      nextAlarmAt = cycleT + 7 + rand() * 10;
+    // Decay is continuous-time linear, so integrating via sum(dt) is stable across FPS.
+    // The key determinism fix is: when a scheduled event is crossed, compute the
+    // instantaneous intensity as if it fired at the exact scheduled time, not the
+    // (FPS-dependent) frame boundary where we noticed it.
+    alarm = Math.max(0, alarm - dt * ALARM_DECAY);
+    spark = Math.max(0, spark - dt * SPARK_DECAY);
+
+    while (alarmI < alarmSchedule.length && cycleT >= alarmSchedule[alarmI]){
+      const at = alarmSchedule[alarmI];
+      const age = cycleT - at;
+      alarm = Math.max(alarm, Math.max(0, 1 - age * ALARM_DECAY));
+      alarmI++;
     }
 
-    if (cycleT >= nextSparkAt){
-      spark = 1;
-      nextSparkAt = cycleT + 2.6 + rand() * 4.8;
+    while (sparkI < sparkSchedule.length && cycleT >= sparkSchedule[sparkI]){
+      const at = sparkSchedule[sparkI];
+      const age = cycleT - at;
+      spark = Math.max(spark, Math.max(0, 1 - age * SPARK_DECAY));
+      sparkI++;
     }
 
     // audio tick for placement/falls (throttled)
