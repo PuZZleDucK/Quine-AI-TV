@@ -404,6 +404,82 @@ export function createChannel({ seed, audio }) {
     ctx.restore();
   }
 
+  function drawPanelGlass(ctx, segType, segT, pulse, tt) {
+    // Subtle overlay to add depth without competing with OSD.
+    let edgeV = 0.11;
+    let bloom = 0.06;
+    let refl = 0.08;
+
+    if (segType === 'MOVE') {
+      edgeV = 0.10;
+      bloom = 0.09;
+      refl = 0.11;
+    } else if (segType === 'ARRIVE') {
+      edgeV = 0.08;
+      bloom = 0.12 + pulse * 0.04;
+      refl = 0.12;
+    } else if (segType === 'SERVICE') {
+      edgeV = 0.15;
+      bloom = 0.05;
+      refl = 0.04;
+    }
+
+    const r = Math.max(18, panelH * 0.06);
+
+    ctx.save();
+    roundRect(ctx, panelX, panelY, panelW, panelH, r);
+    ctx.clip();
+
+    // Edge vignette (varies slightly by segment).
+    const vg = ctx.createRadialGradient(
+      panelX + panelW * 0.5,
+      panelY + panelH * 0.55,
+      Math.min(panelW, panelH) * 0.18,
+      panelX + panelW * 0.5,
+      panelY + panelH * 0.55,
+      Math.max(panelW, panelH) * 0.78
+    );
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, `rgba(0,0,0,${edgeV})`);
+    ctx.fillStyle = vg;
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+
+    // Mild panel bloom (MOVE/ARRIVE get a touch more).
+    ctx.globalCompositeOperation = 'screen';
+    const bg = ctx.createRadialGradient(
+      panelX + panelW * 0.5,
+      panelY + panelH * 0.56,
+      Math.min(panelW, panelH) * 0.22,
+      panelX + panelW * 0.5,
+      panelY + panelH * 0.56,
+      Math.max(panelW, panelH) * 0.72
+    );
+    bg.addColorStop(0, 'rgba(120,255,240,0)');
+    bg.addColorStop(1, `rgba(120,255,240,${bloom})`);
+    ctx.fillStyle = bg;
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+
+    // Glass reflection streak (gentle drift across the panel).
+    const phase = (tt * 0.03 + segT * 0.15) % 1;
+    const sx = panelX - panelW * 0.25 + phase * panelW * 1.55;
+    const sy = panelY + panelH * 0.05;
+    const g = ctx.createLinearGradient(sx, sy, sx + panelW * 0.35, sy + panelH * 0.92);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(0.5, `rgba(255,255,255,${refl})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(panelX - panelW * 0.25, panelY, panelW * 1.6, panelH);
+
+    // Top lip highlight.
+    const top = ctx.createLinearGradient(0, panelY, 0, panelY + panelH * 0.22);
+    top.addColorStop(0, `rgba(255,255,255,${0.05 + refl * 0.35})`);
+    top.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = top;
+    ctx.fillRect(panelX, panelY, panelW, panelH * 0.22);
+
+    ctx.restore();
+  }
+
   function rebuildPanelTexture() {
     panelC = document.createElement('canvas');
     panelC.width = w;
@@ -718,6 +794,9 @@ export function createChannel({ seed, audio }) {
 
     drawText(ctx, `NEXT: ${next}`, panelX + panelW * 0.88, y + stripH * 0.70, Math.max(12, stripH * 0.46), `rgba(120,255,240,${0.55 + pulse * 0.25})`, 'right');
     ctx.restore();
+
+    // subtle glass + vignette depth (varies by segment)
+    drawPanelGlass(ctx, seg.type, segT, pulse, tt);
 
     // service-mode interlude overlay (special moment)
     if (seg.type === 'SERVICE') {
