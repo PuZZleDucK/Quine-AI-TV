@@ -4,9 +4,8 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-<!-- DONE (moved to TODONE): duckdebug add more bugs + wrap multiline dialog -->
-<!-- DONE (moved to TODONE): duckdebug add variation to the usernames and dialog -->
-
+- [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Visual - show a diagram of the building on the right with the elevator shafts and elevators highlighted
+- [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Visual - call queue should be populated at random and serviced by elevators
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Buttons — replace simple chase light with persistent “selected floor” LEDs tied to CALL/QUEUE, plus press animation when a call is queued.
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Long-run interest — add 1–2 rare deterministic “special moments” (~45–120s) (e.g., fire-service key mode, overload alarm, inspection glitch) with clear visual signature and clean reset.
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Visual depth — add subtle glass reflection + edge vignette/panel bloom that varies by segment (MOVE/ARRIVE/SERVICE) without cluttering OSD.
