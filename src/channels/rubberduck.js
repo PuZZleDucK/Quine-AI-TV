@@ -4,17 +4,22 @@ const BUG_NOUNS = [
   'off-by-one', 'race condition', 'null pointer', 'heisenbug', 'timezone drift',
   'floating point gremlin', 'CSS specificity duel', 'broken cache', 'stale state',
   'misplaced await', 'silent NaN', 'wrong UUID', 'infinite loop', 'CORS tantrum',
+  'memory leak', 'deadlock', 'bad regex', 'unicode goblin', 'locale mismatch',
+  'bitshift oops',
 ];
 
 const BUG_VERBS = [
   'haunted', 'derailed', 'ate', 'corrupted', 'shadowed', 'duplicated', 'froze',
   'reversed', 'flattened', 'desynced', 'hid', 'teleported',
+  'throttled', 'forked', 'misfiled', 'blindsided',
 ];
 
 const BUG_OBJECTS = [
   'the login button', 'the build pipeline', 'the onboarding flow', 'the graph',
   'the audio toggle', 'the channel guide', 'the API client', 'the search results',
   'the settings panel', 'the database migration',
+  'the loading spinner', 'the websocket', 'the rate limiter', 'the cache key',
+  'the cron job', 'the email template',
 ];
 
 const FIXES = [
@@ -23,6 +28,8 @@ const FIXES = [
   'stopped mutating in place', 'replaced it with a boring function',
   'renamed the variable to the truth', 'clamped the value',
   'restarted from first principles',
+  'added a retry with backoff', 'stopped rounding twice',
+  'made it a pure function', 'documented the footgun',
 ];
 
 const LESSONS = [
@@ -33,11 +40,15 @@ const LESSONS = [
   'The simplest fix is usually the correct apology.',
   'Sleep is a debugging tool.',
   'If you can explain it to the duck, you can refactor it.',
+  'If you can’t reproduce it, you can’t fix it.',
+  'The second best fix is a log line.',
+  'State is a liar unless you make it confess.',
 ];
 
 const USERNAMES = [
   'dev', 'operator', 'oncall', 'qa', 'buildbot', 'intern',
   'db-admin', 'frontend', 'backend', 'infra',
+  'sre', 'security', 'release', 'product',
 ];
 
 const OPENERS = [
@@ -48,6 +59,9 @@ const OPENERS = [
   'this one’s embarrassing…',
   'we are, in technical terms, cooked.',
   'help me explain this so i can fix it.',
+  'it only fails on the demo machine. naturally.',
+  'i have a theory. it’s bad.',
+  'this is a small bug with big emotions.',
 ];
 
 // Uncommon/rare ASCII art stingers for bug + fix lines.
@@ -366,6 +380,27 @@ export function createChannel({ seed, audio }){
     ctx.closePath();
   }
 
+  function wrapForTerminal(text, maxChars){
+    if (text == null) return [''];
+    if (text === '') return [''];
+    if (text.length <= maxChars) return [text];
+
+    // Preserve indentation-heavy lines (e.g., ASCII art stingers).
+    if (/^\s/.test(text)) return [text];
+
+    const out = [];
+    let rest = text;
+    while (rest.length > maxChars){
+      let cut = rest.lastIndexOf(' ', maxChars);
+      if (cut < Math.floor(maxChars * 0.5)) cut = maxChars;
+      out.push(rest.slice(0, cut));
+      rest = rest.slice(cut);
+      if (rest.startsWith(' ')) rest = rest.slice(1);
+    }
+    if (rest.length) out.push(rest);
+    return out;
+  }
+
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -453,12 +488,28 @@ export function createChannel({ seed, audio }){
     ctx.font = `${font}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.textBaseline = 'top';
 
+    // Wrap long dialog lines to fit the terminal viewport.
+    const charW = ctx.measureText('M').width || 10;
+    const maxChars = Math.max(12, Math.floor(aw / charW));
+
     let y = ay;
-    for (const line of transcript){
+    let cursorX = ax;
+    let cursorY = ay;
+
+    for (let i = 0; i < transcript.length; i++){
+      const line = transcript[i];
       const shown = line.text.slice(0, Math.floor(line.shown));
       ctx.fillStyle = line.color;
-      ctx.fillText(shown, ax, y);
-      y += lineH;
+
+      const parts = wrapForTerminal(shown, maxChars);
+      for (let j = 0; j < parts.length; j++){
+        ctx.fillText(parts[j], ax, y);
+        if (i === transcript.length - 1){
+          cursorY = y;
+          cursorX = ax + ctx.measureText(parts[j]).width + 2;
+        }
+        y += lineH;
+      }
     }
 
     // cursor
@@ -466,11 +517,8 @@ export function createChannel({ seed, audio }){
     if (cur && cur.shown < cur.text.length){
       const blink = (Math.sin(t * 6.5) > 0) ? 1 : 0;
       if (blink){
-        const shown = cur.text.slice(0, Math.floor(cur.shown));
-        const cx = ax + ctx.measureText(shown).width + 2;
-        const cy = ay + (transcript.length - 1) * lineH;
         ctx.fillStyle = 'rgba(108,242,255,0.75)';
-        ctx.fillRect(cx, cy + 2, Math.max(2, Math.floor(font * 0.12)), font + 2);
+        ctx.fillRect(cursorX, cursorY + 2, Math.max(2, Math.floor(font * 0.12)), font + 2);
       }
     }
 
