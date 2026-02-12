@@ -6,12 +6,18 @@ const BUG_NOUNS = [
   'misplaced await', 'silent NaN', 'wrong UUID', 'infinite loop', 'CORS tantrum',
   'memory leak', 'deadlock', 'bad regex', 'unicode goblin', 'locale mismatch',
   'bitshift oops',
+  'unhandled rejection', 'retry spiral', 'stuck promise', 'event storm',
+  'index out of bounds', 'clock skew', 'stale token', 'double-encoded JSON',
+  'invisible character', 'bad merge', 'shadow DOM trap', 'broken polyfill',
+  'font fallback', 'NaN cascade',
 ];
 
 const BUG_VERBS = [
   'haunted', 'derailed', 'ate', 'corrupted', 'shadowed', 'duplicated', 'froze',
   'reversed', 'flattened', 'desynced', 'hid', 'teleported',
   'throttled', 'forked', 'misfiled', 'blindsided',
+  'panicked', 'restarted', 'segfaulted', 'soft-locked', 'flapped',
+  'misrendered', 'overwrote', 'underflowed', 'overflowed', 'reordered',
 ];
 
 const BUG_OBJECTS = [
@@ -20,6 +26,11 @@ const BUG_OBJECTS = [
   'the settings panel', 'the database migration',
   'the loading spinner', 'the websocket', 'the rate limiter', 'the cache key',
   'the cron job', 'the email template',
+  'the payment modal', 'the notification bell', 'the progress bar',
+  'the export button', 'the session cookie', 'the websocket handshake',
+  'the auth header', 'the feature flag', 'the router', 'the i18n strings',
+  'the background job', 'the search index', 'the video player',
+  'the analytics event', 'the GPU canvas', 'the CDN edge',
 ];
 
 const FIXES = [
@@ -30,6 +41,11 @@ const FIXES = [
   'restarted from first principles',
   'added a retry with backoff', 'stopped rounding twice',
   'made it a pure function', 'documented the footgun',
+  'validated inputs like an adult', 'stopped parsing dates by vibes',
+  'made the retry finite', 'added a timeout', 'added a circuit breaker',
+  'moved it behind a feature flag', 'pinned the version', 'deleted a dependency',
+  'made the error loud', 'added an assertion', 'made it idempotent',
+  'added tracing', 'replaced magic numbers',
 ];
 
 const LESSONS = [
@@ -43,6 +59,16 @@ const LESSONS = [
   'If you can’t reproduce it, you can’t fix it.',
   'The second best fix is a log line.',
   'State is a liar unless you make it confess.',
+  'The network is a suggestion.',
+  'Every cache is a lie waiting to happen.',
+  'Time is an API you can’t trust.',
+  'If it’s "just one line", it’s never one line.',
+  'Undefined behavior is defined by spite.',
+  'Your future self is a different person.',
+  'Don’t ship on a Friday.',
+  'If it compiles, it can still be wrong.',
+  'Bugs love silence; add logs.',
+  'Once is a glitch; twice is a pattern.',
 ];
 
 const USERNAMES = [
@@ -62,6 +88,15 @@ const OPENERS = [
   'it only fails on the demo machine. naturally.',
   'i have a theory. it’s bad.',
   'this is a small bug with big emotions.',
+  'duck, i have receipts. the logs do not.',
+  'i swear it passed locally.',
+  'it worked yesterday. i have witnesses.',
+  'this is not a bug, it’s a lifestyle.',
+  'please pretend you didn’t see that commit.',
+  'my brain is a stack overflow right now.',
+  'so… the dashboard is lying.',
+  'this is either cursed or i wrote it.',
+  'i tried turning it off and on. it got worse.',
 ];
 
 // Uncommon/rare ASCII art stingers for bug + fix lines.
@@ -153,6 +188,73 @@ const LESSON_LINES = [
   (lesson) => `NOTE TO SELF: ${lesson}`,
 ];
 
+// Fake stack traces (short, multiline, terminal-wrapped).
+const STACK_ERROR_TYPES = [
+  'TypeError', 'ReferenceError', 'RangeError', 'SyntaxError', 'DOMException', 'AssertionError', 'Error',
+];
+
+const STACK_PROPS = [
+  'length', 'map', 'id', 'name', 'value', 'enabled', 'toString', 'push',
+  'getContext', 'dataset', 'classList', 'status', 'ok', 'body', 'headers',
+];
+
+const STACK_FUNCS = [
+  'render', 'update', 'init', 'tick', 'hydrate', 'parseConfig', 'decodeToken',
+  'handleClick', 'fetchData', 'applyPatch', 'connect', 'dispatch', 'commit',
+  'drawHUD', 'layout', 'main',
+];
+
+const STACK_DIRS = [
+  'src', 'src/core', 'src/lib', 'src/ui', 'src/util', 'src/channels',
+];
+
+const STACK_FILES = [
+  'index', 'app', 'router', 'store', 'api', 'auth', 'ui', 'render', 'hooks',
+  'utils', 'scheduler', 'player', 'channel', 'audio', 'canvas',
+];
+
+const STACK_INTERNAL = [
+  'node:internal/process/task_queues:95:5',
+  'node:internal/timers:569:17',
+  'node:internal/async_hooks:203:9',
+];
+
+const STACK_MSGS = [
+  (rand) => `Cannot read properties of undefined (reading '${pick(rand, STACK_PROPS)}')`,
+  (rand) => `Cannot set properties of null (setting '${pick(rand, STACK_PROPS)}')`,
+  (rand) => `${pick(rand, STACK_PROPS)} is not a function`,
+  (rand) => `Maximum call stack size exceeded`,
+  (rand) => `Unexpected token ${pick(rand, ['<', '}', ';', 'EOF'])} in JSON at position ${((rand() * 900) | 0)}`,
+  (rand) => `Request failed with status ${400 + ((rand() * 120) | 0)}`,
+  (rand) => `Permission denied: '${pick(rand, ['cache', 'tmp', 'config', 'secrets'])}'`,
+];
+
+function fakeStackTrace(rand){
+  const errType = pick(rand, STACK_ERROR_TYPES);
+  const msg = pick(rand, STACK_MSGS)(rand);
+
+  const n = 3 + ((rand() * 4) | 0); // 3..6 frames
+  const lines = [`${errType}: ${msg}`];
+
+  for (let i = 0; i < n; i++){
+    if (i === n - 1 && rand() < 0.35){
+      lines.push(`    at processTicksAndRejections (${pick(rand, STACK_INTERNAL)})`);
+      continue;
+    }
+
+    const isAsync = rand() < 0.35;
+    const fn = pick(rand, STACK_FUNCS);
+    const dir = pick(rand, STACK_DIRS);
+    const file = pick(rand, STACK_FILES);
+    const ln = 10 + ((rand() * 240) | 0);
+    const col = 1 + ((rand() * 80) | 0);
+
+    lines.push(`    at ${isAsync ? 'async ' : ''}${fn} (${dir}/${file}.js:${ln}:${col})`);
+  }
+
+  return lines;
+}
+
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 
 function maybeArt(rand, pool){
@@ -177,6 +279,7 @@ function confessional(rand){
   lines.push(`${hh}:${mm}  ${who}: ${opener}`);
 
   lines.push(pick(rand, BUG_LINES)(bug));
+  if (rand() < 0.38) lines.push(...fakeStackTrace(rand));
   const bugArt = maybeArt(rand, BUG_ART);
   if (bugArt) lines.push(...bugArt);
 
