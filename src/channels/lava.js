@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-12
 import { mulberry32, clamp } from '../util/prng.js';
 
 const CAPTIONS = [
@@ -109,6 +110,11 @@ export function createChannel({ seed, audio }){
     bg: null,
     shine: null,
     blurPx: 8,
+
+    // Micro-perf: avoid per-frame template string churn for ctx.filter.
+    filterBlurQ: -1,
+    filterBlurStr: 'none',
+
     sprites: new Map(), // key -> { c, W, H, R }
   };
 
@@ -192,6 +198,9 @@ export function createChannel({ seed, audio }){
     cache.bg = null;
     cache.shine = null;
     cache.blurPx = 8;
+
+    cache.filterBlurQ = -1;
+    cache.filterBlurStr = 'none';
   }
 
   function ensureCaches(ctx){
@@ -518,7 +527,12 @@ export function createChannel({ seed, audio }){
     ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = 0.90 * intensityMul;
     const blurPx = Math.max(0.5, cache.blurPx * blurMul);
-    ctx.filter = `blur(${blurPx}px)`;
+    const blurQ = Math.max(0.5, Math.round(blurPx * 4) / 4);
+    if (cache.filterBlurQ !== blurQ){
+      cache.filterBlurQ = blurQ;
+      cache.filterBlurStr = `blur(${blurQ}px)`;
+    }
+    ctx.filter = cache.filterBlurStr;
 
     for (const b of blobs){
       const rr = b.r * (0.9 + 0.1*Math.sin(t*0.7 + b.ph));
