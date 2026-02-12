@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): visual — colorize stack-trace + diff snippet lines (diff headers/hunks/+/-) so code blocks read like code, not chat. Commit: dc3a010
+
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — fixed section text coloring so BUG/BUG REPORT lines are reliably red and ASCII art inherits the correct BUG/FIX colors. Screenshots: screenshots/autopilot-duckdebug-before + screenshots/autopilot-duckdebug-after. Commit: 0bfc450
 
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — add 2–5 dialog lines between `duck` and the selected user before BUG/FIX/LESSON so each block reads like a conversation. Commit: f1064cc

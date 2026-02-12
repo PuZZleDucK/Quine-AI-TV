@@ -7,6 +7,4 @@ if `TODO.md` has no ready items:
 
 <!-- done: duckdebug text colors + art section colours (commit 0bfc450) -->
 
-- [ ] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): visual — code and diffs should be properly colorized.
-
 - [ ] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): special moments — add a second rare deterministic event (e.g. “CORE DUMP” mini-scroll or “PANIC” overlay) scheduled independently of the current stamp/glitch and with a clean reset.
