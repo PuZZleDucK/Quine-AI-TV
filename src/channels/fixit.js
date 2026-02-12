@@ -244,6 +244,43 @@ export function createChannel({ seed, audio }){
   const captionOrder = shuffleInPlace(captionRand, FOOTER_CAPTIONS.slice());
   const captionDur = 9.0;
 
+  // Separate RNG for long-period “mood” cycles.
+  const phaseRand = mulberry32(((seed ^ 0x85ebca6b) >>> 0));
+
+  const PHASES = [
+    // 2–4 minute deterministic cycle: cooler/slow → warmer → focused/fast → loop.
+    { warm: 0.15, vig: 0.25, pace: 0.88 },
+    { warm: 0.95, vig: 0.45, pace: 0.96 },
+    { warm: 0.60, vig: 0.85, pace: 1.12 },
+  ];
+
+  let phaseT = 0;
+  let phaseCycleDur = 180;
+  let phaseWarm = 0.2;
+  let phaseVig = 0.4;
+  let phasePace = 1.0;
+
+  function smooth01(x){ return x * x * (3 - 2 * x); }
+  function lerp(a, b, x){ return a + (b - a) * x; }
+
+  function updatePhase(dt){
+    phaseT += dt;
+    if (phaseT >= phaseCycleDur) phaseT -= phaseCycleDur * Math.floor(phaseT / phaseCycleDur);
+
+    const n = PHASES.length;
+    const segDur = phaseCycleDur / n;
+    const seg = Math.floor(phaseT / segDur) % n;
+    const segP = (phaseT - seg * segDur) / segDur;
+
+    const a = PHASES[seg];
+    const b = PHASES[(seg + 1) % n];
+    const e = smooth01(clamp(segP, 0, 1));
+
+    phaseWarm = lerp(a.warm, b.warm, e);
+    phaseVig = lerp(a.vig, b.vig, e);
+    phasePace = lerp(a.pace, b.pace, e);
+  }
+
   let w = 0, h = 0, t = 0;
   let font = 16;
   let small = 12;
@@ -285,6 +322,10 @@ export function createChannel({ seed, audio }){
     w = width;
     h = height;
     t = 0;
+
+    phaseCycleDur = 120 + phaseRand() * 120;
+    phaseT = phaseRand() * phaseCycleDur;
+    updatePhase(0);
 
     font = Math.max(14, Math.floor(Math.min(w, h) / 34));
     small = Math.max(11, Math.floor(font * 0.78));
@@ -362,7 +403,8 @@ export function createChannel({ seed, audio }){
   }
 
   function update(dt){
-    t += dt;
+    updatePhase(dt);
+    t += dt * phasePace;
 
     if (!repair) nextRepair();
 
@@ -424,11 +466,18 @@ export function createChannel({ seed, audio }){
   function drawWorkbench(ctx){
     const top = Math.floor(h * 0.66);
 
-    // soft lamp gradient
+    // soft lamp gradient (warmth modulated by the long-period phase cycle)
+    const warm = clamp(phaseWarm, 0, 1);
+    const hue = 215 - warm * 160;
+    const sat = 18 + warm * 28;
+    const l0 = 11 + warm * 2.5;
+    const l1 = 6 + warm * 1.2;
+    const l2 = 3.2 + warm * 0.6;
+
     const bg = ctx.createRadialGradient(w * 0.52, h * 0.22, 10, w * 0.52, h * 0.22, Math.max(w, h) * 0.75);
-    bg.addColorStop(0, '#141b24');
-    bg.addColorStop(0.55, '#0b1119');
-    bg.addColorStop(1, '#05070c');
+    bg.addColorStop(0, `hsl(${hue}, ${sat}%, ${l0}%)`);
+    bg.addColorStop(0.55, `hsl(${hue}, ${sat * 0.8}%, ${l1}%)`);
+    bg.addColorStop(1, `hsl(${hue}, ${sat * 0.55}%, ${l2}%)`);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
@@ -447,11 +496,15 @@ export function createChannel({ seed, audio }){
     }
     ctx.restore();
 
-    // anti-vignette (center brighter)
+    // anti-vignette (center brighter) — intensity modulated by the phase cycle
     ctx.save();
+    const vig = clamp(phaseVig, 0, 1);
+    const centerA = 0.08 - vig * 0.04;
+    const edgeA = 0.55 + vig * 0.2;
+
     const vg = ctx.createRadialGradient(w * 0.5, h * 0.42, 0, w * 0.5, h * 0.42, Math.max(w, h) * 0.68);
-    vg.addColorStop(0, 'rgba(255,255,255,0.06)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.62)');
+    vg.addColorStop(0, `rgba(255,255,255,${centerA})`);
+    vg.addColorStop(1, `rgba(0,0,0,${edgeA})`);
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
