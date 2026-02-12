@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual - improve window apperance. Commit: e20ebee
+
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual - improve washing machine layout and apperance. Commit: bf597e7
 
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual - declutter text (removed redundant in-channel overlay; rely on TV OSD). Screenshots: screenshots/autopilot-neonlaundromat-declutter-pre + screenshots/autopilot-neonlaundromat-declutter-post. Commit: 382adc8
