@@ -7,6 +7,10 @@ export function createChannel({ seed, audio }){
   let pts=[];
   let fieldScale=0.0025;
 
+  // Separate RNG for cached texture layers so we can add visual richness
+  // without affecting the point-field sequence.
+  let texRand = mulberry32((seed ^ 0x9E3779B9) >>> 0);
+
   // Fixed-timestep simulation so motion is deterministic across 30fps vs 60fps.
   const FIXED_DT = 1/60;
   const MAX_STEPS_PER_UPDATE = 8;
@@ -16,6 +20,14 @@ export function createChannel({ seed, audio }){
   // (Render just blits the buffer + draws UI.)
   let buf = null;
   let bctx = null;
+
+  // Cached background + midground mist/grain layers (rebuild on resize).
+  let bg = null;
+  let bgctx = null;
+  let mist = null;
+  let mistctx = null;
+  const MIST_SIZE = 512;
+  let mistFilter = 'blur(18px)';
 
   const HUE_BUCKETS = 48;
   const hueStyles = Array.from({ length: HUE_BUCKETS }, (_, i) =>
@@ -30,18 +42,81 @@ export function createChannel({ seed, audio }){
     bctx = buf.getContext('2d');
   }
 
+  function ensureBackground(){
+    if (bg && bgctx) return;
+    bg = document.createElement('canvas');
+    bg.width = w;
+    bg.height = h;
+    bgctx = bg.getContext('2d');
+
+    const hue0 = (texRand()*360) | 0;
+    const hue1 = (hue0 + 22 + ((texRand()*18) | 0)) % 360;
+
+    bgctx.setTransform(1,0,0,1,0,0);
+    bgctx.globalCompositeOperation = 'source-over';
+    bgctx.globalAlpha = 1;
+
+    const g = bgctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, `hsl(${hue0},45%,7%)`);
+    g.addColorStop(0.6, `hsl(${hue1},55%,5%)`);
+    g.addColorStop(1, 'rgb(3,4,10)');
+    bgctx.fillStyle = g;
+    bgctx.fillRect(0,0,w,h);
+
+    // Subtle vignette so the edges feel less digital/flat.
+    bgctx.globalCompositeOperation = 'multiply';
+    const vg = bgctx.createRadialGradient(
+      w*0.5,
+      h*0.42,
+      Math.min(w,h)*0.15,
+      w*0.5,
+      h*0.42,
+      Math.max(w,h)*0.85
+    );
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.70)');
+    bgctx.fillStyle = vg;
+    bgctx.fillRect(0,0,w,h);
+
+    bgctx.globalCompositeOperation = 'source-over';
+    bgctx.globalAlpha = 1;
+  }
+
+  function ensureMist(){
+    if (mist && mistctx) return;
+    mist = document.createElement('canvas');
+    mist.width = MIST_SIZE;
+    mist.height = MIST_SIZE;
+    mistctx = mist.getContext('2d');
+
+    const img = mistctx.createImageData(MIST_SIZE, MIST_SIZE);
+    for (let i=0; i<img.data.length; i+=4){
+      const v = 120 + ((texRand()*120) | 0);
+      img.data[i+0] = v;
+      img.data[i+1] = v;
+      img.data[i+2] = v;
+      img.data[i+3] = 18 + ((texRand()*52) | 0);
+    }
+    mistctx.putImageData(img, 0, 0);
+  }
+
   function clearBuffer(){
     ensureBuffer();
+    ensureBackground();
+
     bctx.setTransform(1,0,0,1,0,0);
     bctx.globalCompositeOperation = 'source-over';
     bctx.globalAlpha = 1;
-    bctx.fillStyle = 'rgb(5,6,12)';
-    bctx.fillRect(0,0,w,h);
+    bctx.drawImage(bg, 0, 0);
   }
 
   function init({ width, height }){
     w=width; h=height; t=0; acc = 0;
     fieldScale = 0.0015 + (Math.min(w,h)/1000)*0.0012;
+
+    texRand = mulberry32((seed ^ 0x9E3779B9) >>> 0);
+    mistFilter = `blur(${Math.max(12, Math.floor(Math.min(w,h)/90))}px)`;
+
     pts = Array.from({ length: 1600 }, () => ({
       x: rand()*w,
       y: rand()*h,
@@ -51,6 +126,11 @@ export function createChannel({ seed, audio }){
 
     buf = null;
     bctx = null;
+    bg = null;
+    bgctx = null;
+    mist = null;
+    mistctx = null;
+
     clearBuffer();
   }
 
@@ -84,13 +164,19 @@ export function createChannel({ seed, audio }){
 
     // Advance the paint buffer at the same fixed timestep.
     ensureBuffer();
+    ensureBackground();
 
     bctx.setTransform(1,0,0,1,0,0);
 
-    // subtle fade
+    // Gently re-bias towards the cached background so the scene reads
+    // less like pure black + neon trails, without per-frame allocations.
     bctx.globalCompositeOperation = 'source-over';
+    bctx.globalAlpha = 0.045;
+    bctx.drawImage(bg, 0, 0);
+
+    // subtle fade
     bctx.globalAlpha = 1;
-    bctx.fillStyle = 'rgba(5,6,12,0.10)';
+    bctx.fillStyle = 'rgba(5,6,12,0.08)';
     bctx.fillRect(0,0,w,h);
 
     bctx.save();
@@ -124,11 +210,28 @@ export function createChannel({ seed, audio }){
 
   function render(ctx){
     ctx.setTransform(1,0,0,1,0,0);
+
     if (buf) ctx.drawImage(buf, 0, 0);
     else {
-      ctx.fillStyle = 'rgb(5,6,12)';
-      ctx.fillRect(0,0,w,h);
+      ensureBackground();
+      ctx.drawImage(bg, 0, 0);
     }
+
+    // Midground mist/grain layer: cached tile, slow deterministic drift.
+    ensureMist();
+    ctx.save();
+    ctx.globalCompositeOperation = 'soft-light';
+    ctx.globalAlpha = 0.14;
+    ctx.filter = mistFilter;
+
+    const ox = -((t * 10) % MIST_SIZE);
+    const oy = -((t * 7) % MIST_SIZE);
+    for (let x = ox - MIST_SIZE; x < w + MIST_SIZE; x += MIST_SIZE){
+      for (let y = oy - MIST_SIZE; y < h + MIST_SIZE; y += MIST_SIZE){
+        ctx.drawImage(mist, x, y);
+      }
+    }
+    ctx.restore();
 
     // header
     ctx.save();
