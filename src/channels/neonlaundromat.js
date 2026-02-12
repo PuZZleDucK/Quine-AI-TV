@@ -595,9 +595,11 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(dispX + 7, dispY + 6, dispW - 14, Math.max(2, Math.floor(dpr)));
     ctx.restore();
 
-    const dialX = px + pw * 0.74;
-    const dialY = py + ph * 0.48;
-    const dialR = Math.min(ph * 0.32, pw * 0.12);
+    // Dial + buttons spacing: avoid overlap on smaller viewports by
+    // pushing the dial right a touch and keeping buttons further left.
+    const dialX = px + pw * 0.80;
+    const dialY = py + ph * 0.50;
+    const dialR = Math.min(ph * 0.30, pw * 0.11);
 
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath();
@@ -620,7 +622,7 @@ export function createChannel({ seed, audio }){
     const btnY = py + ph * 0.50;
     const btnR = Math.max(2, Math.floor(Math.min(pw, ph) * 0.06));
     for (let b = 0; b < 3; b++){
-      const bx = px + pw * (0.54 + b * 0.06);
+      const bx = px + pw * (0.50 + b * 0.055);
       ctx.fillStyle = 'rgba(0,0,0,0.42)';
       ctx.beginPath();
       ctx.arc(bx, btnY, btnR * 1.25, 0, Math.PI * 2);
