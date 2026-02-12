@@ -13,6 +13,7 @@ The repository includes a Playwright-based capture tool: `scripts/capture-channe
 - `src/channels/traveldesk.js` is a great example of how to generate complex interesting shapes and element composition.
 - Channels should aim to have (most of):
   - A strong visual identity (palette + composition) with **layered motion** (background/midground/foreground).
+  - Improvments to visual components
   - **Time structure** (beats/segments/phases) rather than a single infinite loop.
   - A couple of small **“special moments”** (e.g. meteor/flash/glitch.rare-event) triggered on timers.
   - Deterministic variety via the provided `seed` + PRNG (so the same seed yields the same scene).

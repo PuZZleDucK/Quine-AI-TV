@@ -168,6 +168,10 @@ export function createChannel({ seed, audio }){
   let glint = null; // {cr, u}
   let glintFlash = 0;
 
+  // polish glint “special moment” (rare, deterministic; 45–120s)
+  let polishSpecial = { active: false, until: 0 };
+  let nextPolishSpecialAt = 0;
+
   // audio
   let ambience = null;
 
@@ -377,7 +381,11 @@ export function createChannel({ seed, audio }){
 
     glint = null;
     glintFlash = 0;
-    nextGlintAt = 5 + rand() * 6;
+    nextGlintAt = 1e9;
+
+    polishSpecial.active = false;
+    polishSpecial.until = 0;
+    nextPolishSpecialAt = t + 120 + rand() * 120;
   }
 
   function onPhaseEnter(){
@@ -391,7 +399,7 @@ export function createChannel({ seed, audio }){
     if (ph === 'polish'){
       glint = null;
       glintFlash = 0;
-      nextGlintAt = t + 0.8 + rand() * 1.2;
+      nextGlintAt = 1e9;
     }
 
     // tiny UI click (audio RNG only)
@@ -454,10 +462,26 @@ export function createChannel({ seed, audio }){
 
     glintFlash = Math.max(0, glintFlash - dt * 1.8);
 
+    // End polish glint special moment (forces a clean phase advance).
+    if (polishSpecial.active && t >= polishSpecial.until){
+      polishSpecial.active = false;
+      glint = null;
+      glintFlash = 0;
+      nextGlintAt = 1e9;
+      nextPolishSpecialAt = t + 120 + rand() * 120;
+      phaseT = PHASE_DUR;
+    }
+
     if (phaseT >= PHASE_DUR){
-      phaseT = phaseT % PHASE_DUR;
-      phaseIdx = (phaseIdx + 1) % PHASES.length;
-      onPhaseEnter();
+      const cur = PHASES[phaseIdx].id;
+      if (cur === 'polish' && polishSpecial.active){
+        // Hold in polish while the special moment is active.
+        phaseT = PHASE_DUR - 0.0001;
+      } else {
+        phaseT = phaseT % PHASE_DUR;
+        phaseIdx = (phaseIdx + 1) % PHASES.length;
+        onPhaseEnter();
+      }
     }
 
     const ph = PHASES[phaseIdx].id;
@@ -522,17 +546,30 @@ export function createChannel({ seed, audio }){
       dust.length = keep;
     }
 
-    // glint special moment
+    // rare polish glint “special moment” (~45–120s)
     if (ph === 'polish'){
-      if (t >= nextGlintAt){
-        glintFlash = 1;
-        const cr = (rand() * cracks.length) | 0;
-        glint = { cr, u: 0.15 + rand() * 0.72 };
-        nextGlintAt = t + 1.6 + rand() * 2.8;
+      if (!polishSpecial.active && t >= nextPolishSpecialAt){
+        polishSpecial.active = true;
+        polishSpecial.until = t + (45 + rand() * 75);
+        glint = null;
+        glintFlash = 0;
+        nextGlintAt = t + 0.15 + rand() * 0.25;
 
         if (audio.enabled){
-          safeBeep({ freq: 820 + arand()*180, dur: 0.030, gain: 0.010, type: 'triangle' });
-          if (arand() < 0.45) safeBeep({ freq: 1420 + arand()*220, dur: 0.016, gain: 0.007, type: 'sine' });
+          safeBeep({ freq: 620 + arand()*120, dur: 0.050, gain: 0.012, type: 'sine' });
+          safeBeep({ freq: 1240 + arand()*240, dur: 0.020, gain: 0.010, type: 'triangle' });
+        }
+      }
+
+      if (polishSpecial.active && t >= nextGlintAt){
+        glintFlash = 1;
+        const cr = (rand() * cracks.length) | 0;
+        glint = { cr, u: 0.10 + rand() * 0.80 };
+        nextGlintAt = t + 0.20 + rand() * 0.35;
+
+        if (audio.enabled){
+          safeBeep({ freq: 820 + arand()*180, dur: 0.028, gain: 0.010, type: 'triangle' });
+          if (arand() < 0.35) safeBeep({ freq: 1520 + arand()*260, dur: 0.016, gain: 0.007, type: 'sine' });
         }
       }
     }
@@ -891,8 +928,9 @@ export function createChannel({ seed, audio }){
 
     const ph = PHASES[phaseIdx];
     const p = phaseT / PHASE_DUR;
+    const phaseLabel = (ph.id === 'polish' && polishSpecial.active) ? 'POLISH • GLINT' : ph.label;
 
-    header(ctx, 'Kintsugi Clinic', subtitle, ph.label, p);
+    header(ctx, 'Kintsugi Clinic', subtitle, phaseLabel, p);
 
     drawPotteryBase(ctx);
 
@@ -913,7 +951,18 @@ export function createChannel({ seed, audio }){
       // polish
       drawCracks(ctx, 0.25, 0);
       drawGoldSeams(ctx, 1.0, 0.75 + 0.25 * (0.5 + 0.5*Math.sin(t*1.2)));
-      drawGlint(ctx, glintFlash);
+      const glintAmt = polishSpecial.active ? Math.min(1, glintFlash * 1.25) : glintFlash;
+      drawGlint(ctx, glintAmt);
+
+      if (polishSpecial.active){
+        // Clear, sustained signature without strobing.
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.06 + 0.06 * (0.5 + 0.5*Math.sin(t*0.9));
+        ctx.fillStyle = 'rgba(255,220,150,1)';
+        ctx.fillRect(0,0,w,h);
+        ctx.restore();
+      }
 
       if (glintFlash > 0){
         ctx.save();
