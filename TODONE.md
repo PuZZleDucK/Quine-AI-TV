@@ -514,3 +514,5 @@
 - [x] [project:quine-tv] Composition polish `exposuretriangle` (src/channels/exposuretriangle.js): use the empty right-side space for a small “reference card”/camera UI (e.g., EV scale / exposure compensation / histogram) that updates with meter delta, without harming OSD. Accept: 60s screenshot feels balanced; OSD remains clean. Commit: 908aa1f
 
 - [x] [project:quine-tv] Long-run interest `stitchalong` (src/channels/constellationstitch.js): expanded pattern variety (added new constellations) and added a rare deterministic special moment (~45–120s) with a shooting-star sweep + brief re-thread highlight; clean reset; OSD-safe. Screenshots: screenshots/autopilot-stitchalong-before + screenshots/autopilot-stitchalong-after. Commit: TBD
+
+- [x] [project:quine-tv] `fixit` (src/channels/fixit.js): added rare seeded “special moments” scheduled ~45–120s (LAMP FLICKER, SUCCESS STAMP, DUST PUFF) with clean reset + subtle audio signature. Commit: 8043a42
