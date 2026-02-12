@@ -1,3 +1,5 @@
+- 2026-02-13 00:18 (Australia/Melbourne) [project:quine-tv] `matrix` (src/channels/matrix.js): audio hygiene — made `onAudioOn()` idempotent, added gentle noise fade-out on stop, `onAudioOff()` only clears AudioManager.current when owned, and reduced beep cadence/variation. Commit: 6a4c738
+
 - 2026-02-13 00:07 (Australia/Melbourne) [project:quine-tv] Review channel `matrix` (src/channels/matrix.js): captured screenshots (0–300s) to `screenshots/review-matrix` (errors/warnings: 0), added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`.
 
 - 2026-02-12 23:47 (Australia/Melbourne) [project:quine-tv] `dominofactory` (src/channels/dominofactory.js): long-run interest — added a deterministic forklift silhouette pass special moment (paired with the overhead sweep + a second STAMP/FORKLIFT follow-up), scheduled in the first ~55–120s with a clean reset. Commit: 30c5e5b
