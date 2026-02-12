@@ -1,3 +1,5 @@
+- 2026-02-12 17:45 (Australia/Melbourne) [project:quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): call queue now accumulates deterministic background calls and is serviced on ARRIVE. Screenshots: screenshots/autopilot-elevatorpanel-queue-before + screenshots/autopilot-elevatorpanel-queue-after. Commit: c082650
+
 - 2026-02-12 17:34 (Australia/Melbourne) [project:quine-tv] Time structure `lava` (src/channels/lava.js): added deterministic 2–4 min phase cycle (CALM→BLOOP→SURGE) modulating blob speed/blur/intensity + rare deterministic “special moments” (PULSE/HEAT/SWIRL) scheduled ~45–120s/cycle. Commit: e71d29b
 
 - 2026-02-12 17:21 (Australia/Melbourne) [project:quine-tv] Perf `lava` (src/channels/lava.js): pre-rendered blob sprites (radius+hue buckets) so steady-state `render()` no longer calls `create*Gradient()` per blob (blit + blur + screen). Commit: b07df9f
