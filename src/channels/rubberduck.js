@@ -738,6 +738,40 @@ export function createChannel({ seed, audio }){
     const ly = ty + hh / 2;
     const lr = Math.max(3, Math.floor(font * 0.2));
     const lights = ['#ff5aa5', '#ffd66b', '#63ffb6'];
+
+    // phase indicator (subtle; stays within the window header)
+    {
+      const phaseText = String(phase?.name || 'calm').toUpperCase();
+      const size = Math.max(10, Math.floor(font * 0.62));
+      const charW = size * 0.62; // monospace-ish estimate; avoids measureText() hot-path
+      const bw = Math.ceil(phaseText.length * charW + size * 1.25);
+      const bh = Math.ceil(size * 1.35);
+      const bx = Math.floor((lx - lr * 1.9) - bw);
+      const by = Math.floor(ty + hh * 0.5 - bh * 0.5);
+
+      let col = 'rgba(220,245,255,0.8)';
+      if (phaseText === 'CRISIS') col = 'rgba(255,120,170,0.82)';
+      else if (phaseText === 'RESOLUTION') col = 'rgba(190,210,255,0.82)';
+
+      ctx.save();
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      roundedRect(ctx, bx, by, bw, bh, Math.max(6, Math.floor(size * 0.5)));
+      ctx.fill();
+
+      ctx.globalAlpha = 0.48;
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.78;
+      ctx.font = `700 ${size}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.fillStyle = col;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(phaseText, bx + Math.floor(size * 0.62), ty + hh / 2);
+      ctx.restore();
+    }
+
     for (let i = 0; i < 3; i++){
       ctx.beginPath();
       ctx.fillStyle = lights[i];
