@@ -22,19 +22,45 @@ export function createChannel({ seed, audio }){
       len: 8 + (rand()*22)|0,
       ph: rand()*10,
     }));
-    nextClick = 0.2;
+    nextClick = 0.4;
   }
 
   function onResize(width,height){ w=width; h=height; init({width,height}); }
 
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // idempotent: don’t stack sources if we already own the current handle
+    if (hiss && audio.current===hiss) return;
+
+    // if we have a stale handle (someone else took over), make sure it’s stopped
+    if (hiss && audio.current!==hiss){
+      try{ hiss.stop?.(); }catch{}
+      hiss = null;
+    }
+
+    const ctx = audio.ensure();
     const n = audio.noiseSource({type:'white', gain:0.012});
     n.start();
-    hiss = {stop(){n.stop();}};
-    audio.setCurrent(hiss);
+
+    const handle = {
+      stop(){
+        // gentle-ish fade, then stop
+        try{ n.gain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.08); }catch{}
+        try{ n.src.stop(ctx.currentTime + 0.25); }catch{ try{ n.stop(); }catch{} }
+      }
+    };
+
+    hiss = audio.setCurrent(handle);
   }
-  function onAudioOff(){ try{hiss?.stop?.();}catch{} hiss=null; }
+
+  function onAudioOff(){
+    const mine = hiss;
+    try{ mine?.stop?.(); }catch{}
+    if (audio.current===mine) audio.current = null;
+    hiss = null;
+  }
+
   function destroy(){ onAudioOff(); }
 
   function update(dt){
@@ -45,8 +71,11 @@ export function createChannel({ seed, audio }){
     }
     nextClick -= dt;
     if (nextClick <= 0){
-      nextClick = 0.08 + rand()*0.25;
-      if (audio.enabled) audio.beep({freq: 1400 + rand()*900, dur: 0.015, gain: 0.02, type:'square'});
+      // less clicky + don’t beep if another channel took over audio.current
+      nextClick = 0.25 + rand()*0.65;
+      if (audio.enabled && audio.current===hiss){
+        audio.beep({freq: 1100 + rand()*600, dur: 0.012, gain: 0.015, type:'square'});
+      }
     }
   }
 
