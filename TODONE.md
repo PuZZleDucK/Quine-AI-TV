@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Perf `lava` (src/channels/lava.js): removed per-blob `createRadialGradient()` from `render()` by pre-rendering blob sprites (bucketed by radius+hue) and blitting with blur+screen composite. Accept: steady-state `render()` allocates 0 gradients/frame. Commit: b07df9f
+
 
 - [x] [project:quine-tv] Special moment `flow` (src/channels/flowfield.js): added rare deterministic “special moments” (inversion + shockwave) scheduled ~45–120s with OSD-safe label/ring + clean reset. Commit: 3dfb45a
 
