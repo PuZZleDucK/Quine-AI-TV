@@ -31,6 +31,7 @@ export function createChannel({ seed, audio }) {
 
   let indicator = { x: 0, y: 0, w: 0, h: 0 };
   let queueBox = { x: 0, y: 0, w: 0, h: 0 };
+  let diagramBox = { x: 0, y: 0, w: 0, h: 0 };
   let buttons = []; // {x,y,w,h,floor}
 
   // ---- scripted time structure
@@ -473,11 +474,11 @@ export function createChannel({ seed, audio }) {
   }
 
   function drawBuildingDiagram(ctx, { carFloor, activeShaft, targetFloor, pulse, tt }) {
-    // In the right margin: a tiny schematic of shafts + elevator cars.
-    const x0 = panelX + panelW + w * 0.025;
-    const ww = w - x0 - w * 0.04;
-    const y0 = panelY + panelH * 0.12;
-    const hh = panelH * 0.78;
+    // Right column schematic: shafts + elevator cars.
+    const x0 = diagramBox.x;
+    const ww = diagramBox.w;
+    const y0 = diagramBox.y;
+    const hh = diagramBox.h;
     if (ww < 42 || hh < 60) return;
 
     const r = Math.max(10, Math.min(ww, hh) * 0.10);
@@ -492,7 +493,7 @@ export function createChannel({ seed, audio }) {
     roundRect(ctx, x0 + 1, y0 + 1, ww - 2, hh - 2, r);
     ctx.stroke();
 
-    drawText(ctx, 'SHAFTS', x0 + ww * 0.10, y0 + hh * 0.12, Math.max(10, hh * 0.10), 'rgba(240,255,252,0.42)');
+    drawText(ctx, 'SHAFTS', x0 + ww * 0.10, y0 + hh * 0.12, Math.max(10, hh * 0.07), 'rgba(240,255,252,0.42)');
 
     const topPad = hh * 0.16;
     const botPad = hh * 0.08;
@@ -750,33 +751,46 @@ export function createChannel({ seed, audio }) {
     w = width;
     h = height;
 
-    panelW = w * 0.62;
-    panelH = h * 0.86;
-    panelX = w * 0.19;
-    panelY = h * 0.07;
+    // Two-column stage layout: main panel + dedicated schematic column.
+    const stageX = w * 0.07;
+    const stageW = w * 0.86;
+    const gutter = stageW * 0.03;
+    const leftRatio = 0.80;
+
+    panelW = stageW * leftRatio;
+    panelH = h * 0.84;
+    panelX = stageX;
+    panelY = h * 0.08;
+
+    diagramBox = {
+      x: panelX + panelW + gutter,
+      y: panelY + panelH * 0.12,
+      w: stageW - panelW - gutter,
+      h: panelH * 0.78,
+    };
 
     indicator = {
-      x: panelX + panelW * 0.08,
+      x: panelX + panelW * 0.07,
       y: panelY + panelH * 0.12,
-      w: panelW * 0.84,
-      h: panelH * 0.20,
+      w: panelW * 0.86,
+      h: panelH * 0.16,
     };
 
     queueBox = {
-      x: panelX + panelW * 0.08,
-      y: panelY + panelH * 0.35,
-      w: panelW * 0.36,
-      h: panelH * 0.42,
+      x: panelX + panelW * 0.07,
+      y: panelY + panelH * 0.33,
+      w: panelW * 0.35,
+      h: panelH * 0.44,
     };
 
     // button grid: 4 cols x rows, up to floorCount
     const cols = 4;
     const rows = Math.ceil(floorCount / cols);
 
-    const bx0 = panelX + panelW * 0.50;
-    const by0 = panelY + panelH * 0.35;
-    const bw = panelW * 0.42;
-    const bh = panelH * 0.56;
+    const bx0 = panelX + panelW * 0.45;
+    const by0 = panelY + panelH * 0.33;
+    const bw = panelW * 0.48;
+    const bh = panelH * 0.52;
 
     const gap = Math.max(6, panelW * 0.012);
     const cellW = (bw - gap * (cols - 1)) / cols;
