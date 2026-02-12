@@ -153,8 +153,164 @@ function makeGear(rand, cx, cy){
   return pts;
 }
 
+function buildLineLog(seed){
+  // Seeded factory “line log” that rotates deterministically for 5+ minutes.
+  const rr = mulberry32(((seed ^ 0x6c696e65) >>> 0)); // "line" salt
+
+  const lines = [
+    'LN-0001 BOOT: conveyor sync OK',
+    'LN-0007 QC: sample 3/3 PASS',
+    'LN-0013 ARM/7: grip torque nominal',
+    'LN-0019 BELT-2: skew +0.3° (ignored)',
+    'LN-0023 LUBE: micro-dose applied',
+    'LN-0029 STAMP: ink density 94%',
+    'LN-0031 SENSOR: jam? false positive',
+    'LN-0037 COOLANT: vibes only',
+    'LN-0041 SHIFT: operator = "??"',
+    'LN-0047 WIP: pattern variance +1',
+    'LN-0053 PLC: no further questions',
+    'LN-0059 FORKLIFT: seen… in spirit',
+    'LN-0061 SAFETY: yellow means "yes"',
+    'LN-0067 OPTICS: overhead glare reduced',
+    'LN-0073 REJECT: 0 (suspicious)',
+    'LN-0079 ALIGN: micro-nudge applied',
+    'LN-0083 TENSION: belt hum in key of D',
+    'LN-0089 SOP: step 12 reinterpreted',
+    'LN-0097 METRIC: productivity +2%*',
+    'LN-0101 *unverified by anyone',
+    'LN-0107 STATUS: running, mostly',
+    'LN-0113 HUM: audible only to QA',
+    'LN-0119 IDLE: not an option',
+    'LN-0121 SEAL: applied with confidence',
+    'LN-0127 CLOCK: time is a suggestion',
+    'LN-0131 INSPECT: looks like dominoes',
+    'LN-0137 HANDOFF: to the laws of physics',
+    'LN-0143 COUNTER: still counting',
+    'LN-0149 PANEL: do not press (pressed)',
+    'LN-0151 SENSOR: sparkling again',
+    'LN-0157 ALERT: "minor excitement"',
+    'LN-0163 BIN-A: full of good intentions',
+    'LN-0169 BIN-B: full of other intentions',
+    'LN-0173 PATH: spline approved',
+    'LN-0179 TOOL: calibrated-ish',
+    'LN-0181 FIRMWARE: retrograde',
+    'LN-0187 GEARBOX: polite whining',
+    'LN-0191 THRESH: acceptably chaotic',
+    'LN-0197 VISION: edge detect OK',
+    'LN-0203 LOAD: steady-state nominal',
+    'LN-0209 HEAT: within vibes envelope',
+    'LN-0211 HUMID: not our department',
+    'LN-0217 LOG: logging harder',
+    'LN-0223 NOTE: do not read this line',
+    'LN-0227 NOTE: too late',
+    'LN-0233 QA: "this is fine"',
+    'LN-0239 STAMP: crisp',
+    'LN-0241 STAMP: satisfying thunk',
+    'LN-0247 ARM/7: elbow drama resolved',
+    'LN-0253 BELT-2: tracking corrected',
+    'LN-0259 BELT-1: jealous',
+    'LN-0263 COUNTER: overflow scheduled',
+    'LN-0269 ENERGY: reclaimed from hope',
+    'LN-0271 LIGHT: flicker suppressed',
+    'LN-0277 SHADOW: forklift-shaped',
+    'LN-0281 SPARES: missing (conceptually)',
+    'LN-0287 JAM: pre-emptively denied',
+    'LN-0293 QUALITY: aggressive',
+    'LN-0299 PATTERN: tasteful',
+    'LN-0301 PATTERN: questionable',
+    'LN-0307 PATTERN: approved anyway',
+    'LN-0313 RESET: inevitable',
+    'LN-0319 REBOOT: not today',
+    'LN-0323 TEMPO: slow and confident',
+    'LN-0329 DRIFT: camera doing art',
+    'LN-0331 AUDIT: postponed',
+    'LN-0337 SUPPLY: dominoes abundant',
+    'LN-0343 DEMAND: dominoes also abundant',
+    'LN-0349 NOTE: the dominos are watching',
+    'LN-0353 END: keep going',
+  ];
+
+  // Fisher–Yates shuffle for seeded variety.
+  for (let i = lines.length - 1; i > 0; i--){
+    const j = (rr() * (i + 1)) | 0;
+    const tmp = lines[i];
+    lines[i] = lines[j];
+    lines[j] = tmp;
+  }
+
+  // Create a deterministic cadence so the full set lasts >5 minutes.
+  const schedule = [];
+  let at = 0;
+  const base = 4.6;
+  const jitter = 2.0;
+  for (let i = 0; i < lines.length; i++){
+    at += base + rr() * jitter;
+    schedule.push(at);
+  }
+
+  return { lines, schedule, total: at };
+}
+
+function lineLogIndexAt(log, timeS){
+  // Find the first schedule time strictly greater than timeS.
+  // Returns 0..lines.length, where 0 means "before first".
+  let lo = 0;
+  let hi = log.schedule.length;
+  while (lo < hi){
+    const mid = (lo + hi) >> 1;
+    if (timeS < log.schedule[mid]) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
+function buildSpecialSchedule(seed){
+  // Rare deterministic “special moments” in the first 45–120s, with long spacing after.
+  // Intent: a clear signature look (overhead sweep / QC stamp / forklift shadow pass) with clean reset.
+  const rr = mulberry32(((seed ^ 0x73706563) >>> 0)); // "spec" salt
+
+  const events = [];
+
+  // Guarantee 1–2 moments in the ~1–2 minute window after tuning.
+  // Always do a sweep, then pick one follow-up (STAMP or FORKLIFT) a bit later.
+  const sweepAt = 55 + rr() * 35;     // 55–90s
+  let secondAt = 92 + rr() * 28;      // 92–120s
+  if (secondAt < sweepAt + 8) secondAt = sweepAt + 8;
+
+  events.push({ kind: 'SWEEP', at: sweepAt, dur: 3.6, dir: (rr() < 0.5 ? -1 : 1), tilt: (rr() * 2 - 1) * 0.18 });
+
+  const secondKind = (rr() < 0.60 ? 'STAMP' : 'FORKLIFT');
+  if (secondKind === 'STAMP'){
+    events.push({ kind: 'STAMP', at: secondAt, dur: 2.8, rot: (rr() * 2 - 1) * 0.20, x: 0.64 + (rr() * 2 - 1) * 0.05, y: 0.46 + (rr() * 2 - 1) * 0.06 });
+  } else {
+    events.push({ kind: 'FORKLIFT', at: secondAt, dur: 4.6, dir: (rr() < 0.5 ? -1 : 1), y: 0.66 + (rr() * 2 - 1) * 0.04, scale: 0.95 + rr() * 0.20 });
+  }
+
+  // A couple more, spaced out, for long-run interest.
+  let at = 220 + rr() * 70;
+  while (at < 600){
+    const r = rr();
+    if (r < 0.55){
+      events.push({ kind: 'SWEEP', at, dur: 3.3 + rr() * 0.6, dir: (rr() < 0.5 ? -1 : 1), tilt: (rr() * 2 - 1) * 0.22 });
+    } else if (r < 0.82){
+      events.push({ kind: 'STAMP', at, dur: 2.4 + rr() * 0.7, rot: (rr() * 2 - 1) * 0.24, x: 0.60 + (rr() * 2 - 1) * 0.06, y: 0.50 + (rr() * 2 - 1) * 0.07 });
+    } else {
+      events.push({ kind: 'FORKLIFT', at, dur: 4.3 + rr() * 0.8, dir: (rr() < 0.5 ? -1 : 1), y: 0.64 + (rr() * 2 - 1) * 0.05, scale: 0.90 + rr() * 0.25 });
+    }
+
+    at += 170 + rr() * 120;
+  }
+
+  // Keep sorted by time.
+  events.sort((a, b) => a.at - b.at);
+  return events;
+}
+
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  const lineLog = buildLineLog(seed);
+  const specials = buildSpecialSchedule(seed);
+  let specialI = 0;
 
   let w = 0;
   let h = 0;
@@ -471,6 +627,18 @@ export function createChannel({ seed, audio }){
   function update(dt){
     t += dt;
 
+    // Rare deterministic specials (independent of FPS): trigger audio once when crossing each event time.
+    while (specialI < specials.length && t >= specials[specialI].at){
+      const ev = specials[specialI];
+      if (audio.enabled){
+        if (ev.kind === 'SWEEP') audio.beep({ freq: 820, dur: 0.06, gain: 0.018, type: 'triangle' });
+        else if (ev.kind === 'FORKLIFT') audio.beep({ freq: 140, dur: 0.10, gain: 0.020, type: 'sawtooth' });
+        else audio.beep({ freq: 240, dur: 0.08, gain: 0.022, type: 'square' });
+      }
+      specialI++;
+    }
+
+
     const c = Math.floor(t / CYCLE_DUR);
     if (c !== cycleIndex){
       cycleIndex = c;
@@ -696,8 +864,199 @@ export function createChannel({ seed, audio }){
       ctx.fillText('⚠ JAM SENSOR BLIP', x, y + 54 * dpr);
     }
 
+    // Seeded rotating "line log" (clipped to stay OSD-safe).
+    {
+      const logX = x;
+      const logY = y + 72 * dpr;
+      const boxW = Math.min(floor.w * 0.36, 520 * dpr);
+      const boxH = Math.min(floor.h * 0.22, 140 * dpr);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(logX - 2 * dpr, logY - 2 * dpr, boxW, boxH);
+      ctx.clip();
+
+      // subtle backplate
+      ctx.globalAlpha = 0.70;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      ctx.fillRect(logX - 2 * dpr, logY - 2 * dpr, boxW, boxH);
+
+      // header
+      ctx.globalAlpha = 0.90;
+      ctx.font = `${Math.max(12, Math.floor(12 * dpr))}px ui-monospace, Menlo, Consolas, monospace`;
+      ctx.fillStyle = 'rgba(150, 220, 255, 0.70)';
+      ctx.fillText('LINE LOG:', logX, logY);
+
+      const logT = (t % Math.max(1e-6, lineLog.total));
+      const idx = lineLogIndexAt(lineLog, logT);
+      const start = idx % lineLog.lines.length;
+
+      const lineH = 14 * dpr;
+      const maxLines = Math.max(1, Math.min(6, Math.floor((boxH - 18 * dpr) / lineH)));
+      for (let i = 0; i < maxLines; i++){
+        const s = lineLog.lines[(start + i) % lineLog.lines.length];
+        const yy = logY + 18 * dpr + i * lineH;
+        const a = clamp(0.85 - i * 0.10, 0.25, 0.85);
+        ctx.globalAlpha = a;
+        ctx.fillStyle = 'rgba(255, 235, 160, 0.85)';
+        ctx.fillText(s, logX, yy);
+      }
+
+      ctx.restore();
+    }
+
     ctx.restore();
   }
+
+  function drawSpecialMoments(ctx){
+    // Draw any special moments active at time t.
+    for (const ev of specials){
+      const age = t - ev.at;
+      if (age < 0 || age > ev.dur) continue;
+
+      if (ev.kind === 'SWEEP'){
+        const u = age / Math.max(1e-6, ev.dur);
+        const fade = Math.pow(Math.sin(Math.PI * clamp01(u)), 1.25);
+        const tilt = ev.tilt || 0;
+
+        // A bright overhead light bar that sweeps across the factory floor.
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.55 * fade;
+
+        // Clip to the floor panel.
+        ctx.beginPath();
+        roundRect(ctx, floor.x, floor.y, floor.w, floor.h, floor.r);
+        ctx.clip();
+
+        const bandW = floor.w * 0.22;
+        const travel = floor.w + bandW * 2;
+        const start = -bandW;
+        const cx = start + travel * (ev.dir > 0 ? u : (1 - u));
+        const cy = floor.y + floor.h * 0.42;
+
+        ctx.translate(floor.x + cx, cy);
+        ctx.rotate(-0.30 + tilt);
+
+        const g = ctx.createLinearGradient(-bandW, 0, bandW, 0);
+        g.addColorStop(0, 'rgba(255,255,255,0)');
+        g.addColorStop(0.45, 'rgba(255,252,215,0.18)');
+        g.addColorStop(0.50, 'rgba(255,255,255,0.42)');
+        g.addColorStop(0.55, 'rgba(255,252,215,0.18)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+
+        // Large enough to cover the clipped panel even when rotated.
+        ctx.fillRect(-bandW, -floor.h * 1.2, bandW * 2, floor.h * 2.4);
+
+        // thin highlight line (signature look)
+        ctx.globalAlpha = 0.22 * fade;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.fillRect(-1.5 * dpr, -floor.h * 1.2, 3 * dpr, floor.h * 2.4);
+
+        ctx.restore();
+      } else if (ev.kind === 'STAMP'){
+        // QC STAMP
+        const u = age / Math.max(1e-6, ev.dur);
+        const pop = ease(clamp01(u / 0.18));
+        const fade = 1 - ease(clamp01((u - 0.30) / 0.70));
+
+        const sx = floor.x + floor.w * (ev.x ?? 0.64);
+        const sy = floor.y + floor.h * (ev.y ?? 0.46);
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.globalAlpha = 0.70 * fade;
+        ctx.translate(sx, sy);
+        ctx.rotate(-0.34 + (ev.rot || 0));
+
+        const sc = lerp(1.55, 1.0, pop);
+        ctx.scale(sc, sc);
+
+        const stampW = Math.min(floor.w, floor.h) * 0.34;
+        const stampH = stampW * 0.18;
+
+        ctx.lineWidth = Math.max(2, Math.floor(3 * dpr));
+        ctx.strokeStyle = 'rgba(255, 70, 80, 0.85)';
+        ctx.fillStyle = 'rgba(255, 70, 80, 0.10)';
+        roundRect(ctx, -stampW * 0.5, -stampH * 0.5, stampW, stampH, stampH * 0.28);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.85 * fade;
+        ctx.fillStyle = 'rgba(255, 90, 100, 0.95)';
+        ctx.font = `${Math.max(16, Math.floor(18 * dpr))}px ui-monospace, Menlo, Consolas, monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('QC PASS', 0, 0);
+
+        ctx.restore();
+      } else {
+        // FORKLIFT SHADOW PASS
+        const u = age / Math.max(1e-6, ev.dur);
+        const fade = Math.pow(Math.sin(Math.PI * clamp01(u)), 1.25);
+        const dir = (ev.dir ?? 1);
+
+        const x0 = -0.18;
+        const x1 = 1.18;
+        const xN = lerp(x0, x1, dir > 0 ? u : (1 - u));
+        const yN = (ev.y ?? 0.66);
+
+        ctx.save();
+        // Clip to the floor panel.
+        ctx.beginPath();
+        roundRect(ctx, floor.x, floor.y, floor.w, floor.h, floor.r);
+        ctx.clip();
+
+        const x = floor.x + floor.w * xN;
+        const y = floor.y + floor.h * yN + Math.sin(u * Math.PI * 2) * floor.h * 0.004;
+        ctx.translate(x, y);
+
+        const sc = (ev.scale || 1) * Math.min(floor.w, floor.h) * 0.12;
+        ctx.scale(sc, sc);
+        if (dir < 0) ctx.scale(-1, 1);
+
+        // Silhouette (multiply makes it read like a passing shadow)
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.globalAlpha = 0.55 * fade;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.90)';
+
+        // Wheels
+        ctx.beginPath();
+        ctx.arc(-0.85, 0.45, 0.26, 0, Math.PI * 2);
+        ctx.arc(0.35, 0.48, 0.30, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Chassis + cab
+        ctx.fillRect(-1.40, -0.35, 2.35, 0.70);
+        ctx.fillRect(-0.60, -1.05, 0.92, 0.78);
+        ctx.fillRect(-0.60, -1.05, 1.30, 0.14); // overhead guard
+
+        // Mast + forks
+        ctx.fillRect(0.92, -1.18, 0.22, 1.62);
+        ctx.fillRect(1.12, 0.06, 1.10, 0.14);
+        ctx.fillRect(1.12, 0.30, 0.90, 0.10);
+
+        // Tiny headlamp cone (subtle signature)
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.18 * fade;
+        const hg = ctx.createLinearGradient(1.05, -0.10, 3.0, 0.05);
+        hg.addColorStop(0, 'rgba(255, 242, 170, 0.42)');
+        hg.addColorStop(1, 'rgba(255, 242, 170, 0)');
+        ctx.fillStyle = hg;
+        ctx.beginPath();
+        ctx.moveTo(1.18, -0.12);
+        ctx.lineTo(3.05, -0.62);
+        ctx.lineTo(3.05, 0.52);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+  }
+
 
   function draw(ctx){
     if (!w || !h) return;
@@ -825,6 +1184,9 @@ export function createChannel({ seed, audio }){
       ctx.fillRect(floor.x, floor.y, floor.w, floor.h);
       ctx.restore();
     }
+
+    // rare deterministic specials (sweep / stamp)
+    drawSpecialMoments(ctx);
 
     // HUD
     drawHUD(ctx, placed, phaseName);

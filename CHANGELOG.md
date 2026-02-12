@@ -1,3 +1,7 @@
+- 2026-02-12 23:47 (Australia/Melbourne) [project:quine-tv] `dominofactory` (src/channels/dominofactory.js): long-run interest — added a deterministic forklift silhouette pass special moment (paired with the overhead sweep + a second STAMP/FORKLIFT follow-up), scheduled in the first ~55–120s with a clean reset. Commit: TBD
+
+- 2026-02-12 23:24 (Australia/Melbourne) [project:quine-tv] `dominofactory` (src/channels/dominofactory.js): text/dialog — verified seeded rotating “line log” HUD panel (5+ min deterministic rotation), clipped to remain OSD-safe. Screenshots: screenshots/autopilot-dominofactory-linelog-before + screenshots/autopilot-dominofactory-linelog-after. Commit: TBD
+
 - 2026-02-12 22:45 (Australia/Melbourne) [project:quine-tv] `dominofactory` (src/channels/dominofactory.js): visual identity — added cached midground clutter layer (bolts/rivets/hazard decals/soft grime), rebuilt on resize; OSD-safe masks. Screenshots: screenshots/review-dominofactory-pre + screenshots/review-dominofactory-post. Commit: bff9e4b
 
 - 2026-02-12 22:30 (Australia/Melbourne) [project:quine-tv] `dominofactory` (src/channels/dominofactory.js): determinism — alarm/spark schedules now compute intensity relative to the exact scheduled time (FPS-stable at 30fps vs 60fps). Commit: 1ee7343

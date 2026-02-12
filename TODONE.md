@@ -1,6 +1,10 @@
 
 # Done
 
+- [x] [project:quine-tv] Review follow-up `dominofactory` (src/channels/dominofactory.js): long-run interest — added rare deterministic special moments (overhead sweep + QC stamp or forklift silhouette pass), scheduled ~55–120s with a clear signature look and clean reset. Commit: TBD
+
+- [x] [project:quine-tv] Review follow-up `dominofactory` (src/channels/dominofactory.js): text/dialog — added a seeded rotating “line log” under the HUD (funny factory status codes; 5+ min deterministic rotation; clipped so it stays OSD-safe). Screenshots: screenshots/autopilot-dominofactory-linelog-before + screenshots/autopilot-dominofactory-linelog-after. Commit: TBD
+
 - [x] [project:quine-tv] Review follow-up `dominofactory` (src/channels/dominofactory.js): visual identity — added cached midground “factory clutter” layer (bolts/rivets/hazard decals/soft grime) that stays OSD-safe and rebuilds on resize. Screenshots: screenshots/review-dominofactory-pre + screenshots/review-dominofactory-post. Commit: bff9e4b
 
 - [x] [project:quine-tv] Review follow-up `dominofactory` (src/channels/dominofactory.js): deterministic alarm/spark scheduling — schedule-time corrected decay so 30fps/60fps captures match. Commit: 1ee7343
