@@ -11,6 +11,15 @@ export function createChannel({ seed, audio }){
   // without affecting the point-field sequence.
   let texRand = mulberry32((seed ^ 0x9E3779B9) >>> 0);
 
+  // Long-run composition: periodically reseed a small % of points so the
+  // field doesn't collapse into a couple of bright ribbons over time.
+  // Uses its own RNG so the behaviour is deterministic and doesn't perturb
+  // other sequences.
+  let reseedRand = mulberry32((seed ^ 0x85EBCA6B) >>> 0);
+  let reseedClock = 0;
+  const RESEED_INTERVAL_S = 9.5;
+  const RESEED_FRACTION = 0.015;
+
   // Fixed-timestep simulation so motion is deterministic across 30fps vs 60fps.
   const FIXED_DT = 1/60;
   const MAX_STEPS_PER_UPDATE = 8;
@@ -115,6 +124,8 @@ export function createChannel({ seed, audio }){
     fieldScale = 0.0015 + (Math.min(w,h)/1000)*0.0012;
 
     texRand = mulberry32((seed ^ 0x9E3779B9) >>> 0);
+    reseedRand = mulberry32((seed ^ 0x85EBCA6B) >>> 0);
+    reseedClock = 0;
     mistFilter = `blur(${Math.max(12, Math.floor(Math.min(w,h)/90))}px)`;
 
     pts = Array.from({ length: 1600 }, () => ({
@@ -147,6 +158,17 @@ export function createChannel({ seed, audio }){
     return v * Math.PI;
   }
 
+  function reseedSomePoints(){
+    const n = Math.max(1, Math.floor(pts.length * RESEED_FRACTION));
+    for (let i = 0; i < n; i++){
+      const idx = (reseedRand() * pts.length) | 0;
+      const p = pts[idx];
+      p.x = reseedRand() * w;
+      p.y = reseedRand() * h;
+      p.hue = (reseedRand() * 360) | 0;
+    }
+  }
+
   function stepSim(dt){
     t += dt;
 
@@ -160,6 +182,12 @@ export function createChannel({ seed, audio }){
       if (p.y < 0) p.y += h;
       if (p.y > h) p.y -= h;
       p.hue = (p.hue + dt*6) % 360;
+    }
+
+    reseedClock += dt;
+    if (reseedClock >= RESEED_INTERVAL_S){
+      reseedClock -= RESEED_INTERVAL_S;
+      reseedSomePoints();
     }
 
     // Advance the paint buffer at the same fixed timestep.
