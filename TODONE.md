@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `matrix` (src/channels/matrix.js): visual polish — made the top overlay banner more OSD-safe (smaller height + gentle fade) and rotate the title from a deterministic seeded list (5–8 min cadence). Commit: d37e6b2
+
 - [x] [project:quine-tv] `matrix` (src/channels/matrix.js): determinism — removed `rand()` consumption from `render()` by updating per-column glyph arrays on a fixed cadence in `update(dt)` (80–140ms). Screenshots: screenshots/autopilot-matrix-determinism-before + screenshots/autopilot-matrix-determinism-after. Commit: 425c04e
 
 - [x] [project:quine-tv] `matrix` (src/channels/matrix.js): audio hygiene — `onAudioOn()` idempotent (no stacking), gentle hiss fade-out on stop, `onAudioOff()`/`destroy()` clear AudioManager.current only when owned; reduced beep cadence/variation. Commit: 6a4c738
