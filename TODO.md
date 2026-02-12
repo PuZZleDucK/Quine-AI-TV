@@ -5,7 +5,7 @@ if `TODO.md` has no ready items:
 
 <!-- moved to TODONE.md -->
 
-- [ ] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — text colors are not always right, sometimes bug is not red and ascii art color does not change.
+- [ ] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — text colors are not always right, sometimes bug is not red and ascii art color does not change to manage section.
 
 - [ ] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — expand `fakeStackTrace()` with 4–6 more templates + a couple of “diff snippet” style lines; verify `wrapForTerminal()` keeps indentation and never overflows.
 
