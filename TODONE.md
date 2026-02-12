@@ -2,6 +2,8 @@
 # Done
 
 
+- [x] [project:quine-tv] Long-run composition `flow` (src/channels/flowfield.js): added deterministic periodic point reseed (1.5% every 9.5s; separate RNG) to keep coverage even and avoid long-run ribbon collapse. Screenshots: screenshots/review-flowfield-pre + screenshots/review-flowfield-post. Commit: 12cd9e8
+
 - [x] [project:quine-tv] Visual depth `elevatorpanel` (src/channels/elevatorpanel.js): added subtle glass reflection + edge vignette/panel bloom layer that varies by segment (MOVE/ARRIVE/SERVICE) while keeping OSD crisp. Commit: 8c6946b
 
 - [x] [project:quine-tv] Visual identity `flow` (src/channels/flowfield.js): added cached background gradient+vignette and a slow drifting mist/grain midground (seeded; OSD-safe; no per-frame allocations in steady-state). Commit: e814a6c

@@ -1,3 +1,5 @@
+- 2026-02-12 15:49 (Australia/Melbourne) [project:quine-tv] Long-run composition `flow` (src/channels/flowfield.js): added deterministic periodic point reseed (separate RNG) to prevent long-run ribbon collapse and keep coverage even. Screenshots: screenshots/review-flowfield-pre + screenshots/review-flowfield-post. Commit: 12cd9e8
+
 - 2026-02-12 15:20 (Australia/Melbourne) [project:quine-tv] Visual identity `flow` (src/channels/flowfield.js): added cached background gradient+vignette and a slow drifting mist/grain midground (seeded; OSD-safe; no per-frame allocations in steady-state). Commit: e814a6c
 
 - 2026-02-12 15:06 (Australia/Melbourne) [project:quine-tv] Text/dialog `elevatorpanel` (src/channels/elevatorpanel.js): expanded status strip into seeded annunciator messages (5-minute rotation; avoids repeats too quickly; clipped so it won’t overlap NEXT). Commit: eb10d26
