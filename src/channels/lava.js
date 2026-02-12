@@ -81,6 +81,128 @@ export function createChannel({ seed, audio }){
   let captionOffset = 0;
   let captionPeriod = 22;
 
+  // Perf: cache gradients + pre-render blob sprites so steady-state render allocates 0 gradients.
+  const SPR_R_STEP = 12;
+  const SPR_H_STEP = 10;
+
+  const cache = {
+    dirty: true,
+    ctx: null,
+    bg: null,
+    shine: null,
+    blurPx: 8,
+    sprites: new Map(), // key -> { c, W, H, R }
+  };
+
+  function makeCanvas(W, H){
+    if (!(W > 0 && H > 0)) return null;
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+    if (typeof document !== 'undefined'){
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    }
+    return null;
+  }
+
+  function bucket(v, step){
+    const s = Math.max(1, step | 0);
+    return Math.max(s, Math.round(v / s) * s);
+  }
+
+  function bucketHue(hh){
+    const h0 = bucket(hh, SPR_H_STEP);
+    const h1 = ((h0 % 360) + 360) % 360;
+    return h1;
+  }
+
+  function spriteKey(R, hue){
+    return `${R}|${hue}`;
+  }
+
+  function buildBlobSprite(R, hue){
+    const pad = Math.max(24, Math.ceil(R * 0.18));
+    const span = Math.ceil(R + pad);
+    const W = Math.max(1, span * 2);
+    const H = W;
+
+    const c = makeCanvas(W, H);
+    if (!c) return null;
+
+    const g = c.getContext('2d');
+    if (!g) return null;
+
+    const cx = W * 0.5;
+    const cy = H * 0.5;
+
+    g.clearRect(0, 0, W, H);
+
+    const grad = g.createRadialGradient(cx, cy, 0, cx, cy, R);
+    grad.addColorStop(0, `hsla(${hue},90%,60%,0.65)`);
+    grad.addColorStop(0.6, `hsla(${hue + 20},90%,55%,0.22)`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(cx, cy, R, 0, Math.PI * 2);
+    g.fill();
+
+    return { c, W, H, R };
+  }
+
+  function primeBlobSprites(){
+    cache.sprites.clear();
+
+    for (const b of blobs){
+      const R = bucket(b.r, SPR_R_STEP);
+      const hue = bucketHue(b.hue);
+      b._sprR = R;
+      b._sprHue = hue;
+
+      const key = spriteKey(R, hue);
+      if (!cache.sprites.has(key)){
+        const spr = buildBlobSprite(R, hue);
+        if (spr) cache.sprites.set(key, spr);
+      }
+    }
+  }
+
+  function invalidateCaches(){
+    cache.dirty = true;
+    cache.ctx = null;
+    cache.bg = null;
+    cache.shine = null;
+    cache.blurPx = 8;
+  }
+
+  function ensureCaches(ctx){
+    if (cache.dirty || cache.ctx !== ctx){
+      cache.ctx = ctx;
+      cache.dirty = false;
+
+      cache.blurPx = Math.max(6, Math.floor(h / 80));
+
+      // Background gradient (cached per ctx + resize)
+      {
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, '#090018');
+        bg.addColorStop(1, '#010208');
+        cache.bg = bg;
+      }
+
+      // Glass shine gradient (cached per ctx + resize)
+      {
+        const shine = ctx.createLinearGradient(0, 0, w, 0);
+        shine.addColorStop(0, 'rgba(255,255,255,0.0)');
+        shine.addColorStop(0.2, 'rgba(255,255,255,0.05)');
+        shine.addColorStop(0.35, 'rgba(255,255,255,0.02)');
+        shine.addColorStop(1, 'rgba(255,255,255,0.0)');
+        cache.shine = shine;
+      }
+    }
+  }
+
   function init({width,height}){
     w=width; h=height; t=0;
     blobs = Array.from({length: 7}, () => ({
@@ -98,9 +220,19 @@ export function createChannel({ seed, audio }){
     shuffleInPlace(captions, uiRand);
     captionOffset = Math.floor(uiRand() * captions.length);
     captionPeriod = 18 + Math.floor(uiRand() * 10);
+
+    // Rebuild blob sprite cache for this blob set.
+    primeBlobSprites();
+
+    // Render gradients/blur depend on size + ctx.
+    invalidateCaches();
   }
 
-  function onResize(width,height){ w=width; h=height; }
+  function onResize(width,height){
+    w = width;
+    h = height;
+    invalidateCaches();
+  }
 
   function stopAmbience(){
     try { ambience?.stop?.(); } catch {}
@@ -233,41 +365,55 @@ export function createChannel({ seed, audio }){
   }
 
   function render(ctx){
+    ensureCaches(ctx);
+
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
 
-    // background
-    const bg = ctx.createLinearGradient(0,0,0,h);
-    bg.addColorStop(0,'#090018');
-    bg.addColorStop(1,'#010208');
-    ctx.fillStyle = bg;
+    // background (cached gradient)
+    ctx.fillStyle = cache.bg;
     ctx.fillRect(0,0,w,h);
 
-    // blob field
+    // blob field (cached sprites; no per-frame gradients)
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.filter = `blur(${Math.max(6, Math.floor(h/80))}px)`;
+    ctx.filter = `blur(${cache.blurPx}px)`;
+
     for (const b of blobs){
       const rr = b.r * (0.9 + 0.1*Math.sin(t*0.7 + b.ph));
-      const g = ctx.createRadialGradient(b.x,b.y, 0, b.x,b.y, rr);
-      g.addColorStop(0, `hsla(${b.hue},90%,60%,0.65)`);
-      g.addColorStop(0.6, `hsla(${b.hue+20},90%,55%,0.22)`);
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(b.x,b.y, rr, 0, Math.PI*2);
-      ctx.fill();
+      const R = b._sprR ?? bucket(b.r, SPR_R_STEP);
+      const hue = b._sprHue ?? bucketHue(b.hue);
+      const key = spriteKey(R, hue);
+
+      let spr = cache.sprites.get(key);
+      if (!spr){
+        spr = buildBlobSprite(R, hue);
+        if (spr) cache.sprites.set(key, spr);
+      }
+
+      if (spr){
+        const s = rr / spr.R;
+        const dw = spr.W * s;
+        const dh = spr.H * s;
+        ctx.drawImage(spr.c, b.x - dw * 0.5, b.y - dh * 0.5, dw, dh);
+      } else {
+        // Fallback (should be rare; e.g., no OffscreenCanvas/document)
+        const g = ctx.createRadialGradient(b.x,b.y, 0, b.x,b.y, rr);
+        g.addColorStop(0, `hsla(${b.hue},90%,60%,0.65)`);
+        g.addColorStop(0.6, `hsla(${b.hue+20},90%,55%,0.22)`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(b.x,b.y, rr, 0, Math.PI*2);
+        ctx.fill();
+      }
     }
+
     ctx.restore();
 
-    // glass shine
+    // glass shine (cached gradient)
     ctx.save();
-    const shine = ctx.createLinearGradient(0,0,w,0);
-    shine.addColorStop(0,'rgba(255,255,255,0.0)');
-    shine.addColorStop(0.2,'rgba(255,255,255,0.05)');
-    shine.addColorStop(0.35,'rgba(255,255,255,0.02)');
-    shine.addColorStop(1,'rgba(255,255,255,0.0)');
-    ctx.fillStyle = shine;
+    ctx.fillStyle = cache.shine;
     ctx.fillRect(0,0,w,h);
     ctx.restore();
 
