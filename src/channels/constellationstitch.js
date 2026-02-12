@@ -121,7 +121,9 @@ function makeConstellations(){
 }
 
 export function createChannel({ seed, audio }){
-  const rand = mulberry32(seed);
+  const seed32 = (seed | 0) >>> 0;
+  const rand = mulberry32(seed32); // visuals
+  const randAudio = mulberry32((seed32 ^ 0x9e3779b9) >>> 0);
 
   let w = 0;
   let h = 0;
@@ -154,6 +156,14 @@ export function createChannel({ seed, audio }){
   let nextGoldAt = 0;
 
   let ambience = null;
+
+  // Audio-only RNG (never touches visual PRNG) for FPS-stable needle clicks.
+  let nextClickAt = 0;
+  function scheduleNextClick(now){
+    const min = 2.2;
+    const max = 7.0;
+    nextClickAt = now + min + randAudio() * (max - min);
+  }
 
   function stopOwnedAmbience(){
     if (!ambience) return;
@@ -207,8 +217,11 @@ export function createChannel({ seed, audio }){
     nextGoldAt = 9 + rand() * 10;
 
     reseedOrder();
+    scheduleNextClick(t);
 
-    safeBeep({ freq: 420 + rand() * 120, dur: 0.018, gain: 0.008, type: 'square' });
+    if (audio.enabled){
+      safeBeep({ freq: 420 + randAudio() * 120, dur: 0.018, gain: 0.008, type: 'square' });
+    }
   }
 
   function onResize(width, height, dprIn){
@@ -220,9 +233,12 @@ export function createChannel({ seed, audio }){
     stopOwnedAmbience();
     if (!audio.enabled) return;
 
+    // Avoid "catch-up" clicks after long silent periods.
+    if (t >= nextClickAt) scheduleNextClick(t);
+
     const n = audio.noiseSource({ type: 'pink', gain: 0.0022 });
     n.start();
-    const d = simpleDrone(audio, { root: 55 + rand() * 12, detune: 1.2, gain: 0.010 });
+    const d = simpleDrone(audio, { root: 55 + randAudio() * 12, detune: 1.2, gain: 0.010 });
 
     ambience = {
       stop(){
@@ -252,25 +268,35 @@ export function createChannel({ seed, audio }){
     if (t >= nextGlintAt){
       glint = 1;
       nextGlintAt = t + 2.5 + rand() * 4.5;
-      safeBeep({ freq: 1300 + rand() * 420, dur: 0.008 + rand() * 0.010, gain: 0.0018, type: 'sine' });
+      if (audio.enabled){
+        safeBeep({ freq: 1300 + randAudio() * 420, dur: 0.008 + randAudio() * 0.010, gain: 0.0018, type: 'sine' });
+      }
     }
 
     if (t >= nextGoldAt){
       gold = 1;
       nextGoldAt = t + 10 + rand() * 14;
-      safeBeep({ freq: 920 + rand() * 180, dur: 0.018, gain: 0.007, type: 'triangle' });
-      safeBeep({ freq: 520 + rand() * 120, dur: 0.030, gain: 0.006, type: 'sine' });
+      if (audio.enabled){
+        safeBeep({ freq: 920 + randAudio() * 180, dur: 0.018, gain: 0.007, type: 'triangle' });
+        safeBeep({ freq: 520 + randAudio() * 120, dur: 0.030, gain: 0.006, type: 'sine' });
+      }
     }
 
     if (phaseT >= PHASE_DUR){
       phaseT = phaseT % PHASE_DUR;
       phaseIdx = (phaseIdx + 1) % order.length;
-      safeBeep({ freq: 360 + rand() * 120, dur: 0.018, gain: 0.007, type: 'square' });
+      if (audio.enabled){
+        safeBeep({ freq: 360 + randAudio() * 120, dur: 0.018, gain: 0.007, type: 'square' });
+      }
     }
 
-    // occasional tiny needle clicks
-    if (audio.enabled && rand() < dt * 0.22){
-      safeBeep({ freq: 210 + rand() * 90, dur: 0.006 + rand() * 0.010, gain: 0.0016, type: 'square' });
+    // occasional tiny needle clicks (scheduled so FPS doesn't affect the visual PRNG)
+    if (audio.enabled){
+      let guard = 0;
+      while (t >= nextClickAt && guard++ < 3){
+        safeBeep({ freq: 210 + randAudio() * 90, dur: 0.006 + randAudio() * 0.010, gain: 0.0016, type: 'square' });
+        scheduleNextClick(t);
+      }
     }
   }
 
