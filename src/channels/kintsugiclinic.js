@@ -71,11 +71,65 @@ export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
   // Audio determinism: never consume the visual PRNG from audio code paths.
   const arand = mulberry32((((seed | 0) ^ 0xA0D10) >>> 0));
+  // UI/content determinism: keep subtitle/item shuffles from perturbing visual rand().
+  const irand = mulberry32((((seed | 0) ^ 0x1E1A7E) >>> 0));
 
   let w = 0;
   let h = 0;
   let dpr = 1;
   let t = 0;
+
+  // “Patient” rotation (5 min) for long-run interest.
+  const ITEM_ROTATE_SEC = 5 * 60;
+  const ITEMS = [
+    { name: 'Tea bowl' },
+    { name: 'Rice bowl' },
+    { name: 'Soup bowl' },
+    { name: 'Sake cup' },
+    { name: 'Saucer' },
+    { name: 'Serving plate' },
+    { name: 'Small vase' },
+    { name: 'Mini pitcher' },
+    { name: 'Incense holder' },
+    { name: 'Porcelain spoon' },
+    { name: 'Sugar jar' },
+    { name: 'Miso cup' },
+  ];
+  let itemOrder = [];
+  let itemPos = 0;
+  let item = ITEMS[0];
+  let subtitle = '';
+  let nextItemAt = ITEM_ROTATE_SEC;
+
+  function shuffleInPlace(arr, r){
+    for (let i = arr.length - 1; i > 0; i--){
+      const j = (r() * (i + 1)) | 0;
+      const tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  function setItem(i){
+    item = ITEMS[i] || ITEMS[0];
+    subtitle = `${item.name} — crack • glue • dust • polish`;
+  }
+
+  function initItems(){
+    itemOrder = shuffleInPlace(Array.from({ length: ITEMS.length }, (_, i) => i), irand);
+    itemPos = 0;
+    setItem(itemOrder[itemPos]);
+    nextItemAt = ITEM_ROTATE_SEC;
+  }
+
+  function rotateItem(){
+    itemPos = (itemPos + 1) % itemOrder.length;
+    setItem(itemOrder[itemPos]);
+    regen();
+    onPhaseEnter();
+    nextItemAt = ITEM_ROTATE_SEC;
+  }
 
   let font = 16;
   let small = 12;
@@ -313,6 +367,7 @@ export function createChannel({ seed, audio }){
     small = Math.max(11, Math.floor(font * 0.78));
     mono = Math.max(12, Math.floor(font * 0.86));
 
+    initItems();
     regen();
     onPhaseEnter();
   }
@@ -351,6 +406,11 @@ export function createChannel({ seed, audio }){
   function update(dt){
     t += dt;
     phaseT += dt;
+
+    if (t >= nextItemAt){
+      rotateItem();
+      return;
+    }
 
     glintFlash = Math.max(0, glintFlash - dt * 1.8);
 
@@ -766,7 +826,7 @@ export function createChannel({ seed, audio }){
     const ph = PHASES[phaseIdx];
     const p = phaseT / PHASE_DUR;
 
-    header(ctx, 'Kintsugi Clinic', 'crack • glue • dust • polish', ph.label, p);
+    header(ctx, 'Kintsugi Clinic', subtitle, ph.label, p);
 
     drawPotteryBase(ctx);
 
