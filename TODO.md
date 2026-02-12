@@ -5,5 +5,4 @@ if `TODO.md` has no ready items:
 
 - [ ] [lava] Determinism: switch to fixed-timestep update (or deterministic scheduler) so 30fps vs 60fps yields identical captures for the same seed (similar approach to `flowfield`). File: src/channels/lava.js.
 - [ ] [lava] Composition: add a lamp silhouette (glass outline + base/cap) and keep blobs within it (clip path or mask) so it reads as an actual lava *lamp*, not just blobs-on-black. File: src/channels/lava.js.
-- [ ] [lava] Visual texture: add subtle film grain/scanlines + vignette as a cached layer (rebuild on resize/ctx swap) to reduce flat empty space without cluttering OSD. File: src/channels/lava.js.
 - [ ] [lava] Special moments: make cycle events visibly distinct (e.g. a brief “glint sweep” or bubble-chain burst) tied to existing `cycleEvents` schedule (~45–120s) while staying deterministic. File: src/channels/lava.js.

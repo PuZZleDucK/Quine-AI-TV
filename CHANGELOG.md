@@ -1,3 +1,5 @@
+- 2026-02-12 20:33 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): visual texture — cached film grain + scanlines + vignette layer (rebuild on resize/ctx swap) to reduce flat empty space without cluttering OSD. Screenshots: screenshots/autopilot-lava-texture-start + screenshots/autopilot-lava-texture-done. Commit: 84ac0e3
+
 - 2026-02-12 20:05 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): responsive scaling — store `baseR` and recompute blob radius on `onResize()` (rebuild sprite cache) so resizes keep blobs proportional. Screenshots: screenshots/autopilot-lava-scaling-before + screenshots/autopilot-lava-scaling-after. Commit: b5695b9
 
 - 2026-02-12 19:46 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): audio stop polish — delay `bus.disconnect()` until after fade-out so gain ramps can finish (reduces click/pop risk). Commit: b02ec62
