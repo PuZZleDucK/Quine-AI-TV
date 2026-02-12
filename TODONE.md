@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Audio polish `lava` (src/channels/lava.js): replaced plain brown-noise hum with low drone + filtered brown noise; added slow “breath” modulation; `onAudioOn()` is idempotent and `onAudioOff()` clears AudioManager.current only when owned. Commit: 2f41c05
+
 - [x] [project:quine-tv] Text/dialog `lava` (src/channels/lava.js): added a seeded rotating caption strip (58 variants; 18–27s cadence; no repeats until full cycle). Screenshots: screenshots/autopilot-lava-captions-before + screenshots/autopilot-lava-captions-after. Commit: fcc2caf
 
 - [x] [project:quine-tv] Determinism `flow` (src/channels/flowfield.js): switched to a fixed-timestep simulation + offscreen paint buffer so 30fps vs 60fps yields identical captures for the same seed. Commit: c575965
