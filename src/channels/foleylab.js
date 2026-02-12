@@ -92,7 +92,9 @@ const RECIPES = [
 ];
 
 export function createChannel({ seed, audio }){
-  const rand = mulberry32(seed);
+  // Split RNG streams so audio.enabled toggles don’t affect recipe/visual determinism.
+  const randV = mulberry32(seed);
+  const randA = mulberry32(seed ^ 0x9E3779B9);
 
   let w = 0, h = 0, t = 0;
   let font = 16;
@@ -110,7 +112,7 @@ export function createChannel({ seed, audio }){
   }
 
   function nextRecipe(){
-    recipe = pick(rand, RECIPES);
+    recipe = pick(randV, RECIPES);
     stepIndex = 0;
     stepT = 0;
     sfxAcc = 0;
@@ -158,7 +160,7 @@ export function createChannel({ seed, audio }){
 
   function transitionBlip(){
     if (!audio.enabled) return;
-    audio.beep({ freq: 480 + rand() * 220, dur: 0.03, gain: 0.012, type: 'triangle' });
+    audio.beep({ freq: 480 + randA() * 220, dur: 0.03, gain: 0.012, type: 'triangle' });
   }
 
   function sfx(kind, intensity=0.55){
@@ -166,32 +168,32 @@ export function createChannel({ seed, audio }){
     const x = clamp(intensity, 0, 1);
 
     if (kind === 'rain'){
-      audio.beep({ freq: 2400 + rand() * 900, dur: 0.006, gain: 0.002 + x * 0.004, type: 'triangle' });
+      audio.beep({ freq: 2400 + randA() * 900, dur: 0.006, gain: 0.002 + x * 0.004, type: 'triangle' });
     } else if (kind === 'drip'){
-      audio.beep({ freq: 1200 + rand() * 500, dur: 0.014, gain: 0.006 + x * 0.01, type: 'sine' });
+      audio.beep({ freq: 1200 + randA() * 500, dur: 0.014, gain: 0.006 + x * 0.01, type: 'sine' });
     } else if (kind === 'snow'){
-      audio.beep({ freq: 700 + rand() * 420, dur: 0.01, gain: 0.004 + x * 0.006, type: 'square' });
+      audio.beep({ freq: 700 + randA() * 420, dur: 0.01, gain: 0.004 + x * 0.006, type: 'square' });
     } else if (kind === 'steps'){
-      audio.beep({ freq: 140 + rand() * 80, dur: 0.02, gain: 0.01 + x * 0.018, type: 'triangle' });
-      if (rand() < 0.35) audio.beep({ freq: 520 + rand() * 160, dur: 0.008, gain: 0.004 + x * 0.007, type: 'square' });
+      audio.beep({ freq: 140 + randA() * 80, dur: 0.02, gain: 0.01 + x * 0.018, type: 'triangle' });
+      if (randA() < 0.35) audio.beep({ freq: 520 + randA() * 160, dur: 0.008, gain: 0.004 + x * 0.007, type: 'square' });
     } else if (kind === 'scuff'){
-      audio.beep({ freq: 260 + rand() * 120, dur: 0.03, gain: 0.008 + x * 0.012, type: 'triangle' });
+      audio.beep({ freq: 260 + randA() * 120, dur: 0.03, gain: 0.008 + x * 0.012, type: 'triangle' });
     } else if (kind === 'creak'){
-      audio.beep({ freq: 240 + rand() * 120, dur: 0.045, gain: 0.006 + x * 0.01, type: 'sawtooth' });
+      audio.beep({ freq: 240 + randA() * 120, dur: 0.045, gain: 0.006 + x * 0.01, type: 'sawtooth' });
     } else if (kind === 'whoosh'){
-      audio.beep({ freq: 880 + rand() * 220, dur: 0.02, gain: 0.004 + x * 0.008, type: 'triangle' });
+      audio.beep({ freq: 880 + randA() * 220, dur: 0.02, gain: 0.004 + x * 0.008, type: 'triangle' });
     } else if (kind === 'click'){
-      audio.beep({ freq: 1900 + rand() * 700, dur: 0.012, gain: 0.008 + x * 0.012, type: 'square' });
+      audio.beep({ freq: 1900 + randA() * 700, dur: 0.012, gain: 0.008 + x * 0.012, type: 'square' });
     } else if (kind === 'rumble'){
-      audio.beep({ freq: 80 + rand() * 40, dur: 0.05, gain: 0.01 + x * 0.016, type: 'sine' });
+      audio.beep({ freq: 80 + randA() * 40, dur: 0.05, gain: 0.01 + x * 0.016, type: 'sine' });
     } else if (kind === 'thunder'){
-      audio.beep({ freq: 120 + rand() * 60, dur: 0.06, gain: 0.012 + x * 0.02, type: 'triangle' });
+      audio.beep({ freq: 120 + randA() * 60, dur: 0.06, gain: 0.012 + x * 0.02, type: 'triangle' });
     } else if (kind === 'crack'){
-      audio.beep({ freq: 1200 + rand() * 800, dur: 0.01, gain: 0.02 + x * 0.03, type: 'square' });
+      audio.beep({ freq: 1200 + randA() * 800, dur: 0.01, gain: 0.02 + x * 0.03, type: 'square' });
     } else if (kind === 'crackle'){
-      audio.beep({ freq: 1700 + rand() * 1600, dur: 0.006, gain: 0.002 + x * 0.006, type: 'triangle' });
+      audio.beep({ freq: 1700 + randA() * 1600, dur: 0.006, gain: 0.002 + x * 0.006, type: 'triangle' });
     } else if (kind === 'pop'){
-      audio.beep({ freq: 2600 + rand() * 1200, dur: 0.008, gain: 0.02 + x * 0.03, type: 'square' });
+      audio.beep({ freq: 2600 + randA() * 1200, dur: 0.008, gain: 0.02 + x * 0.03, type: 'square' });
     }
   }
 
