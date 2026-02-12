@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Text/dialog `elevatorpanel` (src/channels/elevatorpanel.js): expanded the status strip into seeded, mildly-funny annunciator messages (5-minute rotation; clipped to avoid overlapping NEXT). Commit: eb10d26
+
 - [x] [project:quine-tv] Visual polish `kintsugi` (src/channels/kintsugiclinic.js): improve CRACK phase readability via per-crack depth (variable thickness/opacity) + deterministic micro-branch cracks at endpoints (regen-time only; no per-frame RNG). Commit: 342eb25
 
 - [x] [project:quine-tv] Perf pass `stitchalong` (src/channels/constellationstitch.js): cached weave/hoop/inner-cloth gradients (rebuild on resize/ctx swap) so steady-state `render()` calls 0 `create*Gradient()`. Screenshots: screenshots/autopilot-stitchalong-perf-before + screenshots/autopilot-stitchalong-perf-after. Commit: 7e019fb
