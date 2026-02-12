@@ -483,7 +483,7 @@ export function createChannel({ seed, audio }) {
     ctx.restore();
   }
 
-  function drawBuildingDiagram(ctx, { carFloor, activeShaft, targetFloor, pulse, tt, elevatorFloors }) {
+  function drawBuildingDiagram(ctx, { carFloor, activeShaft, targetFloor, pulse, tt, elevatorFloors, movingShafts }) {
     // Right column schematic: shafts + elevator cars.
     const x0 = diagramBox.x;
     const ww = diagramBox.w;
@@ -544,9 +544,11 @@ export function createChannel({ seed, audio }) {
 
       // shaft outline
       ctx.save();
-      const hi = s === activeShaft;
+      const moving = movingShafts ? !!movingShafts[s] : false;
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = hi ? `rgba(120,255,240,${0.20 + pulse * 0.10})` : 'rgba(120,255,240,0.10)';
+      ctx.strokeStyle = moving
+        ? `rgba(120,255,240,${0.28 + pulse * 0.16})`
+        : 'rgba(120,255,240,0.10)';
       ctx.lineWidth = Math.max(1.5, h / 860);
       roundRect(ctx, sx, y0 + topPad, shaftW, usableH, Math.max(6, shaftW * 0.18));
       ctx.stroke();
@@ -564,7 +566,7 @@ export function createChannel({ seed, audio }) {
       const carY = cy - carH * 0.5;
 
       // bloom for active car
-      if (s === activeShaft) {
+      if (moving) {
         ctx.save();
         ctx.globalCompositeOperation = 'screen';
         ctx.globalAlpha = 0.18 + pulse * 0.16;
@@ -580,7 +582,7 @@ export function createChannel({ seed, audio }) {
       roundRect(ctx, cx, carY, carW, carH, Math.max(6, carW * 0.18));
       ctx.fill();
 
-      const a = s === activeShaft ? (0.36 + pulse * 0.26) : 0.14;
+      const a = moving ? (0.40 + pulse * 0.28) : 0.14;
       ctx.strokeStyle = `rgba(120,255,240,${a})`;
       ctx.lineWidth = Math.max(1.5, h / 860);
       roundRect(ctx, cx, carY, carW, carH, Math.max(6, carW * 0.18));
@@ -967,7 +969,6 @@ export function createChannel({ seed, audio }) {
         e.servicing = best;
         e.dir = best > e.floor ? +1 : best < e.floor ? -1 : 0;
         claimed.add(best);
-        primaryShaft = i;
       }
     }
   }
@@ -1133,7 +1134,6 @@ export function createChannel({ seed, audio }) {
         e.target = null;
         e.door = 1.05;
         arrived = true;
-        primaryShaft = i;
 
         if (typeof e.servicing === 'number') {
           const j = callQueue.indexOf(e.servicing);
@@ -1146,6 +1146,12 @@ export function createChannel({ seed, audio }) {
         e.floor += e.dir * step;
         movingCount++;
       }
+    }
+
+    // Keep display focus stable to avoid perceived "teleporting" between shafts.
+    if (elevators[primaryShaft]?.dir === 0) {
+      const movingIdx = elevators.findIndex((e) => e.dir !== 0);
+      if (movingIdx >= 0) primaryShaft = movingIdx;
     }
 
     if (arrived) {
@@ -1216,7 +1222,8 @@ export function createChannel({ seed, audio }) {
     // right-side building diagram (shafts + cars)
     const targetFloor = typeof activeElevator.target === 'number' ? activeElevator.target : null;
     const elevatorFloors = elevators.map((e) => e.floor);
-    drawBuildingDiagram(ctx, { carFloor: floorNow, activeShaft, targetFloor, pulse: pulse * 0.35, tt, elevatorFloors });
+    const movingShafts = elevators.map((e) => e.dir !== 0);
+    drawBuildingDiagram(ctx, { carFloor: floorNow, activeShaft, targetFloor, pulse: pulse * 0.35, tt, elevatorFloors, movingShafts });
 
     // small status strip
     ctx.save();

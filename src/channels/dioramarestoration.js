@@ -1,6 +1,8 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-12
+
 function pick(rand, arr){ return arr[(rand() * arr.length) | 0]; }
 function lerp(a, b, t){ return a + (b - a) * t; }
 function ease(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
@@ -148,6 +150,7 @@ export function createChannel({ seed, audio }){
   // scene
   const MAX_PROPS = 22;
   let props = []; // {k,x,y,s,r}
+  let backHillDrop = []; // stable per-point ridge variation (avoid per-frame rand flicker)
 
   // dust + paint
   const DUST_N = 340;
@@ -190,6 +193,10 @@ export function createChannel({ seed, audio }){
     // props inside diorama
     props = [];
     const kinds = ['house', 'tree', 'rock', 'tower', 'arch'];
+
+    // back ridge variation: precompute once per regen for stable silhouette
+    backHillDrop = [];
+    for (let i = 0; i <= 7; i++) backHillDrop.push(0.06 + rand() * 0.01);
     for (let i = 0; i < MAX_PROPS; i++){
       const k = pick(rand, kinds);
       const x = interior.x + interior.w * (0.08 + rand() * 0.84);
@@ -495,7 +502,7 @@ export function createChannel({ seed, audio }){
     ctx.lineTo(interior.x, y0);
     for (let i = 0; i <= 7; i++){
       const x = interior.x + (i / 7) * interior.w;
-      const yy = y0 + Math.sin(i * 0.9 + t * 0.08) * interior.h * 0.02 - interior.h * (0.06 + (rand() * 0.01));
+      const yy = y0 + Math.sin(i * 0.9 + t * 0.08) * interior.h * 0.02 - interior.h * backHillDrop[i];
       ctx.lineTo(x, yy);
     }
     ctx.lineTo(interior.x + interior.w, interior.y + interior.h);
