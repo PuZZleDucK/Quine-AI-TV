@@ -3,6 +3,4 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Visual - show a diagram of the building on the right with the elevator shafts and elevators highlighted
-
 - [quine-tv] `stitchalong` (src/channels/constellationstitch.js): Long-run interest — expand pattern variety (more constellations/edge sets) and add a rare deterministic “special moment” (~45–120s) (e.g., shooting-star sweep that briefly re-threads a segment, or rare constelations) with clean reset and OSD-safe flash.

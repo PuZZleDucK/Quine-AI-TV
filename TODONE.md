@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Visual `elevatorpanel` (src/channels/elevatorpanel.js): added a right-side building schematic showing shafts + elevator cars; active car + target floor highlighted. Commit: e3f49bb
+
 - [x] [project:quine-tv] Buttons `elevatorpanel` (src/channels/elevatorpanel.js): replaced chase highlight with persistent queue-selected LEDs + deterministic press animation on enqueued calls. Screenshots: screenshots/autopilot-elevatorpanel-before + screenshots/autopilot-elevatorpanel-after. Commit: 74b1a2d
 
 - [x] [project:quine-tv] Visual `elevatorpanel` (src/channels/elevatorpanel.js): call queue now accumulates deterministic background calls and is serviced on ARRIVE; screenshots: screenshots/autopilot-elevatorpanel-queue-before + screenshots/autopilot-elevatorpanel-queue-after. Commit: c082650
