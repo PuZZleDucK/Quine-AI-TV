@@ -1,3 +1,5 @@
+- 2026-02-13 04:00 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): cached terminal char width + maxChars (recomputed on resize/ctx swap) so steady-state render avoids per-frame measureText('M'). Commit: 1c05b71
+
 - 2026-02-13 03:49 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): wrapForTerminal() now wraps long indented lines while preserving indentation (indent kept on all wrapped lines). Commit: 0680c03
 
 - 2026-02-13 03:19 (Australia/Melbourne) [project:quine-tv] `fixit` (src/channels/fixit.js): tool art — distinct tool head silhouettes (pliers/wrench/screwdriver/tape) + subtle drop shadows under tool + object. Commit: ae1317a
