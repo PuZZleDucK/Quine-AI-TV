@@ -35,21 +35,57 @@ const LESSONS = [
   'If you can explain it to the duck, you can refactor it.',
 ];
 
+const USERNAMES = [
+  'dev', 'operator', 'oncall', 'qa', 'buildbot', 'intern',
+  'db-admin', 'frontend', 'backend', 'infra',
+];
+
+const OPENERS = [
+  'okay duck, here’s what happened…',
+  'duck. buddy. i need you.',
+  'so. hypothetically. if a bug…',
+  'i touched nothing and now it’s on fire.',
+  'this one’s embarrassing…',
+  'we are, in technical terms, cooked.',
+  'help me explain this so i can fix it.',
+];
+
+const BUG_LINES = [
+  (bug) => `BUG: ${bug}.`,
+  (bug) => `BUG REPORT: ${bug}.`,
+  (bug) => `BUG: apparently ${bug}.`,
+  (bug) => `BUG: turns out ${bug}.`,
+];
+
+const FIX_LINES = [
+  (fix) => `FIX: ${fix}.`,
+  (fix) => `FIX: ${fix}. (don’t look at git blame)`,
+  (fix) => `FIX: ${fix}. shipped a tiny test to keep it honest.`,
+];
+
+const LESSON_LINES = [
+  (lesson) => `LESSON: ${lesson}`,
+  (lesson) => `LESSON LEARNED: ${lesson}`,
+  (lesson) => `NOTE TO SELF: ${lesson}`,
+];
+
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 
 function confessional(rand){
   const hh = String((1 + (rand() * 4) | 0)).padStart(2, '0');
   const mm = String((rand() * 60) | 0).padStart(2, '0');
-  const who = (rand() < 0.5) ? 'dev' : 'operator';
+  const who = pick(rand, USERNAMES);
+  const opener = pick(rand, OPENERS);
+
   const bug = `${pick(rand, BUG_NOUNS)} ${pick(rand, BUG_VERBS)} ${pick(rand, BUG_OBJECTS)}`;
   const fix = pick(rand, FIXES);
   const lesson = pick(rand, LESSONS);
 
   return [
-    `${hh}:${mm}  ${who}: okay duck, here’s what happened…`,
-    `BUG: ${bug}.`,
-    `FIX: ${fix}.`,
-    `LESSON: ${lesson}`
+    `${hh}:${mm}  ${who}: ${opener}`,
+    pick(rand, BUG_LINES)(bug),
+    pick(rand, FIX_LINES)(fix),
+    pick(rand, LESSON_LINES)(lesson)
   ];
 }
 
