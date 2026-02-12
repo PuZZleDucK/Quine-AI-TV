@@ -740,11 +740,30 @@ export function createChannel({ seed, audio }){
         }
 
         const section = hinted || inferSection(next);
+
+        const trimmed = String(next || '').trimStart();
+        const isBlank = trimmed === '';
+
+        // Stack traces + tiny diff blocks should look like "code", not chat.
+        // (Color is per-line; keep it cheap and deterministic.)
+        const isStackHeader = /^(?:TypeError|ReferenceError|RangeError|SyntaxError|AssertionError|Error):\s/.test(trimmed);
+        const isStackFrame = /^at\s/.test(trimmed);
+
+        const isDiffHdr = /^(?:---\sa\/|\+\+\+\sb\/)/.test(trimmed);
+        const isDiffHunk = /^@@\s/.test(trimmed);
+        const isDiffDel = /^-\s/.test(trimmed) && !/^---\s/.test(trimmed);
+        const isDiffAdd = /^\+\s/.test(trimmed) && !/^\+\+\+\s/.test(trimmed);
+
         let color = 'rgba(210, 255, 230, 0.92)';
-        if (section === 'BUG') color = 'rgba(255, 120, 170, 0.92)';
+        if (isBlank) color = 'rgba(180,210,220,0.35)';
+        else if (isDiffHdr) color = 'rgba(190, 210, 255, 0.78)';
+        else if (isDiffHunk) color = 'rgba(235, 210, 255, 0.78)';
+        else if (isDiffDel) color = 'rgba(255, 120, 170, 0.88)';
+        else if (isDiffAdd) color = 'rgba(140, 255, 200, 0.90)';
+        else if (isStackHeader || isStackFrame) color = 'rgba(190, 210, 255, 0.70)';
+        else if (section === 'BUG') color = 'rgba(255, 120, 170, 0.92)';
         else if (section === 'FIX') color = 'rgba(120, 220, 255, 0.92)';
         else if (section === 'LESSON') color = 'rgba(190, 210, 255, 0.88)';
-        else if (String(next || '').trim() === '') color = 'rgba(180,210,220,0.35)';
 
         pushLine(next, color);
         if (audio.enabled && beepCooldown <= 0){
