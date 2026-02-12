@@ -389,7 +389,16 @@ export function createChannel({ seed, audio }){
           try { o.stop(now + 0.25); } catch {}
         }
 
-        try { bus.disconnect(); } catch {}
+        // Avoid clicks: let gain ramps settle before disconnecting from master.
+        // (disconnecting immediately can produce an audible pop on some outputs)
+        const DISC_MS = 320;
+        if (typeof setTimeout !== 'undefined'){
+          setTimeout(() => {
+            try { bus.disconnect(); } catch {}
+          }, DISC_MS);
+        } else {
+          try { bus.disconnect(); } catch {}
+        }
       },
     };
 
