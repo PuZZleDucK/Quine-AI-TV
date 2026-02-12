@@ -169,7 +169,8 @@ export function createChannel({ seed, audio }){
   let glintFlash = 0;
 
   // polish glint “special moment” (rare, deterministic; 45–120s)
-  let polishSpecial = { active: false, until: 0 };
+  // Keep explicit start/duration so we can ramp the signature in/out cleanly.
+  let polishSpecial = { active: false, start: 0, dur: 0, until: 0 };
   let nextPolishSpecialAt = 0;
 
   // audio
@@ -384,6 +385,8 @@ export function createChannel({ seed, audio }){
     nextGlintAt = 1e9;
 
     polishSpecial.active = false;
+    polishSpecial.start = 0;
+    polishSpecial.dur = 0;
     polishSpecial.until = 0;
     nextPolishSpecialAt = t + 120 + rand() * 120;
   }
@@ -465,6 +468,9 @@ export function createChannel({ seed, audio }){
     // End polish glint special moment (forces a clean phase advance).
     if (polishSpecial.active && t >= polishSpecial.until){
       polishSpecial.active = false;
+      polishSpecial.start = 0;
+      polishSpecial.dur = 0;
+      polishSpecial.until = 0;
       glint = null;
       glintFlash = 0;
       nextGlintAt = 1e9;
@@ -550,7 +556,9 @@ export function createChannel({ seed, audio }){
     if (ph === 'polish'){
       if (!polishSpecial.active && t >= nextPolishSpecialAt){
         polishSpecial.active = true;
-        polishSpecial.until = t + (45 + rand() * 75);
+        polishSpecial.start = t;
+        polishSpecial.dur = 45 + rand() * 75;
+        polishSpecial.until = t + polishSpecial.dur;
         glint = null;
         glintFlash = 0;
         nextGlintAt = t + 0.15 + rand() * 0.25;
@@ -565,7 +573,8 @@ export function createChannel({ seed, audio }){
         glintFlash = 1;
         const cr = (rand() * cracks.length) | 0;
         glint = { cr, u: 0.10 + rand() * 0.80 };
-        nextGlintAt = t + 0.20 + rand() * 0.35;
+        // Slower cadence so the moment feels like a “sweep” rather than a strobe.
+        nextGlintAt = t + 0.35 + rand() * 0.55;
 
         if (audio.enabled){
           safeBeep({ freq: 820 + arand()*180, dur: 0.028, gain: 0.010, type: 'triangle' });
@@ -928,6 +937,15 @@ export function createChannel({ seed, audio }){
 
     const ph = PHASES[phaseIdx];
     const p = phaseT / PHASE_DUR;
+
+    let specialAmt = 0;
+    if (ph.id === 'polish' && polishSpecial.active){
+      // Smooth fade-in/out so the special moment reads as a “sequence”, not a toggle.
+      const aIn = ease((t - polishSpecial.start) / 2.5);
+      const aOut = ease((polishSpecial.until - t) / 3.0);
+      specialAmt = Math.min(aIn, aOut);
+    }
+
     const phaseLabel = (ph.id === 'polish' && polishSpecial.active) ? 'POLISH • GLINT' : ph.label;
 
     header(ctx, 'Kintsugi Clinic', subtitle, phaseLabel, p);
@@ -950,15 +968,17 @@ export function createChannel({ seed, audio }){
     } else {
       // polish
       drawCracks(ctx, 0.25, 0);
-      drawGoldSeams(ctx, 1.0, 0.75 + 0.25 * (0.5 + 0.5*Math.sin(t*1.2)));
-      const glintAmt = polishSpecial.active ? Math.min(1, glintFlash * 1.25) : glintFlash;
+      const polishAmt = clamp((0.72 + 0.28 * (0.5 + 0.5*Math.sin(t*1.2))) + 0.18 * specialAmt, 0, 1);
+      drawGoldSeams(ctx, 1.0, polishAmt);
+
+      const glintAmt = polishSpecial.active ? Math.min(1, glintFlash * (1.15 + 0.70 * specialAmt)) : glintFlash;
       drawGlint(ctx, glintAmt);
 
       if (polishSpecial.active){
-        // Clear, sustained signature without strobing.
+        // Clear, sustained signature without strobing (and with soft fades).
         ctx.save();
         ctx.globalCompositeOperation = 'screen';
-        ctx.globalAlpha = 0.06 + 0.06 * (0.5 + 0.5*Math.sin(t*0.9));
+        ctx.globalAlpha = (0.04 + 0.08 * (0.5 + 0.5*Math.sin(t*0.9))) * specialAmt;
         ctx.fillStyle = 'rgba(255,220,150,1)';
         ctx.fillRect(0,0,w,h);
         ctx.restore();
