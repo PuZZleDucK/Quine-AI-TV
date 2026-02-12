@@ -24,7 +24,7 @@ function roundedRect(ctx, x, y, w, h, r){
   ctx.closePath();
 }
 
-function drawWeave(ctx, w, h, t, pal){
+function drawWeave(ctx, w, h, t, pal, vignette){
   // Fabric base
   ctx.fillStyle = pal.fabric;
   ctx.fillRect(0, 0, w, h);
@@ -54,11 +54,10 @@ function drawWeave(ctx, w, h, t, pal){
   ctx.restore();
 
   // Gentle vignette to keep center readable
-  const vg = ctx.createRadialGradient(w * 0.5, h * 0.52, Math.min(w, h) * 0.22, w * 0.5, h * 0.52, Math.max(w, h) * 0.85);
-  vg.addColorStop(0, 'rgba(0,0,0,0)');
-  vg.addColorStop(1, 'rgba(0,0,0,0.55)');
-  ctx.fillStyle = vg;
-  ctx.fillRect(0, 0, w, h);
+  if (vignette){
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, w, h);
+  }
 }
 
 function makeConstellations(){
@@ -156,6 +155,64 @@ export function createChannel({ seed, audio }){
   let nextGoldAt = 0;
 
   let ambience = null;
+
+  // Gradient caches (rebuilt on resize and ctx swap) so steady-state render avoids per-frame create*Gradient allocations.
+  let gradCtx = null;
+  let gradW = 0;
+  let gradH = 0;
+  let gradCx = 0;
+  let gradCy = 0;
+  let gradR = 0;
+  let gradInnerR = 0;
+
+  let weaveVignetteG = null;
+  let hoopWoodG = null;
+  let innerClothG = null;
+
+  function ensureGradients(ctx){
+    const { cx, cy, r, innerR } = hoop;
+    if (
+      ctx === gradCtx &&
+      w === gradW &&
+      h === gradH &&
+      cx === gradCx &&
+      cy === gradCy &&
+      r === gradR &&
+      innerR === gradInnerR &&
+      weaveVignetteG &&
+      hoopWoodG &&
+      innerClothG
+    ) return;
+
+    gradCtx = ctx;
+    gradW = w;
+    gradH = h;
+    gradCx = cx;
+    gradCy = cy;
+    gradR = r;
+    gradInnerR = innerR;
+
+    weaveVignetteG = ctx.createRadialGradient(
+      w * 0.5, h * 0.52, Math.min(w, h) * 0.22,
+      w * 0.5, h * 0.52, Math.max(w, h) * 0.85
+    );
+    weaveVignetteG.addColorStop(0, 'rgba(0,0,0,0)');
+    weaveVignetteG.addColorStop(1, 'rgba(0,0,0,0.55)');
+
+    hoopWoodG = ctx.createRadialGradient(
+      cx - r * 0.18, cy - r * 0.22, r * 0.10,
+      cx, cy, r * 1.1
+    );
+    hoopWoodG.addColorStop(0, pal.hoopA);
+    hoopWoodG.addColorStop(1, pal.hoopB);
+
+    innerClothG = ctx.createRadialGradient(
+      cx, cy, innerR * 0.08,
+      cx, cy, innerR * 1.1
+    );
+    innerClothG.addColorStop(0, 'rgba(255,255,255,0.08)');
+    innerClothG.addColorStop(1, 'rgba(0,0,0,0.10)');
+  }
 
   // Audio-only RNG (never touches visual PRNG) for FPS-stable needle clicks.
   let nextClickAt = 0;
@@ -313,10 +370,7 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // wood ring
-    const g = ctx.createRadialGradient(cx - r * 0.18, cy - r * 0.22, r * 0.10, cx, cy, r * 1.1);
-    g.addColorStop(0, pal.hoopA);
-    g.addColorStop(1, pal.hoopB);
-    ctx.strokeStyle = g;
+    ctx.strokeStyle = hoopWoodG || pal.hoopA;
     ring(ctx, cx, cy, r, rw);
 
     // inner cloth cutout edge
@@ -357,10 +411,7 @@ export function createChannel({ seed, audio }){
 
     // background inside hoop: slightly brighter cloth + weave, with gentle drift
     const { cx, cy, innerR } = hoop;
-    const ig = ctx.createRadialGradient(cx, cy, innerR * 0.08, cx, cy, innerR * 1.1);
-    ig.addColorStop(0, 'rgba(255,255,255,0.08)');
-    ig.addColorStop(1, 'rgba(0,0,0,0.10)');
-    ctx.fillStyle = ig;
+    ctx.fillStyle = innerClothG;
     ctx.fillRect(cx - innerR - 2, cy - innerR - 2, innerR * 2 + 4, innerR * 2 + 4);
 
     // constellation stars
@@ -511,7 +562,8 @@ export function createChannel({ seed, audio }){
     const cons = order[phaseIdx];
     const p = phaseT / PHASE_DUR;
 
-    drawWeave(ctx, w, h, t, pal);
+    ensureGradients(ctx);
+    drawWeave(ctx, w, h, t, pal, weaveVignetteG);
     header(ctx);
 
     // hoop + stitches
