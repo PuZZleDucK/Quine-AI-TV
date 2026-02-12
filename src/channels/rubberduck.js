@@ -100,6 +100,34 @@ const OPENERS = [
   'i tried turning it off and on. it got worse.',
 ];
 
+const DUCK_NAME = 'duck';
+
+const DUCK_TURNS = [
+  'quack. show me the logs.',
+  'okay. what changed?',
+  'did you restart it?',
+  'is it reproducible?',
+  'where does it hurt?',
+  'walk me through the timeline.',
+  'what’s the smallest repro?',
+  'read the error out loud.',
+];
+
+const DEV_TURNS = [
+  'it only happens in prod.',
+  'the tests pass. the users do not.',
+  'i changed one tiny thing. it was supposed to be safe.',
+  'the logs are being coy.',
+  'i can reproduce it if i stare at it long enough.',
+  'i have a theory and it’s cursed.',
+  'the timeline makes no sense.',
+  'it worked yesterday. i have witnesses.',
+];
+
+function fmtClock(hh, mm){
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
 // Uncommon/rare ASCII art stingers for bug + fix lines.
 // (Deterministic per-seed; intended to be small/OSD-safe.)
 const BUG_ART = {
@@ -334,8 +362,9 @@ function maybeArt(rand, pool){
 }
 
 function confessional(rand){
-  const hh = String((1 + (rand() * 4) | 0)).padStart(2, '0');
-  const mm = String((rand() * 60) | 0).padStart(2, '0');
+  const hh = 1 + ((rand() * 4) | 0);
+  let mm = (rand() * 60) | 0;
+
   const who = pick(rand, USERNAMES);
   const opener = pick(rand, OPENERS);
 
@@ -344,7 +373,21 @@ function confessional(rand){
   const lesson = pick(rand, LESSONS);
 
   const lines = [];
-  lines.push(`${hh}:${mm}  ${who}: ${opener}`);
+
+  // 2–5 dialog lines between two users before the BUG/FIX block.
+  const nDialog = 2 + ((rand() * 4) | 0);
+  for (let i = 0; i < nDialog; i++){
+    const speaker = (i % 2 === 0) ? who : DUCK_NAME;
+    const text = (i === 0)
+      ? opener
+      : (speaker === who ? pick(rand, DEV_TURNS) : pick(rand, DUCK_TURNS));
+
+    lines.push(`${fmtClock(hh, mm)}  ${speaker}: ${text}`);
+
+    // small time drift between lines (keeps it feeling like chat, still deterministic)
+    const bump = (rand() < 0.22) ? 2 : 1;
+    mm = (mm + bump) % 60;
+  }
 
   lines.push(pick(rand, BUG_LINES)(bug));
   if (rand() < 0.38) lines.push(...fakeStackTrace(rand));
