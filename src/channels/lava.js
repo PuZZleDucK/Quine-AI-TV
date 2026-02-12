@@ -271,15 +271,19 @@ export function createChannel({ seed, audio }){
 
   function init({width,height}){
     w=width; h=height; t=0;
-    blobs = Array.from({length: 7}, () => ({
-      x: rand()*w,
-      y: rand()*h,
-      vx: (rand()*2-1) * (30+w/30),
-      vy: (rand()*2-1) * (30+h/30),
-      r: (80+rand()*170) * (h/540),
-      hue: 290 + rand()*60,
-      ph: rand()*10,
-    }));
+    blobs = Array.from({ length: 7 }, () => {
+      const baseR = 80 + rand() * 170;
+      return {
+        x: rand() * w,
+        y: rand() * h,
+        vx: (rand() * 2 - 1) * (30 + w / 30),
+        vy: (rand() * 2 - 1) * (30 + h / 30),
+        baseR,
+        r: baseR * (h / 540),
+        hue: 290 + rand() * 60,
+        ph: rand() * 10,
+      };
+    });
 
     const uiRand = mulberry32(seed32 ^ 0xA11CE);
     captions = CAPTIONS.slice();
@@ -297,8 +301,32 @@ export function createChannel({ seed, audio }){
   }
 
   function onResize(width,height){
+    const oldW = w;
+    const oldH = h;
     w = width;
     h = height;
+
+    // Keep blob sizing proportional to viewport height so resizes don't make them absurdly big/small.
+    const sx = (oldW > 0) ? (w / oldW) : 1;
+    const sy = (oldH > 0) ? (h / oldH) : 1;
+
+    for (const b of blobs){
+      // Back-compat if a blob was created before baseR existed.
+      if (!(b.baseR > 0)){
+        const denom = (oldH > 0) ? (oldH / 540) : 1;
+        b.baseR = (denom > 0) ? (b.r / denom) : b.r;
+      }
+
+      b.r = b.baseR * (h / 540);
+      b.x = clamp(b.x * sx, 0, w);
+      b.y = clamp(b.y * sy, 0, h);
+      b.vx *= sx;
+      b.vy *= sy;
+    }
+
+    // Sprite cache is radius-dependent; rebuild on resize.
+    primeBlobSprites();
+
     invalidateCaches();
   }
 
