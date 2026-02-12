@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Determinism `stitchalong` (src/channels/constellationstitch.js): decoupled audio randomness from the visual PRNG by splitting an audio RNG and scheduling needle clicks (FPS-stable). Commit: 80299ca
+
 - [x] [project:quine-tv] Determinism `kintsugi` (src/channels/kintsugiclinic.js): decoupled audio randomness from the visual PRNG by using a separate audio RNG (no visual `rand()` consumption in audio paths). Commit: 8d7cdcc
 
 - [x] [project:quine-tv] Perf pass `kintsugi` (src/channels/kintsugiclinic.js): cached bench/spotlight/pottery/gold/vignette gradients (rebuild on resize/regen/ctx swap) so steady-state `render()` allocates 0 gradients/frame. Commit: 27555f5

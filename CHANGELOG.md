@@ -1,3 +1,5 @@
+- 2026-02-12 13:15 (Australia/Melbourne) [project:quine-tv] Determinism `stitchalong` (src/channels/constellationstitch.js): split audio RNG from visual PRNG and scheduled needle-click SFX (FPS-stable; audio.enabled no longer affects visual rand sequence). Commit: 80299ca
+
 - 2026-02-12 13:04 (Australia/Melbourne) [project:quine-tv] Determinism `kintsugi` (src/channels/kintsugiclinic.js): decoupled audio randomness from the visual PRNG via a separate audio RNG (no visual `rand()` consumption inside audio code paths). Commit: 8d7cdcc
 
 - 2026-02-12 12:45 (Australia/Melbourne) [project:quine-tv] Perf pass `kintsugi` (src/channels/kintsugiclinic.js): cached bench/spotlight/pottery/gold/vignette gradients (rebuild on resize/regen/ctx swap) so steady-state `render()` allocates 0 gradients/frame. Commit: 27555f5

@@ -26,6 +26,5 @@ if `TODO.md` has no ready items:
 - [quine-tv] `lava` (src/channels/lava.js): Text/dialog — add a seeded rotating caption/subtitle line (40–80 variants, no repeats too quickly) so the channel stays entertaining over 5 minutes; keep OSD-safe.
 - [quine-tv] `lava` (src/channels/lava.js): Audio polish — replace plain brown-noise hum with a gentle low drone + filtered noise that breathes with phase/flash; keep `onAudioOn()` idempotent and clear current only when owned.
 
-- [quine-tv] `stitchalong` (src/channels/constellationstitch.js): Determinism — decouple audio randomness from visual PRNG: remove `rand()` consumption from dt-dependent `if (rand() < dt*p)` audio clicks; use a separate RNG or schedule click times deterministically (FPS-stable).
 - [quine-tv] `stitchalong` (src/channels/constellationstitch.js): Perf pass — cache gradients created in render path (fabric vignette, hoop wood radial, inner hoop vignette, stitch background radial) and/or pre-render weave texture to an offscreen tile; steady-state `render()` should call 0 `create*Gradient()`.
 - [quine-tv] `stitchalong` (src/channels/constellationstitch.js): Long-run interest — expand pattern variety (more constellations/edge sets) and add a rare deterministic “special moment” (~45–120s) (e.g., shooting-star sweep that briefly re-threads a segment) with clean reset and OSD-safe flash.
