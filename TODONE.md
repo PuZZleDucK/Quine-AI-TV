@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Review follow-up `dominofactory` (src/channels/dominofactory.js): visual identity — added cached midground “factory clutter” layer (bolts/rivets/hazard decals/soft grime) that stays OSD-safe and rebuilds on resize. Screenshots: screenshots/review-dominofactory-pre + screenshots/review-dominofactory-post. Commit: bff9e4b
+
 - [x] [project:quine-tv] Review follow-up `dominofactory` (src/channels/dominofactory.js): deterministic alarm/spark scheduling — schedule-time corrected decay so 30fps/60fps captures match. Commit: 1ee7343
 
 - [x] [project:quine-tv] Review follow-up `dominofactory` (src/channels/dominofactory.js): audio hygiene — made `onAudioOn()` idempotent (no stacking), and `onAudioOff()`/`destroy()` now stop+clear only when the current AudioManager handle is owned. Commit: 3479944
