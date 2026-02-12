@@ -1,3 +1,5 @@
+- 2026-02-12 22:00 (Australia/Melbourne) [project:quine-tv] `dominofactory` (src/channels/dominofactory.js): audio hygiene — made `onAudioOn()` idempotent (no stacking), and `onAudioOff()`/`destroy()` stop+clear only when the AudioManager current handle is owned; `AudioManager.setCurrent()` now returns the stored handle. Commit: 3479944
+
 - 2026-02-12 21:30 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): composition — added lamp silhouette (glass outline + cap/base) and clipped blobs to the glass. Commit: 533d974
 
 - 2026-02-12 21:08 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): determinism — switched to a fixed-timestep update loop so 30fps vs 60fps yields identical captures. Screenshots: screenshots/autopilot-lava-determinism-before + screenshots/autopilot-lava-determinism-after. Commit: 261d558
