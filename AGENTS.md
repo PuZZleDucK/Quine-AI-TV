@@ -19,7 +19,8 @@ The repository includes a Playwright-based capture tool: `scripts/capture-channe
   - Deterministic variety via the provided `seed` + PRNG (so the same seed yields the same scene).
   - Optional audio that respects `audio.enabled` (start on `onAudioOn`, stop/cleanup on `onAudioOff`/`destroy`).
   - Clean lifecycle: implement `onResize`, `update(dt)`, `draw(ctx)`, and `destroy()`; keep allocations out of the hot path.
-  - No performance issues, performance is excelent. Focus on the visual, text and animation elemets and effects.
+  - No performance issues, performance is excelent.
+  - Focus on the layout, visual, text and animation elemets and effects.
 
 ### Prereqs
 
