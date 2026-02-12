@@ -1,3 +1,5 @@
+- 2026-02-12 14:36 (Australia/Melbourne) [project:quine-tv] Perf pass `stitchalong` (src/channels/constellationstitch.js): cached render-path gradients (weave vignette, hoop wood, inner cloth) so steady-state `render()` creates 0 gradients/frame. Screenshots: screenshots/autopilot-stitchalong-perf-before + screenshots/autopilot-stitchalong-perf-after. Commit: 7e019fb
+
 - 2026-02-12 14:18 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): audio polish — replaced plain brown-noise hum with gentle low drone + filtered noise with slow “breath” modulation; made `onAudioOn()` idempotent and `onAudioOff()` clears AudioManager.current only when owned. Commit: 2f41c05
 
 - 2026-02-12 14:04 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): added seeded rotating caption/subtitle strip (58 variants; 18–27s cadence; no repeats until full cycle). Screenshots: screenshots/autopilot-lava-captions-before + screenshots/autopilot-lava-captions-after. Commit: fcc2caf
