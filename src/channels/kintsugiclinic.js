@@ -98,8 +98,6 @@ export function createChannel({ seed, audio }){
   let phaseT = 0;
 
   // scene
-  let benchDrift = { x: 0, y: 0 };
-
   let pot = { x: 0, y: 0, r: 100 };
 
   // cracks: { pts:[{x,y}], len }
@@ -116,6 +114,91 @@ export function createChannel({ seed, audio }){
 
   // audio
   let ambience = null;
+
+  // Perf: cache gradients so steady-state render allocates 0 gradients/frame.
+  // Canvas gradients bake their creation coordinates/transform; time-varying
+  // pottery sway/bob would force per-frame gradient rebuilds.
+  const gradCache = {
+    ctx: null,
+    w: 0,
+    h: 0,
+    palKey: '',
+    potKey: '',
+    bench: null,
+    benchSpot: null,
+    ceramic: null,
+    inner: null,
+    gold: null,
+    vignette: null,
+  };
+
+  function cacheKeyPal(){
+    return `${pal.wood.join(',')}|${pal.ceramic.join(',')}|${pal.ink}|${pal.gold.join(',')}`;
+  }
+  function cacheKeyPot(){
+    return `${pot.x.toFixed(2)}|${pot.y.toFixed(2)}|${pot.r.toFixed(2)}`;
+  }
+
+  function ensureGradients(ctx){
+    const palKey = cacheKeyPal();
+    const potKey = cacheKeyPot();
+    const needs =
+      gradCache.ctx !== ctx ||
+      gradCache.w !== w ||
+      gradCache.h !== h ||
+      gradCache.palKey !== palKey ||
+      gradCache.potKey !== potKey;
+
+    if (!needs) return gradCache;
+
+    gradCache.ctx = ctx;
+    gradCache.w = w;
+    gradCache.h = h;
+    gradCache.palKey = palKey;
+    gradCache.potKey = potKey;
+
+    // bench
+    const bench = ctx.createLinearGradient(0,0,0,h);
+    bench.addColorStop(0, pal.wood[0]);
+    bench.addColorStop(1, pal.wood[1]);
+    gradCache.bench = bench;
+
+    const benchSpot = ctx.createRadialGradient(w*0.5, h*0.48, Math.min(w,h)*0.05, w*0.5, h*0.48, Math.max(w,h)*0.7);
+    benchSpot.addColorStop(0, 'rgba(0,0,0,0)');
+    benchSpot.addColorStop(1, 'rgba(0,0,0,0.60)');
+    gradCache.benchSpot = benchSpot;
+
+    // pottery base
+    const ceramic = ctx.createRadialGradient(pot.x - pot.r*0.22, pot.y - pot.r*0.18, pot.r*0.10, pot.x, pot.y, pot.r*1.12);
+    ceramic.addColorStop(0, pal.ceramic[0]);
+    ceramic.addColorStop(1, pal.ceramic[1]);
+    gradCache.ceramic = ceramic;
+
+    const inner = ctx.createRadialGradient(pot.x + pot.r*0.10, pot.y + pot.r*0.06, pot.r*0.18, pot.x, pot.y, pot.r*0.94);
+    inner.addColorStop(0, 'rgba(0,0,0,0)');
+    inner.addColorStop(1, 'rgba(0,0,0,0.22)');
+    gradCache.inner = inner;
+
+    // gold seams
+    const gold = ctx.createLinearGradient(pot.x - pot.r, pot.y, pot.x + pot.r, pot.y);
+    gold.addColorStop(0, pal.gold[1]);
+    gold.addColorStop(0.5, pal.gold[0]);
+    gold.addColorStop(1, pal.gold[1]);
+    gradCache.gold = gold;
+
+    // vignette
+    const vg = ctx.createRadialGradient(w*0.5, h*0.50, Math.min(w,h)*0.18, w*0.5, h*0.50, Math.max(w,h)*0.78);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.65)');
+    gradCache.vignette = vg;
+
+    return gradCache;
+  }
+
+  function swayBob(){
+    // kept static so cached gradients remain valid
+    return { sway: 0, bob: 0 };
+  }
 
   function stopAmbience(){
     try { ambience?.stop?.(); } catch {}
@@ -151,10 +234,7 @@ export function createChannel({ seed, audio }){
     phaseIdx = 0;
     phaseT = 0;
 
-    benchDrift = {
-      x: (rand() - 0.5) * 0.06,
-      y: (rand() - 0.5) * 0.05,
-    };
+    // (pottery sway/bob disabled; see swayBob())
 
     pot = {
       x: w * (0.50 + (rand() - 0.5) * 0.04),
@@ -369,10 +449,9 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
 
-    const g = ctx.createLinearGradient(0,0,0,h);
-    g.addColorStop(0, pal.wood[0]);
-    g.addColorStop(1, pal.wood[1]);
-    ctx.fillStyle = g;
+    const gr = ensureGradients(ctx);
+
+    ctx.fillStyle = gr.bench;
     ctx.fillRect(0,0,w,h);
 
     // subtle grain
@@ -393,10 +472,7 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // spotlight
-    const sp = ctx.createRadialGradient(w*0.5, h*0.48, Math.min(w,h)*0.05, w*0.5, h*0.48, Math.max(w,h)*0.7);
-    sp.addColorStop(0, 'rgba(0,0,0,0)');
-    sp.addColorStop(1, 'rgba(0,0,0,0.60)');
-    ctx.fillStyle = sp;
+    ctx.fillStyle = gr.benchSpot;
     ctx.fillRect(0,0,w,h);
   }
 
@@ -438,12 +514,13 @@ export function createChannel({ seed, audio }){
   }
 
   function drawPotteryBase(ctx){
-    const sway = Math.sin(t * 0.18 + seed*0.001) * w * benchDrift.x;
-    const bob = Math.sin(t * 0.16 + seed*0.002) * h * benchDrift.y;
+    const { sway, bob } = swayBob();
 
     const x = pot.x + sway;
     const y = pot.y + bob;
     const r = pot.r;
+
+    const gr = ensureGradients(ctx);
 
     // drop shadow
     ctx.save();
@@ -455,10 +532,7 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // ceramic fill
-    const g = ctx.createRadialGradient(x - r*0.22, y - r*0.18, r*0.10, x, y, r*1.12);
-    g.addColorStop(0, pal.ceramic[0]);
-    g.addColorStop(1, pal.ceramic[1]);
-    ctx.fillStyle = g;
+    ctx.fillStyle = gr.ceramic;
     ctx.beginPath();
     ctx.ellipse(x, y, r, r*0.80, 0, 0, Math.PI*2);
     ctx.fill();
@@ -475,10 +549,7 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // inner bowl shading
-    const inner = ctx.createRadialGradient(x + r*0.10, y + r*0.06, r*0.18, x, y, r*0.94);
-    inner.addColorStop(0, 'rgba(0,0,0,0)');
-    inner.addColorStop(1, 'rgba(0,0,0,0.22)');
-    ctx.fillStyle = inner;
+    ctx.fillStyle = gr.inner;
     ctx.beginPath();
     ctx.ellipse(x, y + r*0.05, r*0.86, r*0.62, 0, 0, Math.PI*2);
     ctx.fill();
@@ -493,8 +564,7 @@ export function createChannel({ seed, audio }){
 
   function drawCracks(ctx, crackAmt, gapAmt){
     // crackAmt: alpha/intensity, gapAmt: fake separation
-    const sway = Math.sin(t * 0.18 + seed*0.001) * w * benchDrift.x;
-    const bob = Math.sin(t * 0.16 + seed*0.002) * h * benchDrift.y;
+    const { sway, bob } = swayBob();
 
     ctx.save();
     ctx.translate(sway, bob);
@@ -528,8 +598,7 @@ export function createChannel({ seed, audio }){
   }
 
   function drawGlueSheen(ctx, p){
-    const sway = Math.sin(t * 0.18 + seed*0.001) * w * benchDrift.x;
-    const bob = Math.sin(t * 0.16 + seed*0.002) * h * benchDrift.y;
+    const { sway, bob } = swayBob();
 
     const s = ease(p);
     const shimmer = 0.5 + 0.5 * Math.sin(t * 2.4 + seed*0.003);
@@ -552,10 +621,10 @@ export function createChannel({ seed, audio }){
   }
 
   function drawGoldSeams(ctx, fillFrac, polishAmt){
-    const sway = Math.sin(t * 0.18 + seed*0.001) * w * benchDrift.x;
-    const bob = Math.sin(t * 0.16 + seed*0.002) * h * benchDrift.y;
+    const { sway, bob } = swayBob();
 
     const shimmer = 0.5 + 0.5 * Math.sin(t * 1.9 + seed*0.002);
+    const gr = ensureGradients(ctx);
 
     ctx.save();
     ctx.translate(sway, bob);
@@ -577,11 +646,7 @@ export function createChannel({ seed, audio }){
     // main seam
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 0.85;
-    const goldGrad = ctx.createLinearGradient(pot.x - pot.r, pot.y, pot.x + pot.r, pot.y);
-    goldGrad.addColorStop(0, pal.gold[1]);
-    goldGrad.addColorStop(0.5, pal.gold[0]);
-    goldGrad.addColorStop(1, pal.gold[1]);
-    ctx.strokeStyle = goldGrad;
+    ctx.strokeStyle = gr.gold;
     ctx.lineWidth = Math.max(2, Math.floor(h/300));
     for (const c of cracks){
       drawPolylinePartial(ctx, c.pts, fillFrac);
@@ -594,8 +659,7 @@ export function createChannel({ seed, audio }){
   function drawDust(ctx, p){
     const fade = ease(p);
 
-    const sway = Math.sin(t * 0.18 + seed*0.001) * w * benchDrift.x;
-    const bob = Math.sin(t * 0.16 + seed*0.002) * h * benchDrift.y;
+    const { sway, bob } = swayBob();
 
     ctx.save();
     ctx.translate(sway, bob);
@@ -655,8 +719,7 @@ export function createChannel({ seed, audio }){
 
   function drawGlint(ctx, amt){
     if (!glint) return;
-    const sway = Math.sin(t * 0.18 + seed*0.001) * w * benchDrift.x;
-    const bob = Math.sin(t * 0.16 + seed*0.002) * h * benchDrift.y;
+    const { sway, bob } = swayBob();
 
     const pt = crackPointAt(glint.cr, glint.u);
     const x = pt.x + sway;
@@ -734,10 +797,8 @@ export function createChannel({ seed, audio }){
     }
 
     // vignette
-    const vg = ctx.createRadialGradient(w*0.5, h*0.50, Math.min(w,h)*0.18, w*0.5, h*0.50, Math.max(w,h)*0.78);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.65)');
-    ctx.fillStyle = vg;
+    const gr = ensureGradients(ctx);
+    ctx.fillStyle = gr.vignette;
     ctx.fillRect(0,0,w,h);
   }
 
