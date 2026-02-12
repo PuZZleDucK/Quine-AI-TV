@@ -1,7 +1,9 @@
 
 # Done
 
-- [x] [project:quine-tv] Review channel `fixit` (src/channels/fixit.js): captured screenshots (0–300s) to `screenshots/review-fixit` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+- [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Audio hygiene — `onAudioOn()` idempotent (no stacking), noise fade-out on stop to reduce clicks, and `onAudioOff()`/`destroy()` clear AudioManager.current only when owned. Commit: 8ea6a40
+
+- [x] [project:quine-tv] Review channel `fixit` (src/channels/fixit.js): captured screenshots (0–300s) to `screenshots/review-fixit` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`. Commit: 9eab6f2
 
 - [x] [project:quine-tv] `matrix` (src/channels/matrix.js): special moments — added rare deterministic “GLITCH” event (~45–120s cadence; seeded) that briefly increases contrast + scrambles a subset of columns, then cleanly resets. Screenshots: screenshots/autopilot-matrix-before + screenshots/autopilot-matrix-after. Commit: TBD
 
