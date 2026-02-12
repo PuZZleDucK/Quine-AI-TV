@@ -21,6 +21,7 @@ The repository includes a Playwright-based capture tool: `scripts/capture-channe
   - Clean lifecycle: implement `onResize`, `update(dt)`, `draw(ctx)`, and `destroy()`; keep allocations out of the hot path.
   - No performance issues, performance is excelent.
   - Focus on the layout, visual, text and animation elemets and effects.
+  - Add more funny dialog scripts or text snippets to cycle through.
 
 ### Prereqs
 
