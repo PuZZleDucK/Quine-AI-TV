@@ -8,6 +8,4 @@ if `TODO.md` has no ready items:
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Buttons — replace simple chase light with persistent “selected floor” LEDs tied to CALL/QUEUE, plus press animation when a call is queued.
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Long-run interest — add 1–2 rare deterministic “special moments” (~45–120s) (e.g., fire-service key mode, overload alarm, inspection glitch) with clear visual signature and clean reset.
 
-- [quine-tv] `lava` (src/channels/lava.js): Time structure — add a 2–4 min phase cycle (CALM→BLOOP→SURGE) that modulates blob speed/blur/intensity and schedules 1–2 deterministic rare events (~45–120s) beyond the simple flash.
-
 - [quine-tv] `stitchalong` (src/channels/constellationstitch.js): Long-run interest — expand pattern variety (more constellations/edge sets) and add a rare deterministic “special moment” (~45–120s) (e.g., shooting-star sweep that briefly re-threads a segment, or rare constelations) with clean reset and OSD-safe flash.

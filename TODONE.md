@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Time structure `lava` (src/channels/lava.js): added deterministic 2–4 min phase cycle (CALM→BLOOP→SURGE) modulating blob speed/blur/intensity; added rare deterministic “special moments” (PULSE/HEAT/SWIRL) scheduled ~45–120s/cycle. Commit: e71d29b
+
 - [x] [project:quine-tv] Perf `lava` (src/channels/lava.js): removed per-blob `createRadialGradient()` from `render()` by pre-rendering blob sprites (bucketed by radius+hue) and blitting with blur+screen composite. Accept: steady-state `render()` allocates 0 gradients/frame. Commit: b07df9f
 
 
