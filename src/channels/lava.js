@@ -79,6 +79,11 @@ export function createChannel({ seed, audio }){
   let w=0,h=0,t=0;
   let blobs=[];
 
+  // Fixed-timestep simulation so motion is deterministic across 30fps vs 60fps.
+  const FIXED_DT = 1/60;
+  const MAX_STEPS_PER_UPDATE = 16;
+  let acc = 0;
+
   // audio
   let ambience = null;
 
@@ -343,7 +348,7 @@ export function createChannel({ seed, audio }){
   }
 
   function init({width,height}){
-    w=width; h=height; t=0;
+    w=width; h=height; t=0; acc=0;
     blobs = Array.from({ length: 7 }, () => {
       const baseR = 80 + rand() * 170;
       return {
@@ -512,7 +517,7 @@ export function createChannel({ seed, audio }){
 
   function destroy(){ onAudioOff(); }
 
-  function update(dt){
+  function stepSim(dt){
     t += dt;
 
     // Phase cycle (CALM→BLOOP→SURGE)
@@ -586,19 +591,6 @@ export function createChannel({ seed, audio }){
     intensityMul = clamp(i0 * (1 + 0.18 * ePulse + 0.10 * eHeat), 0.75, 1.35);
     swirlMul = eSwirl;
 
-    // audio "breath" (slow, subtle) + phase "heat"
-    if (ambience && audio.enabled){
-      const ctx = ambience.ctx;
-      const hot = smoothstep01(clamp((u - 0.45) / 0.55, 0, 1));
-      const p = 0.5 + 0.5 * Math.sin(t * (0.20 + 0.05 * hot));
-      const dg = (0.0082 + 0.0048 * p) * lerp(0.92, 1.06, hot) * intensityMul;
-      const ng = (0.0030 + 0.0062 * p) * lerp(0.88, 1.10, hot) * intensityMul;
-      const cf = (165 + 390 * p) * lerp(0.90, 1.22, hot);
-      try { ambience.droneGain.gain.setTargetAtTime(dg, ctx.currentTime, 0.18); } catch {}
-      try { ambience.noiseGain.gain.setTargetAtTime(ng, ctx.currentTime, 0.22); } catch {}
-      try { ambience.nf.frequency.setTargetAtTime(cf, ctx.currentTime, 0.25); } catch {}
-    }
-
     const dtv = dt * speedMul;
 
     // SWIRL moment: a gentle deterministic vortex around a slightly-lower-than-center point.
@@ -632,6 +624,36 @@ export function createChannel({ seed, audio }){
       b.vy = clamp(b.vy, -vmax, vmax);
     }
   }
+
+  function update(dt){
+    acc = Math.min(0.25, acc + dt);
+
+    let steps = 0;
+    while (acc >= FIXED_DT && steps < MAX_STEPS_PER_UPDATE){
+      stepSim(FIXED_DT);
+      acc -= FIXED_DT;
+      steps++;
+    }
+
+    // If we hit the step cap, drop remainder so we don't spiral.
+    if (steps >= MAX_STEPS_PER_UPDATE) acc = 0;
+
+    // audio "breath" (slow, subtle) + phase "heat"
+    if (ambience && audio.enabled){
+      const ctx = ambience.ctx;
+      const tt = t + phaseOffset;
+      const u = ((tt % phasePeriod) + phasePeriod) % phasePeriod / phasePeriod; // [0,1)
+      const hot = smoothstep01(clamp((u - 0.45) / 0.55, 0, 1));
+      const p = 0.5 + 0.5 * Math.sin(t * (0.20 + 0.05 * hot));
+      const dg = (0.0082 + 0.0048 * p) * lerp(0.92, 1.06, hot) * intensityMul;
+      const ng = (0.0030 + 0.0062 * p) * lerp(0.88, 1.10, hot) * intensityMul;
+      const cf = (165 + 390 * p) * lerp(0.90, 1.22, hot);
+      try { ambience.droneGain.gain.setTargetAtTime(dg, ctx.currentTime, 0.18); } catch {}
+      try { ambience.noiseGain.gain.setTargetAtTime(ng, ctx.currentTime, 0.22); } catch {}
+      try { ambience.nf.frequency.setTargetAtTime(cf, ctx.currentTime, 0.25); } catch {}
+    }
+  }
+
 
   function render(ctx){
     ensureCaches(ctx);
