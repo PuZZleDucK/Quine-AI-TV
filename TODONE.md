@@ -2,6 +2,8 @@
 # Done
 
 
+- [x] [project:quine-tv] Long-run interest `kintsugi` (src/channels/kintsugiclinic.js): make the polish glint a true rare “special moment” (~45–120s) with a more dramatic, clearly visible signature (fade in/out) + clean reset. Commit: 0197987
+
 - [x] [project:quine-tv] Long-run composition `flow` (src/channels/flowfield.js): added deterministic periodic point reseed (1.5% every 9.5s; separate RNG) to keep coverage even and avoid long-run ribbon collapse. Screenshots: screenshots/review-flowfield-pre + screenshots/review-flowfield-post. Commit: 12cd9e8
 
 - [x] [project:quine-tv] Visual depth `elevatorpanel` (src/channels/elevatorpanel.js): added subtle glass reflection + edge vignette/panel bloom layer that varies by segment (MOVE/ARRIVE/SERVICE) while keeping OSD crisp. Commit: 8c6946b
