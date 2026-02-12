@@ -1,3 +1,5 @@
+- 2026-02-13 06:48 (Australia/Melbourne) [project:quine-tv] `foleylab` (src/channels/foleylab.js): UI/visual polish — added an OSD-safe VU panel driven by step density with a waveform sparkline (recent density history) + rare deterministic special moments (TAKE GOOD / MIC CLIP) scheduled ~45–120s. Commit: 4aee3c5
+
 - 2026-02-13 06:19 (Australia/Melbourne) [project:quine-tv] `foleylab` (src/channels/foleylab.js): long-run variety — added 4 more foley recipes (typewriter/platform/balloon/drawer) so the channel runs 5+ minutes before repeating; uses seeded shuffle-bag selection to avoid back-to-back repeats. Commit: 20f36f1
 
 - 2026-02-13 06:00 (Australia/Melbourne) [project:quine-tv] `foleylab` (src/channels/foleylab.js): perf pass — cached static bg/vignette + stage/table gradients by pre-rendering to offscreen layers (rebuild on resize/ctx swap); acoustic-panel grid is now a cached pattern tile (no per-cell template allocs in render). Commit: f3e8f38
