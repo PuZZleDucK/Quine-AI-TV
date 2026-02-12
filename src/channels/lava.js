@@ -67,6 +67,11 @@ function shuffleInPlace(arr, rand){
   }
 }
 
+function smoothstep01(x){
+  const t = clamp(x, 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
 export function createChannel({ seed, audio }){
   const seed32 = seed >>> 0;
   const rand = mulberry32(seed32);
@@ -80,6 +85,19 @@ export function createChannel({ seed, audio }){
   let captions = CAPTIONS;
   let captionOffset = 0;
   let captionPeriod = 22;
+
+  // Time structure: 2–4 min phase cycle (CALM→BLOOP→SURGE) + rare deterministic events.
+  const phaseRand = mulberry32(seed32 ^ 0x51AFAE);
+  let phasePeriod = 180;
+  let phaseOffset = 0;
+  let cycleIndex = -1;
+  let cycleEvents = []; // [{ type, t0, t1 }]
+
+  // Visual multipliers (computed in update; consumed in render)
+  let speedMul = 1;
+  let blurMul = 1;
+  let intensityMul = 1;
+  let swirlMul = 0;
 
   // Perf: cache gradients + pre-render blob sprites so steady-state render allocates 0 gradients.
   const SPR_R_STEP = 12;
@@ -203,6 +221,45 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function lerp(a, b, t){
+    return a + (b - a) * t;
+  }
+
+  function rebuildTimeStructure(){
+    // 2–4 min loop, but with a per-seed offset so multiple TVs don’t phase-lock.
+    phasePeriod = 120 + phaseRand() * 120;
+    phaseOffset = phaseRand() * phasePeriod;
+    cycleIndex = -1;
+    cycleEvents = [];
+  }
+
+  function buildCycleEvents(cyc){
+    // 1–2 deterministic “special moments” per cycle, usually after the channel has settled.
+    const r = mulberry32((seed32 ^ 0xC1C1E) + ((cyc + 1) * 0x9E3779B9));
+    const tMin = 45;
+    const tMax = Math.min(120, Math.max(tMin + 5, phasePeriod - 25));
+
+    const events = [];
+
+    // Always schedule one event.
+    {
+      const t0 = tMin + (tMax - tMin) * r();
+      const dur = 8 + 8 * r();
+      events.push({ type: 'PULSE', t0, t1: t0 + dur });
+    }
+
+    // Often schedule a second, distinct event.
+    if (r() < 0.55){
+      const t0 = tMin + (tMax - tMin) * r();
+      const dur = 10 + 12 * r();
+      const type = (r() < 0.5) ? 'SWIRL' : 'HEAT';
+      events.push({ type, t0, t1: t0 + dur });
+    }
+
+    events.sort((a,b) => a.t0 - b.t0);
+    cycleEvents = events;
+  }
+
   function init({width,height}){
     w=width; h=height; t=0;
     blobs = Array.from({length: 7}, () => ({
@@ -220,6 +277,8 @@ export function createChannel({ seed, audio }){
     shuffleInPlace(captions, uiRand);
     captionOffset = Math.floor(uiRand() * captions.length);
     captionPeriod = 18 + Math.floor(uiRand() * 10);
+
+    rebuildTimeStructure();
 
     // Rebuild blob sprite cache for this blob set.
     primeBlobSprites();
@@ -337,30 +396,110 @@ export function createChannel({ seed, audio }){
   function update(dt){
     t += dt;
 
-    // audio "breath" (slow, subtle)
+    // Phase cycle (CALM→BLOOP→SURGE)
+    const tt = t + phaseOffset;
+    const u = ((tt % phasePeriod) + phasePeriod) % phasePeriod / phasePeriod; // [0,1)
+
+    // Base phase multipliers
+    const CALM_END = 0.45;
+    const BLOOP_END = 0.75;
+
+    let s0 = 1;
+    let b0 = 1;
+    let i0 = 1;
+
+    if (u < CALM_END){
+      s0 = 0.72;
+      b0 = 1.18;
+      i0 = 0.88;
+    } else if (u < BLOOP_END){
+      const p = (u - CALM_END) / (BLOOP_END - CALM_END);
+      const pulse = Math.pow(Math.max(0, Math.sin(p * Math.PI * 6)), 2);
+      s0 = 0.92 + 0.14 * pulse;
+      b0 = 1.02 - 0.08 * pulse;
+      i0 = 0.94 + 0.12 * pulse;
+    } else {
+      const p = (u - BLOOP_END) / (1 - BLOOP_END);
+      const ramp = smoothstep01(p);
+      s0 = 1.05 + 0.45 * ramp;
+      b0 = 0.95 - 0.22 * ramp;
+      i0 = 1.00 + 0.16 * ramp;
+    }
+
+    // Rare deterministic events per cycle (~45–120s)
+    const cyc = Math.floor(tt / phasePeriod);
+    if (cyc !== cycleIndex){
+      cycleIndex = cyc;
+      buildCycleEvents(cyc);
+    }
+
+    const tc = tt - cycleIndex * phasePeriod;
+    let ePulse = 0;
+    let eHeat = 0;
+    let eSwirl = 0;
+
+    for (const e of cycleEvents){
+      if (tc < e.t0 || tc > e.t1) continue;
+
+      const uev = (tc - e.t0) / Math.max(0.001, (e.t1 - e.t0));
+      const aIn = smoothstep01(uev / 0.18);
+      const aOut = smoothstep01((1 - uev) / 0.18);
+      const amp = aIn * aOut;
+
+      if (e.type === 'PULSE') ePulse = Math.max(ePulse, amp);
+      else if (e.type === 'HEAT') eHeat = Math.max(eHeat, amp);
+      else if (e.type === 'SWIRL') eSwirl = Math.max(eSwirl, amp);
+    }
+
+    speedMul = clamp(s0 + 0.10 * ePulse + 0.18 * eHeat + 0.25 * eSwirl, 0.55, 1.85);
+    blurMul = clamp(b0 * (1 - 0.10 * ePulse) * (1 - 0.16 * eHeat), 0.55, 1.55);
+    intensityMul = clamp(i0 * (1 + 0.18 * ePulse + 0.10 * eHeat), 0.75, 1.35);
+    swirlMul = eSwirl;
+
+    // audio "breath" (slow, subtle) + phase "heat"
     if (ambience && audio.enabled){
       const ctx = ambience.ctx;
-      const p = 0.5 + 0.5 * Math.sin(t * 0.22);
-      const dg = 0.0085 + 0.0045 * p;
-      const ng = 0.0030 + 0.0060 * p;
-      const cf = 170 + 380 * p;
+      const hot = smoothstep01(clamp((u - 0.45) / 0.55, 0, 1));
+      const p = 0.5 + 0.5 * Math.sin(t * (0.20 + 0.05 * hot));
+      const dg = (0.0082 + 0.0048 * p) * lerp(0.92, 1.06, hot) * intensityMul;
+      const ng = (0.0030 + 0.0062 * p) * lerp(0.88, 1.10, hot) * intensityMul;
+      const cf = (165 + 390 * p) * lerp(0.90, 1.22, hot);
       try { ambience.droneGain.gain.setTargetAtTime(dg, ctx.currentTime, 0.18); } catch {}
       try { ambience.noiseGain.gain.setTargetAtTime(ng, ctx.currentTime, 0.22); } catch {}
       try { ambience.nf.frequency.setTargetAtTime(cf, ctx.currentTime, 0.25); } catch {}
     }
 
+    const dtv = dt * speedMul;
+
+    // SWIRL moment: a gentle deterministic vortex around a slightly-lower-than-center point.
+    const cx = w * 0.5;
+    const cy = h * 0.56;
+    const swirlK = (swirlMul > 0) ? (0.00055 + 0.00025 * (w / Math.max(1, h))) * swirlMul : 0;
+
     for (const b of blobs){
-      b.x += b.vx*dt;
-      b.y += b.vy*dt;
+      if (swirlK > 0){
+        const dx = b.x - cx;
+        const dy = b.y - cy;
+        b.vx += (-dy) * swirlK;
+        b.vy += (dx) * swirlK;
+      }
+
+      b.x += b.vx * dtv;
+      b.y += b.vy * dtv;
+
       // soft bounds
       if (b.x < -b.r) { b.x = w + b.r; }
       if (b.x > w + b.r) { b.x = -b.r; }
       if (b.y < -b.r) { b.y = h + b.r; }
       if (b.y > h + b.r) { b.y = -b.r; }
-      b.vx += Math.sin(t*0.6 + b.ph)*0.3;
-      b.vy += Math.cos(t*0.7 + b.ph)*0.3;
-      b.vx = clamp(b.vx, -220, 220);
-      b.vy = clamp(b.vy, -220, 220);
+
+      const drift = 0.24 + 0.22 * ((speedMul - 0.72) / (1.85 - 0.72));
+      b.vx += Math.sin(t * 0.6 + b.ph) * 0.3 * drift;
+      b.vy += Math.cos(t * 0.7 + b.ph) * 0.3 * drift;
+
+      const vmax = 200 + 70 * (speedMul - 1);
+      b.vx = clamp(b.vx, -vmax, vmax);
+      b.vy = clamp(b.vy, -vmax, vmax);
     }
   }
 
@@ -377,7 +516,9 @@ export function createChannel({ seed, audio }){
     // blob field (cached sprites; no per-frame gradients)
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.filter = `blur(${cache.blurPx}px)`;
+    ctx.globalAlpha = 0.90 * intensityMul;
+    const blurPx = Math.max(0.5, cache.blurPx * blurMul);
+    ctx.filter = `blur(${blurPx}px)`;
 
     for (const b of blobs){
       const rr = b.r * (0.9 + 0.1*Math.sin(t*0.7 + b.ph));
