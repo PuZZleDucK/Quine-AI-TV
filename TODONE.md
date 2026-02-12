@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Special moments `lava` (src/channels/lava.js): added a deterministic glint sweep overlay during cycle events so “special moments” are unmistakable. Commit: 6bfca4e
+
 - [x] [project:quine-tv] Visual texture `lava` (src/channels/lava.js): cached film grain + scanlines + vignette layer (rebuild on resize/ctx swap) to reduce flat empty space without cluttering OSD. Screenshots: screenshots/autopilot-lava-texture-start + screenshots/autopilot-lava-texture-done. Commit: 84ac0e3
 
 - [x] [project:quine-tv] Responsive scaling `lava` (src/channels/lava.js): store `baseR` and recompute `r` on `onResize()` (rebuild sprite cache) so resizes keep blobs proportional. Screenshots: screenshots/autopilot-lava-scaling-before + screenshots/autopilot-lava-scaling-after. Commit: b5695b9
