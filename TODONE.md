@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — expanded `fakeStackTrace()` with more frame templates + occasional indented diff-snippet lines; hardened `wrapForTerminal()` so extreme indentation can’t overflow. Commit: acf4295
+
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): UI — add a subtle header phase indicator (CALM/CRISIS/RESOLUTION) driven by `phaseParams(t)`; keep it OSD-safe. Commit: ecfbc9e
 
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): perf — avoid per-frame `ctx.measureText(...)` in the transcript cursor placement by using cached monospace width (`termCharW`) * string length (clamped). Commit: cb16509

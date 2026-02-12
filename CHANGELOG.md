@@ -1,3 +1,5 @@
+- 2026-02-13 07:48 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — expanded `fakeStackTrace()` with more frame templates + occasional indented diff-snippet lines; hardened `wrapForTerminal()` indentation wrapping to guarantee max width. Commit: acf4295
+
 - 2026-02-13 07:17 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): perf — replaced per-frame cursor `ctx.measureText(...)` with cached monospace char width (`termCharW`) * string length. Commit: cb16509
 
 - 2026-02-13 06:48 (Australia/Melbourne) [project:quine-tv] `foleylab` (src/channels/foleylab.js): UI/visual polish — added an OSD-safe VU panel driven by step density with a waveform sparkline (recent density history) + rare deterministic special moments (TAKE GOOD / MIC CLIP) scheduled ~45–120s. Commit: 4aee3c5

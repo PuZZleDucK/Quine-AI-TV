@@ -214,6 +214,18 @@ const STACK_FILES = [
   'utils', 'scheduler', 'player', 'channel', 'audio', 'canvas',
 ];
 
+const STACK_OBJECTS = [
+  'App', 'Router', 'Store', 'Player', 'Audio', 'Canvas', 'Scheduler', 'Hooks',
+  'Auth', 'API', 'Channel', 'HUD', 'Renderer',
+];
+
+const STACK_ALIASES = [
+  'onClick', 'onKeyDown', 'onResize', 'onMessage', 'onFrame', 'onTick',
+  'handleEvent', 'dispatchAction',
+];
+
+const STACK_EXTS = ['js', 'ts', 'mjs'];
+
 const STACK_INTERNAL = [
   'node:internal/process/task_queues:95:5',
   'node:internal/timers:569:17',
@@ -230,6 +242,42 @@ const STACK_MSGS = [
   (rand) => `Permission denied: '${pick(rand, ['cache', 'tmp', 'config', 'secrets'])}'`,
 ];
 
+function fakeDiffSnippet(rand){
+  const dir = pick(rand, STACK_DIRS);
+  const file = pick(rand, STACK_FILES);
+  const ext = pick(rand, STACK_EXTS);
+  const path = `${dir}/${file}.${ext}`;
+  const ln = 10 + ((rand() * 240) | 0);
+
+  const prop = pick(rand, STACK_PROPS);
+  const fn = pick(rand, STACK_FUNCS);
+
+  const variants = [
+    () => ({
+      oldLine: `if (${prop}) ${fn}();`,
+      newLine: `if (${prop} != null) ${fn}();`,
+    }),
+    () => ({
+      oldLine: `const x = obj.${prop};`,
+      newLine: `const x = obj?.${prop};`,
+    }),
+    () => ({
+      oldLine: `return ${fn}(state.${prop});`,
+      newLine: `return ${fn}(state?.${prop});`,
+    }),
+  ];
+
+  const { oldLine, newLine } = pick(rand, variants)();
+
+  return [
+    `    --- a/${path}`,
+    `    +++ b/${path}`,
+    `    @@ -${ln},1 +${ln},1 @@`,
+    `    -  ${oldLine}`,
+    `    +  ${newLine}`,
+  ];
+}
+
 function fakeStackTrace(rand){
   const errType = pick(rand, STACK_ERROR_TYPES);
   const msg = pick(rand, STACK_MSGS)(rand);
@@ -244,14 +292,33 @@ function fakeStackTrace(rand){
     }
 
     const isAsync = rand() < 0.35;
+    const asyncPrefix = isAsync ? 'async ' : '';
+
+    const obj = pick(rand, STACK_OBJECTS);
     const fn = pick(rand, STACK_FUNCS);
+    const alias = pick(rand, STACK_ALIASES);
+
     const dir = pick(rand, STACK_DIRS);
     const file = pick(rand, STACK_FILES);
+    const ext = pick(rand, STACK_EXTS);
+
     const ln = 10 + ((rand() * 240) | 0);
     const col = 1 + ((rand() * 80) | 0);
 
-    lines.push(`    at ${isAsync ? 'async ' : ''}${fn} (${dir}/${file}.js:${ln}:${col})`);
+    const templates = [
+      () => `    at ${asyncPrefix}${fn} (${dir}/${file}.${ext}:${ln}:${col})`,
+      () => `    at ${asyncPrefix}${obj}.${fn} (${dir}/${file}.${ext}:${ln}:${col})`,
+      () => `    at ${asyncPrefix}Object.${fn} (${dir}/${file}.${ext}:${ln}:${col})`,
+      () => `    at ${asyncPrefix}${fn} (file://${dir}/${file}.${ext}:${ln}:${col})`,
+      () => `    at ${asyncPrefix}${fn} (${file}.${ext}:${ln}:${col})`,
+      () => `    at ${asyncPrefix}${fn} [as ${alias}] (${dir}/${file}.${ext}:${ln}:${col})`,
+    ];
+
+    lines.push(pick(rand, templates)());
   }
+
+  // Occasionally include a tiny diff-style snippet (indented) like in debug logs.
+  if (rand() < 0.25) lines.push(...fakeDiffSnippet(rand));
 
   return lines;
 }
@@ -666,10 +733,15 @@ export function createChannel({ seed, audio }){
     const m = text.match(/^\s+/);
     if (m){
       const indent = m[0];
+
+      // If indentation itself is wider than the terminal, fall back to plain wrapping.
+      // (Otherwise we'd generate lines that can never fit.)
+      if (indent.length >= maxChars) return wrapPlain(text.trimStart(), maxChars);
+
       const body = text.slice(indent.length);
       const bodyWidth = Math.max(4, maxChars - indent.length);
       const parts = wrapPlain(body, bodyWidth);
-      return parts.map(p => indent + p);
+      return parts.map(p => (indent + p).slice(0, maxChars));
     }
 
     return wrapPlain(text, maxChars);
