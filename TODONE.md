@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Audio stop polish `lava` (src/channels/lava.js): delay `bus.disconnect()` until after fade-out so the gain ramps can finish (reduces click/pop risk). Commit: b02ec62
+
 - [x] [project:quine-tv] Micro-perf `lava` (src/channels/lava.js): quantized + cached `ctx.filter = blur(...)` string so it only updates when the blur bucket changes (avoids per-frame template string churn). Commit: bd74466
 
 - [x] [project:quine-tv] Visual `elevatorpanel` (src/channels/elevatorpanel.js): added a right-side building schematic showing shafts + elevator cars; active car + target floor highlighted. Commit: e3f49bb
