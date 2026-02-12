@@ -42,6 +42,12 @@ export function createChannel({ seed, audio }) {
   // ---- call queue (seeded; serviced on arrivals)
   let callQueue = []; // floors (numbers)
   let lastLoop = -1;
+  let elevators = []; // { floor, target, dir, door, servicing }
+  let nextCallAt = 0;
+  let primaryShaft = 0;
+  let sceneMode = 'IDLE';
+  let sceneModeT = 0;
+  let sceneModeDur = 1;
 
   // ---- button press FX (deterministic; driven by segment edges)
   let pressEvents = []; // { floor, t0 }
@@ -473,7 +479,7 @@ export function createChannel({ seed, audio }) {
     ctx.restore();
   }
 
-  function drawBuildingDiagram(ctx, { carFloor, activeShaft, targetFloor, pulse, tt }) {
+  function drawBuildingDiagram(ctx, { carFloor, activeShaft, targetFloor, pulse, tt, elevatorFloors }) {
     // Right column schematic: shafts + elevator cars.
     const x0 = diagramBox.x;
     const ww = diagramBox.w;
@@ -543,7 +549,9 @@ export function createChannel({ seed, audio }) {
       ctx.restore();
 
       const home = elevatorHomeFloors[s] ?? 1;
-      const f = (s === activeShaft) ? carFloor : home;
+      const f = (elevatorFloors && typeof elevatorFloors[s] === 'number')
+        ? elevatorFloors[s]
+        : ((s === activeShaft) ? carFloor : home);
       const cy = fy(f);
 
       // elevator car
@@ -812,6 +820,73 @@ export function createChannel({ seed, audio }) {
     t = 0;
     layout(width, height);
     buildScript();
+    callQueue = [];
+    pressEvents = [];
+    lastLoop = -1;
+    primaryShaft = 0;
+    sceneMode = 'IDLE';
+    sceneModeT = 0;
+    sceneModeDur = 1;
+    nextCallAt = 1.5 + rand() * 2.8;
+    elevators = Array.from({ length: shaftCount }, (_, i) => ({
+      floor: elevatorHomeFloors[i] ?? 1,
+      target: null,
+      dir: 0,
+      door: 0,
+      servicing: null,
+    }));
+  }
+
+  function setSceneMode(type, dur = 1) {
+    sceneMode = type;
+    sceneModeDur = Math.max(0.1, dur);
+    sceneModeT = sceneModeDur;
+  }
+
+  function scheduleNextCall() {
+    nextCallAt = t + 2.8 + rand() * 6.2;
+  }
+
+  function enqueueCall(floor, pressDelay = 0) {
+    const f = clamp((floor | 0), 1, floorCount);
+    if (!callQueue.includes(f)) {
+      callQueue.push(f);
+      if (callQueue.length > 14) callQueue.splice(14);
+    }
+    pressEvents.push({ floor: f, t0: t + pressDelay });
+    if (pressEvents.length > 24) pressEvents.splice(0, pressEvents.length - 24);
+  }
+
+  function serviceQueueAssignments() {
+    const claimed = new Set();
+    for (const e of elevators) {
+      if (typeof e.servicing === 'number') claimed.add(e.servicing);
+    }
+
+    for (let i = 0; i < elevators.length; i++) {
+      const e = elevators[i];
+      if (e.target != null || e.door > 0) continue;
+
+      let best = null;
+      let bestDist = Infinity;
+      for (let k = 0; k < callQueue.length; k++) {
+        const floor = callQueue[k];
+        if (claimed.has(floor)) continue;
+        const dist = Math.abs(floor - e.floor);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = floor;
+        }
+      }
+
+      if (best != null) {
+        e.target = best;
+        e.servicing = best;
+        e.dir = best > e.floor ? +1 : best < e.floor ? -1 : 0;
+        claimed.add(best);
+        primaryShaft = i;
+      }
+    }
   }
 
   function playArrivalChime(express = false) {
@@ -908,76 +983,79 @@ export function createChannel({ seed, audio }) {
   function update(dt) {
     t += dt;
 
-    // Keep FX bounded (not frame-rate dependent; driven by segment edges).
+    // Keep FX bounded.
     pressEvents = pressEvents.filter((e) => t - e.t0 < 1.2);
+    sceneModeT = Math.max(0, sceneModeT - dt);
 
-    // Reset queue on loop boundaries so it remains bounded and deterministic.
-    const loop = Math.floor(t / scriptTotal);
-    if (loop !== lastLoop) {
-      lastLoop = loop;
-      callQueue = [];
-      pressEvents = [];
+    // Add occasional hall calls (persistent queue; no random replacement).
+    if (t >= nextCallAt) {
+      let f = 1 + ((rand() * floorCount) | 0);
+      if (callQueue.includes(f) || elevators.some((e) => e.servicing === f)) {
+        f = 1 + (((f + ((rand() * (floorCount - 1)) | 0)) % floorCount) | 0);
+      }
+      enqueueCall(f, 0);
+      if (rand() < 0.25) {
+        let f2 = 1 + ((rand() * floorCount) | 0);
+        if (f2 !== f) enqueueCall(f2, 0.05);
+      }
+      setSceneMode('CALL', 0.9);
+      if (audio?.enabled) {
+        try { audio.beep({ freq: 360 + rand() * 120, dur: 0.03, gain: 0.02, type: 'triangle' }); } catch {}
+      }
+      scheduleNextCall();
     }
 
-    const { idx, seg } = segmentAt(t);
-    if (idx !== lastSegIdx) {
-      if (seg.type === 'CALL') {
-        const pushPress = (floor, delay = 0) => {
-          if (typeof floor !== 'number') return;
-          const f = clamp(floor | 0, 1, floorCount);
-          pressEvents.push({ floor: f, t0: t + delay });
-          if (pressEvents.length > 18) pressEvents.splice(0, pressEvents.length - 18);
-        };
+    serviceQueueAssignments();
 
-        const enqueue = (floor, delay = 0) => {
-          if (typeof floor !== 'number') return;
-          const f = clamp(floor | 0, 1, floorCount);
-          const exists = callQueue.includes(f);
-          if (!exists) callQueue.push(f);
-          if (callQueue.length > 10) callQueue.splice(10);
-          // Even if already queued, we still show a brief "press" for feedback.
-          pushPress(f, delay);
-        };
+    let movingCount = 0;
+    let arrived = false;
+    for (let i = 0; i < elevators.length; i++) {
+      const e = elevators[i];
+      if (e.door > 0) {
+        e.door = Math.max(0, e.door - dt);
+        e.dir = 0;
+        continue;
+      }
+      if (e.target == null) {
+        e.dir = 0;
+        continue;
+      }
 
-        enqueue(seg.call, 0);
+      const diff = e.target - e.floor;
+      const speed = 0.92; // floors per second
+      const step = speed * dt;
+      if (Math.abs(diff) <= step) {
+        e.floor = e.target;
+        e.dir = 0;
+        e.target = null;
+        e.door = 1.05;
+        arrived = true;
+        primaryShaft = i;
 
-        // Add a couple of "background" calls sometimes so the queue has depth.
-        // Deterministic per seed + segment index (not frame-rate dependent).
-        const r3 = mulberry32(((seed ^ 0xC0FFEE) + idx * 0x9E3779B9) >>> 0);
-        const p = r3();
-        const extra = p < 0.55 ? 0 : p < 0.88 ? 1 : 2;
-        for (let k = 0; k < extra; k++) {
-          let f = 1 + ((r3() * floorCount) | 0);
-          if (f === seg.call) f = ((f % floorCount) + 1) | 0;
-          enqueue(f, 0.06 * (k + 1));
+        if (typeof e.servicing === 'number') {
+          const j = callQueue.indexOf(e.servicing);
+          if (j >= 0) callQueue.splice(j, 1);
         }
+        e.servicing = null;
+        playArrivalChime(false);
+      } else {
+        e.dir = diff > 0 ? +1 : -1;
+        e.floor += e.dir * step;
+        movingCount++;
       }
+    }
 
-      if (seg.type === 'ARRIVE') {
-        // arrivals chime
-        playArrivalChime(!!seg.express);
-
-        const arrived = clamp((seg.at ?? 1) | 0, 1, floorCount);
-
-        // Prefer removing the arrived floor if present, otherwise treat the head
-        // of the queue as "served" to keep the queue cycling.
-        const j = callQueue.indexOf(arrived);
-        if (j >= 0) callQueue.splice(j, 1);
-        else if (callQueue.length) callQueue.shift();
-      }
-
-      lastSegIdx = idx;
+    if (arrived) {
+      setSceneMode('ARRIVE', 1.0);
+    } else if (sceneModeT <= 0) {
+      if (movingCount > 0) setSceneMode('MOVE', 0.6);
+      else setSceneMode('IDLE', 0.8);
     }
   }
 
   function render(ctx) {
     if (!panelC) return;
-
     const tt = t;
-    const { idx, seg, segT } = segmentAt(tt);
-
-    // deterministic per-segment mapping to a shaft (cheap hash; stable across FPS)
-    const activeShaft = (((seed ^ (idx * 0x9E3779B9)) >>> 0) % shaftCount) | 0;
 
     // draw base
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -995,52 +1073,46 @@ export function createChannel({ seed, audio }) {
     let floorNow = 1;
     let dir = 0;
     let mode = 'NORMAL';
-
-    if (seg.type === 'MOVE') {
-      const e = segT < 0.5 ? 2 * segT * segT : 1 - Math.pow(-2 * segT + 2, 2) / 2;
-      floorNow = seg.from + (seg.to - seg.from) * e;
-      dir = seg.to > seg.from ? +1 : -1;
-    } else if (seg.type === 'SERVICE') {
-      mode = 'SERVICE';
-      floorNow = seg.at;
-    } else {
-      floorNow = seg.at ?? seg.to ?? seg.from ?? 1;
-      dir = 0;
-    }
+    const activeShaft = clamp(primaryShaft | 0, 0, shaftCount - 1);
+    const activeElevator = elevators[activeShaft] || { floor: 1, dir: 0, target: null };
+    floorNow = activeElevator.floor;
+    dir = activeElevator.dir;
 
     // indicator pulse: moving / arrival / service
     let pulse = 0;
-    if (seg.type === 'MOVE') pulse = 0.25 + 0.35 * (0.5 - Math.abs(segT - 0.5)) * 2;
-    if (seg.type === 'ARRIVE') pulse = 0.35 + 0.45 * Math.sin(segT * Math.PI);
-    if (seg.type === 'SERVICE') pulse = 0.3 + 0.5 * (0.5 + 0.5 * Math.sin(tt * 6));
+    const modeP = sceneModeDur > 0 ? (1 - sceneModeT / sceneModeDur) : 1;
+    if (sceneMode === 'MOVE') pulse = 0.30 + 0.30 * (0.5 + 0.5 * Math.sin(tt * 5.2));
+    if (sceneMode === 'ARRIVE') pulse = 0.40 + 0.40 * Math.sin(modeP * Math.PI);
+    if (sceneMode === 'CALL') pulse = 0.30 + 0.45 * (0.5 + 0.5 * Math.sin(tt * 10));
+    if (sceneMode === 'IDLE') pulse = 0.12 + 0.10 * (0.5 + 0.5 * Math.sin(tt * 1.8));
 
     // show a "CALL" blink + pressed floor
-    let primaryFloor = null;
-    if (seg.type === 'CALL') {
-      primaryFloor = seg.call;
-      pulse = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(tt * 10));
-    }
+    const primaryFloor = typeof activeElevator.target === 'number' ? activeElevator.target : (callQueue[0] ?? null);
 
     // indicator
     const disp = mode === 'SERVICE' ? (floorNow | 0) : Math.round(floorNow);
     drawIndicator(ctx, disp, dir, mode, pulse);
 
     // queue
-    const q = callQueue.length ? callQueue.slice(0, 6) : upcomingStops(idx + 1, 6);
+    const q = callQueue.slice(0, 6);
     drawQueue(ctx, q, pulse * 0.35);
 
     // buttons (foreground): persistent selection LEDs tied to queue/call state
     const selected = new Set();
-    const src = callQueue.length ? callQueue : q;
+    const src = callQueue;
     for (let i = 0; i < src.length; i++) {
       const v = src[i];
       if (typeof v === 'number') selected.add(v);
     }
+    for (const e of elevators) {
+      if (typeof e.target === 'number') selected.add(e.target);
+    }
     drawButtons(ctx, { selected, primaryFloor, pressEvents, tt, pulse: pulse * 0.35 });
 
     // right-side building diagram (shafts + cars)
-    const targetFloor = seg.type === 'MOVE' ? seg.to : seg.type === 'CALL' ? seg.call : null;
-    drawBuildingDiagram(ctx, { carFloor: floorNow, activeShaft, targetFloor, pulse: pulse * 0.35, tt });
+    const targetFloor = typeof activeElevator.target === 'number' ? activeElevator.target : null;
+    const elevatorFloors = elevators.map((e) => e.floor);
+    drawBuildingDiagram(ctx, { carFloor: floorNow, activeShaft, targetFloor, pulse: pulse * 0.35, tt, elevatorFloors });
 
     // small status strip
     ctx.save();
@@ -1051,13 +1123,13 @@ export function createChannel({ seed, audio }) {
     roundRect(ctx, panelX + panelW * 0.08, y, panelW * 0.84, stripH, Math.max(10, stripH * 0.35));
     ctx.fill();
 
-    const next = q[0] ?? '—';
+    const next = callQueue[0] ?? '—';
 
     // Slow, themed annunciator messages (seeded; rotate every 5 minutes)
     const bucket = Math.floor(tt / 300);
     if (bucket !== statusBucket) {
       statusBucket = bucket;
-      const segKey = seg.type === 'MOVE' ? (seg.express ? 'EXPRESS' : 'MOVE') : seg.type;
+      const segKey = sceneMode;
       refreshStatusMessage({ segKey, bucket, cur: disp, next, dir });
     }
 
@@ -1072,18 +1144,8 @@ export function createChannel({ seed, audio }) {
     drawText(ctx, `NEXT: ${next}`, panelX + panelW * 0.88, y + stripH * 0.70, Math.max(12, stripH * 0.46), `rgba(120,255,240,${0.55 + pulse * 0.25})`, 'right');
     ctx.restore();
 
-    // subtle glass + vignette depth (varies by segment)
-    drawPanelGlass(ctx, seg.type, segT, pulse, tt);
-
-    // service-mode interlude overlay (special moment)
-    if (seg.type === 'SERVICE') {
-      ctx.save();
-      const a = 0.08 + 0.10 * (0.5 + 0.5 * Math.sin(tt * 12));
-      ctx.globalAlpha = a;
-      ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.restore();
-    }
+    // subtle glass + vignette depth
+    drawPanelGlass(ctx, sceneMode, modeP, pulse, tt);
   }
 
   function init({ width, height }) {
