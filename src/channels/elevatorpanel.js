@@ -42,6 +42,9 @@ export function createChannel({ seed, audio }) {
   let callQueue = []; // floors (numbers)
   let lastLoop = -1;
 
+  // ---- button press FX (deterministic; driven by segment edges)
+  let pressEvents = []; // { floor, t0 }
+
   // ---- status strip message rotation (slow, 5-min cadence)
   const msgRng = mulberry32((seed ^ 0x6D2B79F5) >>> 0);
   const msgOffset = (msgRng() * 10000) | 0;
@@ -340,37 +343,93 @@ export function createChannel({ seed, audio }) {
     ctx.closePath();
   }
 
-  function drawButtons(ctx, litFloor, chaseIdx, pulse) {
+  function drawButtons(ctx, { selected, primaryFloor, pressEvents, tt, pulse }) {
     const r = Math.max(6, panelH * 0.02);
+    const sel = selected || new Set();
 
     for (let i = 0; i < buttons.length; i++) {
       const b = buttons[i];
-      const active = (typeof litFloor === 'number' && b.floor === litFloor);
-      const chase = (i === chaseIdx);
-      const a = active ? 0.75 : chase ? 0.28 : 0.12;
+      const active = sel.has(b.floor);
+      const primary = (typeof primaryFloor === 'number' && b.floor === primaryFloor);
+
+      // Press animation: a quick push + release when a floor is enqueued.
+      let press = 0;
+      for (let j = pressEvents.length - 1; j >= 0; j--) {
+        const e = pressEvents[j];
+        if (e.floor !== b.floor) continue;
+        const dt = tt - e.t0;
+        if (dt < 0) continue;
+        if (dt > 0.55) break;
+        const u = clamp(dt / 0.55, 0, 1);
+        const p = u < 0.35 ? u / 0.35 : 1 - (u - 0.35) / 0.65;
+        press = Math.max(press, p);
+        break;
+      }
+
+      const a = primary ? (0.64 + pulse * 0.26) : active ? (0.34 + pulse * 0.12) : 0.10;
+      const cx = b.x + b.w * 0.5;
+      const cy = b.y + b.h * 0.5;
 
       ctx.save();
+
+      if (press > 0) {
+        const s = 1 - press * 0.06;
+        ctx.translate(cx, cy + press * b.h * 0.06);
+        ctx.scale(s, s);
+        ctx.translate(-cx, -cy);
+      }
+
+      // base
       ctx.globalAlpha = 1;
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       roundRect(ctx, b.x, b.y, b.w, b.h, r);
       ctx.fill();
 
-      ctx.strokeStyle = `rgba(120,255,240,${0.12 + a * 0.5})`;
+      // ring
+      ctx.strokeStyle = `rgba(120,255,240,${0.10 + a * 0.55})`;
       ctx.lineWidth = Math.max(1.5, h / 420);
       roundRect(ctx, b.x, b.y, b.w, b.h, r);
       ctx.stroke();
 
-      if (active || chase) {
-        const glow = ctx.createRadialGradient(b.x + b.w * 0.5, b.y + b.h * 0.5, 0, b.x + b.w * 0.5, b.y + b.h * 0.5, Math.max(b.w, b.h) * 0.9);
-        glow.addColorStop(0, `rgba(120,255,240,${0.10 + a * 0.30 + pulse * 0.08})`);
+      // subtle fill glow for selected floors (kept weaker than the main indicator)
+      if (active || primary) {
+        const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(b.w, b.h) * 0.9);
+        glow.addColorStop(0, `rgba(120,255,240,${0.08 + a * 0.22})`);
         glow.addColorStop(1, 'rgba(120,255,240,0)');
         ctx.fillStyle = glow;
         ctx.fillRect(b.x - b.w * 0.4, b.y - b.h * 0.4, b.w * 1.8, b.h * 1.8);
       }
 
+      // LED lens (top-right)
+      const ledR = Math.max(3, Math.min(b.w, b.h) * 0.10);
+      const lx = b.x + b.w * 0.82;
+      const ly = b.y + b.h * 0.28;
+
+      // LED bloom
+      if (active || primary) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        const gg = ctx.createRadialGradient(lx, ly, 0, lx, ly, ledR * 4);
+        gg.addColorStop(0, `rgba(120,255,240,${0.35 + a * 0.45})`);
+        gg.addColorStop(1, 'rgba(120,255,240,0)');
+        ctx.fillStyle = gg;
+        ctx.fillRect(lx - ledR * 4, ly - ledR * 4, ledR * 8, ledR * 8);
+        ctx.restore();
+      }
+
+      // LED body
+      ctx.beginPath();
+      ctx.arc(lx, ly, ledR, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(120,255,240,${0.10 + a * 0.85})`;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+      ctx.lineWidth = Math.max(1, h / 780);
+      ctx.stroke();
+
       // label
       const fs = Math.max(10, b.h * 0.45);
-      drawText(ctx, String(b.floor), b.x + b.w * 0.5, b.y + b.h * 0.68, fs, `rgba(240,255,252,${0.66 + a * 0.25})`, 'center');
+      drawText(ctx, String(b.floor), cx, b.y + b.h * 0.68, fs, `rgba(240,255,252,${0.62 + a * 0.28})`, 'center');
+
       ctx.restore();
     }
   }
@@ -697,24 +756,38 @@ export function createChannel({ seed, audio }) {
   function update(dt) {
     t += dt;
 
+    // Keep FX bounded (not frame-rate dependent; driven by segment edges).
+    pressEvents = pressEvents.filter((e) => t - e.t0 < 1.2);
+
     // Reset queue on loop boundaries so it remains bounded and deterministic.
     const loop = Math.floor(t / scriptTotal);
     if (loop !== lastLoop) {
       lastLoop = loop;
       callQueue = [];
+      pressEvents = [];
     }
 
     const { idx, seg } = segmentAt(t);
     if (idx !== lastSegIdx) {
       if (seg.type === 'CALL') {
-        const enqueue = (floor) => {
+        const pushPress = (floor, delay = 0) => {
           if (typeof floor !== 'number') return;
           const f = clamp(floor | 0, 1, floorCount);
-          if (!callQueue.includes(f)) callQueue.push(f);
-          if (callQueue.length > 10) callQueue.splice(10);
+          pressEvents.push({ floor: f, t0: t + delay });
+          if (pressEvents.length > 18) pressEvents.splice(0, pressEvents.length - 18);
         };
 
-        enqueue(seg.call);
+        const enqueue = (floor, delay = 0) => {
+          if (typeof floor !== 'number') return;
+          const f = clamp(floor | 0, 1, floorCount);
+          const exists = callQueue.includes(f);
+          if (!exists) callQueue.push(f);
+          if (callQueue.length > 10) callQueue.splice(10);
+          // Even if already queued, we still show a brief "press" for feedback.
+          pushPress(f, delay);
+        };
+
+        enqueue(seg.call, 0);
 
         // Add a couple of "background" calls sometimes so the queue has depth.
         // Deterministic per seed + segment index (not frame-rate dependent).
@@ -724,7 +797,7 @@ export function createChannel({ seed, audio }) {
         for (let k = 0; k < extra; k++) {
           let f = 1 + ((r3() * floorCount) | 0);
           if (f === seg.call) f = ((f % floorCount) + 1) | 0;
-          enqueue(f);
+          enqueue(f, 0.06 * (k + 1));
         }
       }
 
@@ -786,15 +859,12 @@ export function createChannel({ seed, audio }) {
     if (seg.type === 'ARRIVE') pulse = 0.35 + 0.45 * Math.sin(segT * Math.PI);
     if (seg.type === 'SERVICE') pulse = 0.3 + 0.5 * (0.5 + 0.5 * Math.sin(tt * 6));
 
-    // show a "CALL" blink
-    let litFloor = null;
+    // show a "CALL" blink + pressed floor
+    let primaryFloor = null;
     if (seg.type === 'CALL') {
-      litFloor = seg.call;
+      primaryFloor = seg.call;
       pulse = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(tt * 10));
     }
-
-    // chase lights
-    const chaseIdx = (Math.floor(tt * 7.5) % Math.max(1, buttons.length)) | 0;
 
     // indicator
     const disp = mode === 'SERVICE' ? (floorNow | 0) : Math.round(floorNow);
@@ -804,8 +874,14 @@ export function createChannel({ seed, audio }) {
     const q = callQueue.length ? callQueue.slice(0, 6) : upcomingStops(idx + 1, 6);
     drawQueue(ctx, q, pulse * 0.35);
 
-    // buttons (foreground)
-    drawButtons(ctx, litFloor, chaseIdx, pulse * 0.35);
+    // buttons (foreground): persistent selection LEDs tied to queue/call state
+    const selected = new Set();
+    const src = callQueue.length ? callQueue : q;
+    for (let i = 0; i < src.length; i++) {
+      const v = src[i];
+      if (typeof v === 'number') selected.add(v);
+    }
+    drawButtons(ctx, { selected, primaryFloor, pressEvents, tt, pulse: pulse * 0.35 });
 
     // small status strip
     ctx.save();
