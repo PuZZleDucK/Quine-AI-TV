@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): UI — add a subtle header phase indicator (CALM/CRISIS/RESOLUTION) driven by `phaseParams(t)`; keep it OSD-safe. Commit: ecfbc9e
+
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): perf — avoid per-frame `ctx.measureText(...)` in the transcript cursor placement by using cached monospace width (`termCharW`) * string length (clamped). Commit: cb16509
 
 - [x] [project:quine-tv] `foleylab` (src/channels/foleylab.js): UI/visual polish — added an OSD-safe VU panel driven by step density, including a waveform sparkline from recent density history, plus rare deterministic special moments (TAKE GOOD / MIC CLIP) scheduled ~45–120s. Commit: 4aee3c5

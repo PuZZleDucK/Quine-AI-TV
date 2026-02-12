@@ -459,3 +459,7 @@
 - 2026-02-13 01:52 (Australia/Melbourne) [project:quine-tv] Reviewed channel `fixit` (src/channels/fixit.js): captured screenshots (0–300s) to `screenshots/review-fixit`, added REVIEWED marker, and queued concrete follow-ups in `TODO.md`. Commit: 9eab6f2
 - 2026-02-13 02:05 (Australia/Melbourne) [project:quine-tv] `fixit` (src/channels/fixit.js): Audio hygiene — `onAudioOn()` idempotent (no stacking), noise fade-out on stop to reduce clicks, and `onAudioOff()`/`destroy()` clear AudioManager.current only when owned. Commit: 8ea6a40
 - 2026-02-13 03:04 (Australia/Melbourne) [project:quine-tv] `fixit`: added rare deterministic “special moments” (LAMP FLICKER, SUCCESS STAMP, DUST PUFF) scheduled ~45–120s with clean reset + subtle audio signature. Commit: 8043a42
+
+- 2026-02-13 07:30 (Australia/Melbourne) [project:quine-tv]  (src/channels/rubberduck.js): UI — added a subtle header phase indicator (CALM/CRISIS/RESOLUTION) driven by ; OSD-safe. Commit: ecfbc9e
+
+- 2026-02-13 07:30 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): UI — added a subtle header phase indicator (CALM/CRISIS/RESOLUTION) driven by `phaseParams(t)`; OSD-safe. Commit: ecfbc9e
