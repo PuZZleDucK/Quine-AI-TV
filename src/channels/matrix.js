@@ -7,6 +7,14 @@ export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
   const pickGlyph = () => GLYPHS[(rand()*GLYPHS.length)|0];
 
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const smoothstep = (x)=>x<=0 ? 0 : x>=1 ? 1 : x*x*(3-2*x);
+  const lerpRGB = (a,b,t)=>[
+    (lerp(a[0],b[0],t))|0,
+    (lerp(a[1],b[1],t))|0,
+    (lerp(a[2],b[2],t))|0,
+  ];
+
   let w=0,h=0,t=0;
   let cols=[];
   let cell=18;
@@ -19,16 +27,26 @@ export function createChannel({ seed, audio }){
   let titleFadePhase0 = 0;    // 0..1 (set in init)
   let titles = ['TERMINAL RAIN — ACCESS GRANTED'];
 
+  // Time structure (deterministic 2–4 min cycle): modulates decay/speed/palette.
+  let phasePeriod = 180; // seconds (set in init)
+  let phase0 = 0;        // 0..1 (set in init)
+  let speedMult = 1;
+  let decayA = 0.25;
+  let headRGB = [210,255,230];
+  let tailRGB = [80,255,140];
+
   function init({width,height}){
     w=width; h=height; t=0;
     cell = Math.max(14, Math.floor(Math.min(w,h)/34));
     const n = Math.ceil(w/cell);
     cols = Array.from({length:n}, (_,i)=>{
       const len = 8 + (rand()*22)|0;
+      const baseSp = (80+rand()*240) * (h/540);
       return {
         x: i*cell,
         y: rand()*-h,
-        sp: (80+rand()*240) * (h/540),
+        baseSp,
+        sp: baseSp,
         len,
         ph: rand()*10,
         glyphEvery: 0.08 + rand()*0.06,
@@ -36,6 +54,10 @@ export function createChannel({ seed, audio }){
         glyphs: Array.from({ length: len }, pickGlyph),
       };
     });
+    
+    // deterministic 2–4 min cycle parameters
+    phasePeriod = 120 + rand()*120;
+    phase0 = rand();
     nextClick = 0.4;
 
     // deterministic title list + cadence
@@ -102,8 +124,30 @@ export function createChannel({ seed, audio }){
 
   function update(dt){
     t += dt;
+
+    // deterministic 2–4 min phase cycle
+    const p = ((t / phasePeriod) + phase0) % 1;
+    const intensity = 0.5 - 0.5*Math.cos(Math.PI*2*p); // 0..1
+    speedMult = 0.9 + 0.35*intensity;
+    decayA = 0.18 + 0.18*intensity;
+
+    // palette: GREEN → TEAL → RED ALERT → GREEN
+    const GREEN = [80,255,140];
+    const TEAL = [60,255,235];
+    const RED = [255,90,90];
+    let from = GREEN, to = TEAL, u = 0;
+    if (p < 1/3){ from = GREEN; to = TEAL; u = p*3; }
+    else if (p < 2/3){ from = TEAL; to = RED; u = (p-1/3)*3; }
+    else { from = RED; to = GREEN; u = (p-2/3)*3; }
+    tailRGB = lerpRGB(from, to, smoothstep(u));
+    headRGB = [
+      (tailRGB[0] + (255-tailRGB[0])*0.55)|0,
+      (tailRGB[1] + (255-tailRGB[1])*0.55)|0,
+      (tailRGB[2] + (255-tailRGB[2])*0.55)|0,
+    ];
+
     for (const c of cols){
-      c.y += c.sp*dt;
+      c.y += c.baseSp*speedMult*dt;
       if (c.y > h + c.len*cell){
         c.y = rand()*-h;
         c.glyphEvery = 0.08 + rand()*0.06;
@@ -135,7 +179,7 @@ export function createChannel({ seed, audio }){
   function render(ctx){
     ctx.setTransform(1,0,0,1,0,0);
     // motion blur / decay
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillStyle = `rgba(0,0,0,${decayA})`;
     ctx.fillRect(0,0,w,h);
 
     ctx.font = `${cell}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
@@ -147,7 +191,9 @@ export function createChannel({ seed, audio }){
         if (y < -cell || y > h) continue;
         const a = 1 - i/c.len;
         const head = i===0;
-        ctx.fillStyle = head ? `rgba(210,255,230,${0.9})` : `rgba(80,255,140,${0.06 + 0.35*a})`;
+        ctx.fillStyle = head
+          ? `rgba(${headRGB[0]},${headRGB[1]},${headRGB[2]},${0.9})`
+          : `rgba(${tailRGB[0]},${tailRGB[1]},${tailRGB[2]},${0.06 + 0.35*a})`;
         const ch = c.glyphs[i] || ' ';
         ctx.fillText(ch, c.x, y);
       }
@@ -163,7 +209,7 @@ export function createChannel({ seed, audio }){
 
     ctx.save();
     ctx.globalAlpha = bannerA;
-    ctx.fillStyle = 'rgb(80,255,140)';
+    ctx.fillStyle = `rgb(${tailRGB[0]},${tailRGB[1]},${tailRGB[2]})`;
     ctx.fillRect(0,0,w, overlayH);
 
     ctx.globalAlpha = textA;
