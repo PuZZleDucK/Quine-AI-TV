@@ -351,6 +351,23 @@ function fakeStackTrace(rand){
   return lines;
 }
 
+function fakeCoreDumpLines(rand){
+  const addr = () => `0x${(((rand() * 0xFFFFFFFF) >>> 0).toString(16)).padStart(8, '0')}`;
+  const fn = () => pick(rand, STACK_FUNCS);
+  const file = () => `${pick(rand, STACK_FILES)}.${pick(rand, STACK_EXTS)}`;
+
+  const n = 4 + ((rand() * 4) | 0); // 4..7 frames
+  const lines = [];
+  lines.push(`CORE DUMP: ${addr()}  signal=SIGSEGV  pc=${addr()}`);
+  lines.push(`THREAD 1 "duckdebug": panic=${addr()}  uptime=${(10 + ((rand() * 300) | 0))}s`);
+  lines.push('STACK:');
+  for (let i = 0; i < n; i++){
+    lines.push(`  #${i}  ${fn()} (${file()}:${10 + ((rand() * 240) | 0)}:${1 + ((rand() * 80) | 0)}) +${addr()}`);
+  }
+  lines.push(`NOTE: ${pick(rand, ['check nulls', 'rebuild cache', 'restart service', 'disable feature flag', 'roll back deploy'])}`);
+  return lines;
+}
+
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 
 function maybeArt(rand, pool){
@@ -420,6 +437,9 @@ export function createChannel({ seed, audio }){
   const typeRand = mulberry32(((seed | 0) ^ 0x71BEEFED) >>> 0);
   // Determinism: special-moment FX should not perturb the confessional PRNG.
   const fxRand = mulberry32(((seed | 0) ^ 0xC0FFEE77) >>> 0);
+  // Determinism: a second independent rare event stream (so it doesn't change the
+  // existing stamp/glitch cadence when tweaked).
+  const panicRand = mulberry32(((seed | 0) ^ 0xBADC0DE1) >>> 0);
 
   // Explicit time-structured phases (calm → crisis → resolution).
   // These modulate typing speed, scanline intensity, and between-confessional hold.
@@ -476,6 +496,13 @@ export function createChannel({ seed, audio }){
   let stamp = 0; // 0..1
   let stampText = 'BUG!';
   let nextSpecialAt = 0;
+
+  // second rare deterministic moment (independent schedule)
+  let panic = 0; // 0..1
+  let panicKind = 'PANIC';
+  let panicLines = null;
+  let panicScroll = 0;
+  let nextPanicAt = 0;
 
   let beepCooldown = 0;
   let roomTone = null;
@@ -574,6 +601,12 @@ export function createChannel({ seed, audio }){
     stamp = 0;
     stampText = 'BUG!';
     nextSpecialAt = 12 + fxRand() * 20;
+
+    panic = 0;
+    panicKind = 'PANIC';
+    panicLines = null;
+    panicScroll = 0;
+    nextPanicAt = 25 + panicRand() * 55;
   }
 
   function onResize(width, height){
@@ -657,6 +690,30 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function triggerPanic(){
+    panic = Math.max(panic, 1);
+    panicScroll = 0;
+
+    // Deterministic: decide whether this is a simple PANIC flash or a CORE DUMP
+    // mini-scroll. (Keeps the event feel varied without touching fxRand.)
+    if (panicRand() < 0.30){
+      panicKind = 'CORE DUMP';
+      panicLines = fakeCoreDumpLines(panicRand);
+    } else {
+      panicKind = 'PANIC';
+      panicLines = [
+        'PANIC: something impossible happened',
+        'panic: don’t ship on a Friday',
+      ];
+    }
+
+    if (audio.enabled){
+      audio.beep({ freq: 220 + audioRand() * 80, dur: 0.055, gain: 0.012, type: 'sawtooth' });
+      audio.beep({ freq: 920 + audioRand() * 120, dur: 0.020, gain: 0.010, type: 'square' });
+      if (audioRand() < 0.5) audio.beep({ freq: 1400 + audioRand() * 200, dur: 0.012, gain: 0.008, type: 'triangle' });
+    }
+  }
+
   function drawStamp(ctx, tx, ty, tw, hh){
     if (stamp <= 0.02) return;
 
@@ -704,9 +761,19 @@ export function createChannel({ seed, audio }){
     glitch = Math.max(0, glitch - dt * 1.8);
     stamp = Math.max(0, stamp - dt * 0.9);
 
+    panic = Math.max(0, panic - dt * 1.25);
+    if (panic > 0.02) panicScroll += dt;
+    else panicLines = null;
+
     if (t >= nextSpecialAt){
       triggerSpecial();
       nextSpecialAt = t + 18 + fxRand() * 34;
+    }
+
+    if (t >= nextPanicAt){
+      triggerPanic();
+      // Rare cadence; intentionally slower than stamp/glitch.
+      nextPanicAt = t + 45 + panicRand() * 95;
     }
 
     // If we have nothing queued, wait, then start a new confessional.
@@ -1028,6 +1095,44 @@ export function createChannel({ seed, audio }){
     ctx.font = `${Math.floor(font * 0.9)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     for (let i = 0; i < duck.length; i++) ctx.fillText(duck[i], dx, dy + i * Math.floor(font * 1.1));
     ctx.restore();
+
+    // second rare moment overlay (kept inside the terminal window)
+    if (panic > 0.02){
+      const a = Math.min(1, panic);
+      const flick = 0.55 + 0.45 * Math.sin(t * 22.0);
+
+      ctx.save();
+      ctx.globalAlpha = 0.40 * a;
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      ctx.fillRect(ax, ay, aw, ah);
+
+      ctx.globalAlpha = (0.35 + 0.25 * flick) * a;
+      ctx.strokeStyle = 'rgba(255, 90, 165, 1)';
+      ctx.lineWidth = Math.max(2, Math.floor(font * 0.14));
+      ctx.strokeRect(ax + 1, ay + 1, aw - 2, ah - 2);
+
+      const titleSize = Math.max(12, Math.floor(font * 1.55));
+      ctx.globalAlpha = (0.70 + 0.25 * flick) * a;
+      ctx.font = `900 ${titleSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.fillStyle = 'rgba(255, 90, 165, 1)';
+      ctx.textBaseline = 'top';
+      ctx.fillText(panicKind, ax + Math.floor(titleSize * 0.45), ay + Math.floor(titleSize * 0.25));
+
+      if (panicLines && panicLines.length){
+        const bodySize = Math.max(10, Math.floor(font * 0.92));
+        ctx.globalAlpha = 0.85 * a;
+        ctx.font = `700 ${bodySize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+        ctx.fillStyle = 'rgba(220, 245, 255, 0.82)';
+
+        const baseY = ay + Math.floor(titleSize * 1.6);
+        const scroll = -Math.floor((panicScroll * lineH * 1.35) % (lineH * 2.0));
+        for (let i = 0; i < panicLines.length; i++){
+          ctx.fillText(String(panicLines[i] || ''), ax + Math.floor(bodySize * 0.8), baseY + i * lineH + scroll);
+        }
+      }
+
+      ctx.restore();
+    }
 
     ctx.restore();
 
