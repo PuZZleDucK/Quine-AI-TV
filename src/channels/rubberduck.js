@@ -195,6 +195,8 @@ export function createChannel({ seed, audio }){
   const audioRand = mulberry32(((seed | 0) ^ 0xA11D0BEE) >>> 0);
   // Determinism: typing speed jitter should be per-line (FPS-stable).
   const typeRand = mulberry32(((seed | 0) ^ 0x71BEEFED) >>> 0);
+  // Determinism: special-moment FX should not perturb the confessional PRNG.
+  const fxRand = mulberry32(((seed | 0) ^ 0xC0FFEE77) >>> 0);
 
   let w = 0, h = 0, t = 0;
   let font = 18;
@@ -203,6 +205,12 @@ export function createChannel({ seed, audio }){
   let transcript = []; // {text, shown, color}
   let pending = [];
   let hold = 0;
+
+  // special moments (rare; OSD-safe)
+  let glitch = 0; // 0..1
+  let stamp = 0; // 0..1
+  let stampText = 'BUG!';
+  let nextSpecialAt = 0;
 
   let beepCooldown = 0;
   let roomTone = null;
@@ -295,6 +303,11 @@ export function createChannel({ seed, audio }){
     transcript = [];
     pending = confessional(rand);
     hold = 0.6;
+
+    glitch = 0;
+    stamp = 0;
+    stampText = 'BUG!';
+    nextSpecialAt = 12 + fxRand() * 20;
   }
 
   function onResize(width, height){
@@ -346,9 +359,80 @@ export function createChannel({ seed, audio }){
     while (transcript.length > maxLines) transcript.shift();
   }
 
+  function lastSignificantPrefix(){
+    for (let i = transcript.length - 1; i >= 0; i--){
+      const s = transcript[i]?.text || '';
+      if (s.startsWith('BUG:')) return 'BUG';
+      if (s.startsWith('FIX:')) return 'FIX';
+    }
+    return '';
+  }
+
+  function triggerSpecial(){
+    glitch = Math.max(glitch, 1);
+    stamp = Math.max(stamp, 1);
+
+    const p = lastSignificantPrefix();
+    if (p === 'BUG') stampText = 'BUG!';
+    else if (p === 'FIX') stampText = 'FIXED';
+    else stampText = (fxRand() < 0.5) ? 'BUG!' : 'FIXED';
+
+    if (audio.enabled){
+      audio.beep({ freq: 760 + audioRand() * 160, dur: 0.018, gain: 0.010, type: 'sawtooth' });
+      if (audioRand() < 0.6) audio.beep({ freq: 420 + audioRand() * 90, dur: 0.030, gain: 0.006, type: 'triangle' });
+    }
+  }
+
+  function drawStamp(ctx, tx, ty, tw, hh){
+    if (stamp <= 0.02) return;
+
+    const a = Math.min(1, stamp);
+    const text = stampText || 'BUG!';
+    const isBug = text.startsWith('BUG');
+    const col = isBug ? 'rgba(255, 90, 165, 1)' : 'rgba(120, 220, 255, 1)';
+
+    const size = Math.max(10, Math.floor(hh * 0.46));
+
+    ctx.save();
+    ctx.translate(tx + tw * 0.72, ty + hh * 0.52);
+    ctx.rotate(-0.12);
+
+    ctx.font = `800 ${size}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.textBaseline = 'middle';
+
+    const m = ctx.measureText(text);
+    const pad = size * 0.55;
+    const bw = m.width + pad * 2;
+    const bh = size * 1.25;
+
+    ctx.globalAlpha = 0.55 * a;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundedRect(ctx, -bw/2, -bh/2, bw, bh, Math.max(6, Math.floor(size * 0.35)));
+    ctx.fill();
+
+    ctx.globalAlpha = 0.80 * a;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = Math.max(2, Math.floor(size * 0.08));
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.92 * a;
+    ctx.fillStyle = col;
+    ctx.fillText(text, -m.width / 2, 0);
+
+    ctx.restore();
+  }
+
   function update(dt){
     t += dt;
     beepCooldown -= dt;
+
+    glitch = Math.max(0, glitch - dt * 1.8);
+    stamp = Math.max(0, stamp - dt * 0.9);
+
+    if (t >= nextSpecialAt){
+      triggerSpecial();
+      nextSpecialAt = t + 18 + fxRand() * 34;
+    }
 
     // If we have nothing queued, wait, then start a new confessional.
     if (pending.length === 0){
@@ -440,6 +524,13 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
+    if (glitch > 0.02){
+      const g = glitch;
+      const jx = (Math.sin(t * 54.0) * 2.8 + Math.sin(t * 17.0) * 1.6) * g;
+      const jy = (Math.cos(t * 47.0) * 1.8 + Math.sin(t * 9.0) * 1.2) * g;
+      ctx.translate(jx, jy);
+    }
+
     // Nighty background gradient + vignette
     ensureGradients(ctx);
     ctx.fillStyle = bgGrad;
@@ -500,6 +591,9 @@ export function createChannel({ seed, audio }){
     }
     ctx.restore();
 
+    // rare stamp overlay (kept in header so it doesn’t obscure the transcript)
+    drawStamp(ctx, tx, ty, tw, hh);
+
     // text area
     const pad = Math.floor(tw * 0.05);
     const ax = tx + pad;
@@ -510,10 +604,21 @@ export function createChannel({ seed, audio }){
     // scanline-ish tint (cached pattern; no per-frame loop)
     ensureScanPattern(ctx);
     ctx.save();
-    ctx.globalAlpha = 0.12;
+    ctx.globalAlpha = 0.12 + glitch * 0.18;
     ctx.fillStyle = scanPattern;
     ctx.fillRect(ax, ay, aw, ah);
     ctx.restore();
+
+    if (glitch > 0.02){
+      // subtle horizontal sync-bar during glitch moments (low alpha; OSD-safe)
+      const p = 0.5 + 0.5 * Math.sin(t * 8.0);
+      const by = ay + (0.10 + 0.75 * p) * ah;
+      ctx.save();
+      ctx.globalAlpha = 0.06 * glitch;
+      ctx.fillStyle = 'rgba(220,245,255,1)';
+      ctx.fillRect(ax, Math.floor(by), aw, Math.max(2, Math.floor(lineH * 0.6)));
+      ctx.restore();
+    }
 
     ctx.save();
     ctx.beginPath();
@@ -584,6 +689,24 @@ export function createChannel({ seed, audio }){
     ctx.textBaseline = 'middle';
     ctx.fillText('confessionals • bugs • fixes • lessons', w * 0.05, h * 0.95);
     ctx.restore();
+
+    if (glitch > 0.02){
+      // brief CRT-ish flash + cyan tint split (kept subtle to preserve OSD legibility)
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.10 * glitch;
+      ctx.fillStyle = 'rgba(255,255,255,1)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.06 * glitch;
+      ctx.fillStyle = 'rgba(108,242,255,1)';
+      ctx.translate((Math.sin(t * 12.0) * 6) * glitch, 0);
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
