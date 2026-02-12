@@ -1,3 +1,5 @@
+- 2026-02-13 02:16 (Australia/Melbourne) [project:quine-tv] `fixit` (src/channels/fixit.js): text/dialog — replaced static footer with a seeded rotating caption strip (45 variants; 9s cadence; deterministic shuffle; OSD-safe ellipsis). Commit: bf7988d
+
 - 2026-02-13 01:00 (Australia/Melbourne) [project:quine-tv] `matrix` (src/channels/matrix.js): time structure — added deterministic 2–4 min phase cycle (GREEN→TEAL→RED ALERT→GREEN) modulating trail decay, rain speed, and palette with smooth easing. Commit: c510490
 
 - 2026-02-13 00:48 (Australia/Melbourne) [project:quine-tv] `matrix` (src/channels/matrix.js): visual polish — made the top overlay banner more OSD-safe (smaller height + gentle fade) and rotate the title from a deterministic seeded list (5–8 min cadence). Commit: d37e6b2

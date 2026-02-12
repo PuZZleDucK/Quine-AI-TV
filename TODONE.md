@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Text/dialog — replaced footer with seeded rotating caption strip (45 variants; 9s cadence; deterministic shuffle; ellipsized to stay OSD-safe). Commit: bf7988d
+
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Audio hygiene — `onAudioOn()` idempotent (no stacking), noise fade-out on stop to reduce clicks, and `onAudioOff()`/`destroy()` clear AudioManager.current only when owned. Commit: 8ea6a40
 
 - [x] [project:quine-tv] Review channel `fixit` (src/channels/fixit.js): captured screenshots (0–300s) to `screenshots/review-fixit` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`. Commit: 9eab6f2
