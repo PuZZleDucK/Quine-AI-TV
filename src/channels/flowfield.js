@@ -35,6 +35,41 @@ export function createChannel({ seed, audio }){
   const RESEED_INTERVAL_S = 9.5;
   const RESEED_FRACTION = 0.015;
 
+  // Rare deterministic “special moments” (~45–120s): either a brief field
+  // inversion or a radial shockwave that bends trajectories.
+  // Uses its own RNG so it doesn't perturb the point-field sequence.
+  let specialRand = mulberry32((seed ^ 0x27D4EB2F) >>> 0);
+  let specialActive = false;
+  let specialKind = 0; // 0 = inversion, 1 = shockwave
+  let specialStartT = 0;
+  let specialDurS = 0;
+  let specialNextT = 0;
+  // Shockwave params (only used when specialKind===1)
+  let shockX = 0;
+  let shockY = 0;
+  let shockK = 0.03;      // phase radians per pixel
+  let shockSpeed = 220;   // pixels/sec
+  let shockAmp = 0.9;     // radians added to angle
+
+  function scheduleNextSpecial(nowT){
+    specialNextT = nowT + 45 + specialRand() * 75;
+  }
+
+  function startSpecial(nowT){
+    specialActive = true;
+    specialKind = specialRand() < 0.5 ? 0 : 1;
+    specialStartT = nowT;
+    specialDurS = 6 + specialRand() * 6;
+
+    if (specialKind === 1){
+      shockX = specialRand() * w;
+      shockY = specialRand() * h;
+      shockK = 0.02 + specialRand() * 0.02;
+      shockSpeed = 160 + specialRand() * 260;
+      shockAmp = 0.75 + specialRand() * 0.55;
+    }
+  }
+
   // Fixed-timestep simulation so motion is deterministic across 30fps vs 60fps.
   const FIXED_DT = 1/60;
   const MAX_STEPS_PER_UPDATE = 8;
@@ -226,6 +261,11 @@ export function createChannel({ seed, audio }){
     texRand = mulberry32((seed ^ 0x9E3779B9) >>> 0);
     reseedRand = mulberry32((seed ^ 0x85EBCA6B) >>> 0);
     reseedClock = 0;
+
+    specialRand = mulberry32((seed ^ 0x27D4EB2F) >>> 0);
+    specialActive = false;
+    scheduleNextSpecial(0);
+
     mistFilter = `blur(${Math.max(12, Math.floor(Math.min(w,h)/90))}px)`;
 
     pts = Array.from({ length: 1600 }, () => ({
@@ -255,7 +295,30 @@ export function createChannel({ seed, audio }){
     const ny = y*fieldScale;
     // cheap pseudo-noise
     const v = Math.sin(nx*2.3 + t*0.3) + Math.cos(ny*2.1 - t*0.27) + Math.sin((nx+ny)*1.4);
-    return v * Math.PI;
+    let ang = v * Math.PI;
+
+    if (specialActive){
+      const u = (t - specialStartT) / specialDurS;
+      if (u >= 0 && u <= 1){
+        // Edge-eased “hold” envelope: ramps in, stays strong, ramps out.
+        const edge = 0.22;
+        const env = smoothstep01(u / edge) * smoothstep01((1 - u) / edge);
+
+        if (specialKind === 0){
+          // Inversion reads cleanly if it fully flips for a moment.
+          ang = ang * (1 - 2 * env);
+        } else {
+          // Radial shockwave bends angles outward/inward as it passes.
+          const dx = x - shockX;
+          const dy = y - shockY;
+          const r = Math.sqrt(dx*dx + dy*dy);
+          const phase = r * shockK - (t - specialStartT) * shockSpeed * shockK;
+          ang += Math.sin(phase) * env * shockAmp;
+        }
+      }
+    }
+
+    return ang;
   }
 
   function reseedSomePoints(){
@@ -272,6 +335,14 @@ export function createChannel({ seed, audio }){
   function stepSim(dt){
     t += dt;
     applyPhase(t);
+
+    if (!specialActive && t >= specialNextT){
+      startSpecial(t);
+    }
+    if (specialActive && t >= specialStartT + specialDurS){
+      specialActive = false;
+      scheduleNextSpecial(t);
+    }
 
     for (const p of pts){
       const a = flowAngle(p.x,p.y);
@@ -370,6 +441,34 @@ export function createChannel({ seed, audio }){
     ctx.font = `${Math.floor(h/18)}px ui-sans-serif, system-ui`;
     ctx.fillText('FLOW FIELD', w*0.05, h*0.09);
     ctx.restore();
+
+    // “Special moment” signature (OSD-safe): a faint label, and for shockwave a
+    // single expanding ring.
+    if (specialActive){
+      const u = (t - specialStartT) / specialDurS;
+      if (u >= 0 && u <= 1){
+        const edge = 0.22;
+        const env = smoothstep01(u / edge) * smoothstep01((1 - u) / edge);
+
+        ctx.save();
+        ctx.globalAlpha = 0.40 * env;
+        ctx.fillStyle = 'rgba(231,238,246,0.75)';
+        ctx.font = `${Math.floor(h/28)}px ui-sans-serif, system-ui`;
+        const label = specialKind === 0 ? 'INVERSION' : 'SHOCKWAVE';
+        ctx.fillText(label, w*0.05, h*0.115);
+
+        if (specialKind === 1){
+          ctx.globalCompositeOperation = 'screen';
+          ctx.strokeStyle = 'rgba(231,238,246,0.25)';
+          ctx.lineWidth = Math.max(1, Math.floor(Math.min(w,h)/350));
+          const r = (t - specialStartT) * shockSpeed;
+          ctx.beginPath();
+          ctx.arc(shockX, shockY, r, 0, Math.PI*2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
