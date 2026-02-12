@@ -1,7 +1,7 @@
 
 # Done
 
-- [x] [project:quine-tv] Review follow-up `dominofactory` (src/channels/dominofactory.js): deterministic alarm/spark scheduling — schedule-time corrected decay so 30fps/60fps captures match. Commit: (pending)
+- [x] [project:quine-tv] Review follow-up `dominofactory` (src/channels/dominofactory.js): deterministic alarm/spark scheduling — schedule-time corrected decay so 30fps/60fps captures match. Commit: 1ee7343
 
 - [x] [project:quine-tv] Review follow-up `dominofactory` (src/channels/dominofactory.js): audio hygiene — made `onAudioOn()` idempotent (no stacking), and `onAudioOff()`/`destroy()` now stop+clear only when the current AudioManager handle is owned. Commit: 3479944
 
