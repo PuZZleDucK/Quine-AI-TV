@@ -38,6 +38,10 @@ export function createChannel({ seed, audio }) {
   let scriptTotal = 60;
   let lastSegIdx = -1;
 
+  // ---- call queue (seeded; serviced on arrivals)
+  let callQueue = []; // floors (numbers)
+  let lastLoop = -1;
+
   // ---- status strip message rotation (slow, 5-min cadence)
   const msgRng = mulberry32((seed ^ 0x6D2B79F5) >>> 0);
   const msgOffset = (msgRng() * 10000) | 0;
@@ -693,12 +697,50 @@ export function createChannel({ seed, audio }) {
   function update(dt) {
     t += dt;
 
+    // Reset queue on loop boundaries so it remains bounded and deterministic.
+    const loop = Math.floor(t / scriptTotal);
+    if (loop !== lastLoop) {
+      lastLoop = loop;
+      callQueue = [];
+    }
+
     const { idx, seg } = segmentAt(t);
     if (idx !== lastSegIdx) {
-      // arrivals chime
-      if (seg.type === 'ARRIVE') {
-        playArrivalChime(!!seg.express);
+      if (seg.type === 'CALL') {
+        const enqueue = (floor) => {
+          if (typeof floor !== 'number') return;
+          const f = clamp(floor | 0, 1, floorCount);
+          if (!callQueue.includes(f)) callQueue.push(f);
+          if (callQueue.length > 10) callQueue.splice(10);
+        };
+
+        enqueue(seg.call);
+
+        // Add a couple of "background" calls sometimes so the queue has depth.
+        // Deterministic per seed + segment index (not frame-rate dependent).
+        const r3 = mulberry32(((seed ^ 0xC0FFEE) + idx * 0x9E3779B9) >>> 0);
+        const p = r3();
+        const extra = p < 0.55 ? 0 : p < 0.88 ? 1 : 2;
+        for (let k = 0; k < extra; k++) {
+          let f = 1 + ((r3() * floorCount) | 0);
+          if (f === seg.call) f = ((f % floorCount) + 1) | 0;
+          enqueue(f);
+        }
       }
+
+      if (seg.type === 'ARRIVE') {
+        // arrivals chime
+        playArrivalChime(!!seg.express);
+
+        const arrived = clamp((seg.at ?? 1) | 0, 1, floorCount);
+
+        // Prefer removing the arrived floor if present, otherwise treat the head
+        // of the queue as "served" to keep the queue cycling.
+        const j = callQueue.indexOf(arrived);
+        if (j >= 0) callQueue.splice(j, 1);
+        else if (callQueue.length) callQueue.shift();
+      }
+
       lastSegIdx = idx;
     }
   }
@@ -759,7 +801,7 @@ export function createChannel({ seed, audio }) {
     drawIndicator(ctx, disp, dir, mode, pulse);
 
     // queue
-    const q = upcomingStops(idx + 1, 6);
+    const q = callQueue.length ? callQueue.slice(0, 6) : upcomingStops(idx + 1, 6);
     drawQueue(ctx, q, pulse * 0.35);
 
     // buttons (foreground)
