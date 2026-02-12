@@ -484,6 +484,13 @@ export function createChannel({ seed, audio }){
     ctx.fill();
   }
 
+  function clipPottery(ctx){
+    // Keep surface effects (cracks/seams/dust/glints) inside the pottery silhouette.
+    ctx.beginPath();
+    ctx.ellipse(pot.x, pot.y, pot.r, pot.r*0.80, 0, 0, Math.PI*2);
+    ctx.clip();
+  }
+
   function drawCracks(ctx, crackAmt, gapAmt){
     // crackAmt: alpha/intensity, gapAmt: fake separation
     const sway = Math.sin(t * 0.18 + seed*0.001) * w * benchDrift.x;
@@ -491,6 +498,7 @@ export function createChannel({ seed, audio }){
 
     ctx.save();
     ctx.translate(sway, bob);
+    clipPottery(ctx);
 
     // shadow under cracks
     ctx.globalAlpha = 0.30 * crackAmt;
@@ -528,6 +536,7 @@ export function createChannel({ seed, audio }){
 
     ctx.save();
     ctx.translate(sway, bob);
+    clipPottery(ctx);
     ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = (0.12 + 0.18 * shimmer) * s;
     ctx.strokeStyle = 'rgba(255,255,255,0.9)';
@@ -550,6 +559,7 @@ export function createChannel({ seed, audio }){
 
     ctx.save();
     ctx.translate(sway, bob);
+    clipPottery(ctx);
 
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -582,8 +592,13 @@ export function createChannel({ seed, audio }){
   }
 
   function drawDust(ctx, p){
-    const gold = pal.gold[0];
     const fade = ease(p);
+
+    const sway = Math.sin(t * 0.18 + seed*0.001) * w * benchDrift.x;
+    const bob = Math.sin(t * 0.16 + seed*0.002) * h * benchDrift.y;
+
+    ctx.save();
+    ctx.translate(sway, bob);
 
     // floating dust
     for (const d of dust){
@@ -593,8 +608,11 @@ export function createChannel({ seed, audio }){
       ctx.fillRect(d.x, d.y, 2, 2);
     }
 
-    // settled dust (foreground sparkles)
+    // settled dust + powder veil: clip to pottery silhouette so nothing bleeds outside.
     ctx.save();
+    clipPottery(ctx);
+
+    // settled dust (foreground sparkles)
     ctx.globalCompositeOperation = 'screen';
     for (const d of dust){
       if (!d.stuck) continue;
@@ -603,15 +621,16 @@ export function createChannel({ seed, audio }){
       ctx.fillStyle = `rgba(255, 222, 140, ${0.12 + 0.28 * a * tw * fade})`;
       ctx.fillRect(d.x, d.y, 2, 2);
     }
-    ctx.restore();
 
     // a faint powder veil
-    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 0.06 * fade;
-    ctx.fillStyle = gold;
+    ctx.fillStyle = pal.gold[0];
     ctx.beginPath();
     ctx.ellipse(pot.x, pot.y, pot.r*0.98, pot.r*0.78, 0, 0, Math.PI*2);
     ctx.fill();
+
+    ctx.restore();
     ctx.restore();
   }
 
@@ -646,6 +665,11 @@ export function createChannel({ seed, audio }){
     const r = Math.max(10, Math.min(w,h) * 0.020);
 
     ctx.save();
+    // Ensure the glint doesn't bloom outside the bowl silhouette.
+    ctx.beginPath();
+    ctx.ellipse(pot.x + sway, pot.y + bob, pot.r, pot.r*0.80, 0, 0, Math.PI*2);
+    ctx.clip();
+
     ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = 0.55 * amt;
 
