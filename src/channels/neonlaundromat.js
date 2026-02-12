@@ -81,16 +81,33 @@ export function createChannel({ seed, audio }){
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
   function regenLayout(){
-    const baseY = h * 0.67;
-    const mw = Math.min(w * 0.24, 240);
-    const mh = Math.min(h * 0.28, 280);
-    const gap = Math.max(16, w * 0.035);
+    // Keep the machines comfortably above the bottom edge and ensure they fit
+    // even on short viewports.
+    const floorY = h * 0.56;
+    const marginB = Math.max(18, h * 0.06);
+    const baseY = Math.min(h * 0.64, floorY + h * 0.08);
 
-    const totalW = mw * 3 + gap * 2;
+    let mh = Math.min(h * 0.28, 280);
+    mh = Math.min(mh, Math.max(120, h - baseY - marginB));
+
+    let mw = Math.min(w * 0.24, 240);
+    mw = Math.min(mw, mh * 0.98);
+
+    let gap = clamp(w * 0.035, 14, 44);
+
+    const n = 3;
+    let totalW = mw * n + gap * (n - 1);
+    if (totalW > w * 0.92){
+      const s = (w * 0.92) / totalW;
+      mw *= s;
+      gap *= s;
+      totalW = mw * n + gap * (n - 1);
+    }
+
     const x0 = w * 0.5 - totalW * 0.5;
 
     machines = [];
-    for (let i = 0; i < 3; i++){
+    for (let i = 0; i < n; i++){
       const x = x0 + i * (mw + gap);
       const y = baseY;
       const tint = pick(rand, [pal.neonC, pal.neonM, pal.neonO]);
@@ -442,6 +459,70 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = m.tint;
     ctx.fillRect(px + pw * 0.02, py + ph * 0.78, pw * (0.20 + 0.18 * P.glow), Math.max(2, Math.floor(dpr)));
     ctx.restore();
+
+    // panel UI (display + dial + buttons) so the machines read a bit more “real”
+    const dispX = px + pw * 0.06;
+    const dispY = py + ph * 0.20;
+    const dispW = pw * 0.40;
+    const dispH = ph * 0.52;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    roundedRect(ctx, dispX, dispY, dispW, dispH, r * 0.45);
+    ctx.fill();
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.10 + (0.14 + 0.18 * P.glow) * (0.65 + 0.35 * light);
+    ctx.fillStyle = m.tint;
+    ctx.fillRect(dispX + 2, dispY + dispH - Math.max(2, Math.floor(dpr)), dispW - 4, Math.max(2, Math.floor(dpr)));
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = 'rgba(235,245,255,0.06)';
+    ctx.fillRect(dispX + 7, dispY + 6, dispW - 14, Math.max(2, Math.floor(dpr)));
+    ctx.restore();
+
+    const dialX = px + pw * 0.74;
+    const dialY = py + ph * 0.48;
+    const dialR = Math.min(ph * 0.32, pw * 0.12);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath();
+    ctx.arc(dialX, dialY, dialR * 1.25, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(220,240,255,0.12)';
+    ctx.beginPath();
+    ctx.arc(dialX, dialY, dialR, 0, Math.PI * 2);
+    ctx.fill();
+
+    const notch = -1.25 + 0.85 * (0.5 + 0.5 * Math.sin(t * 0.22 + idx * 1.7));
+    ctx.strokeStyle = 'rgba(235,245,255,0.32)';
+    ctx.lineWidth = Math.max(2, Math.floor(dpr));
+    ctx.beginPath();
+    ctx.moveTo(dialX + Math.cos(notch) * dialR * 0.20, dialY + Math.sin(notch) * dialR * 0.20);
+    ctx.lineTo(dialX + Math.cos(notch) * dialR * 0.95, dialY + Math.sin(notch) * dialR * 0.95);
+    ctx.stroke();
+
+    const btnY = py + ph * 0.50;
+    const btnR = Math.max(2, Math.floor(Math.min(pw, ph) * 0.06));
+    for (let b = 0; b < 3; b++){
+      const bx = px + pw * (0.54 + b * 0.06);
+      ctx.fillStyle = 'rgba(0,0,0,0.42)';
+      ctx.beginPath();
+      ctx.arc(bx, btnY, btnR * 1.25, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = (0.08 + 0.18 * P.glow) * (0.65 + 0.35 * light);
+      ctx.fillStyle = m.tint;
+      ctx.beginPath();
+      ctx.arc(bx, btnY, btnR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
 
     // door
     const cx = x + bodyW * 0.5;
