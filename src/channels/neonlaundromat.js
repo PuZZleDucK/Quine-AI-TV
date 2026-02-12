@@ -61,6 +61,38 @@ export function createChannel({ seed, audio }){
 
   let machines = []; // {x,y,w,h,doorR,rot,tint}
 
+  // midground window details
+  let windowFx = { x: 0, y: 0, w: 0, h: 0, lights: [] };
+
+  function regenWindow(){
+    const wx = w * 0.06;
+    const wy = h * 0.10;
+    const ww = w * 0.88;
+    const wh = h * 0.30;
+
+    windowFx.x = wx;
+    windowFx.y = wy;
+    windowFx.w = ww;
+    windowFx.h = wh;
+
+    const rng = mulberry32((seed ^ 0x9c5a3d17) >>> 0);
+    const density = clamp((ww * wh) / (900 * 260), 0.7, 1.5);
+    const N = Math.floor(clamp(70 * density, 48, 120));
+    const cols = [pal.neonC, pal.neonM, pal.neonO, 'rgba(235,245,255,1)'];
+
+    windowFx.lights = [];
+    for (let i = 0; i < N; i++){
+      windowFx.lights.push({
+        x: rng() * ww,
+        y: rng() * wh,
+        r: 0.6 + rng() * 1.6,
+        tw: 0.25 + rng() * 1.25,
+        ph: rng() * Math.PI * 2,
+        col: cols[(rng() * cols.length) | 0],
+      });
+    }
+  }
+
   let neonFlicker = 0;
   let nextFlickerAt = 0;
 
@@ -150,6 +182,7 @@ export function createChannel({ seed, audio }){
     mono = Math.max(12, Math.floor(font * 0.86));
 
     regenLayout();
+    regenWindow();
     reset();
   }
 
@@ -306,27 +339,106 @@ export function createChannel({ seed, audio }){
 
     const drift = Math.sin(t * 0.08) * w * 0.01;
 
-    // window bands (midground)
+    // window (midground)
     ctx.save();
     ctx.translate(drift, 0);
-    ctx.fillStyle = 'rgba(12,18,26,0.55)';
-    ctx.fillRect(w * 0.06, h * 0.10, w * 0.88, h * 0.30);
 
-    // rain streaks
+    const wx = windowFx.x;
+    const wy = windowFx.y;
+    const ww = windowFx.w;
+    const wh = windowFx.h;
+
+    const frame = Math.max(8, Math.floor(Math.min(w, h) * 0.012));
+    const rad = Math.max(16, Math.floor(Math.min(ww, wh) * 0.08));
+
+    // frame
+    ctx.fillStyle = 'rgba(0,0,0,0.52)';
+    roundedRect(ctx, wx - frame, wy - frame, ww + frame * 2, wh + frame * 2, rad + frame);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(220,240,255,0.10)';
+    ctx.lineWidth = Math.max(1, Math.floor(dpr));
+    roundedRect(ctx, wx - frame + 1, wy - frame + 1, ww + frame * 2 - 2, wh + frame * 2 - 2, rad + frame - 1);
+    ctx.stroke();
+
+    // glass
+    const gg = ctx.createLinearGradient(0, wy, 0, wy + wh);
+    gg.addColorStop(0, 'rgba(24,34,48,0.65)');
+    gg.addColorStop(0.55, 'rgba(12,18,26,0.56)');
+    gg.addColorStop(1, 'rgba(6,10,16,0.72)');
+    ctx.fillStyle = gg;
+    roundedRect(ctx, wx, wy, ww, wh, rad);
+    ctx.fill();
+
+    // clip to glass area for exterior details
+    ctx.save();
+    ctx.beginPath();
+    roundedRect(ctx, wx, wy, ww, wh, rad);
+    ctx.clip();
+
+    // distant city/neon specks (subtle)
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < windowFx.lights.length; i++){
+      const L = windowFx.lights[i];
+      const tw = 0.5 + 0.5 * Math.sin(t * L.tw + L.ph);
+      const a = 0.05 + 0.10 * tw;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = L.col;
+      ctx.beginPath();
+      ctx.arc(wx + L.x, wy + L.y, L.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+
+    // rain streaks (on glass)
     ctx.globalCompositeOperation = 'screen';
     ctx.strokeStyle = 'rgba(120,190,255,0.08)';
     ctx.lineWidth = Math.max(1, Math.floor(dpr));
-    const streaks = 48;
+    const streaks = 52;
     for (let i = 0; i < streaks; i++){
-      const x = w * 0.06 + (i / streaks) * w * 0.88;
-      const y0 = h * 0.10 + ((t * (40 + i * 0.7)) % (h * 0.30));
+      const x = wx + (i / streaks) * ww;
+      const y0 = wy + ((t * (42 + i * 0.6)) % wh);
       ctx.beginPath();
       ctx.moveTo(x, y0);
-      ctx.lineTo(x - w * 0.01, y0 + h * 0.06);
+      ctx.lineTo(x - ww * 0.015, y0 + wh * 0.22);
       ctx.stroke();
     }
-    ctx.restore();
+
+    // soft reflection band
+    const rg = ctx.createLinearGradient(wx, wy, wx + ww, wy + wh);
+    rg.addColorStop(0, 'rgba(255,255,255,0.00)');
+    rg.addColorStop(0.35, 'rgba(255,255,255,0.06)');
+    rg.addColorStop(0.7, 'rgba(255,255,255,0.00)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(wx, wy, ww, wh);
+
     ctx.globalCompositeOperation = 'source-over';
+
+    // mullions
+    ctx.strokeStyle = 'rgba(235,245,255,0.08)';
+    ctx.lineWidth = Math.max(1, Math.floor(dpr));
+    for (const f of [1/3, 2/3]){
+      const x = wx + ww * f;
+      ctx.beginPath();
+      ctx.moveTo(x, wy);
+      ctx.lineTo(x, wy + wh);
+      ctx.stroke();
+    }
+    const hy = wy + wh * 0.58;
+    ctx.beginPath();
+    ctx.moveTo(wx, hy);
+    ctx.lineTo(wx + ww, hy);
+    ctx.stroke();
+
+    ctx.restore(); // clip
+
+    // sill
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(wx - frame, wy + wh + frame * 0.25, ww + frame * 2, Math.max(4, Math.floor(frame * 0.35)));
+
+    ctx.restore();
 
     // neon sign
     const surge = powerSurge.a;
