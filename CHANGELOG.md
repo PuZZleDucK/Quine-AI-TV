@@ -1,3 +1,5 @@
+- 2026-02-13 08:15 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — fixed section coloring so BUG/BUG REPORT lines are reliably red and ASCII art inherits the correct BUG/FIX colors. Screenshots: screenshots/autopilot-duckdebug-before + screenshots/autopilot-duckdebug-after. Commit: 0bfc450
+
 - 2026-02-13 08:02 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — added 2–5 short user↔duck dialog lines per confessional block (before BUG/FIX/LESSON) for more “conversation” feel. Commit: f1064cc
 
 - 2026-02-13 07:48 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — expanded `fakeStackTrace()` with more frame templates + occasional indented diff-snippet lines; hardened `wrapForTerminal()` indentation wrapping to guarantee max width. Commit: 1b515d6

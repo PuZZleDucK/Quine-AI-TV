@@ -5,7 +5,7 @@ if `TODO.md` has no ready items:
 
 <!-- moved to TODONE.md -->
 
-- [ ] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — text colors are not always right, sometimes bug is not red and ascii art color does not change to manage section.
+<!-- done: duckdebug text colors + art section colours (commit 0bfc450) -->
 
 - [ ] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): visual — code and diffs should be properly colorized.
 
