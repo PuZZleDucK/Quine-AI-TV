@@ -1,3 +1,5 @@
+- 2026-02-12 21:30 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): composition — added lamp silhouette (glass outline + cap/base) and clipped blobs to the glass. Commit: 533d974
+
 - 2026-02-12 21:08 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): determinism — switched to a fixed-timestep update loop so 30fps vs 60fps yields identical captures. Screenshots: screenshots/autopilot-lava-determinism-before + screenshots/autopilot-lava-determinism-after. Commit: 261d558
 
 - 2026-02-12 20:48 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): special moments — added a deterministic glint sweep overlay during cycle events so the windows read clearly. Commit: 6bfca4e
