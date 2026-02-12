@@ -385,20 +385,31 @@ export function createChannel({ seed, audio }){
     if (text === '') return [''];
     if (text.length <= maxChars) return [text];
 
-    // Preserve indentation-heavy lines (e.g., ASCII art stingers).
-    if (/^\s/.test(text)) return [text];
-
-    const out = [];
-    let rest = text;
-    while (rest.length > maxChars){
-      let cut = rest.lastIndexOf(' ', maxChars);
-      if (cut < Math.floor(maxChars * 0.5)) cut = maxChars;
-      out.push(rest.slice(0, cut));
-      rest = rest.slice(cut);
-      if (rest.startsWith(' ')) rest = rest.slice(1);
+    function wrapPlain(src, width){
+      const out = [];
+      let rest = src;
+      while (rest.length > width){
+        let cut = rest.lastIndexOf(' ', width);
+        if (cut < Math.floor(width * 0.5)) cut = width;
+        out.push(rest.slice(0, cut));
+        rest = rest.slice(cut);
+        if (rest.startsWith(' ')) rest = rest.slice(1);
+      }
+      if (rest.length) out.push(rest);
+      return out.length ? out : [''];
     }
-    if (rest.length) out.push(rest);
-    return out;
+
+    // Wrap indented lines (stack traces, code blocks) while preserving indentation.
+    const m = text.match(/^\s+/);
+    if (m){
+      const indent = m[0];
+      const body = text.slice(indent.length);
+      const bodyWidth = Math.max(4, maxChars - indent.length);
+      const parts = wrapPlain(body, bodyWidth);
+      return parts.map(p => indent + p);
+    }
+
+    return wrapPlain(text, maxChars);
   }
 
   function render(ctx){
