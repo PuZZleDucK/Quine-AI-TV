@@ -12,7 +12,6 @@ if `TODO.md` has no ready items:
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Text/dialog — expand the status strip into themed, mildly funny annunciator messages that can last 5 minutes (seeded rotation, no repeats too quickly).
 
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Long-run interest — make the polish glint a true rare “special moment” (~45–120s) with a more dramatic, clearly visible signature + clean reset.
-- [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): add more items and rotate item every 5 minutes.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Visual polish — improve CRACK phase readability by varying crack thickness/opacity by depth and adding tiny branching micro-cracks near endpoints (deterministic per crack) without adding per-frame RNG.
 
 - [quine-tv] `flow` (src/channels/flowfield.js): Determinism — replace `for (const p of pts) { p.x += ... * dt; ... }` integration with a fixed-timestep update loop (accumulate `dt`, step at e.g. 1/60) so 30fps vs 60fps yields identical captures for the same seed.

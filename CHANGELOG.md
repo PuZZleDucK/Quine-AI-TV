@@ -1,3 +1,5 @@
+- 2026-02-12 13:35 (Australia/Melbourne) [project:quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): added rotating patient/item subtitle (expanded item list) and resets the scene every 5 minutes. Commit: b066486
+
 - 2026-02-12 13:15 (Australia/Melbourne) [project:quine-tv] Determinism `stitchalong` (src/channels/constellationstitch.js): split audio RNG from visual PRNG and scheduled needle-click SFX (FPS-stable; audio.enabled no longer affects visual rand sequence). Commit: 80299ca
 
 - 2026-02-12 13:04 (Australia/Melbourne) [project:quine-tv] Determinism `kintsugi` (src/channels/kintsugiclinic.js): decoupled audio randomness from the visual PRNG via a separate audio RNG (no visual `rand()` consumption inside audio code paths). Commit: 8d7cdcc

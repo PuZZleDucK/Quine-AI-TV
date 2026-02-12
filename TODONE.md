@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): add more items and rotate item every 5 minutes. Commit: b066486
+
 - [x] [project:quine-tv] Determinism `stitchalong` (src/channels/constellationstitch.js): decoupled audio randomness from the visual PRNG by splitting an audio RNG and scheduling needle clicks (FPS-stable). Commit: 80299ca
 
 - [x] [project:quine-tv] Determinism `kintsugi` (src/channels/kintsugiclinic.js): decoupled audio randomness from the visual PRNG by using a separate audio RNG (no visual `rand()` consumption in audio paths). Commit: 8d7cdcc
