@@ -402,8 +402,11 @@ export function createChannel({ seed, audio }){
     ctx.fill();
 
     const light = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 1.2 + idx));
-    ctx.fillStyle = `rgba(108,242,255,${0.12 + P.glow * 0.25})`;
+    ctx.save();
+    ctx.globalAlpha = (0.10 + P.glow * 0.22) * (0.65 + 0.35 * light);
+    ctx.fillStyle = m.tint;
     ctx.fillRect(px + pw * 0.02, py + ph * 0.78, pw * (0.20 + 0.18 * P.glow), Math.max(2, Math.floor(dpr)));
+    ctx.restore();
 
     // door
     const cx = x + bodyW * 0.5;
@@ -434,6 +437,20 @@ export function createChannel({ seed, audio }){
     dg.addColorStop(1, 'rgba(0,0,0,1)');
     ctx.fillStyle = dg;
     ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+
+    // tint glow rim (per-machine identity)
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = (0.06 + P.glow * 0.14) * (0.65 + 0.35 * light);
+    const tg = ctx.createRadialGradient(cx, cy, R * 0.25, cx, cy, R * 1.05);
+    tg.addColorStop(0, 'rgba(0,0,0,0)');
+    tg.addColorStop(0.55, 'rgba(0,0,0,0)');
+    tg.addColorStop(1, m.tint);
+    ctx.fillStyle = tg;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 1.02, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
     // water level + slosh
     const slosh = Math.sin(t * 2.0 + idx) * 0.04;
@@ -538,12 +555,15 @@ export function createChannel({ seed, audio }){
     ctx.fill();
 
     const a = 0.35 + 0.55 * P.glow + 0.25 * beatPulse;
-    ctx.fillStyle = `rgba(108,242,255,${a})`;
-    ctx.shadowColor = `rgba(108,242,255,${0.6 * a})`;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = m.tint;
+    ctx.shadowColor = m.tint;
     ctx.shadowBlur = 10 + beatPulse * 10;
     ctx.beginPath();
     ctx.arc(lx, ly, lr, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
     ctx.restore();
 
     // subtle neon edge on machine

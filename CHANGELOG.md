@@ -1,3 +1,5 @@
+- 2026-02-13 09:21 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual identity — use per-machine `m.tint` to colorize panel strip + phase LED + inner-drum rim glow (machines read distinct). Screenshots: screenshots/neonlaundromat-tint-pre + screenshots/neonlaundromat-tint-post. Commit: TBD
+
 - 2026-02-13 08:33 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): visual — colorize stack trace + diff snippet lines (diff headers/hunks/+/-) so code blocks read like code, not chat. Commit: dc3a010
 
 - 2026-02-13 08:15 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — fixed section coloring so BUG/BUG REPORT lines are reliably red and ASCII art inherits the correct BUG/FIX colors. Screenshots: screenshots/autopilot-duckdebug-before + screenshots/autopilot-duckdebug-after. Commit: 0bfc450

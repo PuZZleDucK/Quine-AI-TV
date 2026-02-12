@@ -1,5 +1,6 @@
-
 # Done
+
+- [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual identity — use per-machine `m.tint` to colorize the control-panel strip, phase indicator light, and inner-drum rim glow so the three machines read as distinct units. Screenshots: screenshots/neonlaundromat-tint-pre + screenshots/neonlaundromat-tint-post. Commit: TBD
 
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): special moments — added a second independent rare event stream (PANIC / CORE DUMP overlay + mini-scroll) with clean reset and its own seeded schedule. Commit: d3daed2
 
