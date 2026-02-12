@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Added deterministic 2–4 minute phase cycle modulating lamp warmth, bench vignette intensity, and animation pacing (phase stored in `update(dt)`, render reads stable phase values). Commit: 5539923
+
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Expanded `REPAIRS` from 4 → 11 with distinct palettes/tools and 4–6 step scripts (durations ~37–46s per repair). Commit: de52562
 
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Text/dialog — replaced footer with seeded rotating caption strip (45 variants; 9s cadence; deterministic shuffle; ellipsized to stay OSD-safe). Commit: bf7988d
