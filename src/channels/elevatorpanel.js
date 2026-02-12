@@ -48,6 +48,10 @@ export function createChannel({ seed, audio }) {
   let sceneMode = 'IDLE';
   let sceneModeT = 0;
   let sceneModeDur = 1;
+  let nextBurstEventAt = 0;
+  let eventBurst = null; // { type, floors, i, nextAt, minGap, maxGap, label }
+  let warningText = '';
+  let warningT = 0;
 
   // ---- button press FX (deterministic; driven by segment edges)
   let pressEvents = []; // { floor, t0 }
@@ -828,6 +832,10 @@ export function createChannel({ seed, audio }) {
     sceneModeT = 0;
     sceneModeDur = 1;
     nextCallAt = 1.5 + rand() * 2.8;
+    nextBurstEventAt = 18 + rand() * 20;
+    eventBurst = null;
+    warningText = '';
+    warningT = 0;
     elevators = Array.from({ length: shaftCount }, (_, i) => ({
       floor: elevatorHomeFloors[i] ?? 1,
       target: null,
@@ -851,10 +859,85 @@ export function createChannel({ seed, audio }) {
     const f = clamp((floor | 0), 1, floorCount);
     if (!callQueue.includes(f)) {
       callQueue.push(f);
-      if (callQueue.length > 14) callQueue.splice(14);
+      if (callQueue.length > 32) callQueue.splice(32);
     }
     pressEvents.push({ floor: f, t0: t + pressDelay });
     if (pressEvents.length > 24) pressEvents.splice(0, pressEvents.length - 24);
+  }
+
+  function uniqueFloors(count) {
+    const bag = floors.slice();
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = (rand() * (i + 1)) | 0;
+      const tmp = bag[i];
+      bag[i] = bag[j];
+      bag[j] = tmp;
+    }
+    return bag.slice(0, Math.min(count, bag.length));
+  }
+
+  function triggerBurstEvent() {
+    const r = rand();
+    // Super rare sweep: all floors in strict order + warning.
+    if (r < 0.06) {
+      const up = rand() < 0.5;
+      const ordered = up ? floors.slice() : floors.slice().reverse();
+      eventBurst = {
+        type: 'all',
+        floors: ordered,
+        i: 0,
+        nextAt: t + 0.2,
+        minGap: 0.08,
+        maxGap: 0.20,
+        label: 'CHILD IN BUILDING — PRIORITY FLOOR SWEEP',
+      };
+      warningText = 'WARNING: CHILD IN BUILDING';
+      warningT = 9.5;
+      sceneMode = 'ALERT';
+      sceneModeT = 2.4;
+      sceneModeDur = 2.4;
+      if (audio?.enabled) {
+        try {
+          audio.beep({ freq: 920, dur: 0.08, gain: 0.026, type: 'square' });
+          audio.beep({ freq: 640, dur: 0.08, gain: 0.024, type: 'square' });
+        } catch {}
+      }
+      nextBurstEventAt = t + 75 + rand() * 110;
+      return;
+    }
+
+    // Rare heavy burst: 8-10 calls.
+    if (r < 0.22) {
+      const n = Math.min(floorCount, 8 + ((rand() * 3) | 0));
+      eventBurst = {
+        type: 'rare',
+        floors: uniqueFloors(n),
+        i: 0,
+        nextAt: t + 0.2,
+        minGap: 0.09,
+        maxGap: 0.22,
+        label: 'UNUSUAL TRAFFIC SPIKE',
+      };
+      warningText = 'NOTICE: HEAVY CALL BURST';
+      warningT = 2.8;
+      nextBurstEventAt = t + 42 + rand() * 65;
+      return;
+    }
+
+    // Uncommon cluster: 4-6 calls.
+    const n = Math.min(floorCount, 4 + ((rand() * 3) | 0));
+    eventBurst = {
+      type: 'cluster',
+      floors: uniqueFloors(n),
+      i: 0,
+      nextAt: t + 0.2,
+      minGap: 0.16,
+      maxGap: 0.48,
+      label: 'CALL CLUSTER DETECTED',
+    };
+    warningText = 'NOTICE: CLUSTERED FLOOR CALLS';
+    warningT = 2.2;
+    nextBurstEventAt = t + 24 + rand() * 38;
   }
 
   function serviceQueueAssignments() {
@@ -986,9 +1069,10 @@ export function createChannel({ seed, audio }) {
     // Keep FX bounded.
     pressEvents = pressEvents.filter((e) => t - e.t0 < 1.2);
     sceneModeT = Math.max(0, sceneModeT - dt);
+    warningT = Math.max(0, warningT - dt);
 
     // Add occasional hall calls (persistent queue; no random replacement).
-    if (t >= nextCallAt) {
+    if (t >= nextCallAt && !eventBurst) {
       let f = 1 + ((rand() * floorCount) | 0);
       if (callQueue.includes(f) || elevators.some((e) => e.servicing === f)) {
         f = 1 + (((f + ((rand() * (floorCount - 1)) | 0)) % floorCount) | 0);
@@ -1003,6 +1087,25 @@ export function createChannel({ seed, audio }) {
         try { audio.beep({ freq: 360 + rand() * 120, dur: 0.03, gain: 0.02, type: 'triangle' }); } catch {}
       }
       scheduleNextCall();
+    }
+
+    if (t >= nextBurstEventAt && !eventBurst) triggerBurstEvent();
+    if (eventBurst && t >= eventBurst.nextAt) {
+      const f = eventBurst.floors[eventBurst.i];
+      if (typeof f === 'number') {
+        enqueueCall(f, 0);
+        setSceneMode('CALL', eventBurst.type === 'all' ? 1.2 : 0.9);
+        if (audio?.enabled) {
+          try { audio.beep({ freq: 380 + rand() * 180, dur: 0.02, gain: 0.018, type: 'triangle' }); } catch {}
+        }
+      }
+      eventBurst.i += 1;
+      if (eventBurst.i >= eventBurst.floors.length) {
+        eventBurst = null;
+      } else {
+        const gap = eventBurst.minGap + rand() * (eventBurst.maxGap - eventBurst.minGap);
+        eventBurst.nextAt = t + gap;
+      }
     }
 
     serviceQueueAssignments();
@@ -1085,6 +1188,7 @@ export function createChannel({ seed, audio }) {
     if (sceneMode === 'ARRIVE') pulse = 0.40 + 0.40 * Math.sin(modeP * Math.PI);
     if (sceneMode === 'CALL') pulse = 0.30 + 0.45 * (0.5 + 0.5 * Math.sin(tt * 10));
     if (sceneMode === 'IDLE') pulse = 0.12 + 0.10 * (0.5 + 0.5 * Math.sin(tt * 1.8));
+    if (sceneMode === 'ALERT') pulse = 0.45 + 0.40 * (0.5 + 0.5 * Math.sin(tt * 8.0));
 
     // show a "CALL" blink + pressed floor
     const primaryFloor = typeof activeElevator.target === 'number' ? activeElevator.target : (callQueue[0] ?? null);
@@ -1133,12 +1237,18 @@ export function createChannel({ seed, audio }) {
       refreshStatusMessage({ segKey, bucket, cur: disp, next, dir });
     }
 
+    const eventMsg = eventBurst?.label || null;
+    const activeMsg = warningT > 0
+      ? (eventMsg || warningText || statusMsg)
+      : statusMsg;
+
     // Clip the message so it can be longer without overlapping NEXT.
     ctx.save();
     ctx.beginPath();
     ctx.rect(panelX + panelW * 0.10, y, panelW * 0.70, stripH);
     ctx.clip();
-    drawText(ctx, ellipsize(statusMsg, 64), panelX + panelW * 0.12, y + stripH * 0.70, Math.max(12, stripH * 0.44), 'rgba(240,255,252,0.62)');
+    const msgColor = warningT > 0 ? 'rgba(255,220,170,0.86)' : 'rgba(240,255,252,0.62)';
+    drawText(ctx, ellipsize(activeMsg, 64), panelX + panelW * 0.12, y + stripH * 0.70, Math.max(12, stripH * 0.44), msgColor);
     ctx.restore();
 
     drawText(ctx, `NEXT: ${next}`, panelX + panelW * 0.88, y + stripH * 0.70, Math.max(12, stripH * 0.46), `rgba(120,255,240,${0.55 + pulse * 0.25})`, 'right');
@@ -1146,6 +1256,24 @@ export function createChannel({ seed, audio }) {
 
     // subtle glass + vignette depth
     drawPanelGlass(ctx, sceneMode, modeP, pulse, tt);
+
+    if (warningT > 0) {
+      ctx.save();
+      const a = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(tt * 9));
+      const ww = Math.min(w * 0.52, 520);
+      const hh = Math.max(24, h * 0.06);
+      const x = (w - ww) * 0.5;
+      const yb = panelY + panelH * 0.03;
+      ctx.fillStyle = `rgba(120,24,12,${0.35 + a * 0.35})`;
+      roundRect(ctx, x, yb, ww, hh, Math.max(10, hh * 0.35));
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255,180,130,${0.55 + a * 0.30})`;
+      ctx.lineWidth = Math.max(1.5, h / 640);
+      roundRect(ctx, x, yb, ww, hh, Math.max(10, hh * 0.35));
+      ctx.stroke();
+      drawText(ctx, warningText || 'WARNING', x + ww * 0.5, yb + hh * 0.68, Math.max(13, hh * 0.48), 'rgba(255,232,210,0.95)', 'center');
+      ctx.restore();
+    }
   }
 
   function init({ width, height }) {
