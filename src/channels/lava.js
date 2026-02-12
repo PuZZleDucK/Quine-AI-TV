@@ -109,6 +109,7 @@ export function createChannel({ seed, audio }){
     ctx: null,
     bg: null,
     shine: null,
+    texture: null,
     blurPx: 8,
 
     // Micro-perf: avoid per-frame template string churn for ctx.filter.
@@ -197,6 +198,7 @@ export function createChannel({ seed, audio }){
     cache.ctx = null;
     cache.bg = null;
     cache.shine = null;
+    cache.texture = null;
     cache.blurPx = 8;
 
     cache.filterBlurQ = -1;
@@ -226,6 +228,73 @@ export function createChannel({ seed, audio }){
         shine.addColorStop(0.35, 'rgba(255,255,255,0.02)');
         shine.addColorStop(1, 'rgba(255,255,255,0.0)');
         cache.shine = shine;
+      }
+
+      // Film grain + scanlines + vignette (cached per ctx + resize)
+      {
+        const tex = makeCanvas(w, h);
+        if (tex){
+          const g = tex.getContext('2d');
+          if (g){
+            g.setTransform(1,0,0,1,0,0);
+            g.clearRect(0, 0, w, h);
+
+            // Subtle monochrome grain (pattern fill; deterministic per seed+size)
+            {
+              const TW = 128;
+              const tile = makeCanvas(TW, TW);
+              const tg = tile?.getContext?.('2d');
+              if (tg){
+                const hmix = (((w * 2654435761) ^ (h * 1597334677)) >>> 0);
+                const r = mulberry32((seed32 ^ 0x6F5A0B ^ hmix) >>> 0);
+
+                const img = tg.createImageData(TW, TW);
+                const d = img.data;
+                for (let i = 0; i < d.length; i += 4){
+                  const v = 120 + Math.floor(r() * 110);
+                  d[i + 0] = v;
+                  d[i + 1] = v;
+                  d[i + 2] = v;
+                  d[i + 3] = 255;
+                }
+                tg.putImageData(img, 0, 0);
+
+                const pat = g.createPattern(tile, 'repeat');
+                if (pat){
+                  g.globalAlpha = 0.045;
+                  g.fillStyle = pat;
+                  g.fillRect(0, 0, w, h);
+                }
+              }
+            }
+
+            // Scanlines (keep very subtle so text/OSD stays clean)
+            {
+              g.globalAlpha = 0.055;
+              g.fillStyle = 'rgba(0,0,0,1)';
+              for (let y = 0; y < h; y += 2){
+                if (((y / 2) | 0) % 2 === 0) g.fillRect(0, y, w, 1);
+              }
+            }
+
+            // Vignette (darken edges slightly)
+            {
+              const r0 = Math.min(w, h) * 0.22;
+              const r1 = Math.hypot(w, h) * 0.62;
+              const vg = g.createRadialGradient(w * 0.5, h * 0.5, r0, w * 0.5, h * 0.5, r1);
+              vg.addColorStop(0, 'rgba(0,0,0,0)');
+              vg.addColorStop(0.72, 'rgba(0,0,0,0.06)');
+              vg.addColorStop(1, 'rgba(0,0,0,0.24)');
+
+              g.globalAlpha = 1;
+              g.fillStyle = vg;
+              g.fillRect(0, 0, w, h);
+            }
+          }
+          cache.texture = tex;
+        } else {
+          cache.texture = null;
+        }
       }
     }
   }
@@ -608,6 +677,16 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = cache.shine;
     ctx.fillRect(0,0,w,h);
     ctx.restore();
+
+    // subtle texture (cached grain/scanlines/vignette)
+    if (cache.texture){
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.filter = 'none';
+      ctx.drawImage(cache.texture, 0, 0);
+      ctx.restore();
+    }
 
     // label
     ctx.save();
