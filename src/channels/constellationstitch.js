@@ -116,6 +116,18 @@ function makeConstellations(){
       pts: [[0.00,-0.60],[0.00,-0.20],[0.00,0.22],[0.00,0.62],[-0.30,0.05],[0.30,0.05]],
       edges: [[0,1],[1,2],[2,3],[4,2],[2,5]]
     },
+    {
+      id: 'leo',
+      name: 'Leo',
+      pts: [[-0.55,0.22],[-0.32,0.08],[-0.10,0.02],[0.12,-0.06],[0.33,0.06],[0.52,0.22],[0.30,0.44],[0.06,0.36],[-0.18,0.42]],
+      edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,1]]
+    },
+    {
+      id: 'aquarius',
+      name: 'Aquarius',
+      pts: [[-0.58,-0.08],[-0.34,-0.24],[-0.08,-0.14],[0.18,-0.30],[0.46,-0.10],[0.22,0.06],[-0.06,0.16],[-0.32,0.02],[0.46,0.24],[0.20,0.42],[-0.08,0.30]],
+      edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,0],[5,8],[8,9],[9,10],[10,6]]
+    },
   ];
 }
 
@@ -153,6 +165,14 @@ export function createChannel({ seed, audio }){
   let nextGlintAt = 0;
   let gold = 0;
   let nextGoldAt = 0;
+
+  // Rare deterministic "special moment" (~45–120s): a shooting-star sweep that briefly
+  // re-threads one segment. Kept OSD-safe (inside the hoop) and resets cleanly.
+  let specialT = 0;
+  const SPECIAL_DUR = 4.2;
+  let nextSpecialAt = 0;
+  let specialEdge = 0;
+  let specialAngle = 0;
 
   let ambience = null;
 
@@ -273,6 +293,11 @@ export function createChannel({ seed, audio }){
     gold = 0;
     nextGoldAt = 9 + rand() * 10;
 
+    specialT = 0;
+    nextSpecialAt = 55 + rand() * 55;
+    specialEdge = 0;
+    specialAngle = rand() * Math.PI * 2;
+
     reseedOrder();
     scheduleNextClick(t);
 
@@ -321,6 +346,29 @@ export function createChannel({ seed, audio }){
 
     glint = Math.max(0, glint - dt * 1.6);
     gold = Math.max(0, gold - dt * 0.9);
+
+    if (specialT > 0){
+      specialT += dt;
+      if (specialT >= SPECIAL_DUR) specialT = 0;
+    }
+
+    if (specialT == 0 && t >= nextSpecialAt){
+      // Start a special moment: pick an edge on the *current* constellation and sweep a
+      // shooting-star highlight across the hoop.
+      specialT = 0.0001;
+      const cons = order[phaseIdx];
+      specialEdge = (rand() * cons.edges.length) | 0;
+      specialAngle = rand() * Math.PI * 2;
+      nextSpecialAt = t + 45 + rand() * 75;
+
+      glint = Math.max(glint, 0.85);
+      gold = Math.max(gold, 0.65);
+
+      if (audio.enabled){
+        safeBeep({ freq: 1680 + randAudio() * 520, dur: 0.032, gain: 0.006, type: 'sine' });
+        safeBeep({ freq: 980 + randAudio() * 260, dur: 0.055, gain: 0.004, type: 'triangle' });
+      }
+    }
 
     if (t >= nextGlintAt){
       glint = 1;
@@ -493,6 +541,78 @@ export function createChannel({ seed, audio }){
         const e = cons.edges[i];
         seg(e[0], e[1], i < fullEdges ? 1 : tail);
       }
+      ctx.restore();
+    }
+
+    // rare special moment overlay: re-thread a single segment + shooting-star sweep
+    if (specialT > 0 && cons.edges.length){
+      const u = clamp(specialT / SPECIAL_DUR, 0, 1);
+      const a = Math.sin(Math.PI * u);
+      const travel = ease(u);
+      const e = cons.edges[specialEdge % cons.edges.length];
+      const A = toPx(cons.pts[e[0]]);
+      const B = toPx(cons.pts[e[1]]);
+
+      const tailP = Math.max(0, travel - 0.35);
+      const x0 = lerp(A.x, B.x, tailP);
+      const y0 = lerp(A.y, B.y, tailP);
+      const x1 = lerp(A.x, B.x, travel);
+      const y1 = lerp(A.y, B.y, travel);
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.setLineDash([]);
+
+      // re-thread highlight
+      ctx.globalAlpha = 0.38 * a;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(2.0, innerR * 0.022);
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.85 * a;
+      ctx.strokeStyle = pal.star;
+      ctx.lineWidth = Math.max(1.2, innerR * 0.012);
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+
+      // sparkle at the needle head
+      ctx.globalAlpha = 0.70 * a;
+      ctx.fillStyle = pal.star;
+      ctx.beginPath();
+      ctx.arc(x1, y1, Math.max(1.6, innerR * 0.020), 0, Math.PI * 2);
+      ctx.fill();
+
+      // shooting-star sweep line across the hoop
+      const dx = Math.cos(specialAngle);
+      const dy = Math.sin(specialAngle);
+      const px = -dy;
+      const py = dx;
+      const sweep = (travel - 0.5) * innerR * 0.70;
+      const sx = cx + px * sweep;
+      const sy = cy + py * sweep;
+      const len = innerR * 1.25;
+
+      ctx.globalAlpha = 0.12 * a;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = innerR * 0.060;
+      ctx.beginPath();
+      ctx.moveTo(sx - dx * len, sy - dy * len);
+      ctx.lineTo(sx + dx * len, sy + dy * len);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.26 * a;
+      ctx.strokeStyle = pal.gold;
+      ctx.lineWidth = innerR * 0.018;
+      ctx.beginPath();
+      ctx.moveTo(sx - dx * len, sy - dy * len);
+      ctx.lineTo(sx + dx * len, sy + dy * len);
+      ctx.stroke();
+
       ctx.restore();
     }
 
