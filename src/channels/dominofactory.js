@@ -1,5 +1,6 @@
 import { mulberry32, clamp } from '../util/prng.js';
 
+// REVIEWED: 2026-02-12
 // Domino Factory Floor
 // Top-down domino layout machine builds patterns → triggers cascades;
 // phase-based motifs (spiral, wave, monogram, gear) with slow cams and factory HUD.
@@ -188,9 +189,23 @@ export function createChannel({ seed, audio }){
   let cam = { x: 0, y: 0, z: 1 };
 
   // audio
-  let hum = null;
+  let humHandle = null;
   let lastPlaceCount = -1;
   let lastFallNote = -1;
+
+  function stopHum({ clearCurrent = false } = {}){
+    const handle = humHandle;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    humHandle = null;
+  }
 
   function rebuildLayout(){
     const pad = Math.min(w, h) * 0.08;
@@ -271,18 +286,25 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
-    hum = audio.noiseSource({ type: 'brown', gain: 0.022 });
-    try { hum.start(); } catch {}
-    audio.setCurrent({
+
+    // Idempotent: if our hum is already current, keep it.
+    if (humHandle && audio.current === humHandle) return;
+
+    // If we previously started one (even if no longer current), stop it.
+    stopHum({ clearCurrent: true });
+
+    const n = audio.noiseSource({ type: 'brown', gain: 0.022 });
+    try { n.start(); } catch {}
+
+    humHandle = audio.setCurrent({
       stop(){
-        try { hum?.stop?.(); } catch {}
+        try { n.stop(); } catch {}
       }
     });
   }
 
   function onAudioOff(){
-    try { hum?.stop?.(); } catch {}
-    hum = null;
+    stopHum({ clearCurrent: true });
   }
 
   function destroy(){
@@ -503,8 +525,8 @@ export function createChannel({ seed, audio }){
 
   function draw(ctx){
     if (!w || !h) return;
-
-    rebuildLayout();
+    // Layout is derived from (w,h,dpr) in onResize(); only rebuild if somehow missing.
+    if (!floor.w || !floor.h) rebuildLayout();
 
     // phase
     let phaseName = 'BUILD';

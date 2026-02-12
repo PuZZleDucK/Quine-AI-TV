@@ -37,6 +37,7 @@ export class AudioManager {
   setCurrent(handle){
     this.stopCurrent();
     this.current = handle;
+    return handle;
   }
 
   // Utilities
