@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Expanded `REPAIRS` from 4 → 11 with distinct palettes/tools and 4–6 step scripts (durations ~37–46s per repair). Commit: de52562
+
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Text/dialog — replaced footer with seeded rotating caption strip (45 variants; 9s cadence; deterministic shuffle; ellipsized to stay OSD-safe). Commit: bf7988d
 
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Audio hygiene — `onAudioOn()` idempotent (no stacking), noise fade-out on stop to reduce clicks, and `onAudioOff()`/`destroy()` clear AudioManager.current only when owned. Commit: 8ea6a40

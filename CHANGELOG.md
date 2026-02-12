@@ -1,3 +1,5 @@
+- 2026-02-13 02:30 (Australia/Melbourne) [project:quine-tv] `fixit` (src/channels/fixit.js): content — expanded `REPAIRS` to 11 and extended per-repair duration to ~37–46s (4–6 steps each; distinct palettes/tools). Commit: de52562
+
 - 2026-02-13 02:16 (Australia/Melbourne) [project:quine-tv] `fixit` (src/channels/fixit.js): text/dialog — replaced static footer with a seeded rotating caption strip (45 variants; 9s cadence; deterministic shuffle; OSD-safe ellipsis). Commit: bf7988d
 
 - 2026-02-13 01:00 (Australia/Melbourne) [project:quine-tv] `matrix` (src/channels/matrix.js): time structure — added deterministic 2–4 min phase cycle (GREEN→TEAL→RED ALERT→GREEN) modulating trail decay, rain speed, and palette with smooth easing. Commit: c510490
