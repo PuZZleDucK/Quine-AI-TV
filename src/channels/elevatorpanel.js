@@ -38,6 +38,13 @@ export function createChannel({ seed, audio }) {
   let scriptTotal = 60;
   let lastSegIdx = -1;
 
+  // ---- status strip message rotation (slow, 5-min cadence)
+  const msgRng = mulberry32((seed ^ 0x6D2B79F5) >>> 0);
+  const msgOffset = (msgRng() * 10000) | 0;
+  let statusBucket = -1;
+  let statusMsgIdx = 0;
+  let statusMsg = 'BOOTING…';
+
   // ---- audio state
   let drone = null;
   let noise = null;
@@ -134,6 +141,73 @@ export function createChannel({ seed, audio }) {
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(text, x, y);
     ctx.restore();
+  }
+
+  function ellipsize(text, maxChars) {
+    const s = String(text ?? '');
+    if (s.length <= maxChars) return s;
+    return s.slice(0, Math.max(0, maxChars - 1)) + '…';
+  }
+
+  const STATUS_POOLS = {
+    IDLE: [
+      ({ cur }) => `STANDBY @ ${cur}`,
+      ({ cur }) => `DOORS CLOSED • FLOOR ${cur}`,
+      ({ cur }) => `LISTENING… FLOOR ${cur}`,
+      () => 'NO SMOKING. NO DRAGONS.',
+      () => 'PLEASE FACE FORWARD (OPTIONAL).',
+      () => 'CAPACITY: VAGUELY ADEQUATE.',
+    ],
+    CALL: [
+      ({ next }) => `CALL REGISTERED: ${next}`,
+      () => 'BUTTON MASHING DETECTED (NICE).',
+      () => 'ONE MOMENT. PRETENDING TO THINK…',
+      () => 'QUEUEING REQUEST… PLEASE HOLD.',
+    ],
+    MOVE: [
+      ({ dir }) => (dir > 0 ? 'ASCENDING…' : dir < 0 ? 'DESCENDING…' : 'MOVING…'),
+      ({ cur, next }) => `EN ROUTE ${cur} → ${next}`,
+      () => "PLEASE HOLD. WE'RE DOING ELEVATOR THINGS.",
+      () => 'THIS IS NORMAL. PROBABLY.',
+    ],
+    EXPRESS: [
+      ({ cur, next }) => `EXPRESS ${cur} → ${next}`,
+      () => 'FAST MODE: ENGAGED.',
+      () => 'SKIPPING SMALL TALK.',
+      () => 'PRIORITY ROUTE CONFIRMED.',
+    ],
+    ARRIVE: [
+      ({ cur }) => `ARRIVED: ${cur}`,
+      () => 'DING. YOU MAY NOW EXIST ELSEWHERE.',
+      () => 'MIND THE GAP (THERE IS NONE).',
+      () => 'FLOOR CONFIRMED. HAVE A NICE LOOP.',
+    ],
+    SERVICE: [
+      () => 'SERVICE MODE — DO NOT PANIC.',
+      () => 'INSPECTION IN PROGRESS.',
+      () => 'AUTHORIZED PERSONNEL: YOU LOOK AUTHORIZED.',
+      () => 'DIAGNOSTICS: PASSING VIBES CHECK.',
+    ],
+    GENERAL: [
+      ({ cur, next }) => `FLOOR ${cur} • NEXT ${next}`,
+      () => 'THANK YOU FOR YOUR PATIENCE.',
+      () => 'THIS PANEL FEELS VERY OFFICIAL.',
+      () => 'IF LOST, TRY "UP".',
+    ],
+  };
+
+  function refreshStatusMessage({ segKey, bucket, cur, next, dir }) {
+    const pool = STATUS_POOLS[segKey] || STATUS_POOLS.GENERAL;
+    let idx = (bucket + msgOffset) % pool.length;
+    if (pool.length > 1 && idx === statusMsgIdx) idx = (idx + 1) % pool.length;
+    statusMsgIdx = idx;
+
+    try {
+      const entry = pool[idx];
+      statusMsg = entry({ cur, next, dir });
+    } catch {
+      statusMsg = STATUS_POOLS.GENERAL[0]({ cur, next, dir });
+    }
   }
 
   const SEG = {
@@ -624,10 +698,24 @@ export function createChannel({ seed, audio }) {
     roundRect(ctx, panelX + panelW * 0.08, y, panelW * 0.84, stripH, Math.max(10, stripH * 0.35));
     ctx.fill();
 
-    const st = seg.type === 'MOVE' ? (seg.express ? 'EXPRESS' : 'MOVING') : seg.type;
-    drawText(ctx, st, panelX + panelW * 0.12, y + stripH * 0.70, Math.max(12, stripH * 0.46), 'rgba(240,255,252,0.62)');
-
     const next = q[0] ?? '—';
+
+    // Slow, themed annunciator messages (seeded; rotate every 5 minutes)
+    const bucket = Math.floor(tt / 300);
+    if (bucket !== statusBucket) {
+      statusBucket = bucket;
+      const segKey = seg.type === 'MOVE' ? (seg.express ? 'EXPRESS' : 'MOVE') : seg.type;
+      refreshStatusMessage({ segKey, bucket, cur: disp, next, dir });
+    }
+
+    // Clip the message so it can be longer without overlapping NEXT.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(panelX + panelW * 0.10, y, panelW * 0.70, stripH);
+    ctx.clip();
+    drawText(ctx, ellipsize(statusMsg, 64), panelX + panelW * 0.12, y + stripH * 0.70, Math.max(12, stripH * 0.44), 'rgba(240,255,252,0.62)');
+    ctx.restore();
+
     drawText(ctx, `NEXT: ${next}`, panelX + panelW * 0.88, y + stripH * 0.70, Math.max(12, stripH * 0.46), `rgba(120,255,240,${0.55 + pulse * 0.25})`, 'right');
     ctx.restore();
 
