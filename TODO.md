@@ -3,4 +3,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
+- [ ] `neonlaundromat` (src/channels/neonlaundromat.js): visual - improve washing machine visuals so components are not overlapping
+- [ ] `neonlaundromat` (src/channels/neonlaundromat.js): visual - improve window apperance
 - [ ] `neonlaundromat` (src/channels/neonlaundromat.js): visual - improve room layout and add dryers
