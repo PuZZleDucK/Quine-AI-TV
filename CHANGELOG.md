@@ -1,3 +1,5 @@
+- 2026-02-13 10:00 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): declutter — removed redundant in-channel HUD text (CH/phase/cycle timer) so the scene is cleaner; rely on TV OSD. Screenshots: screenshots/autopilot-neonlaundromat-declutter-pre + screenshots/autopilot-neonlaundromat-declutter-post. Commit: 382adc8
+
 - 2026-02-13 09:45 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment — added rare deterministic “POWER SURGE” event (~45–120s cadence; seeded) that boosts neon flicker and dims the room for ~2–5s (with OSD-safe banner). Commit: 0dc580b
 
 - 2026-02-13 09:21 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual identity — use per-machine `m.tint` to colorize panel strip + phase LED + inner-drum rim glow (machines read distinct). Screenshots: screenshots/neonlaundromat-tint-pre + screenshots/neonlaundromat-tint-post. Commit: TBD

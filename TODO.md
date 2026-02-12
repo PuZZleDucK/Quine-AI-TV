@@ -6,5 +6,3 @@ if `TODO.md` has no ready items:
 - [ ] `neonlaundromat` (src/channels/neonlaundromat.js): visual - improve layout
 
 - [ ] `neonlaundromat` (src/channels/neonlaundromat.js): visual - improve washing machine layout
-
-- [ ] `neonlaundromat` (src/channels/neonlaundromat.js): visual - declutter text
