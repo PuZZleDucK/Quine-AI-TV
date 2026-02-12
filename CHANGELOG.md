@@ -1,3 +1,5 @@
+- 2026-02-12 14:51 (Australia/Melbourne) [project:quine-tv] Visual polish `kintsugi` (src/channels/kintsugiclinic.js): improve CRACK phase readability via per-crack depth (variable thickness/opacity) + deterministic micro-branch cracks at endpoints (regen-time only; no per-frame RNG). Commit: 342eb25
+
 - 2026-02-12 14:36 (Australia/Melbourne) [project:quine-tv] Perf pass `stitchalong` (src/channels/constellationstitch.js): cached render-path gradients (weave vignette, hoop wood, inner cloth) so steady-state `render()` creates 0 gradients/frame. Screenshots: screenshots/autopilot-stitchalong-perf-before + screenshots/autopilot-stitchalong-perf-after. Commit: 7e019fb
 
 - 2026-02-12 14:18 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): audio polish — replaced plain brown-noise hum with gentle low drone + filtered noise with slow “breath” modulation; made `onAudioOn()` idempotent and `onAudioOff()` clears AudioManager.current only when owned. Commit: 2f41c05
