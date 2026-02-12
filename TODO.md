@@ -3,6 +3,5 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [ ] [project:quine-tv] `foleylab` (src/channels/foleylab.js): perf pass — cache BG/vignette/table gradients on init/resize/ctx swap; pre-render the acoustic-panel grid to an offscreen layer/pattern (avoid per-cell fillStyle template allocs in render).
 - [ ] [project:quine-tv] `foleylab` (src/channels/foleylab.js): long-run variety — switch `nextRecipe()` to a seeded shuffle-bag so recipes don’t repeat back-to-back; add 4–6 more recipes so it stays fresh for 5+ minutes.
 - [ ] [project:quine-tv] `foleylab` (src/channels/foleylab.js): UI/visual polish — add a small “VU meter / waveform” panel tied to step density (OSD-safe) + 1–2 rare deterministic special moments (e.g., TAKE GOOD stamp / mic clip overload flash) scheduled ~45–120s.
