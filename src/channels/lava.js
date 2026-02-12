@@ -79,6 +79,43 @@ export function createChannel({ seed, audio }){
   let w=0,h=0,t=0;
   let blobs=[];
 
+  // Lava lives inside a lamp silhouette (not full-screen).
+  let lampSpec = null;
+  let simBounds = { x0: 0, y0: 0, x1: 0, y1: 0 };
+
+  function computeLampSpec(W, H){
+    const x = W * 0.5;
+
+    const yTop = H * 0.14;
+    const yBot = H * 0.86;
+    const glassH = Math.max(1, yBot - yTop);
+
+    const neckH = glassH * 0.12;
+
+    const wNeck = W * 0.18;
+    const wBelly = W * 0.44;
+    const wFoot = W * 0.24;
+
+    const pad = Math.max(10, Math.floor(Math.min(W, H) * 0.018));
+
+    // Inner "liquid" bounds used for sim wrap (slightly inset from glass).
+    const x0 = x - (wBelly * 0.5 - pad * 1.2);
+    const x1 = x + (wBelly * 0.5 - pad * 1.2);
+    const y0 = yTop + neckH + pad * 0.8;
+    const y1 = yBot - pad * 1.25;
+
+    return {
+      x, yTop, yBot, glassH, neckH, wNeck, wBelly, wFoot, pad,
+      bounds: { x0, y0, x1, y1 },
+    };
+  }
+
+  function setLampSpec(){
+    lampSpec = computeLampSpec(w, h);
+    simBounds = lampSpec.bounds;
+  }
+
+
   // Fixed-timestep simulation so motion is deterministic across 30fps vs 60fps.
   const FIXED_DT = 1/60;
   const MAX_STEPS_PER_UPDATE = 16;
@@ -120,6 +157,10 @@ export function createChannel({ seed, audio }){
     shine: null,
     texture: null,
     blurPx: 8,
+
+    lamp: null,
+    capGrad: null,
+    baseGrad: null,
 
     // Micro-perf: avoid per-frame template string churn for ctx.filter.
     filterBlurQ: -1,
@@ -209,6 +250,10 @@ export function createChannel({ seed, audio }){
     cache.shine = null;
     cache.texture = null;
     cache.blurPx = 8;
+
+    cache.lamp = null;
+    cache.capGrad = null;
+    cache.baseGrad = null;
 
     cache.filterBlurQ = -1;
     cache.filterBlurStr = 'none';
@@ -305,11 +350,94 @@ export function createChannel({ seed, audio }){
           cache.texture = null;
         }
       }
+
+      if (!lampSpec) setLampSpec();
+
+      // Lamp silhouette paths + cached metal gradients (rebuild on resize/ctx swap)
+      {
+        const spec = lampSpec;
+        const outer = (typeof Path2D !== 'undefined') ? new Path2D() : null;
+        const inner = (typeof Path2D !== 'undefined') ? new Path2D() : null;
+
+        if (outer && inner){
+          traceGlassPath(outer, spec, 0);
+          traceGlassPath(inner, spec, spec.pad * 0.85);
+        }
+
+        const capW = spec.wNeck * 1.85;
+        const capH = Math.max(10, spec.glassH * 0.06);
+        const capX = spec.x - capW * 0.5;
+        const capY = spec.yTop - capH * 0.85;
+
+        const baseW = spec.wFoot * 2.05;
+        const baseH = Math.max(12, spec.glassH * 0.09);
+        const baseX = spec.x - baseW * 0.5;
+        const baseY = spec.yBot - baseH * 0.10;
+
+        cache.lamp = {
+          spec,
+          outer,
+          inner,
+          cap: { x: capX, y: capY, w: capW, h: capH, r: capH * 0.22 },
+          base: { x: baseX, y: baseY, w: baseW, h: baseH, r: baseH * 0.22 },
+        };
+
+        const capGrad = ctx.createLinearGradient(0, capY, 0, capY + capH);
+        capGrad.addColorStop(0, 'rgba(255,240,250,0.18)');
+        capGrad.addColorStop(0.5, 'rgba(120,40,120,0.22)');
+        capGrad.addColorStop(1, 'rgba(0,0,0,0.35)');
+        cache.capGrad = capGrad;
+
+        const baseGrad = ctx.createLinearGradient(0, baseY, 0, baseY + baseH);
+        baseGrad.addColorStop(0, 'rgba(255,235,245,0.10)');
+        baseGrad.addColorStop(0.4, 'rgba(140,50,160,0.20)');
+        baseGrad.addColorStop(1, 'rgba(0,0,0,0.45)');
+        cache.baseGrad = baseGrad;
+      }
     }
   }
 
   function lerp(a, b, t){
     return a + (b - a) * t;
+  }
+
+  function traceGlassPath(p, spec, inset=0){
+    const x = spec.x;
+    const yTop = spec.yTop;
+    const yBot = spec.yBot;
+    const glassH = spec.glassH;
+    const neckH = spec.neckH;
+
+    const wNeck = Math.max(16, spec.wNeck - inset * 2);
+    const wBelly = Math.max(26, spec.wBelly - inset * 2);
+    const wFoot = Math.max(18, spec.wFoot - inset * 2);
+
+    const yNeck = yTop + neckH;
+    const yMid = yTop + glassH * 0.52;
+    const yCtrl1 = yTop + glassH * 0.25;
+    const yCtrl2 = yTop + glassH * 0.78;
+
+    p.moveTo(x - wNeck * 0.5, yNeck);
+    p.quadraticCurveTo(x - wBelly * 0.5, yCtrl1, x - wBelly * 0.5, yMid);
+    p.quadraticCurveTo(x - wBelly * 0.5, yCtrl2, x - wFoot * 0.5, yBot);
+    p.lineTo(x + wFoot * 0.5, yBot);
+    p.quadraticCurveTo(x + wBelly * 0.5, yCtrl2, x + wBelly * 0.5, yMid);
+    p.quadraticCurveTo(x + wBelly * 0.5, yCtrl1, x + wNeck * 0.5, yNeck);
+    p.closePath();
+  }
+
+  function roundRect(ctx, x, y, W, H, r){
+    const rr = Math.max(0, Math.min(r, W * 0.5, H * 0.5));
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, W, H, rr);
+    else {
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + W, y, x + W, y + H, rr);
+      ctx.arcTo(x + W, y + H, x, y + H, rr);
+      ctx.arcTo(x, y + H, x, y, rr);
+      ctx.arcTo(x, y, x + W, y, rr);
+      ctx.closePath();
+    }
   }
 
   function rebuildTimeStructure(){
@@ -349,13 +477,18 @@ export function createChannel({ seed, audio }){
 
   function init({width,height}){
     w=width; h=height; t=0; acc=0;
+    setLampSpec();
+
+    const BW = Math.max(1, simBounds.x1 - simBounds.x0);
+    const BH = Math.max(1, simBounds.y1 - simBounds.y0);
+
     blobs = Array.from({ length: 7 }, () => {
       const baseR = 80 + rand() * 170;
       return {
-        x: rand() * w,
-        y: rand() * h,
-        vx: (rand() * 2 - 1) * (30 + w / 30),
-        vy: (rand() * 2 - 1) * (30 + h / 30),
+        x: simBounds.x0 + rand() * BW,
+        y: simBounds.y0 + rand() * BH,
+        vx: (rand() * 2 - 1) * (24 + BW / 26),
+        vy: (rand() * 2 - 1) * (24 + BH / 26),
         baseR,
         r: baseR * (h / 540),
         hue: 290 + rand() * 60,
@@ -381,12 +514,22 @@ export function createChannel({ seed, audio }){
   function onResize(width,height){
     const oldW = w;
     const oldH = h;
+    const oldBounds = simBounds;
+
     w = width;
     h = height;
+
+    setLampSpec();
+    const nb = simBounds;
 
     // Keep blob sizing proportional to viewport height so resizes don't make them absurdly big/small.
     const sx = (oldW > 0) ? (w / oldW) : 1;
     const sy = (oldH > 0) ? (h / oldH) : 1;
+
+    const oldBW = Math.max(1, oldBounds.x1 - oldBounds.x0);
+    const oldBH = Math.max(1, oldBounds.y1 - oldBounds.y0);
+    const newBW = Math.max(1, nb.x1 - nb.x0);
+    const newBH = Math.max(1, nb.y1 - nb.y0);
 
     for (const b of blobs){
       // Back-compat if a blob was created before baseR existed.
@@ -396,8 +539,12 @@ export function createChannel({ seed, audio }){
       }
 
       b.r = b.baseR * (h / 540);
-      b.x = clamp(b.x * sx, 0, w);
-      b.y = clamp(b.y * sy, 0, h);
+
+      const ux = (b.x - oldBounds.x0) / oldBW;
+      const uy = (b.y - oldBounds.y0) / oldBH;
+      b.x = nb.x0 + clamp(ux, 0, 1) * newBW;
+      b.y = nb.y0 + clamp(uy, 0, 1) * newBH;
+
       b.vx *= sx;
       b.vy *= sy;
     }
@@ -594,8 +741,8 @@ export function createChannel({ seed, audio }){
     const dtv = dt * speedMul;
 
     // SWIRL moment: a gentle deterministic vortex around a slightly-lower-than-center point.
-    const cx = w * 0.5;
-    const cy = h * 0.56;
+    const cx = (simBounds.x0 + simBounds.x1) * 0.5;
+    const cy = lerp(simBounds.y0, simBounds.y1, 0.55);
     const swirlK = (swirlMul > 0) ? (0.00055 + 0.00025 * (w / Math.max(1, h))) * swirlMul : 0;
 
     for (const b of blobs){
@@ -609,11 +756,11 @@ export function createChannel({ seed, audio }){
       b.x += b.vx * dtv;
       b.y += b.vy * dtv;
 
-      // soft bounds
-      if (b.x < -b.r) { b.x = w + b.r; }
-      if (b.x > w + b.r) { b.x = -b.r; }
-      if (b.y < -b.r) { b.y = h + b.r; }
-      if (b.y > h + b.r) { b.y = -b.r; }
+      // soft bounds (inside the lamp)
+      if (b.x < simBounds.x0 - b.r) { b.x = simBounds.x1 + b.r; }
+      if (b.x > simBounds.x1 + b.r) { b.x = simBounds.x0 - b.r; }
+      if (b.y < simBounds.y0 - b.r) { b.y = simBounds.y1 + b.r; }
+      if (b.y > simBounds.y1 + b.r) { b.y = simBounds.y0 - b.r; }
 
       const drift = 0.24 + 0.22 * ((speedMul - 0.72) / (1.85 - 0.72));
       b.vx += Math.sin(t * 0.6 + b.ph) * 0.3 * drift;
@@ -665,8 +812,26 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = cache.bg;
     ctx.fillRect(0,0,w,h);
 
-    // blob field (cached sprites; no per-frame gradients)
+    const lamp = cache.lamp;
+
+    // Darken outside the glass silhouette so it reads as an actual lamp.
+    if (lamp?.inner){
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.70;
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.globalAlpha = 1;
+      ctx.fill(lamp.inner);
+      ctx.restore();
+    }
+
+    // blob field (cached sprites; clipped to the lamp glass)
     ctx.save();
+    if (lamp?.inner) ctx.clip(lamp.inner);
+
     ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = 0.90 * intensityMul;
     const blurPx = Math.max(0.5, cache.blurPx * blurMul);
@@ -709,9 +874,57 @@ export function createChannel({ seed, audio }){
 
     ctx.restore();
 
+    // glass outline + metal cap/base (cached)
+    if (lamp?.outer){
+      ctx.save();
+      ctx.filter = 'none';
+
+      // Outer glass edge
+      ctx.globalCompositeOperation = 'screen';
+      ctx.lineWidth = Math.max(2, h * 0.006);
+      ctx.strokeStyle = 'rgba(255,220,255,0.14)';
+      ctx.stroke(lamp.outer);
+
+      // Inner rim
+      ctx.lineWidth = Math.max(1, h * 0.0035);
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.stroke(lamp.inner);
+
+      // Cap
+      if (cache.capGrad && lamp.cap){
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = cache.capGrad;
+        roundRect(ctx, lamp.cap.x, lamp.cap.y, lamp.cap.w, lamp.cap.h, lamp.cap.r);
+        ctx.fill();
+
+        ctx.globalCompositeOperation = 'screen';
+        ctx.lineWidth = Math.max(1, h * 0.0025);
+        ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+        roundRect(ctx, lamp.cap.x, lamp.cap.y, lamp.cap.w, lamp.cap.h, lamp.cap.r);
+        ctx.stroke();
+      }
+
+      // Base
+      if (cache.baseGrad && lamp.base){
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = cache.baseGrad;
+        roundRect(ctx, lamp.base.x, lamp.base.y, lamp.base.w, lamp.base.h, lamp.base.r);
+        ctx.fill();
+
+        ctx.globalCompositeOperation = 'screen';
+        ctx.lineWidth = Math.max(1, h * 0.003);
+        ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+        roundRect(ctx, lamp.base.x, lamp.base.y, lamp.base.w, lamp.base.h, lamp.base.r);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
     // Special moments: a quick deterministic glint sweep so events are unmistakable.
     if (glintMul > 0.001){
       ctx.save();
+      if (cache.lamp?.inner) ctx.clip(cache.lamp.inner);
       ctx.globalCompositeOperation = 'screen';
       ctx.filter = 'none';
 
@@ -737,10 +950,13 @@ export function createChannel({ seed, audio }){
     }
 
     // glass shine (cached gradient)
-    ctx.save();
-    ctx.fillStyle = cache.shine;
-    ctx.fillRect(0,0,w,h);
-    ctx.restore();
+    if (cache.lamp?.outer){
+      ctx.save();
+      ctx.clip(cache.lamp.outer);
+      ctx.fillStyle = cache.shine;
+      ctx.fillRect(0,0,w,h);
+      ctx.restore();
+    }
 
     // subtle texture (cached grain/scanlines/vignette)
     if (cache.texture){
