@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Determinism `lava` (src/channels/lava.js): switched to a fixed-timestep simulation loop so 30fps vs 60fps yields identical captures for the same seed. Screenshots: screenshots/autopilot-lava-determinism-before + screenshots/autopilot-lava-determinism-after. Commit: 261d558
+
 - [x] [project:quine-tv] Special moments `lava` (src/channels/lava.js): added a deterministic glint sweep overlay during cycle events so “special moments” are unmistakable. Commit: 6bfca4e
 
 - [x] [project:quine-tv] Visual texture `lava` (src/channels/lava.js): cached film grain + scanlines + vignette layer (rebuild on resize/ctx swap) to reduce flat empty space without cluttering OSD. Screenshots: screenshots/autopilot-lava-texture-start + screenshots/autopilot-lava-texture-done. Commit: 84ac0e3
