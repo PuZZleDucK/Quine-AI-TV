@@ -50,6 +50,76 @@ const OPENERS = [
   'help me explain this so i can fix it.',
 ];
 
+// Uncommon/rare ASCII art stingers for bug + fix lines.
+// (Deterministic per-seed; intended to be small/OSD-safe.)
+const BUG_ART = {
+  uncommon: [
+    [
+      '   .-.-.',
+      '  (o o )',
+      '   | O |',
+      '   |   |',
+      '   `~~~\'',
+    ],
+    [
+      '  /\\_/\\',
+      ' ( o.o )',
+      '  > ^ <',
+    ],
+    [
+      '  .---.',
+      ' / x x\\',
+      ' \\  ^  /',
+      '  `---\'',
+    ],
+  ],
+  rare: [
+    [
+      '      ____',
+      '  ___/____\\___',
+      ' /  /  __  \\  \\',
+      '|  |  (__)  |  |',
+      ' \\__\\____/__/ ',
+      '    (______)    ',
+    ],
+    [
+      '  .----.',
+      ' / .--.\\',
+      '| |    | |',
+      '| |    | |',
+      ' \\ \'--\' /',
+      '  `----\'',
+    ],
+  ],
+};
+
+const FIX_ART = {
+  uncommon: [
+    [
+      '   ____',
+      ' _|__|__|_',
+      '|  ____  |',
+      '|_|____|_|',
+    ],
+    [
+      '   _/\\_',
+      ' _|    |_',
+      '|  [] [] |',
+      '|__----__|',
+    ],
+  ],
+  rare: [
+    [
+      '  ___________',
+      ' /          /|',
+      '/__________/ |',
+      '|  PATCHED | |',
+      '|  & TESTS | /',
+      '|__________|/',
+    ],
+  ],
+};
+
 const BUG_LINES = [
   (bug) => `BUG: ${bug}.`,
   (bug) => `BUG REPORT: ${bug}.`,
@@ -71,6 +141,14 @@ const LESSON_LINES = [
 
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 
+function maybeArt(rand, pool){
+  // ~12% uncommon, ~3% rare.
+  const r = rand();
+  if (r < 0.03) return pick(rand, pool.rare);
+  if (r < 0.15) return pick(rand, pool.uncommon);
+  return null;
+}
+
 function confessional(rand){
   const hh = String((1 + (rand() * 4) | 0)).padStart(2, '0');
   const mm = String((rand() * 60) | 0).padStart(2, '0');
@@ -81,12 +159,19 @@ function confessional(rand){
   const fix = pick(rand, FIXES);
   const lesson = pick(rand, LESSONS);
 
-  return [
-    `${hh}:${mm}  ${who}: ${opener}`,
-    pick(rand, BUG_LINES)(bug),
-    pick(rand, FIX_LINES)(fix),
-    pick(rand, LESSON_LINES)(lesson)
-  ];
+  const lines = [];
+  lines.push(`${hh}:${mm}  ${who}: ${opener}`);
+
+  lines.push(pick(rand, BUG_LINES)(bug));
+  const bugArt = maybeArt(rand, BUG_ART);
+  if (bugArt) lines.push(...bugArt);
+
+  lines.push(pick(rand, FIX_LINES)(fix));
+  const fixArt = maybeArt(rand, FIX_ART);
+  if (fixArt) lines.push(...fixArt);
+
+  lines.push(pick(rand, LESSON_LINES)(lesson));
+  return lines;
 }
 
 export function createChannel({ seed, audio }){
