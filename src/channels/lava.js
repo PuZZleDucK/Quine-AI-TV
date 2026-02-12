@@ -100,6 +100,10 @@ export function createChannel({ seed, audio }){
   let intensityMul = 1;
   let swirlMul = 0;
 
+  // Event accent: a bright deterministic glint sweep during special moments.
+  let glintMul = 0;
+  let glintPos = 0;
+
   // Perf: cache gradients + pre-render blob sprites so steady-state render allocates 0 gradients.
   const SPR_R_STEP = 12;
   const SPR_H_STEP = 10;
@@ -553,6 +557,9 @@ export function createChannel({ seed, audio }){
     let eHeat = 0;
     let eSwirl = 0;
 
+    let gMul = 0;
+    let gPos = 0;
+
     for (const e of cycleEvents){
       if (tc < e.t0 || tc > e.t1) continue;
 
@@ -561,10 +568,18 @@ export function createChannel({ seed, audio }){
       const aOut = smoothstep01((1 - uev) / 0.18);
       const amp = aIn * aOut;
 
+      if (amp > gMul){
+        gMul = amp;
+        gPos = uev;
+      }
+
       if (e.type === 'PULSE') ePulse = Math.max(ePulse, amp);
       else if (e.type === 'HEAT') eHeat = Math.max(eHeat, amp);
       else if (e.type === 'SWIRL') eSwirl = Math.max(eSwirl, amp);
     }
+
+    glintMul = gMul;
+    glintPos = gPos;
 
     speedMul = clamp(s0 + 0.10 * ePulse + 0.18 * eHeat + 0.25 * eSwirl, 0.55, 1.85);
     blurMul = clamp(b0 * (1 - 0.10 * ePulse) * (1 - 0.16 * eHeat), 0.55, 1.55);
@@ -671,6 +686,33 @@ export function createChannel({ seed, audio }){
     }
 
     ctx.restore();
+
+    // Special moments: a quick deterministic glint sweep so events are unmistakable.
+    if (glintMul > 0.001){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.filter = 'none';
+
+      const x = (-0.2 + 1.4 * glintPos) * w;
+      const y = h * 0.40;
+      const stripeW = w * 0.18;
+      const stripeH = h * 1.30;
+      const a = clamp(0.05 + 0.22 * glintMul, 0, 0.35);
+
+      ctx.translate(x, y);
+      ctx.rotate(-0.10);
+
+      const g = ctx.createLinearGradient(-stripeW * 0.5, 0, stripeW * 0.5, 0);
+      g.addColorStop(0, 'rgba(255,240,220,0)');
+      g.addColorStop(0.45, `rgba(255,240,220,${a * 0.35})`);
+      g.addColorStop(0.5, `rgba(255,240,220,${a})`);
+      g.addColorStop(0.55, `rgba(255,240,220,${a * 0.35})`);
+      g.addColorStop(1, 'rgba(255,240,220,0)');
+
+      ctx.fillStyle = g;
+      ctx.fillRect(-stripeW * 0.5, -stripeH * 0.5, stripeW, stripeH);
+      ctx.restore();
+    }
 
     // glass shine (cached gradient)
     ctx.save();
