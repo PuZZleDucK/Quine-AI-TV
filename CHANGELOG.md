@@ -1,3 +1,5 @@
+- 2026-02-13 00:30 (Australia/Melbourne) [project:quine-tv] `matrix` (src/channels/matrix.js): determinism — moved glyph RNG out of `render()` by updating per-column glyph arrays on a fixed cadence in `update(dt)` (80–140ms). Screenshots: screenshots/autopilot-matrix-determinism-before + screenshots/autopilot-matrix-determinism-after. Commit: 425c04e
+
 - 2026-02-13 00:18 (Australia/Melbourne) [project:quine-tv] `matrix` (src/channels/matrix.js): audio hygiene — made `onAudioOn()` idempotent, added gentle noise fade-out on stop, `onAudioOff()` only clears AudioManager.current when owned, and reduced beep cadence/variation. Commit: 6a4c738
 
 - 2026-02-13 00:07 (Australia/Melbourne) [project:quine-tv] Review channel `matrix` (src/channels/matrix.js): captured screenshots (0–300s) to `screenshots/review-matrix` (errors/warnings: 0), added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`.

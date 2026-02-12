@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `matrix` (src/channels/matrix.js): determinism — removed `rand()` consumption from `render()` by updating per-column glyph arrays on a fixed cadence in `update(dt)` (80–140ms). Screenshots: screenshots/autopilot-matrix-determinism-before + screenshots/autopilot-matrix-determinism-after. Commit: 425c04e
+
 - [x] [project:quine-tv] `matrix` (src/channels/matrix.js): audio hygiene — `onAudioOn()` idempotent (no stacking), gentle hiss fade-out on stop, `onAudioOff()`/`destroy()` clear AudioManager.current only when owned; reduced beep cadence/variation. Commit: 6a4c738
 
 - [x] [project:quine-tv] Review channel `matrix` (src/channels/matrix.js): captured screenshots (0–300s) to `screenshots/review-matrix` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`.
