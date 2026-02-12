@@ -1,3 +1,5 @@
+- 2026-02-13 05:08 (Australia/Melbourne) [project:quine-tv] Review channel `foleylab` (src/channels/foleylab.js): captured screenshots (0–300s) to `screenshots/review-foleylab-pre` + completion shots to `screenshots/review-foleylab-post` (errors/warnings: 0), added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+
 - 2026-02-13 04:49 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): time structure — added explicit calm→crisis→resolution phase cycle that shapes typing speed, scanline intensity, and between-confessional hold durations (with short crossfades at boundaries). Commit: 98981b6
 
 - 2026-02-13 04:34 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): dialog variety — expanded phrase pools and added short seeded fake stack-trace snippets to avoid obvious repeats over 5+ minutes. Commit: 53a42aa
