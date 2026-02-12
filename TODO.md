@@ -11,7 +11,6 @@ if `TODO.md` has no ready items:
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Visual depth — add subtle glass reflection + edge vignette/panel bloom that varies by segment (MOVE/ARRIVE/SERVICE) without cluttering OSD.
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Text/dialog — expand the status strip into themed, mildly funny annunciator messages that can last 5 minutes (seeded rotation, no repeats too quickly).
 
-- [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Determinism — decouple audio randomness from visual PRNG (no `rand()` consumption inside `if (audio.enabled)` paths); use separate RNG or deterministic hash based on time/phase.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Long-run interest — make the polish glint a true rare “special moment” (~45–120s) with a more dramatic, clearly visible signature + clean reset.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Text/dialog — add a rotating “case notes” line/panel (seeded, no repeats too quickly) with ~40–80 variants so it stays entertaining over 5 minutes; keep it subtle and OSD-safe.
 - [quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): Visual polish — improve CRACK phase readability by varying crack thickness/opacity by depth and adding tiny branching micro-cracks near endpoints (deterministic per crack) without adding per-frame RNG.

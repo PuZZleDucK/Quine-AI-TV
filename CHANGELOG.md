@@ -1,3 +1,5 @@
+- 2026-02-12 13:04 (Australia/Melbourne) [project:quine-tv] Determinism `kintsugi` (src/channels/kintsugiclinic.js): decoupled audio randomness from the visual PRNG via a separate audio RNG (no visual `rand()` consumption inside audio code paths). Commit: bf04775
+
 - 2026-02-12 12:45 (Australia/Melbourne) [project:quine-tv] Perf pass `kintsugi` (src/channels/kintsugiclinic.js): cached bench/spotlight/pottery/gold/vignette gradients (rebuild on resize/regen/ctx swap) so steady-state `render()` allocates 0 gradients/frame. Commit: 27555f5
 
 - 2026-02-12 12:15 (Australia/Melbourne) [project:quine-tv] Audio hygiene `stitchalong` (src/channels/constellationstitch.js): made `onAudioOn()` idempotent (stops our previous ambience before restarting) and `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: 8346d27

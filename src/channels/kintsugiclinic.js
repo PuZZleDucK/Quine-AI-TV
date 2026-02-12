@@ -69,6 +69,8 @@ function drawPolylinePartial(ctx, pts, frac){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  // Audio determinism: never consume the visual PRNG from audio code paths.
+  const arand = mulberry32((((seed | 0) ^ 0xA0D10) >>> 0));
 
   let w = 0;
   let h = 0;
@@ -298,8 +300,8 @@ export function createChannel({ seed, audio }){
       nextGlintAt = t + 0.8 + rand() * 1.2;
     }
 
-    // tiny UI click
-    safeBeep({ freq: 420 + rand()*140, dur: 0.016, gain: 0.008, type: 'square' });
+    // tiny UI click (audio RNG only)
+    if (audio.enabled) safeBeep({ freq: 420 + arand()*140, dur: 0.016, gain: 0.008, type: 'square' });
   }
 
   function init({ width, height, dpr: dprIn }){
@@ -329,7 +331,7 @@ export function createChannel({ seed, audio }){
     const n = audio.noiseSource({ type: 'brown', gain: 0.0036 });
     n.start();
 
-    const d = simpleDrone(audio, { root: 55 + rand()*18, detune: 1.0, gain: 0.015 });
+    const d = simpleDrone(audio, { root: 55 + arand()*18, detune: 1.0, gain: 0.015 });
     ambience = {
       stop(){
         try { n.stop(); } catch {}
@@ -403,8 +405,8 @@ export function createChannel({ seed, audio }){
               const pull = 0.55 + rand()*0.25;
               d.x = lerp(d.x, d.x - dx*0.02, pull);
               d.y = lerp(d.y, d.y - dy*0.02, pull);
-              if (audio.enabled && rand() < 0.08){
-                safeBeep({ freq: 980 + rand()*380, dur: 0.010, gain: 0.0020, type: 'triangle' });
+              if (audio.enabled && arand() < 0.08){
+                safeBeep({ freq: 980 + arand()*380, dur: 0.010, gain: 0.0020, type: 'triangle' });
               }
             }
           }
@@ -429,19 +431,19 @@ export function createChannel({ seed, audio }){
         nextGlintAt = t + 1.6 + rand() * 2.8;
 
         if (audio.enabled){
-          safeBeep({ freq: 820 + rand()*180, dur: 0.030, gain: 0.010, type: 'triangle' });
-          if (rand() < 0.45) safeBeep({ freq: 1420 + rand()*220, dur: 0.016, gain: 0.007, type: 'sine' });
+          safeBeep({ freq: 820 + arand()*180, dur: 0.030, gain: 0.010, type: 'triangle' });
+          if (arand() < 0.45) safeBeep({ freq: 1420 + arand()*220, dur: 0.016, gain: 0.007, type: 'sine' });
         }
       }
     }
 
     // occasional tiny crack tick near end of crack phase
-    if (audio.enabled && ph === 'crack' && p > 0.65 && rand() < 0.04){
-      safeBeep({ freq: 160 + rand()*60, dur: 0.020, gain: 0.0045, type: 'square' });
+    if (audio.enabled && ph === 'crack' && p > 0.65 && arand() < 0.04){
+      safeBeep({ freq: 160 + arand()*60, dur: 0.020, gain: 0.0045, type: 'square' });
     }
 
-    if (audio.enabled && ph === 'glue' && p > 0.35 && rand() < 0.035){
-      safeBeep({ freq: 420 + rand()*120, dur: 0.012, gain: 0.0035, type: 'sine' });
+    if (audio.enabled && ph === 'glue' && p > 0.35 && arand() < 0.035){
+      safeBeep({ freq: 420 + arand()*120, dur: 0.012, gain: 0.0035, type: 'sine' });
     }
   }
 
