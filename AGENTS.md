@@ -15,7 +15,7 @@ The repository includes a Playwright-based capture tool: `scripts/capture-channe
   - A strong visual identity (palette + composition) with **layered motion** (background/midground/foreground).
   - Improvments to visual components
   - **Time structure** (beats/segments/phases) rather than a single infinite loop.
-  - A couple of small **“special moments”** (e.g. meteor/flash/glitch.rare-event) triggered on timers.
+  - A couple of uncommon and rare **“special moments”** (e.g. meteor/flash/glitch.rare-event) triggered on timers.
   - Deterministic variety via the provided `seed` + PRNG (so the same seed yields the same scene).
   - Optional audio that respects `audio.enabled` (start on `onAudioOn`, stop/cleanup on `onAudioOff`/`destroy`).
   - Clean lifecycle: implement `onResize`, `update(dt)`, `draw(ctx)`, and `destroy()`; keep allocations out of the hot path.
