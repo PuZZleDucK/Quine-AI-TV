@@ -155,6 +155,16 @@ export function createChannel({ seed, audio }){
 
   let ambience = null;
 
+  function stopOwnedAmbience(){
+    if (!ambience) return;
+    if (audio.current === ambience){
+      audio.stopCurrent();
+    } else {
+      try { ambience.stop?.(); } catch {}
+    }
+    ambience = null;
+  }
+
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
   function reseedOrder(){
@@ -206,6 +216,8 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOn(){
+    // Idempotent: if we're toggled on repeatedly, stop our previous sources first.
+    stopOwnedAmbience();
     if (!audio.enabled) return;
 
     const n = audio.noiseSource({ type: 'pink', gain: 0.0022 });
@@ -222,12 +234,12 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
-    ambience = null;
+    // Only clear audio.current if we own it; still stop our own sources regardless.
+    stopOwnedAmbience();
   }
 
   function destroy(){
-    onAudioOff();
+    stopOwnedAmbience();
   }
 
   function update(dt){
