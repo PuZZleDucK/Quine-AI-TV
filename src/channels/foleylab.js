@@ -231,6 +231,7 @@ export function createChannel({ seed, audio }){
   // Split RNG streams so audio.enabled toggles don’t affect recipe/visual determinism.
   const randV = mulberry32(seed);
   const randA = mulberry32(seed ^ 0x9E3779B9);
+  const randS = mulberry32(seed ^ 0xC0FFEE); // specials / UI-only RNG
 
   let w = 0, h = 0, t = 0;
   let font = 16;
@@ -248,6 +249,18 @@ export function createChannel({ seed, audio }){
   let sfxAcc = 0;
 
   let ambience = null;
+
+  // UI drive (derived from step density)
+  let vu = 0; // 0..1
+  const vuHistN = 72;
+  let vuHist = new Float32Array(vuHistN);
+  let vuHistPos = 0;
+  let vuHistAcc = 0;
+
+  let specialKind = null; // 'takegood' | 'overload'
+  let specialT = 0;
+  let specialDur = 0;
+  let nextSpecialAt = 0;
 
   function curStep(){
     return recipe?.steps?.[stepIndex] || null;
@@ -287,6 +300,16 @@ export function createChannel({ seed, audio }){
     font = Math.max(14, Math.floor(Math.min(w, h) / 34));
     small = Math.max(11, Math.floor(font * 0.78));
     nextRecipe();
+
+    vu = 0;
+    vuHist = new Float32Array(vuHistN);
+    vuHistPos = 0;
+    vuHistAcc = 0;
+
+    specialKind = null;
+    specialT = 0;
+    specialDur = 0;
+    nextSpecialAt = 45 + randS() * 75;
   }
 
   function onResize(width, height){
@@ -374,6 +397,33 @@ export function createChannel({ seed, audio }){
 
     stepT += dt;
     const p = clamp(stepT / step.dur, 0, 1);
+    const density = Math.sin(p * Math.PI);
+
+    // smooth-ish VU meter driven by step density (independent of audio.enabled)
+    const k = 1 - Math.exp(-dt * 6);
+    vu = vu + (density - vu) * k;
+
+    // keep a tiny history buffer to draw a waveform/sparkline (still deterministic)
+    vuHistAcc += dt;
+    const sampleEvery = 1 / 30;
+    while (vuHistAcc >= sampleEvery){
+      vuHistAcc -= sampleEvery;
+      vuHist[vuHistPos] = vu;
+      vuHistPos = (vuHistPos + 1) % vuHistN;
+    }
+
+    // rare deterministic special moments (~45–120s)
+    if (!nextSpecialAt) nextSpecialAt = 45 + randS() * 75;
+    if (!specialKind && t >= nextSpecialAt){
+      specialKind = (randS() < 0.55) ? 'takegood' : 'overload';
+      specialT = 0;
+      specialDur = (specialKind === 'takegood') ? 2.4 : 1.0;
+      nextSpecialAt = t + 45 + randS() * 75;
+    }
+    if (specialKind){
+      specialT += dt;
+      if (specialT >= specialDur) specialKind = null;
+    }
 
     // drive sounds with a density curve so it breathes
     if (audio.enabled && step.sound){
@@ -392,7 +442,7 @@ export function createChannel({ seed, audio }){
       else if (step.sound === 'crackle') rate = 26;
       else if (step.sound === 'pop') rate = 0.9;
 
-      const density = Math.sin(p * Math.PI);
+      // density computed above
       sfxAcc += dt * rate * (0.22 + density * 1.05);
       while (sfxAcc >= 1){
         sfxAcc -= 1;
@@ -813,6 +863,69 @@ export function createChannel({ seed, audio }){
 
     ctx.restore();
 
+    // small VU / waveform panel (tied to step density; OSD-safe)
+    const vx = rx;
+    const vy = ry + rh + Math.floor(font * 0.8);
+    const vw = rw;
+    const vh = Math.max(Math.floor(h * 0.09), Math.floor(font * 4.2));
+
+    if (vy + vh < Math.floor(h * 0.90)){
+      const overload = specialKind === 'overload';
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      roundRect(ctx, vx, vy, vw, vh, Math.floor(font * 0.7));
+      ctx.fill();
+
+      ctx.fillStyle = overload ? 'rgba(255,90,165,0.92)' : 'rgba(108,242,255,0.92)';
+      ctx.font = `700 ${Math.floor(font * 0.72)}px ui-sans-serif, system-ui`;
+      ctx.textBaseline = 'top';
+      ctx.globalAlpha = 0.9;
+      ctx.fillText(overload ? 'VU / CLIP' : 'VU / DENSITY', vx + Math.floor(font * 0.75), vy + Math.floor(font * 0.55));
+
+      const bx = vx + Math.floor(font * 0.75);
+      const by = vy + Math.floor(font * 1.55);
+      const bw = vw - Math.floor(font * 1.5);
+      const bh = vh - Math.floor(font * 2.05);
+
+      const bars = 26;
+      const gap = bw / bars;
+      const barW = Math.max(2, Math.floor(gap * 0.58));
+      for (let i=0;i<bars;i++){
+        const osc = 0.55 + 0.45 * Math.sin(t * 6.5 + i * 0.72);
+        const a = clamp((0.10 + vu * 0.95) * osc, 0, 1);
+        const hh = Math.max(2, Math.floor(bh * a));
+        const x = Math.floor(bx + i * gap);
+        const y = Math.floor(by + (bh - hh));
+        ctx.globalAlpha = 0.18 + a * 0.55;
+        ctx.fillStyle = overload ? 'rgba(255,90,165,1)' : 'rgba(231,238,246,1)';
+        ctx.fillRect(x, y, barW, hh);
+      }
+
+      // waveform sparkline (recent density)
+      ctx.save();
+      ctx.globalAlpha = overload ? 0.42 : 0.32;
+      ctx.lineWidth = Math.max(2, Math.floor(font * 0.1));
+      ctx.strokeStyle = overload ? 'rgba(255,214,107,0.95)' : 'rgba(108,242,255,0.95)';
+      ctx.beginPath();
+      for (let i=0;i<vuHistN;i++){
+        const v = vuHist[(vuHistPos + i) % vuHistN];
+        const x = bx + (i / Math.max(1, vuHistN - 1)) * bw;
+        const y = by + (bh - v * bh);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      // baseline
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = overload ? 'rgba(255,90,165,1)' : 'rgba(108,242,255,1)';
+      ctx.fillRect(bx, by + bh + 1, bw, 1);
+
+      ctx.restore();
+    }
+
     // footer hint
     ctx.save();
     ctx.globalAlpha = 0.65;
@@ -839,6 +952,62 @@ export function createChannel({ seed, audio }){
       ctx.stroke();
     }
     ctx.restore();
+  }
+
+  function drawSpecialMoment(ctx){
+    if (!specialKind) return;
+
+    const q = clamp(specialT / Math.max(0.001, specialDur), 0, 1);
+    const a = 1 - q;
+    const fade = a * a;
+
+    if (specialKind === 'takegood'){
+      const stampA = 0.85 * fade;
+      ctx.save();
+      ctx.translate(Math.floor(w * 0.56), Math.floor(h * 0.22));
+      ctx.rotate(-0.22);
+      ctx.globalAlpha = stampA;
+
+      const ww = Math.floor(w * 0.36);
+      const hh = Math.floor(font * 2.0);
+      roundRect(ctx, -Math.floor(ww * 0.5), -Math.floor(hh * 0.5), ww, hh, Math.floor(font * 0.6));
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fill();
+
+      ctx.lineWidth = Math.max(3, Math.floor(font * 0.18));
+      ctx.strokeStyle = 'rgba(255,90,165,0.95)';
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255,214,107,0.95)';
+      ctx.font = `900 ${Math.floor(font * 1.25)}px ui-sans-serif, system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('TAKE GOOD', 0, 0);
+      ctx.restore();
+    } else if (specialKind === 'overload'){
+      ctx.save();
+
+      ctx.globalAlpha = 0.22 * fade;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.globalAlpha = 0.65 * fade;
+      ctx.fillStyle = 'rgba(255,90,165,0.85)';
+      const bw = Math.floor(font * 6.0);
+      const bh = Math.floor(font * 1.6);
+      const x = Math.floor(w * 0.5 - bw * 0.5);
+      const y = Math.floor(h * 0.13);
+      roundRect(ctx, x, y, bw, bh, Math.floor(font * 0.55));
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.font = `900 ${Math.floor(font * 0.95)}px ui-sans-serif, system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('MIC CLIP', x + bw / 2, y + bh / 2);
+
+      ctx.restore();
+    }
   }
 
   function render(ctx){
@@ -878,6 +1047,7 @@ export function createChannel({ seed, audio }){
     }
 
     drawHUD(ctx);
+    drawSpecialMoment(ctx);
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
