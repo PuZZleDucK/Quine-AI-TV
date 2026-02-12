@@ -1,6 +1,10 @@
 
 # Done
 
+- [x] [project:quine-tv] Review channel `fixit` (src/channels/fixit.js): captured screenshots (0–300s) to `screenshots/review-fixit` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+
+- [x] [project:quine-tv] `matrix` (src/channels/matrix.js): special moments — added rare deterministic “GLITCH” event (~45–120s cadence; seeded) that briefly increases contrast + scrambles a subset of columns, then cleanly resets. Screenshots: screenshots/autopilot-matrix-before + screenshots/autopilot-matrix-after. Commit: TBD
+
 - [x] [project:quine-tv] `matrix` (src/channels/matrix.js): time structure — added deterministic 2–4 min phase cycle (GREEN→TEAL→RED ALERT→GREEN) modulating trail decay, rain speed, and palette with smooth easing. Commit: c510490
 
 - [x] [project:quine-tv] `matrix` (src/channels/matrix.js): visual polish — made the top overlay banner more OSD-safe (smaller height + gentle fade) and rotate the title from a deterministic seeded list (5–8 min cadence). Commit: d37e6b2

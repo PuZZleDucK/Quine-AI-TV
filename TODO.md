@@ -3,5 +3,9 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-## matrix (src/channels/matrix.js)
-- [ ] `matrix` special moments: schedule a rare deterministic “GLITCH” event (every ~45–120s, seeded) that briefly increases contrast + scrambles a subset of columns, then cleanly resets.
+- [ ] `fixit` (src/channels/fixit.js): Expand `REPAIRS` from 4 → 10+ with unique palettes/tools and 4–6 steps each (label/dur/action/sound); keep durations varied so a single repair lasts ~30–60s.
+- [ ] `fixit` (src/channels/fixit.js): Add deterministic 2–4 minute phase cycle that modulates lamp warmth, bench vignette intensity, and animation pacing (store phase in `update(dt)`, render reads stable phase values).
+- [ ] `fixit` (src/channels/fixit.js): Add rare deterministic “special moments” (~45–120s cadence; seeded) with clear signatures + clean reset (e.g. LAMP FLICKER, SUCCESS STAMP, DUST PUFF overlay).
+- [ ] `fixit` (src/channels/fixit.js): Improve tool art: draw distinct tips/silhouettes per tool (pliers/wrench/screwdriver/tape) instead of the generic spear tip; add subtle drop shadow under tool + object for depth.
+- [ ] `fixit` (src/channels/fixit.js): Text/dialog: replace static footer with a seeded rotating caption strip (5+ minutes without repeats) of funny “repair notes” / ASMR tags; keep OSD-safe.
+- [ ] `fixit` (src/channels/fixit.js): Audio hygiene: make `onAudioOn()` idempotent (no stacking), and `onAudioOff()`/`destroy()` stop+clear current only when owned; add short fade-out to reduce clicks.

@@ -1,5 +1,7 @@
 import { mulberry32, clamp } from '../util/prng.js';
 
+// REVIEWED: 2026-02-13
+
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 
 const REPAIRS = [
