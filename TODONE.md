@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Determinism `flow` (src/channels/flowfield.js): switched to a fixed-timestep simulation + offscreen paint buffer so 30fps vs 60fps yields identical captures for the same seed. Commit: c575965
+
 - [x] [project:quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): add more items and rotate item every 5 minutes. Commit: b066486
 
 - [x] [project:quine-tv] Determinism `stitchalong` (src/channels/constellationstitch.js): decoupled audio randomness from the visual PRNG by splitting an audio RNG and scheduling needle clicks (FPS-stable). Commit: 80299ca
