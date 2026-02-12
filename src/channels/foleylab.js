@@ -157,6 +157,74 @@ const RECIPES = [
       { label: 'arrival chime', dur: 4.2, prop: 0, action: 'tap', sound: 'click' },
     ],
   },
+  {
+    id: 'typewriter',
+    title: 'Typewriter',
+    effect: 'key clacks + carriage return',
+    palette: { a: '#e7eef6', b: '#ff5aa5' },
+    props: [
+      { name: 'keybed', type: 'board' },
+      { name: 'platen', type: 'drum' },
+      { name: 'carriage', type: 'hinge' },
+    ],
+    steps: [
+      { label: 'test keys', dur: 6.2, prop: 0, action: 'tap', sound: 'click' },
+      { label: 'rapid typing', dur: 10.5, prop: 0, action: 'type', sound: 'click' },
+      { label: 'carriage return', dur: 6.0, prop: 2, action: 'sweep', sound: 'whoosh' },
+      { label: 'end bell', dur: 4.8, prop: 1, action: 'ding', sound: 'click' },
+    ],
+  },
+  {
+    id: 'platform',
+    title: 'Train Pass (Platform)',
+    effect: 'distant rumble → rush → doors',
+    palette: { a: '#63ffb6', b: '#9b7bff' },
+    props: [
+      { name: 'rail bundle', type: 'sticks' },
+      { name: 'tunnel fan', type: 'drum' },
+      { name: 'door latch', type: 'hinge' },
+    ],
+    steps: [
+      { label: 'distant rumble', dur: 8.0, prop: 1, action: 'hum', sound: 'rumble' },
+      { label: 'approach rush', dur: 7.2, prop: 0, action: 'rush', sound: 'whoosh' },
+      { label: 'doors open', dur: 6.4, prop: 2, action: 'open', sound: 'creak' },
+      { label: 'platform chime', dur: 4.6, prop: 2, action: 'tap', sound: 'click' },
+    ],
+  },
+  {
+    id: 'balloon',
+    title: 'Balloon (Squeak + Pop)',
+    effect: 'rubber stretch → squeak → pop',
+    palette: { a: '#ffd66b', b: '#6cf2ff' },
+    props: [
+      { name: 'balloon neck', type: 'wedge' },
+      { name: 'fingertips', type: 'stick' },
+      { name: 'pin', type: 'stick' },
+    ],
+    steps: [
+      { label: 'stretch', dur: 8.2, prop: 0, action: 'pull', sound: 'creak' },
+      { label: 'squeak', dur: 8.0, prop: 1, action: 'rub', sound: 'click' },
+      { label: 'overstretch', dur: 6.2, prop: 0, action: 'pullhard', sound: 'creak' },
+      { label: 'POP', dur: 4.0, prop: 2, action: 'poke', sound: 'pop' },
+    ],
+  },
+  {
+    id: 'drawer',
+    title: 'Kitchen Drawer',
+    effect: 'slide + utensil clink + thunk',
+    palette: { a: '#ff7a59', b: '#9ad7ff' },
+    props: [
+      { name: 'drawer tray', type: 'tray' },
+      { name: 'utensils', type: 'sticks' },
+      { name: 'handle', type: 'hinge' },
+    ],
+    steps: [
+      { label: 'drawer pull', dur: 7.0, prop: 2, action: 'pull', sound: 'whoosh' },
+      { label: 'utensil jostle', dur: 8.5, prop: 1, action: 'rattle', sound: 'click' },
+      { label: 'drawer push', dur: 6.6, prop: 2, action: 'push', sound: 'whoosh' },
+      { label: 'thunk', dur: 4.8, prop: 0, action: 'stop', sound: 'click' },
+    ],
+  },
 ];
 
 export function createChannel({ seed, audio }){
