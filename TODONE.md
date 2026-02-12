@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual - improve washing machine visuals so components are not overlapping. Commit: 1dcf95a
+
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual - improve window apperance. Commit: e20ebee
 
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual - improve washing machine layout and apperance. Commit: bf597e7

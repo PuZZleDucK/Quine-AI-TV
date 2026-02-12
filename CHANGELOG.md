@@ -1,3 +1,5 @@
+- 2026-02-13 10:47 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): washing machine UI — adjusted control-panel dial/buttons spacing to prevent overlap on small viewports. Commit: 1dcf95a
+
 - 2026-02-13 10:33 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): window — upgraded the midground window into framed glass with mullions, subtle city/neon specks, and a reflection band (kept rain streaks). Commit: e20ebee
 
 - 2026-02-13 10:18 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): washing machine layout/appearance — tightened responsive layout so machines always fit; added control-panel display/dial/buttons for more readable machine detail. Commit: bf597e7
