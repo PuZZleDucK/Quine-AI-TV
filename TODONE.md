@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): wrapForTerminal() now wraps long indented lines while preserving indentation (prevents off-screen overflow for stack traces / code-ish blocks). Commit: 0680c03
+
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Improved tool art — distinct head silhouettes for pliers/wrench/screwdriver/tape + subtle drop shadows for tool + object. Commit: ae1317a
 
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Added deterministic 2–4 minute phase cycle modulating lamp warmth, bench vignette intensity, and animation pacing (phase stored in `update(dt)`, render reads stable phase values). Commit: 5539923

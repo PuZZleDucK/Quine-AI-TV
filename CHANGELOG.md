@@ -1,3 +1,5 @@
+- 2026-02-13 03:49 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): wrapForTerminal() now wraps long indented lines while preserving indentation (indent kept on all wrapped lines). Commit: 0680c03
+
 - 2026-02-13 03:19 (Australia/Melbourne) [project:quine-tv] `fixit` (src/channels/fixit.js): tool art — distinct tool head silhouettes (pliers/wrench/screwdriver/tape) + subtle drop shadows under tool + object. Commit: ae1317a
 
 - 2026-02-13 02:48 (Australia/Melbourne) [project:quine-tv] `fixit` (src/channels/fixit.js): time structure — added deterministic 2–4 minute phase cycle modulating lamp warmth, bench vignette intensity, and animation pacing (phase stored in `update(dt)`, render reads stable phase values). Commit: 5539923
