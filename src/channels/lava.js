@@ -72,7 +72,9 @@ export function createChannel({ seed, audio }){
   const rand = mulberry32(seed32);
   let w=0,h=0,t=0;
   let blobs=[];
-  let hum=null;
+
+  // audio
+  let ambience = null;
 
   // UI / text determinism: keep caption shuffles from perturbing visuals.
   let captions = CAPTIONS;
@@ -100,18 +102,121 @@ export function createChannel({ seed, audio }){
 
   function onResize(width,height){ w=width; h=height; }
 
+  function stopAmbience(){
+    try { ambience?.stop?.(); } catch {}
+
+    // Only clear the global current handle if we still own it.
+    try {
+      if (audio.current === ambience) audio.current = null;
+    } catch {}
+
+    ambience = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
-    const n = audio.noiseSource({type:'brown', gain:0.012});
-    n.start();
-    hum = { stop(){ n.stop(); } };
-    audio.setCurrent(hum);
+
+    // Idempotent: don't stack sources.
+    if (ambience) return;
+
+    const ctx = audio.ensure();
+
+    // master bus for this channel (lets us modulate without fighting AudioManager.master)
+    const bus = ctx.createGain();
+    bus.gain.value = 1.0;
+    bus.connect(audio.master);
+
+    // drone (low + gentle upper harmonic)
+    const droneGain = ctx.createGain();
+    droneGain.gain.value = 0.010;
+    droneGain.connect(bus);
+
+    const o1 = ctx.createOscillator();
+    o1.type = 'sine';
+    o1.frequency.value = 55;
+
+    const o2 = ctx.createOscillator();
+    o2.type = 'triangle';
+    o2.frequency.value = 110;
+    o2.detune.value = 18;
+
+    const o2g = ctx.createGain();
+    o2g.gain.value = 0.28;
+
+    o1.connect(droneGain);
+    o2.connect(o2g);
+    o2g.connect(droneGain);
+
+    o1.start();
+    o2.start();
+
+    // filtered noise (soft "air" + warmth)
+    const noise = audio.noiseSource({ type: 'brown', gain: 0.06 });
+
+    // Re-route: noiseSource defaults to master; we want it through a filter + our bus.
+    try { noise.gain.disconnect(); } catch {}
+
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'lowpass';
+    nf.frequency.value = 220;
+    nf.Q.value = 0.7;
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.004;
+
+    noise.gain.connect(nf);
+    nf.connect(noiseGain);
+    noiseGain.connect(bus);
+
+    noise.start();
+
+    ambience = {
+      ctx,
+      bus,
+      droneGain,
+      noiseGain,
+      nf,
+      oscs: [o1, o2],
+      stop(){
+        const now = ctx.currentTime;
+        try { droneGain.gain.setTargetAtTime(0.0001, now, 0.10); } catch {}
+        try { noiseGain.gain.setTargetAtTime(0.0001, now, 0.12); } catch {}
+        try { bus.gain.setTargetAtTime(0.0001, now, 0.12); } catch {}
+
+        try { noise.stop(); } catch {}
+
+        for (const o of [o1, o2]){
+          try { o.stop(now + 0.25); } catch {}
+        }
+
+        try { bus.disconnect(); } catch {}
+      },
+    };
+
+    audio.setCurrent(ambience);
   }
-  function onAudioOff(){ try{hum?.stop?.();}catch{} hum=null; }
+
+  function onAudioOff(){
+    stopAmbience();
+  }
+
   function destroy(){ onAudioOff(); }
 
   function update(dt){
     t += dt;
+
+    // audio "breath" (slow, subtle)
+    if (ambience && audio.enabled){
+      const ctx = ambience.ctx;
+      const p = 0.5 + 0.5 * Math.sin(t * 0.22);
+      const dg = 0.0085 + 0.0045 * p;
+      const ng = 0.0030 + 0.0060 * p;
+      const cf = 170 + 380 * p;
+      try { ambience.droneGain.gain.setTargetAtTime(dg, ctx.currentTime, 0.18); } catch {}
+      try { ambience.noiseGain.gain.setTargetAtTime(ng, ctx.currentTime, 0.22); } catch {}
+      try { ambience.nf.frequency.setTargetAtTime(cf, ctx.currentTime, 0.25); } catch {}
+    }
+
     for (const b of blobs){
       b.x += b.vx*dt;
       b.y += b.vy*dt;
