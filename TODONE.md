@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] Perf pass `kintsugi` (src/channels/kintsugiclinic.js): cached bench/spotlight/pottery/gold/vignette gradients (rebuild on resize/regen/ctx swap) so steady-state `render()` allocates 0 gradients/frame. Commit: 27555f5
+
 - [x] [project:quine-tv] Audio hygiene `stitchalong` (src/channels/constellationstitch.js): made `onAudioOn()` idempotent (stop our previous ambience before restarting) and `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: 8346d27
 
 - [x] [project:quine-tv] Visual correctness `kintsugi` (src/channels/kintsugiclinic.js): clipped cracks/dust/gold seams (and glints) to the pottery ellipse so stroke/glow doesn’t bleed outside the bowl silhouette. Commit: 6623587
