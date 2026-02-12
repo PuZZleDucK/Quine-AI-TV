@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-13
 import { mulberry32 } from '../util/prng.js';
 
 const GLYPHS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789#$%&*+<>~';

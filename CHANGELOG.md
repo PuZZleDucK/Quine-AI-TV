@@ -1,3 +1,5 @@
+- 2026-02-13 00:07 (Australia/Melbourne) [project:quine-tv] Review channel `matrix` (src/channels/matrix.js): captured screenshots (0–300s) to `screenshots/review-matrix` (errors/warnings: 0), added `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`.
+
 - 2026-02-12 23:47 (Australia/Melbourne) [project:quine-tv] `dominofactory` (src/channels/dominofactory.js): long-run interest — added a deterministic forklift silhouette pass special moment (paired with the overhead sweep + a second STAMP/FORKLIFT follow-up), scheduled in the first ~55–120s with a clean reset. Commit: 30c5e5b
 
 - 2026-02-12 23:24 (Australia/Melbourne) [project:quine-tv] `dominofactory` (src/channels/dominofactory.js): text/dialog — verified seeded rotating “line log” HUD panel (5+ min deterministic rotation), clipped to remain OSD-safe. Screenshots: screenshots/autopilot-dominofactory-linelog-before + screenshots/autopilot-dominofactory-linelog-after. Commit: 30c5e5b
