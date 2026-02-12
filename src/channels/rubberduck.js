@@ -301,6 +301,47 @@ export function createChannel({ seed, audio }){
   // Determinism: special-moment FX should not perturb the confessional PRNG.
   const fxRand = mulberry32(((seed | 0) ^ 0xC0FFEE77) >>> 0);
 
+  // Explicit time-structured phases (calm → crisis → resolution).
+  // These modulate typing speed, scanline intensity, and between-confessional hold.
+  const PHASES = [
+    { name: 'calm', dur: 18, typeMul: 0.85, scanMul: 0.85, holdMul: 1.25 },
+    { name: 'crisis', dur: 11, typeMul: 1.45, scanMul: 1.75, holdMul: 0.65 },
+    { name: 'resolution', dur: 16, typeMul: 0.95, scanMul: 1.05, holdMul: 1.05 },
+  ];
+  const PHASE_TOTAL = PHASES.reduce((s, p) => s + p.dur, 0);
+  const PHASE_XFADE = 1.4; // seconds of crossfade at phase boundaries
+
+  function lerp(a, b, u){ return a + (b - a) * u; }
+  function smoothstep01(x){
+    const u = Math.max(0, Math.min(1, x));
+    return u * u * (3 - 2 * u);
+  }
+
+  function phaseParams(tt){
+    let x = (PHASE_TOTAL > 0) ? (tt % PHASE_TOTAL) : 0;
+    let i = 0;
+    while (i < PHASES.length - 1 && x >= PHASES[i].dur){
+      x -= PHASES[i].dur;
+      i++;
+    }
+
+    const a = PHASES[i];
+    const b = PHASES[(i + 1) % PHASES.length];
+    const xfade = Math.min(PHASE_XFADE, a.dur * 0.5);
+
+    let blend = 0;
+    if (xfade > 0 && x > a.dur - xfade){
+      blend = smoothstep01((x - (a.dur - xfade)) / xfade);
+    }
+
+    return {
+      name: a.name,
+      typeMul: lerp(a.typeMul, b.typeMul, blend),
+      scanMul: lerp(a.scanMul, b.scanMul, blend),
+      holdMul: lerp(a.holdMul, b.holdMul, blend),
+    };
+  }
+
   let w = 0, h = 0, t = 0;
   let font = 18;
   let lineH = 22;
@@ -308,6 +349,7 @@ export function createChannel({ seed, audio }){
   let transcript = []; // {text, shown, color}
   let pending = [];
   let hold = 0;
+  let holdAdjusted = false;
 
   // special moments (rare; OSD-safe)
   let glitch = 0; // 0..1
@@ -406,6 +448,7 @@ export function createChannel({ seed, audio }){
     transcript = [];
     pending = confessional(rand);
     hold = 0.6;
+    holdAdjusted = false;
 
     glitch = 0;
     stamp = 0;
@@ -527,6 +570,7 @@ export function createChannel({ seed, audio }){
 
   function update(dt){
     t += dt;
+    const phase = phaseParams(t);
     beepCooldown -= dt;
 
     glitch = Math.max(0, glitch - dt * 1.8);
@@ -539,10 +583,17 @@ export function createChannel({ seed, audio }){
 
     // If we have nothing queued, wait, then start a new confessional.
     if (pending.length === 0){
+      // Apply the current phase's hold shaping once per pause.
+      if (!holdAdjusted){
+        hold = Math.max(0, hold * phase.holdMul);
+        holdAdjusted = true;
+      }
+
       hold -= dt;
       if (hold <= 0){
         pending = confessional(rand);
         hold = 2.0 + rand() * 2.8;
+        holdAdjusted = false;
         pushLine('', 'rgba(180,210,220,0.35)');
       }
     }
@@ -566,7 +617,7 @@ export function createChannel({ seed, audio }){
 
       const cur = transcript[transcript.length - 1];
       if (cur && cur.shown < cur.text.length){
-        const speed = cur.speed; // chars/sec, per-line jitter (FPS-stable)
+        const speed = cur.speed * phase.typeMul; // chars/sec (phase-shaped)
         const prev = cur.shown;
         cur.shown = Math.min(cur.text.length, cur.shown + dt * speed);
 
@@ -626,6 +677,7 @@ export function createChannel({ seed, audio }){
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
+    const phase = phaseParams(t);
 
     if (glitch > 0.02){
       const g = glitch;
@@ -707,7 +759,7 @@ export function createChannel({ seed, audio }){
     // scanline-ish tint (cached pattern; no per-frame loop)
     ensureScanPattern(ctx);
     ctx.save();
-    ctx.globalAlpha = 0.12 + glitch * 0.18;
+    ctx.globalAlpha = Math.min(0.45, (0.12 + glitch * 0.18) * phase.scanMul);
     ctx.fillStyle = scanPattern;
     ctx.fillRect(ax, ay, aw, ah);
     ctx.restore();
@@ -717,7 +769,7 @@ export function createChannel({ seed, audio }){
       const p = 0.5 + 0.5 * Math.sin(t * 8.0);
       const by = ay + (0.10 + 0.75 * p) * ah;
       ctx.save();
-      ctx.globalAlpha = 0.06 * glitch;
+      ctx.globalAlpha = 0.06 * glitch * phase.scanMul;
       ctx.fillStyle = 'rgba(220,245,255,1)';
       ctx.fillRect(ax, Math.floor(by), aw, Math.max(2, Math.floor(lineH * 0.6)));
       ctx.restore();
@@ -804,7 +856,7 @@ export function createChannel({ seed, audio }){
 
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
-      ctx.globalAlpha = 0.06 * glitch;
+      ctx.globalAlpha = 0.06 * glitch * phase.scanMul;
       ctx.fillStyle = 'rgba(108,242,255,1)';
       ctx.translate((Math.sin(t * 12.0) * 6) * glitch, 0);
       ctx.fillRect(0, 0, w, h);
