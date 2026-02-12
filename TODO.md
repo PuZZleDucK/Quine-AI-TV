@@ -21,7 +21,7 @@ if `TODO.md` has no ready items:
 
 - [quine-tv] `lava` (src/channels/lava.js): Perf — remove per-blob `createRadialGradient()` allocations in `render()` by pre-rendering blob sprites (bucket by radius + hue) to offscreen canvases and blitting with blur/composite. Accept: steady-state `render()` creates 0 gradients/frame.
 - [quine-tv] `lava` (src/channels/lava.js): Time structure — add a 2–4 min phase cycle (CALM→BLOOP→SURGE) that modulates blob speed/blur/intensity and schedules 1–2 deterministic rare events (~45–120s) beyond the simple flash.
-- [quine-tv] `lava` (src/channels/lava.js): Text/dialog — add a seeded rotating caption/subtitle line (40–80 variants, no repeats too quickly) so the channel stays entertaining over 5 minutes; keep OSD-safe.
+<!-- done: moved to TODONE.md -->
 - [quine-tv] `lava` (src/channels/lava.js): Audio polish — replace plain brown-noise hum with a gentle low drone + filtered noise that breathes with phase/flash; keep `onAudioOn()` idempotent and clear current only when owned.
 
 - [quine-tv] `stitchalong` (src/channels/constellationstitch.js): Perf pass — cache gradients created in render path (fabric vignette, hoop wood radial, inner hoop vignette, stitch background radial) and/or pre-render weave texture to an offscreen tile; steady-state `render()` should call 0 `create*Gradient()`.

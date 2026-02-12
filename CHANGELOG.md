@@ -1,3 +1,5 @@
+- 2026-02-12 14:04 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): added seeded rotating caption/subtitle strip (58 variants; 18–27s cadence; no repeats until full cycle). Screenshots: screenshots/autopilot-lava-captions-before + screenshots/autopilot-lava-captions-after. Commit: fcc2caf
+
 - 2026-02-12 13:45 (Australia/Melbourne) [project:quine-tv] Determinism `flow` (src/channels/flowfield.js): switched to fixed-timestep simulation + offscreen paint buffer so captures are FPS-stable (30fps vs 60fps). Commit: c575965
 
 - 2026-02-12 13:35 (Australia/Melbourne) [project:quine-tv] `kintsugi` (src/channels/kintsugiclinic.js): added rotating patient/item subtitle (expanded item list) and resets the scene every 5 minutes. Commit: b066486
