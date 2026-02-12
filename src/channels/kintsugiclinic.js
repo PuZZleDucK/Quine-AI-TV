@@ -156,7 +156,7 @@ export function createChannel({ seed, audio }){
   // scene
   let pot = { x: 0, y: 0, r: 100 };
 
-  // cracks: { pts:[{x,y}], len }
+  // cracks: { pts:[{x,y}], len, depth, branches:[{pts:[{x,y}], depth}] }
   let cracks = [];
 
   // dust
@@ -329,7 +329,47 @@ export function createChannel({ seed, audio }){
         segAcc.push(L);
       }
 
-      cracks.push({ pts, len: L || 1, segLen, segAcc });
+      const depth = 0.55 + rand() * 0.70;
+
+      // Tiny deterministic branching micro-cracks near endpoints (regen-time only).
+      const branches = [];
+      if (pts.length >= 3){
+        const startAng = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
+        const endAng = Math.atan2(pts[pts.length-1].y - pts[pts.length-2].y, pts[pts.length-1].x - pts[pts.length-2].x);
+
+        const mkBranch = (x, y, baseAng, dMul) => {
+          const len = pot.r * (0.04 + rand() * 0.06);
+          const segs = 2 + ((rand() * 2) | 0);
+          const ptsB = [{ x, y }];
+          let ang = baseAng + (rand() < 0.5 ? -1 : 1) * (0.35 + rand() * 0.55);
+          for (let s=1;s<=segs;s++){
+            const f = s / segs;
+            ang += (rand() - 0.5) * 0.25;
+            const j = (rand() - 0.5) * pot.r * 0.01;
+            ptsB.push({
+              x: x + Math.cos(ang) * len * f + Math.cos(ang + Math.PI/2) * j,
+              y: y + Math.sin(ang) * len * f + Math.sin(ang + Math.PI/2) * j,
+            });
+          }
+          branches.push({ pts: ptsB, depth: depth * dMul });
+        };
+
+        const startBase = startAng + Math.PI;
+        const endBase = endAng + Math.PI;
+
+        if (rand() < 0.65) mkBranch(pts[0].x, pts[0].y, startBase, 0.55 + rand() * 0.35);
+        if (rand() < 0.65) mkBranch(pts[pts.length-1].x, pts[pts.length-1].y, endBase, 0.55 + rand() * 0.35);
+
+        // occasionally add a second micro-branch to one end
+        if (rand() < 0.22){
+          const atStart = rand() < 0.5;
+          const p0 = atStart ? pts[0] : pts[pts.length-1];
+          const base = atStart ? startBase : endBase;
+          mkBranch(p0.x, p0.y, base, 0.45 + rand() * 0.25);
+        }
+      }
+
+      cracks.push({ pts, len: L || 1, segLen, segAcc, depth, branches });
     }
 
     dust = [];
@@ -624,6 +664,14 @@ export function createChannel({ seed, audio }){
     ctx.clip();
   }
 
+  function strokePolyline(ctx, pts){
+    if (!pts || pts.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.stroke();
+  }
+
   function drawCracks(ctx, crackAmt, gapAmt){
     // crackAmt: alpha/intensity, gapAmt: fake separation
     const { sway, bob } = swayBob();
@@ -632,28 +680,46 @@ export function createChannel({ seed, audio }){
     ctx.translate(sway, bob);
     clipPottery(ctx);
 
-    // shadow under cracks
-    ctx.globalAlpha = 0.30 * crackAmt;
-    ctx.strokeStyle = 'rgba(0,0,0,0.65)';
-    ctx.lineWidth = Math.max(2, Math.floor(h/260)) + gapAmt;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+
+    const baseShadow = Math.max(2, Math.floor(h/260));
+    const baseInk = Math.max(1, Math.floor(h/340));
+
+    // shadow under cracks (vary thickness/opacity by crack depth)
+    ctx.strokeStyle = 'rgba(0,0,0,0.65)';
     for (const c of cracks){
-      ctx.beginPath();
-      ctx.moveTo(c.pts[0].x, c.pts[0].y);
-      for (let i=1;i<c.pts.length;i++) ctx.lineTo(c.pts[i].x, c.pts[i].y);
-      ctx.stroke();
+      const d = c.depth || 1;
+      ctx.globalAlpha = 0.18 * crackAmt * d;
+      ctx.lineWidth = baseShadow + gapAmt + d * 1.8;
+      strokePolyline(ctx, c.pts);
+
+      if (c.branches){
+        for (const b of c.branches){
+          const bd = b.depth || (d * 0.6);
+          ctx.globalAlpha = 0.14 * crackAmt * bd;
+          ctx.lineWidth = baseShadow * 0.85 + gapAmt * 0.50 + bd * 1.1;
+          strokePolyline(ctx, b.pts);
+        }
+      }
     }
 
-    // ink crack
-    ctx.globalAlpha = 0.85 * crackAmt;
+    // ink crack (front layer)
     ctx.strokeStyle = pal.ink;
-    ctx.lineWidth = Math.max(1, Math.floor(h/340));
     for (const c of cracks){
-      ctx.beginPath();
-      ctx.moveTo(c.pts[0].x, c.pts[0].y);
-      for (let i=1;i<c.pts.length;i++) ctx.lineTo(c.pts[i].x, c.pts[i].y);
-      ctx.stroke();
+      const d = c.depth || 1;
+      ctx.globalAlpha = 0.45 * crackAmt * (0.65 + 0.55 * d);
+      ctx.lineWidth = baseInk * (0.75 + 0.85 * d);
+      strokePolyline(ctx, c.pts);
+
+      if (c.branches){
+        for (const b of c.branches){
+          const bd = b.depth || (d * 0.6);
+          ctx.globalAlpha = 0.34 * crackAmt * (0.55 + 0.75 * bd);
+          ctx.lineWidth = baseInk * (0.60 + 0.65 * bd);
+          strokePolyline(ctx, b.pts);
+        }
+      }
     }
 
     ctx.restore();
