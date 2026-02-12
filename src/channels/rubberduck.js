@@ -361,6 +361,15 @@ function maybeArt(rand, pool){
   return null;
 }
 
+// Encode "art" lines with a control prefix so we can color them according to
+// BUG/FIX sections without changing the visible transcript.
+const ART_MARK = '\u0001';
+const ART_SEP = '\u0002';
+function markArt(section, artLines){
+  if (!artLines || !artLines.length) return [];
+  return artLines.map(l => `${ART_MARK}${section}${ART_SEP}${l}`);
+}
+
 function confessional(rand){
   const hh = 1 + ((rand() * 4) | 0);
   let mm = (rand() * 60) | 0;
@@ -392,11 +401,11 @@ function confessional(rand){
   lines.push(pick(rand, BUG_LINES)(bug));
   if (rand() < 0.38) lines.push(...fakeStackTrace(rand));
   const bugArt = maybeArt(rand, BUG_ART);
-  if (bugArt) lines.push(...bugArt);
+  if (bugArt) lines.push(...markArt('BUG', bugArt));
 
   lines.push(pick(rand, FIX_LINES)(fix));
   const fixArt = maybeArt(rand, FIX_ART);
-  if (fixArt) lines.push(...fixArt);
+  if (fixArt) lines.push(...markArt('FIX', fixArt));
 
   lines.push(pick(rand, LESSON_LINES)(lesson));
   return lines;
@@ -616,11 +625,19 @@ export function createChannel({ seed, audio }){
     while (transcript.length > maxLines) transcript.shift();
   }
 
+  function inferSection(text){
+    const s = String(text || '').trimStart();
+    if (/^BUG\b/.test(s)) return 'BUG';
+    if (/^FIX\b/.test(s)) return 'FIX';
+    if (/^(LESSON\b|LESSON LEARNED\b|NOTE TO SELF\b)/.test(s)) return 'LESSON';
+    return '';
+  }
+
   function lastSignificantPrefix(){
     for (let i = transcript.length - 1; i >= 0; i--){
       const s = transcript[i]?.text || '';
-      if (s.startsWith('BUG:')) return 'BUG';
-      if (s.startsWith('FIX:')) return 'FIX';
+      const p = inferSection(s);
+      if (p === 'BUG' || p === 'FIX') return p;
     }
     return '';
   }
@@ -712,12 +729,22 @@ export function createChannel({ seed, audio }){
     // Ensure we have a current line to type into.
     if (pending.length > 0){
       if (transcript.length === 0 || transcript[transcript.length - 1].shown >= transcript[transcript.length - 1].text.length){
-        const next = pending.shift();
+        let next = pending.shift();
+        let hinted = '';
+        if (typeof next === 'string' && next.startsWith(ART_MARK)){
+          const si = next.indexOf(ART_SEP, 1);
+          if (si > 1){
+            hinted = next.slice(1, si);
+            next = next.slice(si + 1);
+          }
+        }
+
+        const section = hinted || inferSection(next);
         let color = 'rgba(210, 255, 230, 0.92)';
-        if (next.startsWith('BUG:')) color = 'rgba(255, 120, 170, 0.92)';
-        else if (next.startsWith('FIX:')) color = 'rgba(120, 220, 255, 0.92)';
-        else if (next.startsWith('LESSON:')) color = 'rgba(190, 210, 255, 0.88)';
-        else if (next.trim() === '') color = 'rgba(180,210,220,0.35)';
+        if (section === 'BUG') color = 'rgba(255, 120, 170, 0.92)';
+        else if (section === 'FIX') color = 'rgba(120, 220, 255, 0.92)';
+        else if (section === 'LESSON') color = 'rgba(190, 210, 255, 0.88)';
+        else if (String(next || '').trim() === '') color = 'rgba(180,210,220,0.35)';
 
         pushLine(next, color);
         if (audio.enabled && beepCooldown <= 0){
