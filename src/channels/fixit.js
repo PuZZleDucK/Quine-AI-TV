@@ -822,6 +822,15 @@ export function createChannel({ seed, audio }){
       rot = -0.15;
     }
 
+    // tool shadow on the bench (drawn pre-rotation so it reads as a drop shadow)
+    ctx.save();
+    ctx.globalAlpha = 0.26;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath();
+    ctx.ellipse(tx + 58 * scale, ty + 20 * scale, 52 * scale, 14 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     ctx.translate(tx, ty);
     ctx.rotate(rot);
 
@@ -845,13 +854,62 @@ export function createChannel({ seed, audio }){
     roundRect(ctx, L * 0.18, -W * 0.18, L * 0.62, W * 0.36, W * 0.18);
     ctx.fill();
 
-    // tip
-    ctx.globalAlpha = 0.85;
+    // head / tip (distinct silhouettes per tool)
+    ctx.globalAlpha = 0.9;
     ctx.fillStyle = accent;
+    const tipX = L * 0.78;
+
     if (tool === 'tape'){
+      // chunky tape block + inner roll hint
       roundRect(ctx, L * 0.58, -W * 0.55, L * 0.26, W * 1.1, W * 0.55);
       ctx.fill();
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.ellipse(tipX, 0, W * 0.58, W * 0.58, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (tool === 'screwdriver'){
+      // flat blade tip
+      roundRect(ctx, tipX - L * 0.02, -W * 0.18, L * 0.14, W * 0.36, W * 0.18);
+      ctx.fill();
+      // tiny notch for definition
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = 'rgba(0,0,0,0.9)';
+      ctx.fillRect(tipX + L * 0.09, -W * 0.06, L * 0.04, W * 0.12);
+    } else if (tool === 'wrench'){
+      // open-end wrench arc
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(2, W * 0.55);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(tipX, 0, W * 0.78, -0.95, 0.95);
+      ctx.stroke();
+      ctx.restore();
+    } else if (tool === 'pliers'){
+      // two jaws + a pivot dot
+      ctx.beginPath();
+      ctx.moveTo(tipX + W * 0.65, 0);
+      ctx.lineTo(tipX - W * 0.15, -W * 0.55);
+      ctx.lineTo(tipX - W * 0.38, -W * 0.18);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(tipX + W * 0.65, 0);
+      ctx.lineTo(tipX - W * 0.15, W * 0.55);
+      ctx.lineTo(tipX - W * 0.38, W * 0.18);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(tipX - W * 0.12, 0, W * 0.28, 0, Math.PI * 2);
+      ctx.fill();
     } else {
+      // generic point (fallback)
       ctx.beginPath();
       ctx.moveTo(L * 0.84, 0);
       ctx.lineTo(L * 0.72, -W * 0.22);
@@ -988,6 +1046,19 @@ export function createChannel({ seed, audio }){
     const scale = Math.max(1, Math.min(w, h) / 720);
     const cx = mx + mw * 0.5;
     const cy = my + mh * 0.52;
+
+    // subtle contact shadow so the object feels grounded on the mat
+    ctx.save();
+    const sh = ctx.createRadialGradient(cx, cy + 58 * scale, 1, cx, cy + 58 * scale, 120 * scale);
+    sh.addColorStop(0, 'rgba(0,0,0,0.28)');
+    sh.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = sh;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 58 * scale, 95 * scale, 20 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     drawObject(ctx, repair?.id, cx, cy, scale, p, accentA, accentB);
 
     // tool pass

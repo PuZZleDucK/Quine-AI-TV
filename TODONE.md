@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Improved tool art — distinct head silhouettes for pliers/wrench/screwdriver/tape + subtle drop shadows for tool + object. Commit: TBD
+
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Added deterministic 2–4 minute phase cycle modulating lamp warmth, bench vignette intensity, and animation pacing (phase stored in `update(dt)`, render reads stable phase values). Commit: 5539923
 
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): Expanded `REPAIRS` from 4 → 11 with distinct palettes/tools and 4–6 step scripts (durations ~37–46s per repair). Commit: de52562
