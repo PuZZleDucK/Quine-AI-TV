@@ -14,7 +14,6 @@ if `TODO.md` has no ready items:
 
 - [quine-tv] `flow` (src/channels/flowfield.js): Long-run interest — add a 2–4 min phase cycle (CALM→SURGE→DRIFT) that modulates `fieldScale`, fade amount, and speed; schedule phase boundaries deterministically from `seed`.
 - [quine-tv] `flow` (src/channels/flowfield.js): Special moment — add 1–2 rare deterministic events (~45–120s) (e.g., brief “field inversion” or ripple shockwave that temporarily bends trajectories) with a clear visual signature + clean reset.
-- [quine-tv] `flow` (src/channels/flowfield.js): Visual identity — add a subtle, cached background gradient + slow midground “mist”/grain layer (seeded) so the scene reads less empty/digital; keep OSD-safe and avoid per-frame allocations.
 - [quine-tv] `flow` (src/channels/flowfield.js): Long-run composition — prevent particle collapse into a couple of bright ribbons after ~5 min (e.g., deterministic periodic re-seed of a small % of points, or gentle divergence/jitter schedule) so coverage stays even.
 
 - [quine-tv] `lava` (src/channels/lava.js): Perf — remove per-blob `createRadialGradient()` allocations in `render()` by pre-rendering blob sprites (bucket by radius + hue) to offscreen canvases and blitting with blur/composite. Accept: steady-state `render()` creates 0 gradients/frame.

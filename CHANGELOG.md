@@ -1,3 +1,5 @@
+- 2026-02-12 15:20 (Australia/Melbourne) [project:quine-tv] Visual identity `flow` (src/channels/flowfield.js): added cached background gradient+vignette and a slow drifting mist/grain midground (seeded; OSD-safe; no per-frame allocations in steady-state). Commit: e814a6c
+
 - 2026-02-12 15:06 (Australia/Melbourne) [project:quine-tv] Text/dialog `elevatorpanel` (src/channels/elevatorpanel.js): expanded status strip into seeded annunciator messages (5-minute rotation; avoids repeats too quickly; clipped so it won’t overlap NEXT). Commit: eb10d26
 
 - 2026-02-12 14:51 (Australia/Melbourne) [project:quine-tv] Visual polish `kintsugi` (src/channels/kintsugiclinic.js): improve CRACK phase readability via per-crack depth (variable thickness/opacity) + deterministic micro-branch cracks at endpoints (regen-time only; no per-frame RNG). Commit: 342eb25
