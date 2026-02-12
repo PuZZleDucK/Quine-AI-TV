@@ -612,33 +612,8 @@ export function createChannel({ seed, audio }){
   }
 
   function drawOverlay(ctx, P){
-    const x = w * 0.055;
-    const y = h * 0.16;
-
-    const ph = currentPhase();
-    const left = Math.max(0, Math.ceil(PHASE_DUR - ph.within));
-
-    ctx.save();
-    ctx.textBaseline = 'middle';
-
-    ctx.font = `${Math.floor(mono * 0.95)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.fillStyle = pal.neonC;
-    ctx.shadowColor = 'rgba(108,242,255,0.6)';
-    ctx.shadowBlur = 14;
-    ctx.fillText('CH 42', x, y);
-
-    ctx.shadowBlur = 0;
-    ctx.font = `${font}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
-    ctx.fillStyle = pal.text;
-    ctx.fillText(`NEON LAUNDROMAT — ${P.label}`, x, y + font * 1.2);
-
-    ctx.font = `${Math.floor(small * 0.95)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.fillStyle = pal.subtext;
-
-    const cyc = ((t / CYCLE_DUR) | 0) + 1;
-    ctx.fillText(`CYCLE ${String(cyc).padStart(2, '0')}  •  T-${String(left).padStart(2, '0')}s`, x, y + font * 1.2 + small * 1.4);
-
-    ctx.restore();
+    // Keep the base scene clean; rely on the TV OSD for always-on labels.
+    // This overlay is reserved for special moment UI (POWER SURGE, alerts).
 
     // POWER SURGE banner (special moment)
     if (powerSurge.a > 0){
