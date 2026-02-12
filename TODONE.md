@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): perf — avoid per-frame `ctx.measureText(...)` in the transcript cursor placement by using cached monospace width (`termCharW`) * string length (clamped). Commit: cb16509
+
 - [x] [project:quine-tv] `foleylab` (src/channels/foleylab.js): UI/visual polish — added an OSD-safe VU panel driven by step density, including a waveform sparkline from recent density history, plus rare deterministic special moments (TAKE GOOD / MIC CLIP) scheduled ~45–120s. Commit: 4aee3c5
 
 - [x] [project:quine-tv] `foleylab` (src/channels/foleylab.js): long-run variety — added 4 more recipes (typewriter/platform/balloon/drawer) and confirmed seeded shuffle-bag selection to avoid back-to-back repeats; now runs 5+ minutes before repeating. Commit: 20f36f1
