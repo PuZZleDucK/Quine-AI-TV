@@ -1,3 +1,5 @@
+- 2026-02-12 20:05 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): responsive scaling — store `baseR` and recompute blob radius on `onResize()` (rebuild sprite cache) so resizes keep blobs proportional. Screenshots: screenshots/autopilot-lava-scaling-before + screenshots/autopilot-lava-scaling-after. Commit: b5695b9
+
 - 2026-02-12 19:46 (Australia/Melbourne) [project:quine-tv] `lava` (src/channels/lava.js): audio stop polish — delay `bus.disconnect()` until after fade-out so gain ramps can finish (reduces click/pop risk). Commit: b02ec62
 
 - 2026-02-12 19:17 (Australia/Melbourne) [project:quine-tv] Micro-perf `lava` (src/channels/lava.js): quantized + cached `ctx.filter = blur(...)` string so it only updates when the blur bucket changes (avoids per-frame template string churn). Commit: bd74466
