@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-13
 import { mulberry32 } from '../util/prng.js';
 
 const BUG_NOUNS = [
@@ -801,7 +802,7 @@ export function createChannel({ seed, audio }){
         ctx.fillText(parts[j], ax, y);
         if (i === transcript.length - 1){
           cursorY = y;
-          cursorX = ax + ctx.measureText(parts[j]).width + 2;
+          cursorX = Math.min(ax + aw - 2, ax + parts[j].length * termCharW + 2);
         }
         y += lineH;
       }
