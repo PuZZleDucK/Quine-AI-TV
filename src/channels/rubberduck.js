@@ -218,6 +218,27 @@ export function createChannel({ seed, audio }){
   let scanTile = null;
   let scanPattern = null;
 
+  // Cached terminal text metrics (rebuild on resize/ctx swap) to avoid measureText() every frame.
+  let metricsDirty = true;
+  let metricsCtx = null;
+  let metricsAw = 0;
+  let metricsFont = '';
+  let termCharW = 10;
+  let termMaxChars = 60;
+
+  function ensureTextMetrics(ctx, aw){
+    const fontStr = ctx.font || '';
+    if (!metricsDirty && ctx === metricsCtx && aw === metricsAw && fontStr === metricsFont) return;
+
+    metricsDirty = false;
+    metricsCtx = ctx;
+    metricsAw = aw;
+    metricsFont = fontStr;
+
+    termCharW = ctx.measureText('M').width || 10;
+    termMaxChars = Math.max(12, Math.floor(aw / termCharW));
+  }
+
   function ensureGradients(ctx){
     if (ctx !== gradCtx || w !== gradW || h !== gradH || !bgGrad || !vgGrad){
       gradCtx = ctx;
@@ -267,6 +288,9 @@ export function createChannel({ seed, audio }){
 
     scanCtx = null;
     scanPattern = null;
+
+    metricsDirty = true;
+    metricsCtx = null;
 
     transcript = [];
     pending = confessional(rand);
@@ -500,8 +524,8 @@ export function createChannel({ seed, audio }){
     ctx.textBaseline = 'top';
 
     // Wrap long dialog lines to fit the terminal viewport.
-    const charW = ctx.measureText('M').width || 10;
-    const maxChars = Math.max(12, Math.floor(aw / charW));
+    ensureTextMetrics(ctx, aw);
+    const maxChars = termMaxChars;
 
     let y = ay;
     let cursorX = ax;
