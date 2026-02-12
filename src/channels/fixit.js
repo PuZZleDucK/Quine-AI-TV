@@ -67,7 +67,22 @@ export function createChannel({ seed, audio }){
   let stepT = 0;
 
   let sfxAcc = 0;
-  let ambience = null;
+  let ambience = null; // handle registered with AudioManager
+
+  function stopAmbience({ clearCurrentIfOwned = false } = {}){
+    if (!ambience) return;
+    const h = ambience;
+    ambience = null;
+
+    // Only clear AudioManager.current if this channel still owns it.
+    if (clearCurrentIfOwned && audio.current === h){
+      try { audio.stopCurrent(); } catch {}
+      return;
+    }
+
+    // Otherwise, just stop our handle without touching whatever is current.
+    try { h.stop?.(); } catch {}
+  }
 
   function curStep(){
     return repair?.steps?.[stepIndex] || null;
@@ -97,15 +112,33 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Idempotent: if we're already the current audio owner, do nothing.
+    if (audio.current === ambience) return;
+
+    // Stop any stale handle we still reference (without killing the real current).
+    stopAmbience();
+
     const n = audio.noiseSource({ type: 'pink', gain: 0.006 });
     n.start();
-    ambience = { stop(){ n.stop(); } };
-    audio.setCurrent(ambience);
+
+    let stopped = false;
+    const handle = {
+      stop(){
+        if (stopped) return;
+        stopped = true;
+        const ctx = audio.ensure();
+        // Fade to avoid clicks, then stop a moment later.
+        try { n.gain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.06); } catch {}
+        try { n.src.stop(ctx.currentTime + 0.25); } catch { try { n.stop(); } catch {} }
+      },
+    };
+
+    ambience = audio.setCurrent(handle);
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
-    ambience = null;
+    stopAmbience({ clearCurrentIfOwned: true });
   }
 
   function destroy(){
