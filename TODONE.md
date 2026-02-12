@@ -2,6 +2,8 @@
 # Done
 
 
+- [x] [project:quine-tv] Long-run interest `flow` (src/channels/flowfield.js): added a deterministic 2–4 min phase cycle (CALM→SURGE→DRIFT) modulating fieldScale/speed/fade with smooth transitions; seeded schedule. Commit: 9f6ec2e
+
 - [x] [project:quine-tv] Long-run interest `kintsugi` (src/channels/kintsugiclinic.js): make the polish glint a true rare “special moment” (~45–120s) with a more dramatic, clearly visible signature (fade in/out) + clean reset. Commit: 0197987
 
 - [x] [project:quine-tv] Long-run composition `flow` (src/channels/flowfield.js): added deterministic periodic point reseed (1.5% every 9.5s; separate RNG) to keep coverage even and avoid long-run ribbon collapse. Screenshots: screenshots/review-flowfield-pre + screenshots/review-flowfield-post. Commit: 12cd9e8

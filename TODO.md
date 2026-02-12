@@ -9,7 +9,6 @@ if `TODO.md` has no ready items:
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Buttons — replace simple chase light with persistent “selected floor” LEDs tied to CALL/QUEUE, plus press animation when a call is queued.
 - [quine-tv] `elevatorpanel` (src/channels/elevatorpanel.js): Long-run interest — add 1–2 rare deterministic “special moments” (~45–120s) (e.g., fire-service key mode, overload alarm, inspection glitch) with clear visual signature and clean reset.
 
-- [quine-tv] `flow` (src/channels/flowfield.js): Long-run interest — add a 2–4 min phase cycle (CALM→SURGE→DRIFT) that modulates `fieldScale`, fade amount, and speed; schedule phase boundaries deterministically from `seed`.
 - [quine-tv] `flow` (src/channels/flowfield.js): Special moment — add 1–2 rare deterministic events (~45–120s) (e.g., brief “field inversion” or ripple shockwave that temporarily bends trajectories) with a clear visual signature + clean reset.
 
 - [quine-tv] `lava` (src/channels/lava.js): Perf — remove per-blob `createRadialGradient()` allocations in `render()` by pre-rendering blob sprites (bucket by radius + hue) to offscreen canvases and blitting with blur/composite. Accept: steady-state `render()` creates 0 gradients/frame.
