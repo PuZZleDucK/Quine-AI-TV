@@ -89,6 +89,74 @@ const RECIPES = [
       { label: 'fade out', dur: 5.0, prop: 0, action: 'settle', sound: null },
     ],
   },
+  {
+    id: 'vinyl',
+    title: 'Vinyl Static',
+    effect: 'dusty groove hiss + occasional pop',
+    palette: { a: '#ffd66b', b: '#9b7bff' },
+    props: [
+      { name: 'record sleeve', type: 'board' },
+      { name: 'vinyl disc', type: 'sheet' },
+      { name: 'needle brush', type: 'stick' },
+    ],
+    steps: [
+      { label: 'dust sweep', dur: 6.0, prop: 2, action: 'brush', sound: 'crackle' },
+      { label: 'drop needle', dur: 4.2, prop: 2, action: 'tap', sound: 'click' },
+      { label: 'groove hiss', dur: 10.0, prop: 1, action: 'spin', sound: 'crackle' },
+      { label: 'big pop', dur: 6.0, prop: 0, action: 'knock', sound: 'pop' },
+    ],
+  },
+  {
+    id: 'pages',
+    title: 'Pages (Quick Flip)',
+    effect: 'paper rush + crisp corner taps',
+    palette: { a: '#e7eef6', b: '#6cf2ff' },
+    props: [
+      { name: 'paper stack', type: 'board' },
+      { name: 'binder clip', type: 'wedge' },
+      { name: 'fingertips', type: 'stick' },
+    ],
+    steps: [
+      { label: 'align pages', dur: 5.0, prop: 0, action: 'square', sound: 'click' },
+      { label: 'quick flip', dur: 9.0, prop: 2, action: 'flip', sound: 'whoosh' },
+      { label: 'corner taps', dur: 6.0, prop: 2, action: 'tap', sound: 'click' },
+      { label: 'settle', dur: 4.5, prop: 1, action: 'hold', sound: null },
+    ],
+  },
+  {
+    id: 'coffee',
+    title: 'Coffee Drip',
+    effect: 'steady drip + spoon clinks',
+    palette: { a: '#ff7a59', b: '#63ffb6' },
+    props: [
+      { name: 'mug', type: 'jar' },
+      { name: 'spoon', type: 'stick' },
+      { name: 'kettle base', type: 'drum' },
+    ],
+    steps: [
+      { label: 'first drops', dur: 6.5, prop: 0, action: 'drip', sound: 'drip' },
+      { label: 'steady drip', dur: 8.5, prop: 2, action: 'pour', sound: 'drip' },
+      { label: 'stir + clink', dur: 7.0, prop: 1, action: 'stir', sound: 'click' },
+      { label: 'cup set down', dur: 4.8, prop: 0, action: 'set', sound: 'click' },
+    ],
+  },
+  {
+    id: 'elevator',
+    title: 'Elevator (Old Building)',
+    effect: 'motor rumble + door creak + chime',
+    palette: { a: '#9ad7ff', b: '#ffd66b' },
+    props: [
+      { name: 'door panel', type: 'board' },
+      { name: 'pulley', type: 'hinge' },
+      { name: 'cable bundle', type: 'sticks' },
+    ],
+    steps: [
+      { label: 'motor hum', dur: 8.5, prop: 1, action: 'spin', sound: 'rumble' },
+      { label: 'cable slide', dur: 7.5, prop: 2, action: 'slide', sound: 'whoosh' },
+      { label: 'door creak', dur: 6.5, prop: 0, action: 'open', sound: 'creak' },
+      { label: 'arrival chime', dur: 4.2, prop: 0, action: 'tap', sound: 'click' },
+    ],
+  },
 ];
 
 export function createChannel({ seed, audio }){
@@ -101,6 +169,12 @@ export function createChannel({ seed, audio }){
   let small = 12;
 
   let recipe = null;
+
+  // seeded shuffle-bag to avoid back-to-back repeats
+  let recipeBag = [];
+  let recipeBagPos = 0;
+  let lastRecipeId = null;
+
   let stepIndex = 0;
   let stepT = 0;
   let sfxAcc = 0;
@@ -111,8 +185,30 @@ export function createChannel({ seed, audio }){
     return recipe?.steps?.[stepIndex] || null;
   }
 
+  function refillRecipeBag(){
+    recipeBag = RECIPES.map((_, i) => i);
+
+    // Fisher-Yates shuffle using our seeded visual RNG stream.
+    for (let i = recipeBag.length - 1; i > 0; i--){
+      const j = (randV() * (i + 1)) | 0;
+      const tmp = recipeBag[i]; recipeBag[i] = recipeBag[j]; recipeBag[j] = tmp;
+    }
+
+    recipeBagPos = 0;
+
+    // Avoid an immediate repeat across bag boundaries.
+    if (lastRecipeId && recipeBag.length > 1 && RECIPES[recipeBag[0]].id === lastRecipeId){
+      const k = 1 + ((randV() * (recipeBag.length - 1)) | 0);
+      const tmp = recipeBag[0]; recipeBag[0] = recipeBag[k]; recipeBag[k] = tmp;
+    }
+  }
+
   function nextRecipe(){
-    recipe = pick(randV, RECIPES);
+    if (!recipeBag.length || recipeBagPos >= recipeBag.length) refillRecipeBag();
+
+    recipe = RECIPES[recipeBag[recipeBagPos++]];
+    lastRecipeId = recipe?.id ?? lastRecipeId;
+
     stepIndex = 0;
     stepT = 0;
     sfxAcc = 0;
