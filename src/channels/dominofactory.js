@@ -166,6 +166,140 @@ export function createChannel({ seed, audio }){
   let domLen = 18;
   let domWid = 6;
 
+  // cached midground clutter layer (rebuilt on resize)
+  let clutterCanvas = null;
+  let clutterW = 0;
+  let clutterH = 0;
+
+  function rebuildClutter(){
+    if (!floor.w || !floor.h) return;
+
+    const cw = Math.max(1, Math.floor(floor.w));
+    const ch = Math.max(1, Math.floor(floor.h));
+
+    const makeCanvas = () => {
+      if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(cw, ch);
+      const c = document.createElement('canvas');
+      c.width = cw; c.height = ch;
+      return c;
+    };
+
+    if (!clutterCanvas || clutterW !== cw || clutterH !== ch){
+      clutterCanvas = makeCanvas();
+    } else {
+      clutterCanvas.width = cw;
+      clutterCanvas.height = ch;
+    }
+    clutterW = cw;
+    clutterH = ch;
+
+    const cctx = clutterCanvas.getContext('2d');
+    if (!cctx) return;
+    cctx.clearRect(0, 0, cw, ch);
+
+    const rr = mulberry32(((seed ^ 0x6c757474) >>> 0)); // deterministic "clutter" RNG
+
+    const allow = (u, v) => {
+      // Keep bottom corners clear for the DOM OSD/guide overlays (and keep our HUD area legible).
+      if (u > 0.70 && v > 0.70) return false; // bottom-right OSD pills
+      if (u < 0.45 && v > 0.70) return false; // bottom-left guide overlay
+      if (u < 0.36 && v < 0.30) return false; // top-left HUD text
+      // Also keep away from hard edges.
+      if (u < 0.06 || u > 0.94 || v < 0.06 || v > 0.94) return false;
+      return true;
+    };
+
+    // Soft grime blooms
+    for (let i = 0; i < 26; i++){
+      const u = rr();
+      const v = rr();
+      if (!allow(u, v)) continue;
+      const x = u * cw;
+      const y = v * ch;
+      const r = (0.04 + rr() * 0.10) * Math.min(cw, ch);
+      const g = cctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(30, 50, 70, ${0.07 + rr() * 0.08})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      cctx.fillStyle = g;
+      cctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+
+    // Hazard decals (stripe panels)
+    for (let i = 0; i < 14; i++){
+      const u = rr();
+      const v = rr();
+      if (!allow(u, v)) continue;
+      const x = u * cw;
+      const y = v * ch;
+      const ww = (0.06 + rr() * 0.10) * cw;
+      const hh = (0.018 + rr() * 0.030) * ch;
+      const ang = (rr() * 2 - 1) * 0.35;
+
+      cctx.save();
+      cctx.translate(x, y);
+      cctx.rotate(ang);
+
+      // base plate
+      cctx.globalAlpha = 0.55;
+      cctx.fillStyle = 'rgba(10, 14, 18, 0.55)';
+      roundRect(cctx, -ww * 0.5, -hh * 0.5, ww, hh, Math.min(10, hh * 0.6));
+      cctx.fill();
+
+      // stripes
+      cctx.globalAlpha = 0.50;
+      cctx.beginPath();
+      cctx.rect(-ww * 0.5, -hh * 0.5, ww, hh);
+      cctx.clip();
+
+      const step = Math.max(8, hh * 1.2);
+      const off = (rr() * step);
+      cctx.strokeStyle = 'rgba(246, 213, 74, 0.95)';
+      cctx.lineWidth = Math.max(1, Math.floor(dpr));
+      for (let sx = -ww - step * 2; sx < ww + step * 2; sx += step){
+        cctx.beginPath();
+        cctx.moveTo(sx + off, hh * 0.5);
+        cctx.lineTo(sx + off + hh, -hh * 0.5);
+        cctx.stroke();
+      }
+
+      cctx.restore();
+    }
+
+    // Bolts / rivets
+    cctx.save();
+    cctx.globalAlpha = 0.35;
+    cctx.fillStyle = 'rgba(200, 220, 240, 0.35)';
+    for (let i = 0; i < 130; i++){
+      const u = rr();
+      const v = rr();
+      if (!allow(u, v)) continue;
+      const x = u * cw;
+      const y = v * ch;
+      const rad = Math.max(1, (0.7 + rr() * 1.5) * dpr);
+      cctx.beginPath();
+      cctx.arc(x, y, rad, 0, Math.PI * 2);
+      cctx.fill();
+
+      cctx.globalAlpha = 0.16;
+      cctx.beginPath();
+      cctx.arc(x + rad * 0.45, y - rad * 0.45, rad * 0.55, 0, Math.PI * 2);
+      cctx.fill();
+      cctx.globalAlpha = 0.35;
+    }
+    cctx.restore();
+
+    // Subtle edge grime / vignette for depth
+    cctx.save();
+    cctx.globalCompositeOperation = 'multiply';
+    cctx.globalAlpha = 0.35;
+    const eg = cctx.createRadialGradient(cw * 0.5, ch * 0.5, Math.min(cw, ch) * 0.2, cw * 0.5, ch * 0.5, Math.max(cw, ch) * 0.75);
+    eg.addColorStop(0, 'rgba(0,0,0,0)');
+    eg.addColorStop(1, 'rgba(0,0,0,0.55)');
+    cctx.fillStyle = eg;
+    cctx.fillRect(0, 0, cw, ch);
+    cctx.restore();
+  }
+
   // cycle
   const BUILD_DUR = 18;
   const PAUSE_DUR = 2.0;
@@ -222,6 +356,8 @@ export function createChannel({ seed, audio }){
     const base = Math.min(floor.w, floor.h);
     domLen = Math.max(12, base * 0.032);
     domWid = domLen * 0.34;
+
+    rebuildClutter();
   }
 
   function pickMotifForCycle(c){
@@ -486,6 +622,14 @@ export function createChannel({ seed, audio }){
 
     belt(beltY, 80, '#111822');
     belt(beltY2, -70, '#0f1620');
+
+    // cached midground clutter (OSD-safe), rebuilt on resize
+    if (clutterCanvas){
+      ctx.save();
+      ctx.globalAlpha = 0.80;
+      ctx.drawImage(clutterCanvas, 0, 0);
+      ctx.restore();
+    }
 
     ctx.restore();
   }
