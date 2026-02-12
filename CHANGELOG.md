@@ -471,3 +471,4 @@
 - 2026-02-13 07:30 (Australia/Melbourne) [project:quine-tv]  (src/channels/rubberduck.js): UI — added a subtle header phase indicator (CALM/CRISIS/RESOLUTION) driven by ; OSD-safe. Commit: ecfbc9e
 
 - 2026-02-13 07:30 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): UI — added a subtle header phase indicator (CALM/CRISIS/RESOLUTION) driven by `phaseParams(t)`; OSD-safe. Commit: ecfbc9e
+- 2026-02-13 08:45 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): special moments — added a second rare deterministic PANIC/CORE DUMP overlay+mini-scroll with independent schedule + clean reset. Commit: d3daed2

@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): special moments — added a second independent rare event stream (PANIC / CORE DUMP overlay + mini-scroll) with clean reset and its own seeded schedule. Commit: d3daed2
+
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): visual — colorize stack-trace + diff snippet lines (diff headers/hunks/+/-) so code blocks read like code, not chat. Commit: dc3a010
 
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — fixed section text coloring so BUG/BUG REPORT lines are reliably red and ASCII art inherits the correct BUG/FIX colors. Screenshots: screenshots/autopilot-duckdebug-before + screenshots/autopilot-duckdebug-after. Commit: 0bfc450
