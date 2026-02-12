@@ -1,3 +1,5 @@
+- 2026-02-13 10:18 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): washing machine layout/appearance — tightened responsive layout so machines always fit; added control-panel display/dial/buttons for more readable machine detail. Commit: bf597e7
+
 - 2026-02-13 10:00 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): declutter — removed redundant in-channel HUD text (CH/phase/cycle timer) so the scene is cleaner; rely on TV OSD. Screenshots: screenshots/autopilot-neonlaundromat-declutter-pre + screenshots/autopilot-neonlaundromat-declutter-post. Commit: 382adc8
 
 - 2026-02-13 09:45 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment — added rare deterministic “POWER SURGE” event (~45–120s cadence; seeded) that boosts neon flicker and dims the room for ~2–5s (with OSD-safe banner). Commit: 0dc580b
