@@ -5,6 +5,8 @@ const GLYPHS = 'アイウエオカキクケコサシスセソタチツテトナ�
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  const pickGlyph = () => GLYPHS[(rand()*GLYPHS.length)|0];
+
   let w=0,h=0,t=0;
   let cols=[];
   let cell=18;
@@ -15,13 +17,19 @@ export function createChannel({ seed, audio }){
     w=width; h=height; t=0;
     cell = Math.max(14, Math.floor(Math.min(w,h)/34));
     const n = Math.ceil(w/cell);
-    cols = Array.from({length:n}, (_,i)=>({
-      x: i*cell,
-      y: rand()*-h,
-      sp: (80+rand()*240) * (h/540),
-      len: 8 + (rand()*22)|0,
-      ph: rand()*10,
-    }));
+    cols = Array.from({length:n}, (_,i)=>{
+      const len = 8 + (rand()*22)|0;
+      return {
+        x: i*cell,
+        y: rand()*-h,
+        sp: (80+rand()*240) * (h/540),
+        len,
+        ph: rand()*10,
+        glyphEvery: 0.08 + rand()*0.06,
+        glyphT: rand()*0.08,
+        glyphs: Array.from({ length: len }, pickGlyph),
+      };
+    });
     nextClick = 0.4;
   }
 
@@ -67,7 +75,23 @@ export function createChannel({ seed, audio }){
     t += dt;
     for (const c of cols){
       c.y += c.sp*dt;
-      if (c.y > h + c.len*cell) c.y = rand()*-h;
+      if (c.y > h + c.len*cell){
+        c.y = rand()*-h;
+        c.glyphEvery = 0.08 + rand()*0.06;
+        c.glyphT = 0;
+        for (let i=0;i<c.glyphs.length;i++) c.glyphs[i] = pickGlyph();
+      }
+
+      c.glyphT += dt;
+      // Update glyphs on a fixed cadence so render() is deterministic and FPS-stable.
+      while (c.glyphT >= c.glyphEvery){
+        c.glyphT -= c.glyphEvery;
+        c.glyphs[0] = pickGlyph();
+        if (c.glyphs.length > 1 && rand() < 0.35){
+          const k = 1 + ((rand()*(c.glyphs.length-1))|0);
+          c.glyphs[k] = pickGlyph();
+        }
+      }
     }
     nextClick -= dt;
     if (nextClick <= 0){
@@ -77,10 +101,6 @@ export function createChannel({ seed, audio }){
         audio.beep({freq: 1100 + rand()*600, dur: 0.012, gain: 0.015, type:'square'});
       }
     }
-  }
-
-  function glyph(){
-    return GLYPHS[(rand()*GLYPHS.length)|0];
   }
 
   function render(ctx){
@@ -99,7 +119,7 @@ export function createChannel({ seed, audio }){
         const a = 1 - i/c.len;
         const head = i===0;
         ctx.fillStyle = head ? `rgba(210,255,230,${0.9})` : `rgba(80,255,140,${0.06 + 0.35*a})`;
-        const ch = glyph();
+        const ch = c.glyphs[i] || ' ';
         ctx.fillText(ch, c.x, y);
       }
     }
