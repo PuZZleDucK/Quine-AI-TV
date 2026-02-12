@@ -2,6 +2,8 @@
 # Done
 
 
+- [x] [project:quine-tv] Visual depth `elevatorpanel` (src/channels/elevatorpanel.js): added subtle glass reflection + edge vignette/panel bloom layer that varies by segment (MOVE/ARRIVE/SERVICE) while keeping OSD crisp. Commit: 8c6946b
+
 - [x] [project:quine-tv] Visual identity `flow` (src/channels/flowfield.js): added cached background gradient+vignette and a slow drifting mist/grain midground (seeded; OSD-safe; no per-frame allocations in steady-state). Commit: e814a6c
 
 - [x] [project:quine-tv] Text/dialog `elevatorpanel` (src/channels/elevatorpanel.js): expanded the status strip into seeded, mildly-funny annunciator messages (5-minute rotation; clipped to avoid overlapping NEXT). Commit: eb10d26

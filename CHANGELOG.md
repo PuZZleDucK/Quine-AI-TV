@@ -372,3 +372,4 @@
 - 2026-02-11 23:05 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: containers now render with a more shipping-container look (corrugation ribs, corner castings, door seam). Commit: 7b8d2e3
 - 2026-02-11 23:33 (Australia/Melbourne) [project:quine-tv] visuals `containerport`: ship now starts fully off-screen before arrival and sweeps in from the right. Commit: fec9124
 - 2026-02-12 04:09 (Australia/Melbourne) [project:quine-tv] Reviewed channel `elevatorpanel` (src/channels/elevatorpanel.js): captured screenshots (0–300s), confirmed REVIEWED marker, and queued concrete follow-ups in `/home/puzzleduck/clawd/TODO.md`. Commit: TBD
+- 2026-02-12 15:30 (Australia/Melbourne) [project:quine-tv] Visual depth `elevatorpanel` (src/channels/elevatorpanel.js): added subtle glass reflection + edge vignette/bloom overlay that varies by segment (MOVE/ARRIVE/SERVICE) while keeping OSD crisp. Commit: 8c6946b
