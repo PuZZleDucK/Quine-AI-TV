@@ -1,3 +1,5 @@
+- 2026-02-13 04:34 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): dialog variety — expanded phrase pools and added short seeded fake stack-trace snippets to avoid obvious repeats over 5+ minutes. Commit: 53a42aa
+
 - 2026-02-13 04:22 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): special moments — added rare deterministic CRT glitch/flicker + BUG!/FIXED stamp overlay (timer-scheduled; stamp stays in header to preserve transcript legibility). Commit: 281c621
 
 - 2026-02-13 04:00 (Australia/Melbourne) [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): cached terminal char width + maxChars (recomputed on resize/ctx swap) so steady-state render avoids per-frame measureText('M'). Commit: 1c05b71

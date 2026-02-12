@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): expanded dialog pools and added a short seeded fake stack-trace generator so it can run 5+ minutes without obvious repeats. Commit: 53a42aa
+
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): added rare deterministic “special moments” (brief CRT glitch/flicker + BUG!/FIXED stamp overlay) scheduled on timers; stamp kept in header so it doesn’t obscure the transcript. Commit: 281c621
 
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): cached terminal char width + maxChars (recomputed on resize/ctx swap) so steady-state render avoids measureText('M') per frame. Commit: 1c05b71

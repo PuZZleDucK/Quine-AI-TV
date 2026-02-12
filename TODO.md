@@ -4,4 +4,3 @@ if `TODO.md` has no ready items:
 # TODO Queue
 
 - [ ] duckdebug (src/channels/rubberduck.js): Add explicit time-structured phases (e.g. calm → crisis → resolution) that modulate typing speed, scanline intensity, and hold durations.
-- [ ] duckdebug (src/channels/rubberduck.js): Expand dialog pools (BUG_NOUNS/VERBS/OBJECTS, OPENERS, LESSONS) and add a short fake stack-trace snippet generator so it can run 5+ minutes without obvious repeats.
