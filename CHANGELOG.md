@@ -1,3 +1,5 @@
+- 2026-02-13 06:19 (Australia/Melbourne) [project:quine-tv] `foleylab` (src/channels/foleylab.js): long-run variety — added 4 more foley recipes (typewriter/platform/balloon/drawer) so the channel runs 5+ minutes before repeating; uses seeded shuffle-bag selection to avoid back-to-back repeats. Commit: 20f36f1
+
 - 2026-02-13 06:00 (Australia/Melbourne) [project:quine-tv] `foleylab` (src/channels/foleylab.js): perf pass — cached static bg/vignette + stage/table gradients by pre-rendering to offscreen layers (rebuild on resize/ctx swap); acoustic-panel grid is now a cached pattern tile (no per-cell template allocs in render). Commit: f3e8f38
 
 - 2026-02-13 05:35 (Australia/Melbourne) [project:quine-tv] `foleylab` (src/channels/foleylab.js): determinism — split audio RNG from visual PRNG so audio.enabled toggles don’t change recipe selection/visual sequence. Commit: 1df1700

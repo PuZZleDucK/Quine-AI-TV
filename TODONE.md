@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `foleylab` (src/channels/foleylab.js): long-run variety — added 4 more recipes (typewriter/platform/balloon/drawer) and confirmed seeded shuffle-bag selection to avoid back-to-back repeats; now runs 5+ minutes before repeating. Commit: 20f36f1
+
 - [x] [project:quine-tv] `foleylab` (src/channels/foleylab.js): perf pass — cached static background (bg gradient + acoustic-panel grid pattern + vignette) and stage/table gradients (wood tabletop + mic silhouette) into offscreen layers rebuilt on resize/ctx swap; render now blits layers (no per-frame gradients/grid loops). Screenshots: screenshots/review-foleylab-pre + screenshots/review-foleylab-post. Commit: f3e8f38
 
 - [x] [project:quine-tv] `foleylab` (src/channels/foleylab.js): determinism — split audio RNG from visual PRNG so audio.enabled toggles don’t change recipe selection/visual sequence. Commit: 1df1700
