@@ -4,6 +4,82 @@ import { mulberry32, clamp } from '../util/prng.js';
 
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 
+function shuffleInPlace(rand, a){
+  for (let i = a.length - 1; i > 0; i--){
+    const j = (rand() * (i + 1)) | 0;
+    const t = a[i];
+    a[i] = a[j];
+    a[j] = t;
+  }
+  return a;
+}
+
+const FOOTER_CAPTIONS = [
+  // Keep these short-ish and OSD-safe; we ellipsize, but this reads best when concise.
+  // 45 captions × 9s = 6m45s deterministic rotation with no repeats.
+  'no talking • gentle clicks • slow repairs',
+  'torque to spec • wipe down • repeat',
+  'diagnosing vibes • not faults',
+  'calibrating the tiny screwdriver',
+  'soft zip sounds • crisp snaps',
+  'bench reset • tool return ritual',
+  'dust removed with extreme patience',
+  'tighten until it feels correct',
+  'align • press • test glide',
+  'micro-adjustments only',
+  'please hold while we fix the universe',
+  'repair note: found one (1) loose vibe',
+  'repair note: gremlin relocated',
+  'repair note: applied more tape than necessary',
+  'repair note: tightened by feel, not ego',
+  '#asmr #clicks #quietcompetence',
+  '#workshop #tinytools #slowtv',
+  'quality control: gentle tap test',
+  'quality control: squint at it',
+  'faint graphite smell (imagined)',
+  'tool check: pliers • wrench • tape',
+  'do not rush the satisfying part',
+  'repair speed: leisurely',
+  'if it wiggles, we listen',
+  'silence punctuated by success',
+  'screw turns: 1… 2… perfect',
+  'wipe lens • breathe • done',
+  'zipper therapy session ongoing',
+  'chair leg: now emotionally stable',
+  'cable patch: stronger than before',
+  'work order: tiny fix, big peace',
+  'set down the tool. admire. continue.',
+  'notes: minimal drama, maximum snug',
+  'ambient pink noise, workshop edition',
+  'inventory: one mystery screw (missing)',
+  'we fix it gently, so it stays fixed',
+  'tighten, then stop. stop!',
+  'alignment achieved: probably',
+  'this is the good part.',
+  'repair log: click… click… click…',
+  'confirm: nothing squeaks (for now)',
+  'cleanup: put tools back like a saint',
+  'bench vibes: immaculate',
+  'operator status: calm',
+  'end of note: proceed with softness',
+];
+
+function ellipsize(ctx, text, maxW){
+  if (!text) return '';
+  if (ctx.measureText(text).width <= maxW) return text;
+  const ell = '…';
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi){
+    const mid = ((lo + hi) / 2) | 0;
+    const s = text.slice(0, mid).trimEnd() + ell;
+    if (ctx.measureText(s).width <= maxW) lo = mid + 1;
+    else hi = mid;
+  }
+  const cut = Math.max(0, lo - 1);
+  return text.slice(0, cut).trimEnd() + ell;
+}
+
 const REPAIRS = [
   {
     id: 'zipper',
@@ -57,6 +133,11 @@ const REPAIRS = [
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+
+  // Separate RNG so captions stay deterministic without consuming the visual PRNG.
+  const captionRand = mulberry32(((seed ^ 0x9e3779b9) >>> 0));
+  const captionOrder = shuffleInPlace(captionRand, FOOTER_CAPTIONS.slice());
+  const captionDur = 9.0;
 
   let w = 0, h = 0, t = 0;
   let font = 16;
@@ -616,16 +697,24 @@ export function createChannel({ seed, audio }){
     ctx.fillText(stepTxt, px + 14, py + pillH * 0.46);
     ctx.restore();
 
-    // footer
+    // footer / caption strip
     ctx.save();
+    const fh = Math.floor(h * 0.08);
+    const fy = Math.floor(h * 0.92);
+
     ctx.globalAlpha = 0.7;
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.fillRect(0, Math.floor(h * 0.92), w, Math.floor(h * 0.08));
-    ctx.globalAlpha = 0.85;
+    ctx.fillRect(0, fy, w, fh);
+
+    ctx.globalAlpha = 0.88;
     ctx.fillStyle = 'rgba(231,238,246,0.7)';
     ctx.font = `${Math.floor(h / 38)}px ui-sans-serif, system-ui`;
     ctx.textBaseline = 'middle';
-    ctx.fillText('no talking • gentle clicks • slow repairs', Math.floor(w * 0.05), Math.floor(h * 0.96));
+
+    const capI = captionOrder.length ? (Math.floor(t / captionDur) % captionOrder.length) : 0;
+    const cap = captionOrder[capI] || '';
+    const txt = ellipsize(ctx, cap, Math.floor(w * 0.9));
+    ctx.fillText(txt, Math.floor(w * 0.05), fy + fh * 0.5);
     ctx.restore();
   }
 
