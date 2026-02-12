@@ -356,7 +356,37 @@ export function createChannel({ seed, audio }){
     ctx.closePath();
   }
 
-  function drawPanelBG(ctx){
+  // Static render caches (rebuilt on resize / ctx swap).
+  let staticW = 0, staticH = 0;
+  let staticRenderCtx = null;
+  let panelLayer = null;
+  let stageLayer = null;
+
+  function makeLayer(width, height){
+    if (typeof OffscreenCanvas !== 'undefined'){
+      const canvas = new OffscreenCanvas(width, height);
+      return { canvas, ctx: canvas.getContext('2d') };
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return { canvas, ctx: canvas.getContext('2d') };
+  }
+
+  function resizeLayer(layer, width, height){
+    if (!layer) return makeLayer(width, height);
+    if (layer.canvas.width !== width) layer.canvas.width = width;
+    if (layer.canvas.height !== height) layer.canvas.height = height;
+    return layer;
+  }
+
+  function rebuildPanelLayer(){
+    panelLayer = resizeLayer(panelLayer, w, h);
+    const ctx = panelLayer.ctx;
+    ctx.clearRect(0, 0, w, h);
+
+    // background gradient (cached: rendered once into layer)
     const bg = ctx.createLinearGradient(0, 0, 0, h);
     bg.addColorStop(0, '#070913');
     bg.addColorStop(0.55, '#05060c');
@@ -364,33 +394,59 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
-    // subtle acoustic-panel grid
-    ctx.save();
-    ctx.globalAlpha = 0.25;
+    // subtle acoustic-panel grid (cached tile/pattern; avoids per-cell allocs in render)
     const s = Math.max(22, Math.floor(Math.min(w, h) / 18));
-    for (let y = 0; y < h; y += s){
-      for (let x = 0; x < w; x += s){
-        const v = 0.08 + ((x + y) % (s * 2) ? 0.06 : 0.0);
-        ctx.fillStyle = `rgba(108,242,255,${v})`;
-        ctx.fillRect(x + 2, y + 2, s - 4, s - 4);
-      }
-    }
-    ctx.restore();
+    const tile = makeLayer(s * 2, s * 2);
+    const tctx = tile.ctx;
+    tctx.clearRect(0, 0, s * 2, s * 2);
 
-    // vignette
-    ctx.save();
+    const c0 = 'rgba(108,242,255,0.08)';
+    const c1 = 'rgba(108,242,255,0.14)';
+
+    tctx.fillStyle = c0;
+    tctx.fillRect(2, 2, s - 4, s - 4);
+    tctx.fillRect(s + 2, s + 2, s - 4, s - 4);
+
+    tctx.fillStyle = c1;
+    tctx.fillRect(s + 2, 2, s - 4, s - 4);
+    tctx.fillRect(2, s + 2, s - 4, s - 4);
+
+    const pat = ctx.createPattern(tile.canvas, 'repeat');
+    if (pat){
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = pat;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    } else {
+      // fallback: still avoid template-string allocs
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      for (let y = 0; y < h; y += s){
+        for (let x = 0; x < w; x += s){
+          ctx.fillStyle = ((x + y) % (s * 2)) ? c1 : c0;
+          ctx.fillRect(x + 2, y + 2, s - 4, s - 4);
+        }
+      }
+      ctx.restore();
+    }
+
+    // vignette (cached: rendered once into layer)
     const vg = ctx.createRadialGradient(w * 0.5, h * 0.45, Math.min(w, h) * 0.2, w * 0.5, h * 0.45, Math.max(w, h) * 0.8);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
     vg.addColorStop(1, 'rgba(0,0,0,0.65)');
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, w, h);
-    ctx.restore();
   }
 
-  function drawStage(ctx){
+  function rebuildStageLayer(){
+    stageLayer = resizeLayer(stageLayer, w, h);
+    const ctx = stageLayer.ctx;
+    ctx.clearRect(0, 0, w, h);
+
     const top = Math.floor(h * 0.64);
 
-    // tabletop
+    // tabletop gradient (cached: rendered once into layer)
     ctx.save();
     const wood = ctx.createLinearGradient(0, top, 0, h);
     wood.addColorStop(0, 'rgba(24,18,16,0.92)');
@@ -426,6 +482,26 @@ export function createChannel({ seed, audio }){
     ctx.arc(mx + Math.floor(font * 0.65), my - Math.floor(mh * 0.25), Math.max(2, Math.floor(font * 0.12)), 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+  }
+
+  function ensureStaticLayers(renderCtx){
+    if (!panelLayer || !stageLayer || staticW !== w || staticH !== h || staticRenderCtx !== renderCtx){
+      staticW = w;
+      staticH = h;
+      staticRenderCtx = renderCtx;
+      rebuildPanelLayer();
+      rebuildStageLayer();
+    }
+  }
+
+  function drawPanelBG(ctx){
+    ensureStaticLayers(ctx);
+    ctx.drawImage(panelLayer.canvas, 0, 0);
+  }
+
+  function drawStage(ctx){
+    ensureStaticLayers(ctx);
+    ctx.drawImage(stageLayer.canvas, 0, 0);
   }
 
   function propColor(i){
