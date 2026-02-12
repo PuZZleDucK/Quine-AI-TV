@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): added variation to usernames + confessional opener/BUG/FIX/LESSON line templates (seeded). Commit: 22b17d9
+
 - [x] [project:quine-tv] Determinism `duckdebug` (src/channels/rubberduck.js): removed per-frame `rand()` typing-speed jitter; now uses per-line seeded speed (FPS-stable at 30fps vs 60fps). Commit: faebeff
 
 - [x] [project:quine-tv] Determinism `duckdebug` (src/channels/rubberduck.js): split audio RNG from visual PRNG so toggling audio doesn’t alter the visual PRNG sequence. Commit: a6683ad
