@@ -12,13 +12,12 @@ The repository includes a Playwright-based capture tool: `scripts/capture-channe
 - Use `src/channels/synthwave.js` as the *canonical* example of what “good” looks like.
 - `src/channels/traveldesk.js` is a great example of how to generate complex interesting shapes and element composition.
 - Channels should aim to have (most of):
-  - A strong visual identity (palette + composition) with **layered motion** (background/midground/foreground).
-  - Improvments to visual components
-  - **Time structure** (beats/segments/phases) rather than a single infinite loop.
-  - A couple of uncommon and rare **“special moments”** (e.g. meteor/flash/glitch.rare-event) triggered on timers.
-  - No performance issues, performance is excelent.
   - Focus on the layout, visual, text and animation elemets and effects.
+  - A strong visual identity (palette + composition) with **layered motion** (background/midground/foreground).
+  - Improvments to visual components. Visuals that look bad or incorrect are a serious bug.
+  - A couple of uncommon and rare **“special moments”** (e.g. meteor/flash/glitch/rare-event/rare-text) triggered on timers.
   - Add more funny dialog scripts or text snippets to cycle through.
+  - No performance issues, performance is excelent.
 
 ### Prereqs
 
