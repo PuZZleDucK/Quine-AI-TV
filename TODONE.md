@@ -1,6 +1,8 @@
 
 # Done
 
+- [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — add 2–5 dialog lines between `duck` and the selected user before BUG/FIX/LESSON so each block reads like a conversation. Commit: f1064cc
+
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): content — expanded `fakeStackTrace()` with more frame templates + occasional indented diff-snippet lines; hardened `wrapForTerminal()` so extreme indentation can’t overflow. Commit: 1b515d6
 
 - [x] [project:quine-tv] `duckdebug` (src/channels/rubberduck.js): UI — add a subtle header phase indicator (CALM/CRISIS/RESOLUTION) driven by `phaseParams(t)`; keep it OSD-safe. Commit: ecfbc9e
