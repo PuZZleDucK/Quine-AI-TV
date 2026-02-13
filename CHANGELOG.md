@@ -1,3 +1,5 @@
+- 2026-02-14 09:18 (Australia/Melbourne) [project:quine-tv] `microfilm` (src/channels/microfilm.js): visuals — added deterministic cached scratches/edge-wear overlay layer (rebuilt on init/resize; no per-frame RNG). Commit: 9428a03
+
 - 2026-02-14 09:04 (Australia/Melbourne) [project:quine-tv] `microfilm` (src/channels/microfilm.js): visual readability — increased reel rim/spoke contrast and added a subtle film path hint between reels and strip. Commit: df479ba
 
 - 2026-02-14 08:49 (Australia/Melbourne) [project:quine-tv] `microfilm` (src/channels/microfilm.js): perf — cached static background + vignette into offscreen layers rebuilt on init/resize (steady-state render blits; no per-frame backdrop gradients). Commit: ffb48cb
