@@ -42,6 +42,18 @@ export function createChannel({ seed, audio }) {
   let s = 1;
   let floorY = 0;
 
+  // forge placement (single source of truth so gradients + floor glow align)
+  const FORGE_OFFSET_X = -420; // relative to cx, in "s" units
+  const FORGE_OFFSET_Y = -80;
+
+  function getForgeRect() {
+    const fw = 240 * s;
+    const fh = 220 * s;
+    const fx = cx + FORGE_OFFSET_X * s;
+    const fy = cy + FORGE_OFFSET_Y * s;
+    return { fx, fy, fw, fh };
+  }
+
   // particles (sparks)
   const MAX_SPARKS = 140;
   const sparks = Array.from({ length: MAX_SPARKS }, () => ({
@@ -132,7 +144,8 @@ export function createChannel({ seed, audio }) {
       floorGradient.addColorStop(0, `hsl(${brickHue}, 16%, 6%)`);
       floorGradient.addColorStop(1, `hsl(${brickHue}, 14%, 3%)`);
 
-      const gx = cx - 320 * s;
+      const { fx, fw } = getForgeRect();
+      const gx = fx + fw * 0.52;
       const gy = floorY + 10 * s;
       floorGlowGradient = ctx.createRadialGradient(gx, gy, 10 * s, gx, gy, 560 * s);
       floorGlowGradient.addColorStop(0, `hsla(${hotHue}, 95%, 55%, 1)`);
@@ -151,10 +164,7 @@ export function createChannel({ seed, audio }) {
 
     // forge opening gradient buckets (quantized by forgeHeat)
     {
-      const fx = cx - 320 * s;
-      const fy = cy - 80 * s;
-      const fw = 240 * s;
-      const fh = 220 * s;
+      const { fx, fy, fw, fh } = getForgeRect();
       const ox = fx + fw * 0.52;
       const oy = fy + fh * 0.72;
       const innerR = 10 * s;
@@ -743,22 +753,60 @@ export function createChannel({ seed, audio }) {
   }
 
   function drawForge(ctx) {
-    // forge opening + flame
-    const fx = cx - 320 * s;
-    const fy = cy - 80 * s;
-    const fw = 240 * s;
-    const fh = 220 * s;
+    const { fx, fy, fw, fh } = getForgeRect();
 
-    // body
+    // body (brick housing)
+    const bodyX = fx - 28 * s;
+    const bodyY = fy - 50 * s;
+    const bodyW = fw + 56 * s;
+    const bodyH = fh + 90 * s;
+
+    ctx.save();
     ctx.fillStyle = `hsl(${brickHue}, 30%, ${8 + forgeHeat * 8}%)`;
-    ctx.fillRect(fx - 20 * s, fy - 40 * s, fw + 40 * s, fh + 70 * s);
+    roundRect(ctx, bodyX, bodyY, bodyW, bodyH, 18 * s);
+    ctx.fill();
+
+    // simple volume: darker sides + warm top lip
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 0.38;
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(bodyX, bodyY, 22 * s, bodyH);
+    ctx.globalAlpha = 0.18;
+    ctx.fillRect(bodyX + bodyW - 24 * s, bodyY, 24 * s, bodyH);
+
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.05 + forgeHeat * 0.1;
+    ctx.fillStyle = `hsla(${hotHue + 8}, 95%, 62%, 1)`;
+    ctx.fillRect(bodyX + 14 * s, bodyY + 14 * s, bodyW - 28 * s, 6 * s);
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.32;
+    ctx.strokeStyle = `hsl(${brickHue}, 18%, 3%)`;
+    ctx.lineWidth = 3.2 * s;
+    roundRect(ctx, bodyX, bodyY, bodyW, bodyH, 18 * s);
+    ctx.stroke();
+    ctx.restore();
 
     // opening (cached gradients; quantized by forgeHeat)
     const heatIdx = Math.max(0, Math.min(FORGE_GRAD_STEPS, Math.round(forgeHeat * FORGE_GRAD_STEPS)));
     ctx.fillStyle = forgeOpeningGradients[heatIdx];
 
-    roundRect(ctx, fx + 20 * s, fy + 30 * s, fw - 40 * s, fh - 60 * s, 26 * s);
+    const openX = fx + 20 * s;
+    const openY = fy + 30 * s;
+    const openW = fw - 40 * s;
+    const openH = fh - 60 * s;
+
+    roundRect(ctx, openX, openY, openW, openH, 26 * s);
     ctx.fill();
+
+    // dark frame so the opening reads cleanly against the bricks
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.strokeStyle = `hsl(${brickHue}, 16%, 2%)`;
+    ctx.lineWidth = 4.6 * s;
+    roundRect(ctx, openX, openY, openW, openH, 26 * s);
+    ctx.stroke();
+    ctx.restore();
 
     // flame tongues
     ctx.save();
