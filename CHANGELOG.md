@@ -1,3 +1,7 @@
+- 2026-02-13 18:48 (Australia/Melbourne) [project:quine-tv] `futurearch` (src/channels/futurearch.js): perf — cached background gradients (bg/floor/vignette); rebuild on resize/ctx swap. Screenshots: screenshots/autopilot-futurearch-bgcache-before + screenshots/autopilot-futurearch-bgcache-after. Commit: cfc3abd
+
+- 2026-02-13 18:15 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — pushed forge further to the side + improved body/frame shading. Commit: e3ba448
+
 - 2026-02-13 18:05 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visual storytelling — dunk hot item into quench bucket during QUENCH; steam originates from bucket waterline. Commit: 3a8bd8b
 
 - 2026-02-13 17:47 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — second pass: pushed workshop props further right + increased opacity (bucket/tools/tongs). Commit: 9c7325b
