@@ -756,44 +756,116 @@ export function createChannel({ seed, audio }) {
     const ax = cx + 70 * s;
     const ay = cy + 110 * s;
 
-    // shadow
+    const steel = (l) => `hsl(${steelHue}, 18%, ${l}%)`;
+
+    // shadow (wider than the stand so the anvil feels heavy)
+    ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.beginPath();
-    ctx.ellipse(ax + 10 * s, ay + 55 * s, 220 * s, 48 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(ax + 8 * s, ay + 58 * s, 240 * s, 52 * s, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
 
-    // body
-    const steel = (l) => `hsl(${steelHue}, 18%, ${l}%)`;
-    ctx.fillStyle = steel(22);
+    // --- stand
+    ctx.save();
+    ctx.fillStyle = steel(14);
+    ctx.fillRect(ax - 98 * s, ay + 42 * s, 184 * s, 98 * s);
+
+    // base plate
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = steel(10);
+    ctx.fillRect(ax - 120 * s, ay + 132 * s, 230 * s, 18 * s);
+
+    // stand front bevel
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = steel(40);
+    ctx.fillRect(ax - 98 * s, ay + 42 * s, 184 * s, 16 * s);
+    ctx.restore();
+
+    // --- main body silhouette
+    ctx.save();
+    ctx.fillStyle = steel(20);
     ctx.beginPath();
-    ctx.moveTo(ax - 220 * s, ay - 10 * s);
-    ctx.lineTo(ax - 120 * s, ay - 60 * s);
-    ctx.lineTo(ax + 140 * s, ay - 60 * s);
-    ctx.lineTo(ax + 210 * s, ay - 30 * s);
-    ctx.lineTo(ax + 120 * s, ay - 10 * s);
-    ctx.lineTo(ax + 90 * s, ay + 40 * s);
-    ctx.lineTo(ax - 70 * s, ay + 40 * s);
+
+    // horn
+    ctx.moveTo(ax - 250 * s, ay - 18 * s);
+    ctx.lineTo(ax - 150 * s, ay - 66 * s);
+    ctx.lineTo(ax + 132 * s, ay - 66 * s);
+
+    // heel
+    ctx.lineTo(ax + 220 * s, ay - 34 * s);
+    ctx.lineTo(ax + 132 * s, ay - 10 * s);
+
+    // waist to stand
+    ctx.lineTo(ax + 98 * s, ay + 42 * s);
+    ctx.lineTo(ax - 78 * s, ay + 42 * s);
+
     ctx.closePath();
     ctx.fill();
 
-    // stand
-    ctx.fillStyle = steel(16);
-    ctx.fillRect(ax - 90 * s, ay + 40 * s, 170 * s, 95 * s);
+    // horn tip roundness
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = steel(18);
+    ctx.beginPath();
+    ctx.ellipse(ax - 246 * s, ay - 20 * s, 22 * s, 12 * s, -0.1, 0, Math.PI * 2);
+    ctx.fill();
 
-    // highlight
-    ctx.save();
+    // face plate (top) - brighter strip so it reads as steel, not clay
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = steel(28);
+    ctx.beginPath();
+    ctx.moveTo(ax - 170 * s, ay - 66 * s);
+    ctx.lineTo(ax + 128 * s, ay - 66 * s);
+    ctx.lineTo(ax + 188 * s, ay - 44 * s);
+    ctx.lineTo(ax - 140 * s, ay - 44 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // hardy + pritchel holes
+    ctx.globalAlpha = 0.65;
+    ctx.fillStyle = 'rgba(0,0,0,0.38)';
+    ctx.fillRect(ax + 62 * s, ay - 60 * s, 14 * s, 14 * s);
+    ctx.beginPath();
+    ctx.ellipse(ax + 30 * s, ay - 54 * s, 6.2 * s, 5.4 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // underside shading to give mass
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(ax - 260 * s, ay - 8 * s, 540 * s, 90 * s);
+
+    // crisp outline
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = steel(6);
+    ctx.lineWidth = 2.2 * s;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ax - 250 * s, ay - 18 * s);
+    ctx.lineTo(ax - 150 * s, ay - 66 * s);
+    ctx.lineTo(ax + 132 * s, ay - 66 * s);
+    ctx.lineTo(ax + 220 * s, ay - 34 * s);
+    ctx.lineTo(ax + 132 * s, ay - 10 * s);
+    ctx.lineTo(ax + 98 * s, ay + 42 * s);
+    ctx.lineTo(ax - 78 * s, ay + 42 * s);
+    ctx.closePath();
+    ctx.stroke();
+
+    // highlight wash (strike moment)
     ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = 0.22 + strikeGlow * 0.2 + ringFlash * 0.25;
     ctx.fillStyle = anvilHighlightGradient;
-    ctx.fillRect(ax - 260 * s, ay - 110 * s, 520 * s, 260 * s);
-    ctx.restore();
+    ctx.fillRect(ax - 280 * s, ay - 120 * s, 560 * s, 280 * s);
 
-    // hot bar on anvil
-    ctx.save();
+    // hot bar on anvil (kept subtle; boosted on HEAT)
     const heat = forgeHeat;
-    ctx.globalAlpha = 0.18 + heat * 0.55;
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.12 + heat * 0.55;
     ctx.fillStyle = `hsla(${hotHue}, 95%, ${55 + heat * 10}%, 1)`;
-    ctx.fillRect(ax - 40 * s, ay - 72 * s, 160 * s, 18 * s);
+    ctx.fillRect(ax - 44 * s, ay - 72 * s, 170 * s, 18 * s);
+
     ctx.restore();
   }
 
