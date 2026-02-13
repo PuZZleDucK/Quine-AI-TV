@@ -1,3 +1,5 @@
+- 2026-02-13 15:45 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visual depth — added workshop props (quench bucket + hanging tools + floor tongs) with subtle parallax/lighting; kept OSD clear. Screenshots: screenshots/autopilot-forgeanvil-props-before-20260213-1545 + screenshots/autopilot-forgeanvil-props-after-20260213-1545. Commit: 1f2ce41
+
 - 2026-02-13 15:34 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): text/dialog — added a seeded rotating “shop talk” caption strip (blacksmith jokes/status lines), 5+ minutes before repeating. Screenshots: screenshots/autopilot-forgeanvil-captions-before + screenshots/autopilot-forgeanvil-captions-after. Commit: 132bb92
 
 - 2026-02-13 14:30 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): determinism/visual — precomputed flame tongues so `drawForge()` uses no per-frame `rand()` (prevents flame teleporting; FPS-stable). Commit: 8084da6
