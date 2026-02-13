@@ -52,8 +52,81 @@ function samplePath(path, s){
   return { x: last.x1, y: last.y1, a: Math.atan2(last.y1 - last.y0, last.x1 - last.x0) };
 }
 
+function buildVHFLog(seed){
+  const rr = mulberry32(((seed ^ 0x7a2f3d91) >>> 0));
+
+  const tugs = [
+    'GANNET', 'BRACKEN', 'WIDGEON', 'MULLET', 'KITE', 'PUFFIN', 'OTTER', 'SKUA',
+    'HARBOR-3', 'HARBOR-7', 'LINE-2'
+  ];
+  const places = [
+    'FAIRWAY', 'BUOY 1', 'BUOY 2', 'BUOY 3', 'BUOY 4', 'BUOY 5', 'PIER 2', 'PIER 3',
+    'OUTER BASIN', 'INNER BASIN', 'LOCK GATE', 'TURNING CIRCLE', 'FUEL DOCK'
+  ];
+  const cargo = [
+    'CONTAINER', 'BULK', 'TANKER', 'RO/RO', 'FISHER', 'BARGE', 'COASTER'
+  ];
+  const cmds = [
+    'HOLD POSITION', 'STANDBY', 'MAINTAIN SAFE SPEED', 'CLEAR THE FAIRWAY',
+    'MAKE UP ON STARBOARD', 'MAKE UP ON PORT', 'SHIFT 20M AHEAD', 'SHIFT 20M ASTERN',
+    'CHECK LINES', 'REPORT VISIBILITY', 'CONFIRM ETA', 'SECURE TOWLINE',
+    'WAIT FOR PILOT', 'FOLLOW LEAD LIGHTS'
+  ];
+  const oddities = [
+    'SEAGULL WATCH ACTIVE — SECURE SNACKS',
+    'MYSTERY HORN AGAIN. NOT US.',
+    'COFFEE RUN AUTHORISED (ONE CUP PER CREW)',
+    'FLOATING PALLET REPORTED — KEEP CLEAR',
+    'RADAR GHOST ON THE NORTH RANGE',
+    'DOLPHIN SIGHTING — SPEED RESTRICT',
+    'TIDE GAUGE DRIFTING; TRUST YOUR EYES'
+  ];
+
+  const out = [];
+  const seen = new Set();
+  const N = 96; // 96 * 4s = 384s (> 5 min) without repeats.
+
+  for (let i = 0; i < N; i++){
+    let msg = '';
+    let guard = 0;
+    while (guard++ < 40){
+      const ch = 10 + ((rr() * 7) | 0); // 10–16
+      const tug = tugs[(rr() * tugs.length) | 0];
+      const where = places[(rr() * places.length) | 0];
+      const cmd = cmds[(rr() * cmds.length) | 0];
+      const ref = 100 + ((rr() * 900) | 0);
+
+      if (rr() < 0.18){
+        const o = oddities[(rr() * oddities.length) | 0];
+        msg = `CH ${ch} DISPATCH: ${o} (REF ${ref})`;
+      } else if (rr() < 0.55){
+        const kind = cargo[(rr() * cargo.length) | 0];
+        msg = `CH ${ch} DISPATCH: ${tug} — ${cmd} @ ${where} (${kind}) REF ${ref}`;
+      } else {
+        msg = `CH ${ch} ${tug}: ${cmd} @ ${where}. REF ${ref}`;
+      }
+
+      if (!seen.has(msg)){
+        seen.add(msg);
+        break;
+      }
+    }
+
+    if (!msg){
+      msg = `CH 12 DISPATCH: STANDBY FOR INSTRUCTION. REF ${100 + i}`;
+    }
+    out.push(msg);
+  }
+
+  return out;
+}
+
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+
+  // Seeded rotating VHF dispatch log strip (5+ min before repeating).
+  const VHF_LOG = buildVHFLog(seed);
+  const VHF_INTERVAL = 4.0;
 
   let w = 0;
   let h = 0;
@@ -678,6 +751,41 @@ export function createChannel({ seed, audio }){
     ctx.font = `${smallSize}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.fillStyle = 'rgba(150, 230, 255, 0.85)';
     ctx.fillText(`PHASE: ${phase.label}`, x, y + titleSize * 1.15);
+
+    // VHF dispatch log strip (clipped to stay OSD-safe; deterministic rotation)
+    {
+      const idx = Math.floor(t / VHF_INTERVAL) % VHF_LOG.length;
+      const msg = VHF_LOG[idx];
+
+      const sx = x;
+      const sy = y + titleSize * (phase.id === 'squall' ? 3.10 : 2.35);
+      const sw = frame.w * 0.70;
+      const sh = Math.max(18, Math.floor(smallSize * 1.55));
+      const r = Math.min(12, sh * 0.32);
+
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = 'rgba(10, 14, 18, 0.82)';
+      roundRect(ctx, sx, sy, sw, sh, r);
+      ctx.fill();
+
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = 'rgba(150,230,255,0.9)';
+      ctx.lineWidth = Math.max(1, Math.floor(dpr));
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.rect(sx + sh * 0.18, sy + sh * 0.12, sw - sh * 0.36, sh * 0.76);
+      ctx.clip();
+
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = 'rgba(255,255,255,0.80)';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.font = `${Math.max(10, Math.floor(smallSize * 0.92))}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.fillText(`VHF DISPATCH — ${msg}`, sx + sw * 0.03, sy + sh * 0.52);
+      ctx.restore();
+    }
 
     // tide gauge
     const gx = frame.x + frame.w * 0.78;

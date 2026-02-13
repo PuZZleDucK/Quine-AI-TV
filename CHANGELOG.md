@@ -1,3 +1,5 @@
+- 2026-02-14 01:22 (Australia/Melbourne) [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): text/dialog — added a seeded rotating “VHF DISPATCH” log strip (funny/immersive harbor chatter), ~6+ minutes before repeating; clipped to stay OSD-safe. Commit: TBD
+
 - 2026-02-14 01:08 (Australia/Melbourne) [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): determinism — schedule lightning flashes from the previous `nextFlashAt` time (catch-up loop) so 30fps vs 60fps matches at the same capture offsets. Screenshots: screenshots/autopilot-tugdispatch-determinism-before + screenshots/autopilot-tugdispatch-determinism-after. Commit: TBD
 
 - 2026-02-14 00:49 (Australia/Melbourne) [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): perf — replaced per-frame scanline loop with a cached scanline pattern (rebuild on resize/ctx swap). Accept: render no longer loops over `y` to draw scanlines each frame. Commit: 506c8ee
