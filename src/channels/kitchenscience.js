@@ -583,11 +583,13 @@ export function createChannel({ seed, audio }){
   }
 
   function scheduleScienceFair(){
-    fairNext = 45 + fairRand() * 75;
+    // keep it special: ~2–4 minutes between banners
+    fairNext = 120 + fairRand() * 120;
   }
 
   function startScienceFair(){
-    fairKind = fairRand() < 0.5 ? 0 : 1;
+    // variant 1 is extra-rare ("SHOW & TELL")
+    fairKind = fairRand() < 0.85 ? 0 : 1;
     fairT = 6 + fairRand() * 4;
     fairTotal = fairT;
     scheduleScienceFair();
