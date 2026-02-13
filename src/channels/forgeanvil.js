@@ -592,13 +592,14 @@ export function createChannel({ seed, audio }) {
     // Foreground prop: tongs on the floor (adds depth). Keep it low.
 
     const parX = Math.sin(t * 0.55) * 6 * s;
-    const x = cx + 190 * s + parX;
-    const y = floorY + 38 * s;
+    const xTarget = cx + 330 * s + parX;
+    const x = Math.max(120 * s, Math.min(w - 120 * s, xTarget));
+    const y = floorY + 44 * s;
 
     ctx.save();
-    ctx.globalAlpha = 0.35;
-    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-    ctx.lineWidth = 5.4 * s;
+    ctx.globalAlpha = 0.78;
+    ctx.strokeStyle = `hsl(${steelHue}, 10%, 10%)`;
+    ctx.lineWidth = 5.6 * s;
     ctx.lineCap = 'round';
 
     // two arms
@@ -626,7 +627,7 @@ export function createChannel({ seed, audio }) {
 
     // tiny warm specular hint
     ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 0.03 + forgeHeat * 0.05;
+    ctx.globalAlpha = 0.05 + forgeHeat * 0.08;
     ctx.strokeStyle = `hsla(${hotHue + 18}, 95%, 70%, 0.8)`;
     ctx.lineWidth = 2.4 * s;
     ctx.beginPath();
