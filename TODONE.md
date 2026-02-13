@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `microfilm` (src/channels/microfilm.js): perf — cached static background + vignette into offscreen layers rebuilt on init/resize; steady-state render blits layers (no per-frame `createLinearGradient()`/`createRadialGradient()` for backdrop). Commit: ffb48cb
+
 - [x] [project:quine-tv] `microfilm` (src/channels/microfilm.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned. Screenshots: screenshots/autopilot-microfilm-audio-hygiene/before + screenshots/autopilot-microfilm-audio-hygiene/after. Commit: 3b58ccf
 
 - [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): visual depth — added a cached glass highlight/caustic overlay layer for the beaker (rebuilt on init/resize) to give the prop more “material” without cluttering OSD. Commit: 8bd4cda
