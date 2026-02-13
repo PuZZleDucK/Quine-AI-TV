@@ -1,3 +1,5 @@
+- 2026-02-13 11:39 (Australia/Melbourne) [project:quine-tv] Review channel `orbits` (src/channels/orbits.js): captured screenshots (0–300s) to `screenshots/review-orbits-20260213-1130` + completion shots to `screenshots/review-orbits-20260213-1130-post` (errors/warnings: 0), fixed starfield flicker by precomputing star specks (no `rand()` in render), added `// REVIEWED: 2026-02-13`, and queued follow-ups in `TODO.md`. Commit: TBD
+
 - 2026-02-13 11:20 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): room layout — added a subtle folding counter + laundry basket and a right-side stacked dryer bank (with “DRYERS” sign and heat-glow doors). Commit: ed86ad3
 
 - 2026-02-13 10:47 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): washing machine UI — adjusted control-panel dial/buttons spacing to prevent overlap on small viewports. Commit: 1dcf95a
