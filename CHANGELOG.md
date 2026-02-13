@@ -1,3 +1,5 @@
+- 2026-02-14 03:48 (Australia/Melbourne) [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): UI — probe-tied depth/age readout now stays clear of the rare “BUBBLE INCLUSIONS” banner (header lift for readout+chart). Screenshots: screenshots/autopilot-icecorelab-depthage-before-20260214-0345 + screenshots/autopilot-icecorelab-depthage-after-20260214-0345. Commit: c53a1cb
+
 - 2026-02-14 03:35 (Australia/Melbourne) [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): visuals — added sample tray + extracted chip animation during CUT→ANALYZE (kept OSD/panel clear). Screenshots: screenshots/autopilot-icecorelab-before + screenshots/autopilot-icecorelab-tray-after. Commit: ca9b8bf
 
 - 2026-02-14 03:15 (Australia/Melbourne) [project:quine-tv] Cleanup: moved stale TODO item for `icecorelab` “BUBBLE INCLUSIONS” deterministic sparkle moment to TODONE (implementation already present). Commit: f6ededb
