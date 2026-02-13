@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `sandtable` (src/channels/sandtable.js): audio determinism/perf — seeded PRNG inside `sandScrape()` (no `Math.random()`); hoisted flutter params. Commit: d64ebd9
+
 - [x] [project:quine-tv] `sandtable` (src/channels/sandtable.js): visual/bug — tile sand texture in Y (and X) so drift never reveals blank sand under the clip. Commit: be3ff52
 
 - [x] [project:quine-tv] Review channel `sandtable` (src/channels/sandtable.js): captured screenshots (0–300s) to `screenshots/review-sandtable` + completion shots to `screenshots/review-sandtable-post-20260214-0430` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
