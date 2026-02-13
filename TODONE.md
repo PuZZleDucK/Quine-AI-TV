@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `orbits` (src/channels/orbits.js): special moment — added rare deterministic “COMET PASS” (shooting star + trail) scheduled ~3–5 minutes. Commit: TBD
+
 - [x] [project:quine-tv] `orbits` (src/channels/orbits.js): visual - cycle through different orbit layouts every 5 minutes. Commit: e1b1c7a
 
 - [x] [project:quine-tv] `orbits` (src/channels/orbits.js): visual - more interesting planets (rings + bands/craters + rim/highlights; deterministic per seed). Screenshots: screenshots/autopilot-orbits-before-2026-02-13-1215 + screenshots/autopilot-orbits-planets-after-2026-02-13-1215. Commit: 14cd112
