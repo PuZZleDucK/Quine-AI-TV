@@ -97,9 +97,17 @@ function genMeander(rand, x0, y0, x1, y1, n=26, bend=0.18){
 
 function sandScrape(audio, rand, {gain=0.03}={}){
   const ctx = audio.ensure();
-  const dur = 0.12 + rand() * 0.10;
+
+  // Use a local seeded PRNG so audio generation is deterministic and doesn't
+  // consume large amounts of the channel RNG state (perf + repeatability).
+  const arand = mulberry32((rand() * 0x100000000) >>> 0);
+
+  const dur = 0.12 + arand() * 0.10;
   const sr = ctx.sampleRate;
   const len = Math.max(1, Math.floor(dur * sr));
+
+  const flutterFreq = 18 + arand() * 18;
+  const flutterPhase = arand() * Math.PI * 2;
 
   const buf = ctx.createBuffer(1, len, sr);
   const d = buf.getChannelData(0);
@@ -107,10 +115,10 @@ function sandScrape(audio, rand, {gain=0.03}={}){
   for (let i = 0; i < len; i++){
     const x = i / len;
     const env = Math.pow(1 - x, 1.4);
-    const n = (Math.random() * 2 - 1) * 0.9;
+    const n = (arand() * 2 - 1) * 0.9;
     last = last * 0.72 + n * 0.28;
     // granular scrape: amplitude flutter
-    const flutter = 0.6 + 0.4 * Math.sin(2 * Math.PI * (18 + rand() * 18) * x);
+    const flutter = 0.6 + 0.4 * Math.sin(2 * Math.PI * flutterFreq * x + flutterPhase);
     d[i] = last * env * flutter;
   }
 
@@ -119,7 +127,7 @@ function sandScrape(audio, rand, {gain=0.03}={}){
 
   const bp = ctx.createBiquadFilter();
   bp.type = 'bandpass';
-  bp.frequency.value = 420 + rand() * 380;
+  bp.frequency.value = 420 + arand() * 380;
   bp.Q.value = 0.9;
 
   const hp = ctx.createBiquadFilter();
