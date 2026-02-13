@@ -1,6 +1,6 @@
 # Done
 
-- [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): audio hygiene — make `onAudioOn()` idempotent and ensure `onAudioOff()`/`destroy()` clear `AudioManager.current` only when owned. Commit: 3522766
+- [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): audio hygiene — make `onAudioOn()` idempotent and ensure `onAudioOff()`/`destroy()` clear `AudioManager.current` only when owned. Commit: 867c4cf
 
 - [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): visual correctness — added a distinct `watch` artifact icon and set smartwatch artifact `kind` to `watch` (was rendering as a phone). Commit: 1e77af9
 
