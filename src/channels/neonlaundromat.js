@@ -69,9 +69,9 @@ export function createChannel({ seed, audio }){
 
   function regenWindow(){
     const wx = w * 0.06;
-    const wy = h * 0.08;
-    const ww = w * 0.88;
-    const wh = h * 0.24;
+    const wy = h * 0.09;
+    const ww = w * 0.78;
+    const wh = h * 0.18;
 
     windowFx.x = wx;
     windowFx.y = wy;
@@ -203,10 +203,9 @@ export function createChannel({ seed, audio }){
 
   function drawWallSigns(ctx, P){
     const signs = [
-      { text: 'OPEN ALL NIGHT', x: w * 0.09, y: h * 0.255, w: w * 0.24, h: h * 0.060, col: pal.neonC },
-      { text: 'NO DYE AFTER 10PM', x: w * 0.36, y: h * 0.255, w: w * 0.26, h: h * 0.060, col: pal.neonM },
-      { text: 'SOAP + TOKENS', x: w * 0.65, y: h * 0.255, w: w * 0.18, h: h * 0.060, col: pal.neonO },
-      { text: 'LOST SOCK BIN ->', x: w * 0.66, y: h * 0.335, w: w * 0.23, h: h * 0.052, col: pal.neonC },
+      { text: 'OPEN ALL NIGHT', x: w * 0.09, y: h * 0.252, w: w * 0.23, h: h * 0.057, col: pal.neonC },
+      { text: 'NO DYE AFTER 10PM', x: w * 0.35, y: h * 0.252, w: w * 0.25, h: h * 0.057, col: pal.neonM },
+      { text: 'SOAP + TOKENS', x: w * 0.62, y: h * 0.252, w: w * 0.14, h: h * 0.057, col: pal.neonO },
     ];
 
     ctx.save();
@@ -256,9 +255,9 @@ export function createChannel({ seed, audio }){
     }
 
     const tubes = [
-      { x: w * 0.11, y: h * 0.332, w: w * 0.22, col: pal.neonM },
-      { x: w * 0.40, y: h * 0.332, w: w * 0.19, col: pal.neonC },
-      { x: w * 0.67, y: h * 0.332, w: w * 0.14, col: pal.neonO },
+      { x: w * 0.11, y: h * 0.324, w: w * 0.21, col: pal.neonM },
+      { x: w * 0.39, y: h * 0.324, w: w * 0.18, col: pal.neonC },
+      { x: w * 0.64, y: h * 0.324, w: w * 0.11, col: pal.neonO },
     ];
     for (let i = 0; i < tubes.length; i++){
       const n = tubes[i];
@@ -566,7 +565,7 @@ export function createChannel({ seed, audio }){
 
     ctx.restore();
 
-    // neon sign
+    // interior header and info text (main title now lives on mirrored window placard)
     const surge = powerSurge.a;
     const flick = (neonFlicker > 0 || surge > 0)
       ? ((surge > 0 ? 0.12 : 0.35) + (surge > 0 ? 0.88 : 0.65) * (0.5 + 0.5 * Math.sin(t * (surge > 0 ? 86 : 42))))
@@ -589,15 +588,64 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = `rgba(108,242,255,${0.85 * neonA})`;
     ctx.fillText('24H', nx, ny);
 
-    ctx.shadowColor = `rgba(255,102,217,${0.50 * neonA})`;
-    ctx.fillStyle = `rgba(255,102,217,${0.86 * neonA})`;
-    ctx.fillText('NEON LAUNDROMAT', nx + w * 0.09, ny);
-
     ctx.shadowBlur = 0;
     ctx.font = `${Math.floor(small * 0.95)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.fillStyle = `rgba(255,207,106,${0.75})`;
     ctx.fillText('WASH  •  DRY  •  FOLD', nx, ny + 28);
 
+    ctx.restore();
+
+    // mirrored outward-facing channel sign inside window
+    ctx.save();
+    const sx = wx + ww * 0.12;
+    const sy = wy + wh * 0.22;
+    const sw = ww * 0.40;
+    const sh = wh * 0.34;
+    const sr = Math.max(10, sh * 0.24);
+
+    // mounts
+    ctx.fillStyle = 'rgba(48,58,78,0.88)';
+    ctx.fillRect(sx + sw * 0.16, sy - sh * 0.22, Math.max(2, sw * 0.01), sh * 0.22);
+    ctx.fillRect(sx + sw * 0.84, sy - sh * 0.22, Math.max(2, sw * 0.01), sh * 0.22);
+
+    // sign plate
+    const sg = ctx.createLinearGradient(0, sy, 0, sy + sh);
+    sg.addColorStop(0, 'rgba(16,22,34,0.88)');
+    sg.addColorStop(1, 'rgba(8,12,20,0.90)');
+    ctx.fillStyle = sg;
+    roundedRect(ctx, sx, sy, sw, sh, sr);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(220,240,255,0.24)';
+    ctx.lineWidth = Math.max(1.2, Math.floor(dpr * 1.1));
+    roundedRect(ctx, sx + 1, sy + 1, sw - 2, sh - 2, sr - 1);
+    ctx.stroke();
+
+    // neon tube edge
+    const sf = 0.75 + 0.25 * Math.sin(t * 4.5);
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.strokeStyle = pal.neonM;
+    ctx.lineWidth = Math.max(2.2, sh * 0.10);
+    ctx.shadowColor = pal.neonM;
+    ctx.shadowBlur = 16 + 16 * (0.4 + P.glow) * sf;
+    ctx.globalAlpha = 0.55 + (0.30 + P.glow * 0.36) * sf;
+    roundedRect(ctx, sx + 4, sy + 4, sw - 8, sh - 8, sr - 3);
+    ctx.stroke();
+    ctx.restore();
+
+    // mirrored text to simulate outward-facing sign seen from inside
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.floor(font * 0.92)}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+    const tx = sx + sw * 0.50;
+    const ty = sy + sh * 0.54;
+    ctx.translate(tx, ty);
+    ctx.scale(-1, 1);
+    ctx.shadowColor = `rgba(255,102,217,${0.50 * neonA})`;
+    ctx.shadowBlur = 12 + beatPulse * 8;
+    ctx.fillStyle = `rgba(255,102,217,${0.90 * neonA})`;
+    ctx.textAlign = 'center';
+    ctx.fillText('NEON LAUNDROMAT', 0, 0);
     ctx.restore();
   }
 

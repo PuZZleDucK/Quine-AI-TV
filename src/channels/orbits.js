@@ -5,6 +5,15 @@ import { simpleDrone } from '../util/audio.js';
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
 
+  const ORBIT_LAYOUT_PERIOD_S = 300;
+  const ORBIT_LAYOUT_TRANSITION_S = 6;
+  const ORBIT_LAYOUTS = [
+    { cx: 0.50, cy: 0.50, ex: 1.00, ey: 1.00, rot: 0.00 },
+    { cx: 0.52, cy: 0.46, ex: 1.25, ey: 0.78, rot: 0.28 },
+    { cx: 0.46, cy: 0.55, ex: 0.82, ey: 1.30, rot: -0.22 },
+    { cx: 0.50, cy: 0.50, ex: 1.08, ey: 0.92, rot: 0.72 },
+  ];
+
   let w = 0;
   let h = 0;
   let t = 0;
@@ -226,8 +235,36 @@ export function createChannel({ seed, audio }){
     }
     ctx.restore();
 
-    const cx = w / 2;
-    const cy = h / 2;
+    // Layout cycle: swap orbit geometry every ~5 minutes for long-run variety.
+    // Deterministic (time-based), with a short ease-in transition at the boundary.
+    const LAYOUT_PERIOD_S = 300;
+    const LAYOUTS = [
+      { cx: 0.50, cy: 0.50, ex: 1.00, ey: 1.00, rot: 0.00 },
+      { cx: 0.52, cy: 0.46, ex: 1.25, ey: 0.78, rot: 0.28 },
+      { cx: 0.46, cy: 0.55, ex: 0.82, ey: 1.30, rot: -0.22 },
+      { cx: 0.50, cy: 0.50, ex: 1.08, ey: 0.92, rot: 0.72 },
+    ];
+
+    const lt = t / LAYOUT_PERIOD_S;
+    const base = Math.floor(lt);
+    const i0 = ((base % LAYOUTS.length) + LAYOUTS.length) % LAYOUTS.length;
+    const i1 = (i0 + 1) % LAYOUTS.length;
+    const frac = lt - base;
+
+    const TRANSITION_S = 6;
+    const u0 = Math.min(1, Math.max(0, frac / (TRANSITION_S / LAYOUT_PERIOD_S)));
+    const u = u0 * u0 * (3 - 2 * u0); // smoothstep
+
+    const a0 = LAYOUTS[i0];
+    const a1 = LAYOUTS[i1];
+
+    const cx = w * (a0.cx + (a1.cx - a0.cx) * u);
+    const cy = h * (a0.cy + (a1.cy - a0.cy) * u);
+    const ex = a0.ex + (a1.ex - a0.ex) * u;
+    const ey = a0.ey + (a1.ey - a0.ey) * u;
+    const rot = a0.rot + (a1.rot - a0.rot) * u;
+    const rotCos = Math.cos(rot);
+    const rotSin = Math.sin(rot);
 
     // orbits
     ctx.save();
@@ -236,7 +273,7 @@ export function createChannel({ seed, audio }){
     for (const b of bodies){
       if (b.center) continue;
       ctx.beginPath();
-      ctx.arc(cx, cy, b.r, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy, b.r * ex, b.r * ey, rot, 0, Math.PI * 2);
       ctx.stroke();
     }
     ctx.restore();
@@ -256,8 +293,10 @@ export function createChannel({ seed, audio }){
     // planets
     for (const b of bodies){
       if (b.center) continue;
-      const x = cx + Math.cos(b.a) * b.r;
-      const y = cy + Math.sin(b.a) * b.r;
+      const ax = Math.cos(b.a) * b.r * ex;
+      const ay = Math.sin(b.a) * b.r * ey;
+      const x = cx + ax * rotCos - ay * rotSin;
+      const y = cy + ax * rotSin + ay * rotCos;
 
       // rings (simple: draw under the planet, then the planet hides the inner ring)
       if (b.ring) {
