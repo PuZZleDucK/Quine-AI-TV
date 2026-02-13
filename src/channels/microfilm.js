@@ -1,6 +1,8 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-14
+
 function pick(rand, arr) {
   return arr[(rand() * arr.length) | 0];
 }
@@ -173,8 +175,27 @@ export function createChannel({ seed, audio }) {
     sceneInit(width, height, dprIn);
   }
 
+  function stopAmbience({ clearCurrent = false } = {}) {
+    const handle = ambience;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent) {
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ambience = null;
+  }
+
   function onAudioOn() {
     if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    stopAmbience({ clearCurrent: true });
 
     // quiet projector/motor vibe: pink noise + low drone
     const n = audio.noiseSource({ type: 'pink', gain: 0.0045 });
@@ -190,8 +211,7 @@ export function createChannel({ seed, audio }) {
   }
 
   function onAudioOff() {
-    try { ambience?.stop?.(); } catch {}
-    ambience = null;
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy() {
