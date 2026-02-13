@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): visual correctness — added a distinct `watch` artifact icon and set smartwatch artifact `kind` to `watch` (was rendering as a phone). Commit: 1e77af9
+
 - [x] [project:quine-tv] Review channel `futurearch` (src/channels/futurearch.js): captured screenshots (0–300s) to `screenshots/review-futurearch-20260213-2145` (errors/warnings: 0), did code+audio/perf review, confirmed `// REVIEWED: 2026-02-13`, and queued concrete follow-ups in `TODO.md`. Commit: da22125
 
 - [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): UI — make the placard panel OSD-safe (bottom HUD must not cover bullet text). Accept: with OSD visible, all placard text is fully readable. Commit: da22125
