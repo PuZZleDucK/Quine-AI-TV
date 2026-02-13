@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-14
 import { mulberry32 } from '../util/prng.js';
 
 const EXPERIMENTS = [
@@ -90,8 +91,29 @@ export function createChannel({ seed, audio }){
     init({ width, height });
   }
 
+  function stopFizz({ clearCurrent = false } = {}){
+    const handle = fizz;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    fizz = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // If onAudioOn is called repeatedly while audio is enabled, avoid restarting
+    // or stacking our ambience.
+    if (fizz && audio.current === fizz) return;
+
+    stopFizz({ clearCurrent: true });
     const n = audio.noiseSource({ type: 'pink', gain: 0.008 });
     n.start();
     fizz = { stop(){ n.stop(); } };
@@ -99,12 +121,12 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOff(){
-    try { fizz?.stop?.(); } catch {}
-    fizz = null;
+    stopFizz({ clearCurrent: true });
   }
 
   function destroy(){
-    onAudioOff();
+    // Only clears AudioManager.current when we own it.
+    stopFizz({ clearCurrent: true });
   }
 
   function bubblePopSound(intensity=0.3){
