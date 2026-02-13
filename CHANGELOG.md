@@ -1,3 +1,5 @@
+- 2026-02-13 18:05 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visual storytelling — dunk hot item into quench bucket during QUENCH; steam originates from bucket waterline. Commit: 3a8bd8b
+
 - 2026-02-13 17:47 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — second pass: pushed workshop props further right + increased opacity (bucket/tools/tongs). Commit: 9c7325b
 
 - 2026-02-13 17:30 (Australia/Melbourne) [project:quine-tv] Cleanup: removed stale TODO entry for `forgeanvil` workshop prop opacity (already completed earlier; see commit b3a5a62). Commit: TBD
