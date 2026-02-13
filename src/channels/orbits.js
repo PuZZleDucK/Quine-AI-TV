@@ -67,20 +67,40 @@ export function createChannel({ seed, audio }){
     rebuildSizes();
   }
 
+  function stopDrone({ clearCurrent = false } = {}){
+    const handle = drone;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    drone = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
-    if (drone) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    if (drone && audio.current === drone) return;
+
+    stopDrone({ clearCurrent: true });
     drone = simpleDrone(audio, { root: 82, detune: 0.8, gain: 0.05 });
     audio.setCurrent(drone);
   }
 
   function onAudioOff(){
-    drone?.stop?.();
-    drone = null;
+    stopDrone({ clearCurrent: true });
   }
 
   function destroy(){
-    onAudioOff();
+    // Only clears AudioManager.current when we own it.
+    stopDrone({ clearCurrent: true });
   }
 
   function update(dt){
