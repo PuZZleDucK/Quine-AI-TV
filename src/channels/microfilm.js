@@ -91,6 +91,94 @@ export function createChannel({ seed, audio }) {
   let ambience = null;
   let clickAcc = 0;
 
+  // Cached layers (rebuilt on init/resize)
+  const cache = {
+    bg: null, // CanvasImageSource | false | null
+    bgW: 0,
+    bgH: 0,
+    vignette: null, // CanvasImageSource | false | null
+    vigW: 0,
+    vigH: 0,
+  };
+
+  function makeCanvas(W, H) {
+    if (!(W > 0 && H > 0)) return null;
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+    if (typeof document !== 'undefined') {
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    }
+    return null;
+  }
+
+  function ensureBG() {
+    const W = Math.max(1, Math.floor(w));
+    const H = Math.max(1, Math.floor(h));
+    if (cache.bg !== null && cache.bgW === W && cache.bgH === H) return;
+
+    cache.bgW = W;
+    cache.bgH = H;
+
+    const c = makeCanvas(W, H);
+    if (!c) {
+      cache.bg = false;
+      return;
+    }
+
+    const gctx = c.getContext('2d');
+    gctx.setTransform(1, 0, 0, 1, 0, 0);
+    gctx.clearRect(0, 0, W, H);
+
+    const g = gctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#05070a');
+    g.addColorStop(0.55, '#020304');
+    g.addColorStop(1, '#000000');
+    gctx.fillStyle = g;
+    gctx.fillRect(0, 0, W, H);
+
+    // soft desk glow
+    gctx.fillStyle = 'rgba(108,242,255,0.06)';
+    gctx.fillRect(0, H * 0.58, W, H * 0.42);
+
+    cache.bg = c;
+  }
+
+  function ensureVignette() {
+    const W = Math.max(1, Math.floor(w));
+    const H = Math.max(1, Math.floor(h));
+    if (cache.vignette !== null && cache.vigW === W && cache.vigH === H) return;
+
+    cache.vigW = W;
+    cache.vigH = H;
+
+    const c = makeCanvas(W, H);
+    if (!c) {
+      cache.vignette = false;
+      return;
+    }
+
+    const gctx = c.getContext('2d');
+    gctx.setTransform(1, 0, 0, 1, 0, 0);
+    gctx.clearRect(0, 0, W, H);
+
+    const vg = gctx.createRadialGradient(
+      W * 0.5,
+      H * 0.48,
+      Math.min(W, H) * 0.18,
+      W * 0.5,
+      H * 0.48,
+      Math.max(W, H) * 0.72,
+    );
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.60)');
+    gctx.fillStyle = vg;
+    gctx.fillRect(0, 0, W, H);
+
+    cache.vignette = c;
+  }
+
   function sceneInit(width, height, dprIn) {
     w = width;
     h = height;
@@ -118,6 +206,9 @@ export function createChannel({ seed, audio }) {
       v: 0.015 + rand() * 0.05,
       a: 0.05 + rand() * 0.18,
     }));
+
+    ensureBG();
+    ensureVignette();
 
     regenRoll(true);
   }
@@ -270,6 +361,13 @@ export function createChannel({ seed, audio }) {
 
   function bg(ctx) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    if (cache.bg && cache.bg !== false) {
+      ctx.drawImage(cache.bg, 0, 0);
+      return;
+    }
+
+    // Fallback (no offscreen canvas support)
     ctx.clearRect(0, 0, w, h);
 
     const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -559,11 +657,15 @@ export function createChannel({ seed, audio }) {
     }
 
     // vignette
-    const vg = ctx.createRadialGradient(w * 0.5, h * 0.48, Math.min(w, h) * 0.18, w * 0.5, h * 0.48, Math.max(w, h) * 0.72);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.60)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, w, h);
+    if (cache.vignette && cache.vignette !== false) {
+      ctx.drawImage(cache.vignette, 0, 0);
+    } else {
+      const vg = ctx.createRadialGradient(w * 0.5, h * 0.48, Math.min(w, h) * 0.18, w * 0.5, h * 0.48, Math.max(w, h) * 0.72);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.60)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, w, h);
+    }
 
     drawLabel(ctx, pad + font, top + Math.floor(font * 2.25), 'CH', 'MICROFILM');
   }
