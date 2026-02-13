@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — made workshop props more opaque and pushed further to the side (bucket/tools/tongs). Commit: b3a5a62
+
 - [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visual depth — added workshop props (quench bucket + hanging tools + floor tongs) with subtle parallax/lighting; kept OSD clear. Screenshots: screenshots/autopilot-forgeanvil-props-before-20260213-1545 + screenshots/autopilot-forgeanvil-props-after-20260213-1545. Commit: 1f2ce41
 
 - [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): text/dialog — added a seeded rotating “shop talk” caption strip (blacksmith jokes/status lines), 5+ minutes before repeating. Screenshots: screenshots/autopilot-forgeanvil-captions-before + screenshots/autopilot-forgeanvil-captions-after. Commit: 132bb92
