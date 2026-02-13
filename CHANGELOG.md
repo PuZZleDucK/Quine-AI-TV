@@ -1,4 +1,4 @@
-- 2026-02-14 03:15 (Australia/Melbourne) [project:quine-tv] Cleanup: moved stale TODO item for `icecorelab` “BUBBLE INCLUSIONS” deterministic sparkle moment to TODONE (implementation already present). Commit: TBD
+- 2026-02-14 03:15 (Australia/Melbourne) [project:quine-tv] Cleanup: moved stale TODO item for `icecorelab` “BUBBLE INCLUSIONS” deterministic sparkle moment to TODONE (implementation already present). Commit: f6ededb
 
 - 2026-02-14 03:05 (Australia/Melbourne) [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): visuals — added cached vertical micro-striation texture overlay to reduce “TV banding” (rebuild on init/resize). Commit: fb7b6ec
 
