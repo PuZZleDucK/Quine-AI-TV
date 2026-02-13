@@ -45,18 +45,61 @@ export function createChannel({ seed, audio }){
       };
     });
 
-    bodies = Array.from({ length: 7 }, (_, i) => ({
-      r0: 40 + i * 32,
-      r: 0,
-      a: rand() * Math.PI * 2,
-      sp: (0.08 + rand() * 0.24) * (i % 2 ? 1 : -1),
-      size0: 5 + rand() * 10 + i * 0.9,
-      size: 0,
-      hue: (i * 40 + rand() * 30) % 360,
-      moon: rand() < 0.4,
-      moonA: rand() * Math.PI * 2,
-      moonSp: 0.7 + rand() * 1.1,
-    }));
+    bodies = Array.from({ length: 7 }, (_, i) => {
+      const hue = (i * 40 + rand() * 30) % 360;
+      const kind = rand() < (i >= 4 ? 0.6 : 0.35) ? 'gas' : 'rock';
+      const ring = i >= 2 && rand() < (kind === 'gas' ? 0.28 : 0.14);
+      const bandCount = kind === 'gas' ? 3 + ((rand() * 6) | 0) : 0;
+
+      const craters = kind === 'rock'
+        ? Array.from({ length: 2 + ((rand() * 4) | 0) }, () => {
+          // relative coords inside planet disc (roughly)
+          const rx = (rand() - 0.5) * 0.9;
+          const ry = (rand() - 0.5) * 0.9;
+          const rr = 0.10 + rand() * 0.18;
+          return {
+            rx, ry, rr,
+            a: 0.08 + rand() * 0.18,
+          };
+        })
+        : null;
+
+      const storm = kind === 'gas' && rand() < 0.55
+        ? {
+          a: rand() * Math.PI * 2,
+          r: 0.22 + rand() * 0.18,
+        }
+        : null;
+
+      return {
+        r0: 40 + i * 32,
+        r: 0,
+        a: rand() * Math.PI * 2,
+        sp: (0.08 + rand() * 0.24) * (i % 2 ? 1 : -1),
+        size0: 5 + rand() * 10 + i * 0.9,
+        size: 0,
+
+        hue,
+        kind,
+
+        ring,
+        ringTilt: (rand() - 0.5) * 0.9,
+        ringW: 1.35 + rand() * 0.55,
+        ringH: 0.22 + rand() * 0.22,
+        ringHue: (hue + (rand() - 0.5) * 30 + 360) % 360,
+
+        bandCount,
+        bandTilt: (rand() - 0.5) * 0.7,
+        bandPhase: rand() * Math.PI * 2,
+
+        craters,
+        storm,
+
+        moon: rand() < 0.4,
+        moonA: rand() * Math.PI * 2,
+        moonSp: 0.7 + rand() * 1.1,
+      };
+    });
 
     // center star
     bodies.unshift({ center: true, size0: 32 + rand() * 22, size: 0 });
@@ -215,13 +258,126 @@ export function createChannel({ seed, audio }){
       if (b.center) continue;
       const x = cx + Math.cos(b.a) * b.r;
       const y = cy + Math.sin(b.a) * b.r;
-      const g = ctx.createRadialGradient(x - b.size * 0.3, y - b.size * 0.3, 1, x, y, b.size);
-      g.addColorStop(0, `hsla(${b.hue},85%,70%,0.95)`);
-      g.addColorStop(1, `hsla(${(b.hue + 40) % 360},85%,45%,0.85)`);
+
+      // rings (simple: draw under the planet, then the planet hides the inner ring)
+      if (b.ring) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(b.ringTilt);
+        ctx.globalCompositeOperation = 'lighter';
+
+        const outerA = 0.22;
+        const innerA = 0.12;
+        const lw = Math.max(1, b.size * 0.16);
+
+        ctx.lineWidth = lw;
+        ctx.strokeStyle = `hsla(${b.ringHue},80%,70%,${outerA})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, b.size * b.ringW, b.size * b.ringW * b.ringH, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.lineWidth = Math.max(1, lw * 0.65);
+        ctx.strokeStyle = `hsla(${b.ringHue},80%,75%,${innerA})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, b.size * (b.ringW * 0.82), b.size * (b.ringW * 0.82) * b.ringH, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // base planet shading
+      const hue2 = (b.hue + 35) % 360;
+      const g = ctx.createRadialGradient(x - b.size * 0.35, y - b.size * 0.35, 1, x, y, b.size);
+      if (b.kind === 'gas') {
+        g.addColorStop(0, `hsla(${b.hue},70%,72%,0.95)`);
+        g.addColorStop(1, `hsla(${hue2},70%,48%,0.88)`);
+      } else {
+        g.addColorStop(0, `hsla(${b.hue},85%,68%,0.95)`);
+        g.addColorStop(1, `hsla(${hue2},85%,40%,0.88)`);
+      }
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(x, y, b.size, 0, Math.PI * 2);
       ctx.fill();
+
+      // details: gas bands / rock craters
+      if (b.kind === 'gas' && b.bandCount > 0) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(b.bandTilt);
+        ctx.beginPath();
+        ctx.arc(0, 0, b.size, 0, Math.PI * 2);
+        ctx.clip();
+
+        ctx.globalCompositeOperation = 'overlay';
+        const bandH = (b.size * 2) / (b.bandCount * 1.15);
+        for (let i = 0; i < b.bandCount; i++) {
+          const yy = -b.size + (i / (b.bandCount - 1 || 1)) * (b.size * 2);
+          const wave = 0.08 * Math.sin(b.bandPhase + i * 1.7);
+          ctx.globalAlpha = 0.10 + Math.abs(wave);
+          ctx.fillStyle = (i % 2) ? 'rgba(255,255,255,1)' : 'rgba(0,0,0,1)';
+          ctx.fillRect(-b.size * 1.2, yy - bandH * 0.5, b.size * 2.4, bandH);
+        }
+
+        if (b.storm) {
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.globalAlpha = 0.28;
+          ctx.fillStyle = 'rgba(255,255,255,1)';
+          const sx = Math.cos(b.storm.a) * (b.size * 0.25);
+          const sy = Math.sin(b.storm.a) * (b.size * 0.25);
+          ctx.beginPath();
+          ctx.ellipse(sx, sy, b.size * b.storm.r, b.size * b.storm.r * 0.55, b.storm.a * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+
+      if (b.kind === 'rock' && b.craters) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.beginPath();
+        ctx.arc(0, 0, b.size, 0, Math.PI * 2);
+        ctx.clip();
+
+        for (const c of b.craters) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.globalAlpha = c.a;
+          ctx.fillStyle = 'rgba(40,35,55,1)';
+          ctx.beginPath();
+          ctx.arc(c.rx * b.size, c.ry * b.size, c.rr * b.size, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.globalAlpha = c.a * 0.65;
+          ctx.strokeStyle = 'rgba(255,255,255,1)';
+          ctx.lineWidth = Math.max(1, b.size * 0.06);
+          ctx.beginPath();
+          ctx.arc(c.rx * b.size - b.size * 0.04, c.ry * b.size - b.size * 0.04, c.rr * b.size, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      // atmosphere/rim + spec highlight
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.32;
+      ctx.strokeStyle = `hsla(${(b.hue + 10) % 360},85%,70%,1)`;
+      ctx.lineWidth = Math.max(1, b.size * 0.08);
+      ctx.beginPath();
+      ctx.arc(x, y, b.size * 1.03, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.26;
+      ctx.fillStyle = 'rgba(255,255,255,1)';
+      ctx.beginPath();
+      ctx.arc(x - b.size * 0.35, y - b.size * 0.35, b.size * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
 
       if (b.moon){
         const mx = x + Math.cos(b.moonA) * (b.size * 2.2);

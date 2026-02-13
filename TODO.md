@@ -3,8 +3,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [ ] [project:quine-tv] `orbits` (src/channels/orbits.js): visual - more interesting planets
-
 - [ ] [project:quine-tv] `orbits` (src/channels/orbits.js): visual - cycle through different orbit layouts every 5 minutes
 
 - [ ] [project:quine-tv] `orbits` (src/channels/orbits.js): special moment — add a rare deterministic “COMET PASS” (shooting star + trail) scheduled ~3-5 minutes.
