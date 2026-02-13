@@ -106,7 +106,7 @@ const ARTIFACTS = [
     title: 'Wrist Chronicon',
     era: 'Wearable Quantification Age',
     material: 'Glass / silicone / lithium cell',
-    kind: 'phone',
+    kind: 'watch',
     plaque: [
       'Kept time, health metrics, and social obligations in one polite rectangle.',
       'The wrist placement suggests constant monitoring was considered reassuring.',
@@ -519,6 +519,20 @@ export function createChannel({ seed, audio }){
       ctx.beginPath();
       ctx.moveTo(-s * 0.20, -s * 0.26);
       ctx.lineTo(s * 0.20, -s * 0.26);
+      ctx.stroke();
+    } else if (kind === 'watch'){
+      // screen
+      roundRect(ctx, -s * 0.22, -s * 0.22, s * 0.44, s * 0.44, s * 0.12);
+      ctx.stroke();
+      // straps
+      roundRect(ctx, -s * 0.10, -s * 0.44, s * 0.20, s * 0.18, s * 0.08);
+      ctx.stroke();
+      roundRect(ctx, -s * 0.10, s * 0.26, s * 0.20, s * 0.18, s * 0.08);
+      ctx.stroke();
+      // crown
+      ctx.beginPath();
+      ctx.moveTo(s * 0.22, -s * 0.02);
+      ctx.lineTo(s * 0.32, -s * 0.02);
       ctx.stroke();
     } else if (kind === 'cable'){
       ctx.beginPath();
