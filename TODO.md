@@ -5,7 +5,7 @@ if `TODO.md` has no ready items:
 
 ## Channel review queue
 
-- [ ] Review channel `kitchen` (src/channels/kitchenscience.js)
+<!-- (empty) -->
 
 <!-- done: moved to TODONE.md -->
 
@@ -38,6 +38,14 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (sandtable render speckle determinism) -->
 
 ## Follow-ups queued from review: kitchen
+
+- [ ] `kitchen` (src/channels/kitchenscience.js): **text wrapping** — long `Why it works` lines currently clip (no wrapping). Add a small `wrapTextToWidth(ctx, text, maxWidth)` helper and pre-wrap `exp.happens/why` into `expWrapped` on experiment change + `onResize()`.
+
+- [ ] `kitchen` (src/channels/kitchenscience.js): **cleanup** — remove unused locals (e.g. `topW` in `spawnBubble()`) and run a quick pass for any other dead code.
+
+- [ ] `kitchen` (src/channels/kitchenscience.js): **visual depth** — add a subtle cached glass highlight/caustic overlay for the beaker (rebuild on resize), so the central prop has more “material” without cluttering OSD.
+
+- [ ] `kitchen` (src/channels/kitchenscience.js): **special moment tuning** — consider making “SCIENCE FAIR” rarer (e.g. 2–4 min) and/or add a second, even rarer moment (e.g. “BUBBLE OVER” foam surge) with a distinct signature.
 
 <!-- done: moved to TODONE.md (kitchen foam band determinism) -->
 <!-- done: moved to TODONE.md (kitchen bg cache) -->

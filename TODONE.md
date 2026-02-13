@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] Review channel `kitchen` (src/channels/kitchenscience.js): captured screenshots (0–300s) to `screenshots/review-kitchen-2026-02-14` (errors/warnings: 0), did code+audio/perf review, confirmed `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+
 - [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): special moment — added rare deterministic “SCIENCE FAIR” overlay (confetti + ribbon banner; ~45–120s cadence; clean reset; schedule uses separate RNG). Commit: c6adb58
 
 - [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): long-run interest — expanded `EXPERIMENTS` (more variety) and switched experiment selection to a seeded shuffle-bag with a 5-minute cooldown (avoids back-to-back repeats; keeps the bag moving even if cooldown can’t be satisfied). Commit: 2781e7b
