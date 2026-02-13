@@ -1,6 +1,6 @@
 # Done
 
-- [x] [project:quine-tv] `orbits` (src/channels/orbits.js): special moment — added rare deterministic “COMET PASS” (shooting star + trail) scheduled ~3–5 minutes. Commit: TBD
+- [x] [project:quine-tv] `orbits` (src/channels/orbits.js): special moment — added rare deterministic “COMET PASS” (shooting star + trail) scheduled ~3–5 minutes. Commit: 21e93a3
 
 - [x] [project:quine-tv] `orbits` (src/channels/orbits.js): visual - cycle through different orbit layouts every 5 minutes. Commit: e1b1c7a
 
