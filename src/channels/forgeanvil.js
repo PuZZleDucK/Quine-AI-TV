@@ -64,6 +64,23 @@ export function createChannel({ seed, audio }) {
     life: 0,
   }));
 
+  // flame tongues (precomputed so drawForge() doesn't consume rand() each frame)
+  const FLAME_TONGUES = 7;
+  let flameTongues = new Array(FLAME_TONGUES).fill(null);
+
+  function reseedFlameTongues() {
+    for (let i = 0; i < FLAME_TONGUES; i++) {
+      flameTongues[i] = {
+        u: 0.25 + 0.5 * rand(),
+        v: 0.42 + 0.25 * rand(),
+        r: 16 + rand() * 28,
+        phase: rand() * Math.PI * 2,
+        wobble: 10 + rand() * 18,
+        squish: 0.9 + rand() * 0.35,
+      };
+    }
+  }
+
   // palette
   const hotHue = 18 + rand() * 18; // orange
   const steelHue = 205 + rand() * 18; // blue-ish steel
@@ -170,6 +187,7 @@ export function createChannel({ seed, audio }) {
     ringFlash = 0;
     ringWave = 0;
     resetCycle();
+    reseedFlameTongues();
 
     gradientsDirty = true;
     cachedCtx = null;
@@ -386,12 +404,22 @@ export function createChannel({ seed, audio }) {
     ctx.globalAlpha = 0.35 + k * 0.45;
     ctx.fillStyle = `hsla(${hotHue + 8}, 95%, 62%, 0.9)`;
 
-    for (let i = 0; i < 7; i++) {
-      const px = fx + fw * (0.25 + 0.5 * rand());
-      const py = fy + fh * (0.42 + 0.25 * rand());
-      const r = (16 + rand() * 28) * s * (0.7 + k);
+    for (let i = 0; i < flameTongues.length; i++) {
+      const ft = flameTongues[i];
+      const wob = (ft.wobble * (0.5 + k)) * s;
+      const px = fx + fw * ft.u + Math.sin(t * 2.1 + ft.phase) * wob;
+      const py = fy + fh * ft.v + Math.sin(t * 2.7 + ft.phase * 1.3) * wob * 0.6;
+      const r = ft.r * s * (0.7 + k) * (0.88 + 0.18 * Math.sin(t * 2.0 + ft.phase));
       ctx.beginPath();
-      ctx.ellipse(px, py, r * 0.7, r * (1.1 + 0.4 * k), 0.3 + 0.2 * Math.sin(t * 2 + i), 0, Math.PI * 2);
+      ctx.ellipse(
+        px,
+        py,
+        r * 0.7,
+        r * (1.1 + 0.4 * k) * ft.squish,
+        0.3 + 0.2 * Math.sin(t * 2 + i + ft.phase),
+        0,
+        Math.PI * 2
+      );
       ctx.fill();
     }
 
