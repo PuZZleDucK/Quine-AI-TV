@@ -39,7 +39,7 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: kitchen
 
-- [ ] `kitchen` (src/channels/kitchenscience.js): **cleanup** — remove unused locals (e.g. `topW` in `spawnBubble()`) and run a quick pass for any other dead code.
+<!-- done: moved to TODONE.md (kitchen cleanup / unused locals) -->
 
 - [ ] `kitchen` (src/channels/kitchenscience.js): **visual depth** — add a subtle cached glass highlight/caustic overlay for the beaker (rebuild on resize), so the central prop has more “material” without cluttering OSD.
 
