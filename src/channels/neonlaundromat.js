@@ -121,9 +121,9 @@ export function createChannel({ seed, audio }){
     // and align fixtures around them so the scene reads as one space.
     floorY = h * 0.55;
     const marginB = Math.max(62, h * 0.14);
-    const baseY = floorY + h * 0.015;
+    const baseY = floorY - h * 0.04;
 
-    let mh = clamp(h * 0.24, 118, 186);
+    let mh = clamp(h * 0.22, 110, 168);
     mh = Math.min(mh, Math.max(116, h - baseY - marginB));
 
     let mw = Math.min(w * 0.24, 232);
@@ -195,10 +195,44 @@ export function createChannel({ seed, audio }){
 
     // Folding counter under the window (left side), kept intentionally subtle.
     const cw = Math.min(w * 0.44, Math.max(200, w * 0.34));
-    const ch = clamp(h * 0.055, 38, 58);
+    const ch = clamp(h * 0.060, 40, 62);
     const cx = w * 0.08;
-    const cy = baseY + mh * 0.16;
+    const cy = floorY + h * 0.19;
     counter = { x: cx, y: cy, w: cw, h: ch };
+  }
+
+  function drawWallSigns(ctx, P){
+    const signs = [
+      { text: 'ATTENDANT ON BREAK', x: w * 0.11, y: h * 0.45, w: w * 0.20, h: h * 0.045, col: pal.neonM },
+      { text: 'NO DYE AFTER 10PM', x: w * 0.36, y: h * 0.45, w: w * 0.20, h: h * 0.045, col: pal.neonO },
+      { text: 'DETERGENT $1.25', x: w * 0.62, y: h * 0.45, w: w * 0.18, h: h * 0.045, col: pal.neonC },
+      { text: 'FOLD FAST • LIVE SLOW', x: w * 0.76, y: h * 0.39, w: w * 0.18, h: h * 0.040, col: pal.neonM },
+    ];
+
+    ctx.save();
+    for (let i = 0; i < signs.length; i++){
+      const s = signs[i];
+      ctx.fillStyle = 'rgba(0,0,0,0.36)';
+      roundedRect(ctx, s.x, s.y, s.w, s.h, 8);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(220,240,255,0.10)';
+      ctx.lineWidth = Math.max(1, Math.floor(dpr));
+      roundedRect(ctx, s.x + 1, s.y + 1, s.w - 2, s.h - 2, 7);
+      ctx.stroke();
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.16 + P.glow * 0.20;
+      ctx.fillStyle = s.col;
+      ctx.fillRect(s.x + 3, s.y + s.h - 3, s.w - 6, 2);
+      ctx.restore();
+
+      ctx.font = `${Math.floor(small * 0.86)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(235,245,255,0.74)';
+      ctx.fillText(s.text, s.x + 10, s.y + s.h * 0.54);
+    }
+    ctx.restore();
   }
 
   function reset(){
@@ -1137,6 +1171,7 @@ export function createChannel({ seed, audio }){
     const P = PHASES[phaseIndex < 0 ? 0 : phaseIndex];
 
     drawBackground(ctx, P);
+    drawWallSigns(ctx, P);
     drawFloor(ctx, P);
     drawFixtures(ctx, P);
 
