@@ -5,7 +5,7 @@ if `TODO.md` has no ready items:
 
 ## Channel review queue
 
-- [ ] [project:quine-tv] Review channel `tugdispatch` (src/channels/harbortugdispatch.js): capture screenshots (0–300s), do code+audio/perf review, add `// REVIEWED: 2026-02-13`, and queue concrete follow-ups.
+(none queued)
 
 ## Follow-ups queued from review: tugdispatch
 

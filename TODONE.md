@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] Review channel `tugdispatch` (src/channels/harbortugdispatch.js): captured screenshots (0–300s) to `screenshots/review-tugdispatch-20260214-0145` (errors/warnings: 0), did code+audio/perf review, confirmed `// REVIEWED: 2026-02-13`, no new follow-ups queued. Commit: PENDING
+
 - [x] [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): special moment — added deterministic “FOG HORN” (visibility haze sweep) + “SECURITY SWEEP” beam scheduled ~45–120s, with OSD-safe banner + one-shot audio cues. Commit: 4f08d4d
 
 - [x] [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): text/dialog — added a seeded rotating “VHF DISPATCH” log strip (funny/immersive harbor chatter), ~6+ minutes before repeating; clipped to stay OSD-safe. Commit: TBD
