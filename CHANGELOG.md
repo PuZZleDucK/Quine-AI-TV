@@ -1,3 +1,5 @@
+- 2026-02-14 08:00 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): visual depth — added cached glass highlight/caustic overlay layer for the beaker (rebuild on init/resize). Commit: 8bd4cda
+
 - 2026-02-14 07:46 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): special moment tuning — made “SCIENCE FAIR” rarer (~2–4 min cadence) and made “SHOW & TELL” variant extra-rare. Commit: 27b990c
 
 - 2026-02-14 07:31 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): cleanup — removed unused local `topW` in `spawnBubble()`. Commit: d2b26ae

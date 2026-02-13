@@ -41,7 +41,7 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (kitchen cleanup / unused locals) -->
 
-- [ ] `kitchen` (src/channels/kitchenscience.js): **visual depth** — add a subtle cached glass highlight/caustic overlay for the beaker (rebuild on resize), so the central prop has more “material” without cluttering OSD.
+<!-- done: moved to TODONE.md (kitchen beaker glass highlight/caustic overlay) -->
 
 <!-- done: moved to TODONE.md (kitchen science fair cadence/variant tuning) -->
 
