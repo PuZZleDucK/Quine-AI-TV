@@ -12,6 +12,21 @@ function smoothstep(a,b,x){
   return t*t*(3-2*t);
 }
 
+// deterministic integer hash helpers (avoid `rand()` in render/update hot paths)
+function hashU32(n){
+  n |= 0;
+  n = (n ^ 61) ^ (n >>> 16);
+  n = Math.imul(n, 9);
+  n = n ^ (n >>> 4);
+  n = Math.imul(n, 0x27d4eb2d);
+  n = n ^ (n >>> 15);
+  return n >>> 0;
+}
+
+function hash01(n){
+  return hashU32(n) / 4294967296;
+}
+
 function roundRect(ctx, x, y, w, h, r){
   r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
   ctx.beginPath();
@@ -25,8 +40,136 @@ function roundRect(ctx, x, y, w, h, r){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  // Derive a stable salt without consuming the channel PRNG (keeps existing seeds/visuals stable).
+  const rainSalt = hashU32((seed | 0) ^ 0x4a39b70d);
 
   let w = 0, h = 0, t = 0;
+
+  // gradient caches (rebuilt on init/resize/ctx swap)
+  const SKY_STEPS = 48;
+  const SEA_STEPS = 48;
+  const BEAM_ANGLE_STEPS = 64;
+
+  let gradCache = {
+    ctx: null,
+    w: 0,
+    h: 0,
+    horizon: 0,
+    sky: [],
+    sea: [],
+    horizonGlow: null,
+    moon: null,
+    moonGeom: null,
+    beam: [],
+    beamLen: 0,
+    core: null,
+  };
+
+  function bucket01(x, steps){
+    return Math.max(0, Math.min(steps - 1, Math.round(x * (steps - 1))));
+  }
+
+  function rebuildGradients(ctx){
+    gradCache.ctx = ctx;
+    gradCache.w = w;
+    gradCache.h = h;
+    gradCache.horizon = horizon;
+
+    // Sky gradient steps (dawn-driven)
+    const topN = [5, 8, 20];
+    const midN = [7, 18, 40];
+    const botN = [5, 7, 15];
+
+    const topD = [14, 28, 65];
+    const midD = [150, 78, 115];
+    const botD = [210, 140, 95];
+
+    function mixRGB(a, b, t){
+      return [
+        Math.round(lerp(a[0], b[0], t)),
+        Math.round(lerp(a[1], b[1], t)),
+        Math.round(lerp(a[2], b[2], t)),
+      ];
+    }
+
+    gradCache.sky = Array.from({ length: SKY_STEPS }, (_, i) => {
+      const dawn = SKY_STEPS <= 1 ? 0 : i / (SKY_STEPS - 1);
+      const c0 = mixRGB(topN, topD, dawn);
+      const c1 = mixRGB(midN, midD, dawn);
+      const c2 = mixRGB(botN, botD, dawn);
+
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, `rgb(${c0[0]},${c0[1]},${c0[2]})`);
+      g.addColorStop(0.55, `rgb(${c1[0]},${c1[1]},${c1[2]})`);
+      g.addColorStop(1, `rgb(${c2[0]},${c2[1]},${c2[2]})`);
+      return g;
+    });
+
+    gradCache.sea = Array.from({ length: SEA_STEPS }, (_, i) => {
+      const dawn = SEA_STEPS <= 1 ? 0 : i / (SEA_STEPS - 1);
+      const rt = Math.round(lerp(8, 35, dawn));
+      const gt = Math.round(lerp(22, 70, dawn));
+      const bt = Math.round(lerp(42, 95, dawn));
+      const g = ctx.createLinearGradient(0, horizon, 0, h);
+      g.addColorStop(0, `rgba(${rt},${gt},${bt},1)`);
+      g.addColorStop(1, 'rgba(2, 4, 8, 1)');
+      return g;
+    });
+
+    // Horizon glow (alpha is scaled at draw time)
+    const hx = w * 0.6;
+    const hy = horizon - h * 0.03;
+    gradCache.horizonGlow = ctx.createRadialGradient(hx, hy, 1, hx, hy, w * 0.9);
+    gradCache.horizonGlow.addColorStop(0, 'rgba(255,190,150,1)');
+    gradCache.horizonGlow.addColorStop(1, 'rgba(255,190,150,0)');
+
+    // Moon glow (alpha is scaled at draw time)
+    const mx = w * 0.72;
+    const my = h * 0.22;
+    const mr = Math.min(w, h) * 0.055;
+    gradCache.moonGeom = { mx, my, mr };
+    gradCache.moon = ctx.createRadialGradient(mx - mr * 0.25, my - mr * 0.2, 1, mx, my, mr);
+    gradCache.moon.addColorStop(0, 'rgba(235,245,255,1)');
+    gradCache.moon.addColorStop(1, 'rgba(235,245,255,0)');
+
+    // Beam/core gradients: create in world coords (anchored to lighthouse)
+    gradCache.beamLen = Math.max(w, h) * 0.85;
+    gradCache.beam = Array.from({ length: BEAM_ANGLE_STEPS }, (_, i) => {
+      const a = (i / BEAM_ANGLE_STEPS) * Math.PI * 2;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.translate(lighthouseX, lighthouseY);
+      ctx.rotate(a);
+
+      const g = ctx.createLinearGradient(0, 0, gradCache.beamLen, 0);
+      g.addColorStop(0, 'rgba(255, 245, 210, 1)');
+      g.addColorStop(0.25, 'rgba(255, 240, 200, 0.35)');
+      g.addColorStop(1, 'rgba(255, 240, 200, 0)');
+      ctx.restore();
+      return g;
+    });
+
+    // Lantern core is radial (no angle bins needed)
+    const towerH = h * 0.28;
+    const topW = w * 0.05;
+    const lrW = topW * 1.25;
+    const lrH = towerH * 0.12;
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.translate(lighthouseX, lighthouseY);
+    gradCache.core = ctx.createRadialGradient(0, -towerH - lrH * 0.5, 1, 0, -towerH - lrH * 0.5, lrW * 0.9);
+    gradCache.core.addColorStop(0, 'rgba(255, 250, 220, 1)');
+    gradCache.core.addColorStop(1, 'rgba(255, 250, 220, 0)');
+    ctx.restore();
+  }
+
+  function ensureGradients(ctx){
+    if (gradCache.ctx !== ctx || gradCache.w !== w || gradCache.h !== h || gradCache.horizon !== horizon){
+      rebuildGradients(ctx);
+    }
+  }
+
 
   // layout
   let horizon = 0;
@@ -99,10 +242,12 @@ export function createChannel({ seed, audio }){
     }));
 
     // rain streaks (used only when storming)
+    // NOTE: keep params deterministic; positions are derived analytically from time in drawStormOverlay.
     const nRain = Math.floor(90 + (w * h) / 160_000);
-    rain = Array.from({ length: nRain }, () => ({
-      x: rand() * w,
-      y: rand() * h,
+    rain = Array.from({ length: nRain }, (_, id) => ({
+      id,
+      x0: rand() * w,
+      y0: rand() * h,
       len: 10 + rand() * 26,
       sp: (260 + rand() * 420) * (0.75 + (w / 1000) * 0.25),
       a: 0.05 + rand() * 0.10,
@@ -114,6 +259,9 @@ export function createChannel({ seed, audio }){
     lightning = 0;
     nextLightningAt = 1e9;
     wasStorm = false;
+
+    // force gradient cache rebuild on next render()
+    gradCache.ctx = null;
   }
 
   function init({ width, height }){
@@ -201,15 +349,34 @@ export function createChannel({ seed, audio }){
     };
   }
 
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = ah;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      try { audio.stopCurrent(); } catch {}
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ah = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    stopAmbience({ clearCurrent: true });
+
     ah = makeAudioHandle();
     audio.setCurrent(ah);
   }
 
   function onAudioOff(){
-    ah?.stop?.();
-    ah = null;
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy(){
@@ -275,55 +442,20 @@ export function createChannel({ seed, audio }){
       }
     }
 
-    // animate rain field regardless; drawn only in storm.
-    for (const r of rain){
-      r.y += r.sp * dt;
-      if (r.y > h + 40){
-        r.y = -40;
-        r.x = (r.x + (rand() * 90 - 45) + w) % w;
-      }
-    }
+    // rain streaks are computed analytically in drawStormOverlay (from x0/y0/sp + time),
+    // so 30fps vs 60fps captures match. Nothing to update per-frame here.
   }
 
   function drawSky(ctx, nightAmt, dawnAmt){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-
-    // base night palette
-    const topN = [5, 8, 20];
-    const midN = [7, 18, 40];
-    const botN = [5, 7, 15];
-
-    // dawn palette
-    const topD = [14, 28, 65];
-    const midD = [150, 78, 115];
-    const botD = [210, 140, 95];
-
-    function mix(a,b,t){
-      return [
-        Math.round(lerp(a[0], b[0], t)),
-        Math.round(lerp(a[1], b[1], t)),
-        Math.round(lerp(a[2], b[2], t)),
-      ];
-    }
-
-    const dawn = dawnAmt;
-    const c0 = mix(topN, topD, dawn);
-    const c1 = mix(midN, midD, dawn);
-    const c2 = mix(botN, botD, dawn);
-
-    g.addColorStop(0, `rgb(${c0[0]},${c0[1]},${c0[2]})`);
-    g.addColorStop(0.55, `rgb(${c1[0]},${c1[1]},${c1[2]})`);
-    g.addColorStop(1, `rgb(${c2[0]},${c2[1]},${c2[2]})`);
-    ctx.fillStyle = g;
+    const idx = bucket01(dawnAmt, SKY_STEPS);
+    ctx.fillStyle = gradCache.sky[idx];
     ctx.fillRect(0, 0, w, h);
 
     // faint horizon glow that grows at dawn
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    const hg = ctx.createRadialGradient(w * 0.6, horizon - h * 0.03, 1, w * 0.6, horizon - h * 0.03, w * 0.9);
-    hg.addColorStop(0, `rgba(255,190,150,${0.05 + dawnAmt * 0.12})`);
-    hg.addColorStop(1, 'rgba(255,190,150,0)');
-    ctx.fillStyle = hg;
+    ctx.globalAlpha = 0.05 + dawnAmt * 0.12;
+    ctx.fillStyle = gradCache.horizonGlow;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
@@ -343,27 +475,24 @@ export function createChannel({ seed, audio }){
     // moon (subtle)
     const moonA = 0.22 * nightAmt * (1 - dawnAmt);
     if (moonA > 0.001){
-      const mx = w * 0.72;
-      const my = h * 0.22;
-      const mr = Math.min(w, h) * 0.055;
-      const rg = ctx.createRadialGradient(mx - mr * 0.25, my - mr * 0.2, 1, mx, my, mr);
-      rg.addColorStop(0, `rgba(235,245,255,${moonA})`);
-      rg.addColorStop(1, `rgba(235,245,255,0)`);
-      ctx.fillStyle = rg;
+      const { mx, my, mr } = gradCache.moonGeom;
+      ctx.save();
+      ctx.globalAlpha = moonA;
+      ctx.fillStyle = gradCache.moon;
       ctx.beginPath();
       ctx.arc(mx, my, mr, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
     }
   }
+
 
   function drawSea(ctx, stormAmt, dawnAmt){
     const seaTop = horizon;
 
     // ocean body
-    const g = ctx.createLinearGradient(0, seaTop, 0, h);
-    g.addColorStop(0, `rgba(${Math.round(lerp(8, 35, dawnAmt))},${Math.round(lerp(22, 70, dawnAmt))},${Math.round(lerp(42, 95, dawnAmt))},1)`);
-    g.addColorStop(1, 'rgba(2, 4, 8, 1)');
-    ctx.fillStyle = g;
+    const idx = bucket01(dawnAmt, SEA_STEPS);
+    ctx.fillStyle = gradCache.sea[idx];
     ctx.fillRect(0, seaTop, w, h - seaTop);
 
     // wave highlights
@@ -394,6 +523,7 @@ export function createChannel({ seed, audio }){
 
     ctx.restore();
   }
+
 
   function drawShip(ctx, fogAmt){
     if (!ship) return;
@@ -503,18 +633,19 @@ export function createChannel({ seed, audio }){
 
     // beam (behind tower)
     const ang = (t * (Math.PI * 2 / beamPeriod)) + Math.sin(t * 0.7) * 0.03 * stormAmt;
-    const beamLen = Math.max(w, h) * 0.85;
+    const beamLen = gradCache.beamLen || (Math.max(w, h) * 0.85);
 
     if (beamAmt > 0.001){
+      const a0 = (0.18 + beamAmt * 0.38) * (1 - dawnAmt * 0.5);
+
+      const angNorm = ((ang % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+      const bi = (Math.floor((angNorm / (Math.PI * 2)) * BEAM_ANGLE_STEPS)) % BEAM_ANGLE_STEPS;
+      const g = gradCache.beam[bi];
+
       ctx.save();
       ctx.rotate(ang);
 
-      const g = ctx.createLinearGradient(0, 0, beamLen, 0);
-      const a0 = (0.18 + beamAmt * 0.38) * (1 - dawnAmt * 0.5);
-      g.addColorStop(0, `rgba(255, 245, 210, ${a0})`);
-      g.addColorStop(0.25, `rgba(255, 240, 200, ${a0 * 0.35})`);
-      g.addColorStop(1, 'rgba(255, 240, 200, 0)');
-
+      ctx.globalAlpha = a0;
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.moveTo(0, 0);
@@ -524,7 +655,7 @@ export function createChannel({ seed, audio }){
       ctx.fill();
 
       // beam edge glow
-      ctx.strokeStyle = `rgba(255, 240, 200, ${a0 * 0.18})`;
+      ctx.strokeStyle = 'rgba(255, 240, 200, 0.18)';
       ctx.lineWidth = Math.max(1, h / 700);
       ctx.beginPath();
       ctx.moveTo(0, 0);
@@ -566,13 +697,13 @@ export function createChannel({ seed, audio }){
 
     // light core
     const coreA = 0.35 + beamAmt * 0.55;
-    const rg = ctx.createRadialGradient(0, -towerH - lrH * 0.5, 1, 0, -towerH - lrH * 0.5, lrW * 0.9);
-    rg.addColorStop(0, `rgba(255, 250, 220, ${coreA})`);
-    rg.addColorStop(1, 'rgba(255, 250, 220, 0)');
-    ctx.fillStyle = rg;
+    ctx.save();
+    ctx.globalAlpha = coreA;
+    ctx.fillStyle = gradCache.core;
     ctx.beginPath();
     ctx.arc(0, -towerH - lrH * 0.5, lrW * 0.9, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
 
     // tiny railing
     ctx.strokeStyle = 'rgba(210, 230, 255, 0.18)';
@@ -584,18 +715,31 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+
   function drawStormOverlay(ctx, stormAmt){
     if (stormAmt <= 0.001) return;
 
-    // rain streaks
+    // rain streaks (FPS-stable): derive x/y from initial params + absolute time.
+    // Previous behaviour re-rolled x via rand() on wrap, which made 30fps/60fps diverge.
     ctx.save();
     ctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) / 560));
+
+    const span = h + 80; // [-40 .. h+40)
     for (const r of rain){
+      const yRaw = r.y0 + t * r.sp;
+      const wraps = Math.floor((yRaw + 40) / span) | 0;
+      const y = -40 + ((yRaw + 40) % span);
+
+      // deterministic per-wrap x jitter (~previous +/-45px), keyed by (seed, streak id, wrap index)
+      const key = (rainSalt ^ Math.imul(r.id + 1, 0x9e3779b1) ^ Math.imul(wraps + 1, 0x85ebca6b)) | 0;
+      const jx = (hash01(key) - 0.5) * 90;
+      const x = (r.x0 + jx + w) % w;
+
       const wob = Math.sin(t * 0.9 + r.wob) * 8;
       ctx.strokeStyle = `rgba(200, 230, 255, ${(r.a * stormAmt).toFixed(3)})`;
       ctx.beginPath();
-      ctx.moveTo(r.x + wob, r.y);
-      ctx.lineTo(r.x + wob - 12, r.y + r.len);
+      ctx.moveTo(x + wob, y);
+      ctx.lineTo(x + wob - 12, y + r.len);
       ctx.stroke();
     }
     ctx.restore();
@@ -657,6 +801,8 @@ export function createChannel({ seed, audio }){
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
+
+    ensureGradients(ctx);
 
     const ph = phaseAt(t);
 
