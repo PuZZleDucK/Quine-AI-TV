@@ -304,7 +304,6 @@ export function createChannel({ seed, audio }){
   }
 
   function spawnBubble(){
-    const topW = bw * 0.66;
     const neckW = bw * 0.45;
     const x0 = bx + bw * 0.5;
     const spread = neckW * 0.42;
