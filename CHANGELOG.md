@@ -1,3 +1,5 @@
+- 2026-02-13 22:33 (Australia/Melbourne) [project:quine-tv] `futurearch` (src/channels/futurearch.js): audio hygiene — make `onAudioOn()` idempotent and ensure `onAudioOff()`/`destroy()` clear `AudioManager.current` only when owned. Commit: 3522766
+
 - 2026-02-13 22:15 (Australia/Melbourne) [project:quine-tv] `futurearch` (src/channels/futurearch.js): visual correctness — add `watch` artifact icon + set smartwatch kind to `watch` (was rendering as phone). Commit: 1e77af9
 
 - 2026-02-13 22:05 (Australia/Melbourne) [project:quine-tv] `futurearch` (src/channels/futurearch.js): UI — make the placard panel OSD-safe (bottom HUD must not cover bullet text). Commit: da22125

@@ -390,23 +390,41 @@ export function createChannel({ seed, audio }){
     resetScene(width, height);
   }
 
+  function stopAmbience({ clearCurrent = false } = {}){
+    // Only clear AudioManager.current when we own it.
+    if (clearCurrent && audio.current === ambience){
+      audio.stopCurrent();
+      ambience = null;
+      return;
+    }
+
+    try { ambience?.stop?.(); } catch {}
+    ambience = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Idempotent: if our ambience is already current, do nothing.
+    if (ambience && audio.current === ambience) return;
+
+    // If we have a stale handle (e.g. channel switched away), stop it without
+    // touching the global AudioManager.current.
+    stopAmbience({ clearCurrent: false });
+
     const n = audio.noiseSource({ type: 'pink', gain: 0.004 });
     n.start();
     const d = simpleDrone(audio, { root: 55, detune: 0.9, gain: 0.03 });
-    ambience = {
+    ambience = audio.setCurrent({
       stop(){
         try { n.stop(); } catch {}
         try { d.stop(); } catch {}
       }
-    };
-    audio.setCurrent(ambience);
+    });
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
-    ambience = null;
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy(){
