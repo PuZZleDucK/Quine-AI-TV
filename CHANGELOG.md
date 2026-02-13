@@ -1,3 +1,5 @@
+- 2026-02-13 11:20 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): room layout — added a subtle folding counter + laundry basket and a right-side stacked dryer bank (with “DRYERS” sign and heat-glow doors). Commit: ed86ad3
+
 - 2026-02-13 10:47 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): washing machine UI — adjusted control-panel dial/buttons spacing to prevent overlap on small viewports. Commit: 1dcf95a
 
 - 2026-02-13 10:33 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): window — upgraded the midground window into framed glass with mullions, subtle city/neon specks, and a reflection band (kept rain streaks). Commit: e20ebee
