@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): perf — pre-wrap placard bullet text on artifact change / resize (avoid per-frame `split()` + `measureText()` in `wrapText()`). Screenshots: screenshots/autopilot-futurearch-perf-2026-02-13-start + screenshots/autopilot-futurearch-perf-2026-02-13-end2. Commit: 5936ec1
+
 - [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): perf — cached pedestal gradients (spotlight cone + pedestal body); rebuild on resize/ctx swap. Screenshots: screenshots/autopilot-futurearch-pedcache-before-20260213-224746 + screenshots/autopilot-futurearch-pedcache-after-20260213-224931. Commit: 8758755
 
 - [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): audio hygiene — make `onAudioOn()` idempotent and ensure `onAudioOff()`/`destroy()` clear `AudioManager.current` only when owned. Commit: 867c4cf

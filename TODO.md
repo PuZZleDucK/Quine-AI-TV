@@ -13,4 +13,4 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: futurearch
 
-- [ ] [project:quine-tv] `futurearch` (src/channels/futurearch.js): perf — pre-wrap placard bullet text on artifact change / resize (avoid per-frame `split()` + `measureText()` in `wrapText()`).
+(none queued)
