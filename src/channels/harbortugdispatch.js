@@ -80,6 +80,29 @@ export function createChannel({ seed, audio }){
   let routePath = null;
   let buoys = [];
 
+  // cached paints (perf)
+  let mapWaterGrad = null;
+  let mapWaterGradCtx = null;
+
+  function invalidatePaintCache(){
+    mapWaterGrad = null;
+    mapWaterGradCtx = null;
+  }
+
+  function getMapWaterGradient(ctx){
+    // Rebuild only on resize (cache invalidated) or when ctx swaps.
+    if (mapWaterGrad && mapWaterGradCtx === ctx) return mapWaterGrad;
+
+    const g = ctx.createLinearGradient(0, frame.y, 0, frame.y + frame.h);
+    g.addColorStop(0, '#061523');
+    g.addColorStop(0.55, '#041019');
+    g.addColorStop(1, '#030a10');
+
+    mapWaterGrad = g;
+    mapWaterGradCtx = ctx;
+    return g;
+  }
+
   // animation
   let flash = 0;
   let nextFlashAt = 0;
@@ -176,6 +199,7 @@ export function createChannel({ seed, audio }){
     w = width;
     h = height;
     dpr = dpr_ || 1;
+    invalidatePaintCache();
     rebuildLayout();
     cycleIdx = -1; // repick
   }
@@ -277,12 +301,8 @@ export function createChannel({ seed, audio }){
   }
 
   function drawMap(ctx, squallAmt){
-    // water gradient
-    const g = ctx.createLinearGradient(0, frame.y, 0, frame.y + frame.h);
-    g.addColorStop(0, '#061523');
-    g.addColorStop(0.55, '#041019');
-    g.addColorStop(1, '#030a10');
-    ctx.fillStyle = g;
+    // water gradient (cached)
+    ctx.fillStyle = getMapWaterGradient(ctx);
     roundRect(ctx, frame.x, frame.y, frame.w, frame.h, frame.r);
     ctx.fill();
 
