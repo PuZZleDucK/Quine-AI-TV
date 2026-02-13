@@ -62,15 +62,16 @@ export function createChannel({ seed, audio }){
   let machines = []; // {x,y,w,h,doorR,rot,tint}
   let dryers = [];   // {x,y,w,h,doorR,tint}
   let counter = { x: 0, y: 0, w: 0, h: 0 };
+  let floorY = 0;
 
   // midground window details
   let windowFx = { x: 0, y: 0, w: 0, h: 0, lights: [] };
 
   function regenWindow(){
     const wx = w * 0.06;
-    const wy = h * 0.10;
+    const wy = h * 0.08;
     const ww = w * 0.88;
-    const wh = h * 0.30;
+    const wh = h * 0.24;
 
     windowFx.x = wx;
     windowFx.y = wy;
@@ -115,16 +116,17 @@ export function createChannel({ seed, audio }){
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
   function regenLayout(){
-    // Keep the machines comfortably above the bottom edge and ensure they fit
-    // even on short viewports.
-    const floorY = h * 0.56;
-    const marginB = Math.max(18, h * 0.06);
-    const baseY = Math.min(h * 0.64, floorY + h * 0.08);
+    // Rebalanced room composition:
+    // keep machines in the middle band (not parked on the bottom edge)
+    // and align fixtures around them so the scene reads as one space.
+    floorY = h * 0.48;
+    const marginB = Math.max(80, h * 0.18);
+    const baseY = floorY + h * 0.02;
 
-    let mh = Math.min(h * 0.28, 280);
-    mh = Math.min(mh, Math.max(120, h - baseY - marginB));
+    let mh = clamp(h * 0.27, 126, 210);
+    mh = Math.min(mh, Math.max(116, h - baseY - marginB));
 
-    let mw = Math.min(w * 0.24, 240);
+    let mw = Math.min(w * 0.24, 232);
     mw = Math.min(mw, mh * 0.98);
 
     let gap = clamp(w * 0.035, 14, 44);
@@ -160,7 +162,7 @@ export function createChannel({ seed, audio }){
     const frand = mulberry32((seed ^ 0x2c9ab33f) >>> 0);
 
     dryers = [];
-    const bankBaseY = floorY + h * 0.02;
+    const bankBaseY = baseY + mh * 0.98;
     const gapY = clamp(h * 0.018, 10, 22);
     const dh = clamp(h * 0.11, 72, 124);
     const dw = clamp(dh * 0.92, 68, 150);
@@ -195,7 +197,7 @@ export function createChannel({ seed, audio }){
     const cw = Math.min(w * 0.44, Math.max(200, w * 0.34));
     const ch = clamp(h * 0.07, 44, 72);
     const cx = w * 0.08;
-    const cy = floorY + h * 0.015;
+    const cy = baseY + mh + h * 0.03;
     counter = { x: cx, y: cy, w: cw, h: ch };
   }
 
@@ -521,7 +523,7 @@ export function createChannel({ seed, audio }){
   }
 
   function drawFloor(ctx, P){
-    const yH = h * 0.56;
+    const yH = floorY || (h * 0.48);
 
     const g = ctx.createLinearGradient(0, yH, 0, h);
     g.addColorStop(0, pal.floor0);
