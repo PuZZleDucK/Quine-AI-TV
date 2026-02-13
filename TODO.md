@@ -39,7 +39,7 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: kitchen
 
-- [ ] `kitchen` (src/channels/kitchenscience.js): determinism — remove `rand()` usage from `render()` (foam band); precompute foam bubble radii/phase in `update(dt)` via scheduled/hash noise so 30fps/60fps captures match.
+<!-- done: moved to TODONE.md (kitchen foam band determinism) -->
 <!-- done: moved to TODONE.md (kitchen bg cache) -->
 <!-- done: moved to TODONE.md (kitchen audio hygiene) -->
 - [ ] `kitchen` (src/channels/kitchenscience.js): long-run interest — expand `EXPERIMENTS` + use a seeded shuffle-bag (no immediate repeats; 5+ minutes before repeating).
