@@ -84,9 +84,17 @@ export function createChannel({ seed, audio }){
   let mapWaterGrad = null;
   let mapWaterGradCtx = null;
 
+  let tideGaugeGrad = null;
+  let tideGaugeGradCtx = null;
+  let tideGaugeGradKey = '';
+
   function invalidatePaintCache(){
     mapWaterGrad = null;
     mapWaterGradCtx = null;
+
+    tideGaugeGrad = null;
+    tideGaugeGradCtx = null;
+    tideGaugeGradKey = '';
   }
 
   function getMapWaterGradient(ctx){
@@ -100,6 +108,21 @@ export function createChannel({ seed, audio }){
 
     mapWaterGrad = g;
     mapWaterGradCtx = ctx;
+    return g;
+  }
+
+  function getTideGaugeGradient(ctx, gx, gw){
+    // Rebuild only on resize (cache invalidated), ctx swap, or gauge geometry change.
+    const key = `${gx}|${gw}`;
+    if (tideGaugeGrad && tideGaugeGradCtx === ctx && tideGaugeGradKey === key) return tideGaugeGrad;
+
+    const g = ctx.createLinearGradient(gx, 0, gx + gw, 0);
+    g.addColorStop(0, 'rgba(120,240,255,0.0)');
+    g.addColorStop(1, 'rgba(120,240,255,0.9)');
+
+    tideGaugeGrad = g;
+    tideGaugeGradCtx = ctx;
+    tideGaugeGradKey = key;
     return g;
   }
 
@@ -643,10 +666,7 @@ export function createChannel({ seed, audio }){
 
     ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = 0.55;
-    const fg = ctx.createLinearGradient(gx, 0, gx + gw, 0);
-    fg.addColorStop(0, 'rgba(120,240,255,0.0)');
-    fg.addColorStop(1, 'rgba(120,240,255,0.9)');
-    ctx.fillStyle = fg;
+    ctx.fillStyle = getTideGaugeGradient(ctx, gx, gw);
     ctx.fillRect(gx, gy + gh * (1 - k), gw, gh * k);
 
     // marker
