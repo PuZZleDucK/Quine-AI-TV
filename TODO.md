@@ -5,7 +5,6 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: forgeanvil
 
-- [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - make anvil look better
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - improve hammer and make it swing in an arc
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - forge and fire needs to look better, move more to the side
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals — make workshop props more opaque and pushed further to the side

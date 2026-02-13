@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — make anvil look better (added stand/base plate, top face plate, hardy/pritchel holes, crisp outline + underside shading; heavier shadow). Screenshots: screenshots/autopilot-2026-02-13-forgeanvil-before + screenshots/autopilot-2026-02-13-forgeanvil-anvil-after. Commit: 3db3956
+
 - [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): audio polish — replaced “beep-y” strike hits with a noise transient + tone body; added a short quench hiss burst (with stop-guard). Screenshots: screenshots/autopilot-forgeanvil-audio-2026-02-13-before + screenshots/autopilot-forgeanvil-audio-2026-02-13-after. Commit: 1e40323
 
 - [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — made workshop props more opaque and pushed further to the side (bucket/tools/tongs). Commit: b3a5a62
