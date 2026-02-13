@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): special moment — added rare deterministic “DOCENT NOTE” overlay + exhibit light flicker (~45–120s cadence; seeded; placard stays stable). Commit: 2fa7df6
+
 - [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): transition — switched artifact+placard changeover to a true crossfade dissolve (prev→current) with reduced slide. Commit: f691a30
 
 - [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): content — expanded `ARTIFACTS` to 16 and switched to a seeded shuffle-bag (no back-to-back repeats; ~5+ min before repeating). Commit: c688d79
