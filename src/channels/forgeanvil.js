@@ -587,7 +587,7 @@ export function createChannel({ seed, audio }) {
     {
       const bw = 96 * s;
       const bh = 104 * s;
-      const bxTarget = cx + 340 * s + parX;
+      const bxTarget = cx + 430 * s + parX;
       const bx = Math.max(bw * 0.5 + 18 * s, Math.min(w - bw * 0.5 - 18 * s, bxTarget));
       const by = floorY - 6 * s + parY;
 
@@ -643,10 +643,10 @@ export function createChannel({ seed, audio }) {
     // --- Wall tools silhouettes (subtle; adds depth without clutter)
     {
       ctx.save();
-      ctx.globalAlpha = 0.22;
+      ctx.globalAlpha = 0.32;
       ctx.fillStyle = `hsl(${steelHue}, 10%, 8%)`;
 
-      const wx = cx + 320 * s + parX * 0.35;
+      const wx = cx + 430 * s + parX * 0.35;
       const wy = cy - 150 * s + parY * 0.25;
       const toolW = 14 * s;
       const toolH = 110 * s;
@@ -669,12 +669,12 @@ export function createChannel({ seed, audio }) {
     // Foreground prop: tongs on the floor (adds depth). Keep it low.
 
     const parX = Math.sin(t * 0.55) * 6 * s;
-    const xTarget = cx + 330 * s + parX;
+    const xTarget = cx + 460 * s + parX;
     const x = Math.max(120 * s, Math.min(w - 120 * s, xTarget));
     const y = floorY + 44 * s;
 
     ctx.save();
-    ctx.globalAlpha = 0.78;
+    ctx.globalAlpha = 0.92;
     ctx.strokeStyle = `hsl(${steelHue}, 10%, 10%)`;
     ctx.lineWidth = 5.6 * s;
     ctx.lineCap = 'round';
