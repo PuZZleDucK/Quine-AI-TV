@@ -38,9 +38,75 @@ const EXPERIMENTS = [
     colorA: '#e7eef6',
     colorB: '#6cf2ff',
   },
+  {
+    id: 'cabbageph',
+    title: 'Cabbage Color Clues',
+    needs: ['red cabbage water', 'lemon juice', 'baking soda water'],
+    happens: 'purple turns pink (acid) and green (base)',
+    why: 'Anthocyanin pigments shift colour depending on acidity.',
+    colorA: '#7d5cff',
+    colorB: '#ff7aa2',
+  },
+  {
+    id: 'oobleck',
+    title: 'Oobleck (Solid-Liquid Sneak)',
+    needs: ['cornflour', 'water'],
+    happens: 'stiff when hit, flows when you go slow',
+    why: 'A non-Newtonian fluid thickens under sudden stress.',
+    colorA: '#e7eef6',
+    colorB: '#b6ff63',
+  },
+  {
+    id: 'densitytower',
+    title: 'Kitchen Density Tower',
+    needs: ['honey', 'water', 'oil'],
+    happens: 'layers stack and stay separated',
+    why: 'Different densities and immiscible liquids form layers.',
+    colorA: '#ffd36b',
+    colorB: '#6cf2ff',
+  },
+  {
+    id: 'raisindance',
+    title: 'Dancing Raisins',
+    needs: ['sparkling water', 'raisins'],
+    happens: 'raisins bob up and down on bubble elevators',
+    why: 'Bubbles stick, lift, pop, then raisins sink and repeat.',
+    colorA: '#63ffb6',
+    colorB: '#9ad7ff',
+  },
+  {
+    id: 'chromatography',
+    title: 'Marker Rainbow Chase',
+    needs: ['coffee filter', 'washable marker', 'water'],
+    happens: 'ink spreads into colourful bands',
+    why: 'Different pigments travel at different speeds in water.',
+    colorA: '#ff5aa5',
+    colorB: '#6cf2ff',
+  },
+  {
+    id: 'orangeballoon',
+    title: 'Orange Peel Pop',
+    needs: ['orange peel', 'balloon'],
+    happens: 'balloon pops with a tiny citrus mist',
+    why: 'Citrus oils can weaken latex when sprayed on it.',
+    colorA: '#ff7a59',
+    colorB: '#ffd36b',
+  },
 ];
 
+const EXP_BY_ID = new Map(EXPERIMENTS.map((e) => [e.id, e]));
+
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
+
+function shuffleInPlace(rand, a){
+  for (let i = a.length - 1; i > 0; i--){
+    const j = (rand() * (i + 1)) | 0;
+    const tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+  }
+  return a;
+}
 
 function makeCanvas(W, H){
   if (!(W > 0 && H > 0)) return null;
@@ -62,6 +128,11 @@ export function createChannel({ seed, audio }){
   let small = 12;
 
   // experiment state
+  const MIN_REPEAT_SEC = 5 * 60;
+  let expBag = []; // experiment id shuffle-bag
+  let expLastShown = new Map(); // id -> time (seconds)
+  let expLastId = null;
+
   let exp = null;
   let expT = 0;
   let dropT = 0;
@@ -83,8 +154,46 @@ export function createChannel({ seed, audio }){
 
   let fizz = null;
 
+  function refillExperimentBag(){
+    expBag = EXPERIMENTS.map((e) => e.id);
+    shuffleInPlace(rand, expBag);
+  }
+
   function nextExperiment(){
-    exp = pick(rand, EXPERIMENTS);
+    if (!expBag.length) refillExperimentBag();
+
+    // seeded shuffle-bag, with a "cooldown" to keep repeats spaced out
+    let chosenId = null;
+    const scans = expBag.length;
+    for (let i = 0; i < scans; i++){
+      const id = expBag.shift();
+      const lastAt = expLastShown.get(id);
+      const okCooldown = lastAt == null || (t - lastAt) >= MIN_REPEAT_SEC;
+      const okNotImmediate = id !== expLastId;
+      if (okCooldown && okNotImmediate){
+        chosenId = id;
+        break;
+      }
+      expBag.push(id);
+    }
+
+    // fallback: keep the bag moving even if we can't satisfy the cooldown
+    if (!chosenId){
+      for (let i = 0; i < expBag.length; i++){
+        const id = expBag.shift();
+        if (id !== expLastId){
+          chosenId = id;
+          break;
+        }
+        expBag.push(id);
+      }
+    }
+
+    const picked = (chosenId && EXP_BY_ID.get(chosenId)) || pick(rand, EXPERIMENTS);
+    exp = picked;
+    expLastId = picked?.id || null;
+    if (picked?.id) expLastShown.set(picked.id, t);
+
     expT = 18 + rand() * 10;
     dropT = 1.2 + rand() * 1.8;
     reaction = 0.2 + rand() * 0.25;
@@ -105,6 +214,9 @@ export function createChannel({ seed, audio }){
     bgLayer = rebuildBackgroundLayer();
     rebuildFoam();
 
+    expBag = [];
+    expLastShown = new Map();
+    expLastId = null;
     nextExperiment();
   }
 
