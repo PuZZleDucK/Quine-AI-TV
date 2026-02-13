@@ -164,7 +164,7 @@ export function createChannel({ seed, audio }) {
     };
   }
 
-  function flowOffset(nx, ny){
+  function flowOffset(nx, ny, sideBias = 0){
     // nx,ny in chamber-local [0..1]
     const c = bodyCenter();
     const cx = (c.x - chamber.x) / chamber.w;
@@ -195,8 +195,18 @@ export function createChannel({ seed, audio }) {
     let off = 0;
 
     // Object displacement: split flow above/below body, starting near the body.
-    const split = dy / (Math.abs(dy) + profile.ry * 0.45);
+    let split = dy / (Math.abs(dy) + profile.ry * 0.45);
+    if (Math.abs(split) < 0.12) {
+      const sb = sideBias / (Math.abs(sideBias) + profile.ry * 0.35);
+      split = sb === 0 ? (dy >= 0 ? 1 : -1) * 0.12 : sb;
+    }
     off += split * profile.push * body.size * core * (0.15 + 0.85 * upstreamRamp);
+
+    // Strong local displacement around the object to force clear split flow.
+    const centerWeight = Math.exp(-(dx * dx) / (profile.rx * profile.rx * 0.9)) *
+      Math.exp(-(dy * dy) / (profile.ry * profile.ry * 0.55));
+    const expel = (0.45 + 1.25 * (1 - clamp(Math.abs(dy) / (profile.ry * 1.05), 0, 1))) * centerWeight;
+    off += (split >= 0 ? 1 : -1) * profile.push * 0.95 * body.size * expel * (0.2 + 0.8 * upstreamRamp);
 
     // Lift-ish bias (mainly wing/kite).
     const liftSign = Math.sin(body.aoa);
@@ -464,6 +474,14 @@ export function createChannel({ seed, audio }) {
     const ch = chamber.h;
     const c = bodyCenter();
     const cx = (c.x - chamber.x) / chamber.w;
+    const cy = (c.y - chamber.y) / chamber.h;
+    const profile = body.type === 'wing'
+      ? { rx: 0.18, ry: 0.07 }
+      : body.type === 'kite'
+        ? { rx: 0.14, ry: 0.11 }
+        : body.type === 'car'
+          ? { rx: 0.13, ry: 0.085 }
+          : { rx: 0.105, ry: 0.105 };
 
     const steps = 70;
     const dx = 1 / steps;
@@ -489,7 +507,18 @@ export function createChannel({ seed, audio }) {
         ny += Math.sin((t * 0.7 + L.ph) * L.f + nx * 10) * L.amp * (0.08 + 0.92 * wiggleRamp);
 
         // flow deflection near body
-        ny += flowOffset(nx, ny) * 1.12;
+        ny += flowOffset(nx, ny, baseY - cy) * 1.22;
+
+        // Explicit obstacle shell so lines clearly split around the body silhouette.
+        const rx = profile.rx * 1.05;
+        const ry = profile.ry * 1.20;
+        const ex = (nx - cx) / rx;
+        const ey = (ny - cy) / ry;
+        const shell = Math.exp(-(ex * ex * 2.0 + ey * ey * 2.6));
+        const nearCenter = 1 - clamp(Math.abs(ey), 0, 1);
+        const side = (baseY - cy) >= 0 ? 1 : -1;
+        const splitRamp = ease(clamp((nx - (cx - 0.16)) / 0.28, 0, 1));
+        ny += side * 0.015 * shell * nearCenter * splitRamp;
 
         const x = x0 + nx * cw;
         const y = y0 + ny * ch;
@@ -511,6 +540,15 @@ export function createChannel({ seed, audio }) {
     const y0 = chamber.y;
     const cw = chamber.w;
     const ch = chamber.h;
+    const cy = (bodyCenter().y - chamber.y) / chamber.h;
+    const cx = (bodyCenter().x - chamber.x) / chamber.w;
+    const profile = body.type === 'wing'
+      ? { rx: 0.18, ry: 0.07 }
+      : body.type === 'kite'
+        ? { rx: 0.14, ry: 0.11 }
+        : body.type === 'car'
+          ? { rx: 0.13, ry: 0.085 }
+          : { rx: 0.105, ry: 0.105 };
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -521,7 +559,13 @@ export function createChannel({ seed, audio }) {
       const nx = clamp((p.x / cw), -0.2, 1.2);
       let ny = L.y0;
       ny += Math.sin((t * 0.7 + L.ph) * L.f + nx * 10) * L.amp;
-      ny += flowOffset(nx, ny);
+      ny += flowOffset(nx, ny, L.y0 - cy) * 1.15;
+      const ex = (nx - cx) / (profile.rx * 1.05);
+      const ey = (ny - cy) / (profile.ry * 1.20);
+      const shell = Math.exp(-(ex * ex * 1.8 + ey * ey * 2.2));
+      const side = (L.y0 - cy) >= 0 ? 1 : -1;
+      const splitRamp = ease(clamp((nx - (cx - 0.16)) / 0.28, 0, 1));
+      ny += side * 0.010 * shell * splitRamp;
 
       const x = x0 + p.x;
       const y = y0 + ny * ch + Math.sin(p.wob * 2 + p.seed) * 1.2;

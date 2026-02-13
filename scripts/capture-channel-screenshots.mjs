@@ -191,8 +191,9 @@ try {
         const wait = Math.max(0, offsetMs - elapsed);
         if (wait) await page.waitForTimeout(wait);
 
+        const padLen = String(offsets[offsets.length - 1]).length;
         const secs = Math.round(offsetMs / 1000);
-        const file = `${num}-${slugify(ch.id)}-t${String(secs).padStart(3, '0')}s.png`;
+        const file = `${num}-${slugify(ch.id)}-t${String(offsetMs).padStart(padLen, '0')}ms.png`;
         await captureToFile(file);
 
         captures.push({
