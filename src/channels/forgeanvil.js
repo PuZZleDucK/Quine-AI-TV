@@ -870,32 +870,39 @@ export function createChannel({ seed, audio }) {
   }
 
   function drawHammer(ctx) {
-    const baseX = cx + 40 * s;
-    const baseY = cy - 20 * s;
-
+    // Swing from an impact pose into a lifted rest pose after each strike.
+    // Pivot is above the anvil so the hammer head can actually reach the strike point.
     const swing = hammerSwing;
-    const ang = -0.9 + (1 - swing) * 0.9;
-    const px = baseX + 120 * s;
-    const py = baseY + 150 * s;
+    const lift = Math.max(0, Math.min(1, 1 - swing));
+    const u = 1 - Math.pow(1 - lift, 3); // ease-out
+
+    const impactAng = 0.25;
+    const raisedAng = -1.25;
+    const ang = impactAng + (raisedAng - impactAng) * u;
+
+    const px = cx + 160 * s;
+    const py = cy - 160 * s;
 
     ctx.save();
     ctx.translate(px, py);
     ctx.rotate(ang);
 
-    // handle
+    // handle (drawn down from pivot)
     ctx.fillStyle = `hsl(${brickHue + 15}, 32%, ${18 + swing * 4}%)`;
-    ctx.fillRect(-18 * s, -230 * s, 36 * s, 220 * s);
+    roundRect(ctx, -14 * s, 0, 28 * s, 230 * s, 10 * s);
+    ctx.fill();
 
     // head
     ctx.fillStyle = `hsl(${steelHue}, 18%, ${20 + swing * 6}%)`;
-    ctx.fillRect(-70 * s, -270 * s, 140 * s, 56 * s);
+    roundRect(ctx, -80 * s, 230 * s, 160 * s, 58 * s, 10 * s);
+    ctx.fill();
 
     // head highlight
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 0.18 + strikeGlow * 0.2;
+    ctx.globalAlpha = 0.16 + strikeGlow * 0.22;
     ctx.fillStyle = `hsla(${hotHue + 20}, 95%, 70%, 0.5)`;
-    ctx.fillRect(-70 * s, -270 * s, 140 * s, 20 * s);
+    ctx.fillRect(-80 * s, 230 * s, 160 * s, 20 * s);
     ctx.restore();
 
     ctx.restore();
