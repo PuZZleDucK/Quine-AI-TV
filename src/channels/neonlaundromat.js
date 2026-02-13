@@ -121,10 +121,10 @@ export function createChannel({ seed, audio }){
     // and align fixtures around them so the scene reads as one space.
     floorY = h * 0.55;
     const marginB = Math.max(62, h * 0.14);
-    const baseY = floorY - h * 0.04;
+    const baseY = floorY - h * 0.08;
 
-    let mh = clamp(h * 0.22, 110, 168);
-    mh = Math.min(mh, Math.max(116, h - baseY - marginB));
+    let mh = clamp(h * 0.20, 98, 150);
+    mh = Math.min(mh, Math.max(96, h - baseY - marginB));
 
     let mw = Math.min(w * 0.24, 232);
     mw = Math.min(mw, mh * 0.98);
