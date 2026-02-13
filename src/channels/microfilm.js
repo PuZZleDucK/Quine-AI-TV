@@ -99,6 +99,9 @@ export function createChannel({ seed, audio }) {
     vignette: null, // CanvasImageSource | false | null
     vigW: 0,
     vigH: 0,
+    scratches: null, // CanvasImageSource | false | null
+    scrW: 0,
+    scrH: 0,
   };
 
   function makeCanvas(W, H) {
@@ -179,6 +182,111 @@ export function createChannel({ seed, audio }) {
     cache.vignette = c;
   }
 
+  function ensureScratches() {
+    const W = Math.max(1, Math.floor(w));
+    const H = Math.max(1, Math.floor(h));
+    if (cache.scratches !== null && cache.scrW === W && cache.scrH === H) return;
+
+    cache.scrW = W;
+    cache.scrH = H;
+
+    const c = makeCanvas(W, H);
+    if (!c) {
+      cache.scratches = false;
+      return;
+    }
+
+    const gctx = c.getContext('2d');
+    gctx.setTransform(1, 0, 0, 1, 0, 0);
+    gctx.clearRect(0, 0, W, H);
+
+    // Deterministic, cached physical wear overlay: hairline scratches + edge fade.
+    // Use a dedicated PRNG so we don't perturb the main channel rand() sequence.
+    const r = mulberry32((seed ^ 0x5bf03635) + W * 97 + H * 193);
+
+    // Edge wear (very subtle), keeps the header clean via clipping in render().
+    const edge = Math.max(10, Math.floor(Math.min(W, H) * 0.02));
+    {
+      const gl = gctx.createLinearGradient(0, 0, edge * 2, 0);
+      gl.addColorStop(0, 'rgba(231,238,246,0.08)');
+      gl.addColorStop(1, 'rgba(231,238,246,0)');
+      gctx.fillStyle = gl;
+      gctx.fillRect(0, 0, edge * 2, H);
+
+      const gr = gctx.createLinearGradient(W, 0, W - edge * 2, 0);
+      gr.addColorStop(0, 'rgba(231,238,246,0.08)');
+      gr.addColorStop(1, 'rgba(231,238,246,0)');
+      gctx.fillStyle = gr;
+      gctx.fillRect(W - edge * 2, 0, edge * 2, H);
+
+      const gt = gctx.createLinearGradient(0, 0, 0, edge * 1.6);
+      gt.addColorStop(0, 'rgba(231,238,246,0.06)');
+      gt.addColorStop(1, 'rgba(231,238,246,0)');
+      gctx.fillStyle = gt;
+      gctx.fillRect(0, 0, W, edge * 1.6);
+
+      const gb = gctx.createLinearGradient(0, H, 0, H - edge * 1.6);
+      gb.addColorStop(0, 'rgba(231,238,246,0.06)');
+      gb.addColorStop(1, 'rgba(231,238,246,0)');
+      gctx.fillStyle = gb;
+      gctx.fillRect(0, H - edge * 1.6, W, edge * 1.6);
+    }
+
+    // Sparse hairline scratches.
+    {
+      gctx.save();
+      gctx.globalCompositeOperation = 'screen';
+      gctx.lineCap = 'round';
+
+      const lwBase = Math.max(0.6, H / 1400);
+      const n = 34 + ((r() * 34) | 0);
+      for (let i = 0; i < n; i++) {
+        const x = r() * W;
+        const y = r() * H;
+        const len = W * (0.25 + 0.75 * r());
+        const ang = (r() - 0.5) * 0.16;
+
+        const dx = Math.cos(ang) * len * 0.5;
+        const dy = Math.sin(ang) * len * 0.5;
+
+        const a = 0.018 + r() * 0.05;
+        gctx.strokeStyle = `rgba(231,238,246,${a})`;
+        gctx.lineWidth = lwBase * (0.7 + r() * 1.6);
+
+        gctx.beginPath();
+        gctx.moveTo(x - dx, y - dy);
+        gctx.lineTo(x + dx, y + dy);
+        gctx.stroke();
+
+        // occasional twin-line scratch
+        if (r() < 0.18) {
+          gctx.strokeStyle = `rgba(231,238,246,${a * 0.65})`;
+          gctx.beginPath();
+          gctx.moveTo(x - dx, y - dy + 1);
+          gctx.lineTo(x + dx, y + dy + 1);
+          gctx.stroke();
+        }
+      }
+
+      gctx.restore();
+    }
+
+    // Tiny specks/abrasion (cached, static)
+    {
+      const n = 220 + ((r() * 180) | 0);
+      for (let i = 0; i < n; i++) {
+        const x = r() * W;
+        const y = r() * H;
+        const s = 1 + ((r() * 2.2) | 0);
+        const a = 0.010 + r() * 0.030;
+        gctx.fillStyle = `rgba(231,238,246,${a})`;
+        gctx.fillRect(x, y, s, s);
+      }
+    }
+
+    cache.scratches = c;
+  }
+
   function sceneInit(width, height, dprIn) {
     w = width;
     h = height;
@@ -209,6 +317,7 @@ export function createChannel({ seed, audio }) {
 
     ensureBG();
     ensureVignette();
+    ensureScratches();
 
     regenRoll(true);
   }
@@ -706,6 +815,18 @@ export function createChannel({ seed, audio }) {
       ctx.fillRect(x, y, p.r, p.r);
     }
     ctx.restore();
+
+    // scratches / edge wear (cached, deterministic)
+    if (cache.scratches && cache.scratches !== false) {
+      const a = key === 'scan' ? 0.85 : 0.62;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.beginPath();
+      ctx.rect(bodyX, bodyY, bodyW, bodyH);
+      ctx.clip();
+      ctx.drawImage(cache.scratches, 0, 0);
+      ctx.restore();
+    }
 
     // flash/exposure
     if (flash > 0) {
