@@ -172,38 +172,52 @@ export function createChannel({ seed, audio }) {
 
     const dx = nx - cx;
     const dy = ny - cy;
-    const r2 = dx * dx + dy * dy;
+    // Keep the left side laminar: deflection ramps in near the test body.
+    const upStart = cx - 0.13;
+    const upEnd = cx - 0.01;
+    const upstreamRamp = ease(clamp((nx - upStart) / Math.max(0.0001, upEnd - upStart), 0, 1));
+    if (upstreamRamp <= 0 && nx < cx) return 0;
 
-    // strong near-body deflection + wake turbulence
+    // Approximate per-body influence footprint so streamlines "fit" the tested shape.
+    const profile = body.type === 'wing'
+      ? { rx: 0.18, ry: 0.07, push: 0.0044, liftMul: 1.00, wakeW: 0.20 }
+      : body.type === 'kite'
+        ? { rx: 0.14, ry: 0.11, push: 0.0040, liftMul: 0.85, wakeW: 0.22 }
+        : body.type === 'car'
+          ? { rx: 0.13, ry: 0.085, push: 0.0037, liftMul: 0.35, wakeW: 0.18 }
+          : { rx: 0.105, ry: 0.105, push: 0.0034, liftMul: 0.20, wakeW: 0.16 };
+
+    const sdx = dx / profile.rx;
+    const sdy = dy / profile.ry;
+    const dist2 = sdx * sdx + sdy * sdy;
+      const core = Math.exp(-dist2 * 1.2);
+
     let off = 0;
-    const core = 1 / (r2 + 0.003);
 
-    // Base obstacle effect: push streamlines around it
-    off += dy * core * 0.0016 * body.size;
+    // Object displacement: split flow above/below body, starting near the body.
+    const split = dy / (Math.abs(dy) + profile.ry * 0.45);
+    off += split * profile.push * body.size * core * (0.15 + 0.85 * upstreamRamp);
 
-    // Lift-ish component (mostly for wing/kite)
+    // Lift-ish bias (mainly wing/kite).
     const liftSign = Math.sin(body.aoa);
-    const liftAmt = (body.type === 'wing' ? 1.0 : body.type === 'kite' ? 0.8 : 0.2);
-    off += (-liftSign) * core * 0.0012 * body.size * liftAmt;
+    off += (-liftSign) * profile.push * 0.8 * body.size * profile.liftMul * core * upstreamRamp;
 
-    // Wake: only behind the body
+    // Wake/turbulence only downstream.
     if (dx > 0) {
-      const wake = Math.sin(t * (3.5 + body.size * 1.2) + nx * 22 + (ny * 18)) * 0.0009;
-      const decay = Math.exp(-dx * 5.2);
-      off += wake * decay * (0.6 + 0.8 * stall);
+      const wake = Math.sin(t * (3.5 + body.size * 1.2) + nx * 22 + (ny * 18)) * 0.0010;
+      const streamDecay = Math.exp(-dx * 4.2);
+      const crossDecay = Math.exp(-Math.abs(dy) / profile.wakeW);
+      off += wake * streamDecay * crossDecay * (0.75 + 1.1 * stall);
     }
 
-    // Stall moment: add a big S-swoop across the field
-    if (stall > 0) {
+    // Stall and burst effects are local to body/downstream so upstream stays laminar.
+    if (stall > 0 && nx > cx - 0.04) {
       const k = ease(stall);
-      off += Math.sin(nx * Math.PI * 2 + t * 6) * 0.0018 * k * (0.3 + Math.abs(dy) * 1.3);
-      off += (dy) * core * 0.0011 * k;
+      off += Math.sin(nx * Math.PI * 2 + t * 6) * 0.0016 * k * (0.2 + Math.abs(dy) * 1.1);
+      off += split * profile.push * 0.8 * k * core;
     }
-
-    // Burst: extra jitter (smoke injection)
-    if (burst > 0) {
-      const k = burst;
-      off += Math.sin(t * 14 + nx * 40 + ny * 30) * 0.0007 * k;
+    if (burst > 0 && nx > cx - 0.08) {
+      off += Math.sin(t * 14 + nx * 40 + ny * 30) * 0.0006 * burst;
     }
 
     return off;
@@ -448,6 +462,8 @@ export function createChannel({ seed, audio }) {
     const y0 = chamber.y;
     const cw = chamber.w;
     const ch = chamber.h;
+    const c = bodyCenter();
+    const cx = (c.x - chamber.x) / chamber.w;
 
     const steps = 70;
     const dx = 1 / steps;
@@ -468,11 +484,12 @@ export function createChannel({ seed, audio }) {
         const nx = s * dx;
         let ny = baseY;
 
-        // small advected wiggle
-        ny += Math.sin((t * 0.7 + L.ph) * L.f + nx * 10) * L.amp;
+        // Keep the left side relatively laminar, then grow waviness toward/after the body.
+        const wiggleRamp = ease(clamp((nx - (cx - 0.20)) / 0.40, 0, 1));
+        ny += Math.sin((t * 0.7 + L.ph) * L.f + nx * 10) * L.amp * (0.08 + 0.92 * wiggleRamp);
 
         // flow deflection near body
-        ny += flowOffset(nx, ny);
+        ny += flowOffset(nx, ny) * 1.12;
 
         const x = x0 + nx * cw;
         const y = y0 + ny * ch;
