@@ -1,3 +1,5 @@
+- 2026-02-13 11:49 (Australia/Melbourne) [project:quine-tv] `orbits` (src/channels/orbits.js): audio hygiene — made `onAudioOn()` idempotent (no stacking) and ensured `destroy()` only clears AudioManager.current when owned. Screenshots: screenshots/autopilot-orbits-audiohygiene-before + screenshots/autopilot-orbits-audiohygiene-after. Commit: 9c17123
+
 - 2026-02-13 11:39 (Australia/Melbourne) [project:quine-tv] Review channel `orbits` (src/channels/orbits.js): captured screenshots (0–300s) to `screenshots/review-orbits-20260213-1130` + completion shots to `screenshots/review-orbits-20260213-1130-post` (errors/warnings: 0), fixed starfield flicker by precomputing star specks (no `rand()` in render), added `// REVIEWED: 2026-02-13`, and queued follow-ups in `TODO.md`. Commit: TBD
 
 - 2026-02-13 11:20 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): room layout — added a subtle folding counter + laundry basket and a right-side stacked dryer bank (with “DRYERS” sign and heat-glow doors). Commit: ed86ad3
