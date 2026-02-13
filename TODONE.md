@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): UI/visuals — tied isotope proxy chart to ash bands (ash marker + deterministic spike aligned to volcanic layer depth). Screenshots: screenshots/autopilot-icecorelab-ashchart-before-20260214-0400 + screenshots/autopilot-icecorelab-ashchart-after-20260214-0400. Commit: TBD
+
 - [x] [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): UI — probe-tied depth/age readout (DEPTH m + AGE kyr BP) with panel+core markers; nudged readout/chart down during rare banner so it never overlaps. Screenshots: screenshots/autopilot-icecorelab-depthage-before-20260214-0345 + screenshots/autopilot-icecorelab-depthage-after-20260214-0345. Commit: c53a1cb
 
 - [x] [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): visuals — added a sample tray + extracted “chip” animation during CUT→ANALYZE (kept OSD/panel clear). Screenshots: screenshots/autopilot-icecorelab-before + screenshots/autopilot-icecorelab-tray-after. Commit: ca9b8bf

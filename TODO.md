@@ -28,4 +28,4 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (icecorelab depth/age readout) -->
 <!-- done: moved to TODONE.md (icecorelab micro-striation) -->
 <!-- done: moved to TODONE.md (icecorelab sample tray chip) -->
-- [ ] `icecorelab` UI/visuals (src/channels/icecorelab.js): tie isotope chart to ash bands (e.g. a deterministic spike or band marker aligned to volcanic layer depth).
+<!-- done: moved to TODONE.md (icecorelab ash/isotope chart tie) -->

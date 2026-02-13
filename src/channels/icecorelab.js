@@ -265,15 +265,33 @@ export function createChannel({ seed, audio }){
 
     ashBands = layers.filter(L => L.ash).map(L => ({ y0: L.y0, y1: L.y1 }));
 
-    // Chart: pretend isotope ratio line; derived from layers.
+    // Chart: isotope proxy profile vs depth (stylised).
     const n = 42;
     chart = [];
     let v = 0.5 + r() * 0.2;
     for (let i = 0; i < n; i++){
-      const x = i / (n - 1);
+      const x = i / (n - 1); // depth 0..1
       const drift = (r() * 2 - 1) * 0.08;
       v = clamp(v * 0.92 + 0.08 * (0.5 + drift), 0.12, 0.88);
       chart.push({ x, y: v });
+    }
+
+    // Tie the isotope proxy to the volcanic ash layer(s): add a deterministic spike at ash depth.
+    if (ashBands.length){
+      const sigma = 1.25;
+      const ampBase = 0.22;
+      for (const B of ashBands){
+        const u = clamp((B.y0 + B.y1) * 0.5, 0, 1);
+        const idx = Math.round(u * (n - 1));
+        const thick = clamp((B.y1 - B.y0) / 0.06, 0.45, 1.25);
+        const amp = ampBase * thick;
+        for (let j = -3; j <= 3; j++){
+          const k = idx + j;
+          if (k < 0 || k >= n) continue;
+          const fall = Math.exp(-(j * j) / (2 * sigma * sigma));
+          chart[k].y = clamp(chart[k].y + amp * fall, 0.12, 0.88);
+        }
+      }
     }
 
     // Dust/parallax specks
@@ -881,7 +899,27 @@ export function createChannel({ seed, audio }){
       ctx.stroke();
     }
 
-    // line
+    // ash markers (volcanic layers), aligned to depth
+    if (ashBands.length){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      for (const B of ashBands){
+        const u = clamp((B.y0 + B.y1) * 0.5, 0, 1);
+        const yy = cy0 + u * chh;
+        const hh = Math.max(1, chh * 0.018);
+        const gg = ctx.createLinearGradient(0, yy - hh, 0, yy + hh);
+        gg.addColorStop(0, 'rgba(255,190,140,0)');
+        gg.addColorStop(0.5, 'rgba(255,190,140,0.28)');
+        gg.addColorStop(1, 'rgba(255,190,140,0)');
+        ctx.fillStyle = gg;
+        ctx.fillRect(cx0, yy - hh, cww, hh * 2);
+        ctx.fillStyle = 'rgba(255, 220, 200, 0.20)';
+        ctx.fillRect(cx0, yy - 0.5, cww, 1);
+      }
+      ctx.restore();
+    }
+
+    // line (proxy value vs depth)
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     ctx.strokeStyle = 'rgba(140, 220, 255, 0.65)';
@@ -890,8 +928,10 @@ export function createChannel({ seed, audio }){
     for (let i = 0; i < chart.length; i++){
       const p = chart[i];
       const wig = 0.02 * Math.sin(t * 0.9 + i * 0.55);
-      const xx = cx0 + p.x * cww;
-      const yy = cy0 + (1 - clamp(p.y + wig, 0, 1)) * chh;
+      const depthU = clamp(p.x, 0, 1);
+      const valU = clamp(p.y + wig, 0, 1);
+      const xx = cx0 + valU * cww;
+      const yy = cy0 + depthU * chh;
       if (i === 0) ctx.moveTo(xx, yy);
       else ctx.lineTo(xx, yy);
     }
