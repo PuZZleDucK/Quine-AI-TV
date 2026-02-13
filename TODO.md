@@ -7,8 +7,11 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: forgeanvil
 
+- [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - make anvil look better
+- [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - improve hammer and make it swing in an arc
+- [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - forge and fire needs to look better
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): determinism/visual — remove per-frame `rand()` usage in `drawForge()` flame tongues (precompute tongue seeds/anchors on resize/regen; animate via sin/noise) so flames don’t “teleport” frame-to-frame. Accept: 30fps vs 60fps captures match for same seed.
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): long-run interest — add a slow 2–4 minute phase cycle that materially changes the scene (e.g., bellows intensity, ambient light, ember density), beyond the current 32-beat loop.
-- [ ] `forgeanvil` (src/channels/forgeanvil.js): text/dialog — add a seeded rotating “shop talk” caption strip (blacksmith jokes/status lines), 5+ minutes before repeating; keep it OSD-safe.
-- [ ] `forgeanvil` (src/channels/forgeanvil.js): special moment — add 1–2 rare deterministic events (~45–120s) with a clear visual signature (e.g., BELLOW BURST with brighter forge wash + ember shower; QUENCH FLASH with steam plume + hiss) and clean reset.
+- [ ] `forgeanvil` (src/channels/forgeanvil.js): text/dialog — add a seeded rotating “shop talk” caption strip (blacksmith jokes/status lines), 5+ minutes before repeating.
+- [ ] `forgeanvil` (src/channels/forgeanvil.js): special moment — add 1–2 rare deterministic events (~45–120s) with a clear visual signature (e.g., BELLOW BURST with brighter forge wash + ember shower; QUENCH FLASH with steam plume + hiss).
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visual depth — add 1–2 workshop props (tongs/bucket/bellows silhouette) as mid/foreground layers with subtle parallax/lighting; keep OSD clear.
