@@ -40,6 +40,7 @@ export function createChannel({ seed, audio }) {
   let cx = 0;
   let cy = 0;
   let s = 1;
+  let floorY = 0;
 
   // particles (sparks)
   const MAX_SPARKS = 140;
@@ -86,12 +87,17 @@ export function createChannel({ seed, audio }) {
   const steelHue = 205 + rand() * 18; // blue-ish steel
   const brickHue = 18 + rand() * 10;
 
+  // keep the brick pattern stable (no wall movement)
+  const brickPhase = rand();
+
   // gradient cache (rebuild on resize or ctx swap)
   let gradientsDirty = true;
   let cachedCtx = null;
   let bgGradient = null;
   let vignetteGradient = null;
   let anvilHighlightGradient = null;
+  let floorGradient = null;
+  let floorGlowGradient = null;
   const FORGE_GRAD_STEPS = 20;
   let forgeOpeningGradients = null;
 
@@ -113,6 +119,19 @@ export function createChannel({ seed, audio }) {
     );
     vignetteGradient.addColorStop(0, 'rgba(0,0,0,0)');
     vignetteGradient.addColorStop(1, 'rgba(0,0,0,0.55)');
+
+    // floor gradient + glow (alpha is controlled by globalAlpha at draw-time)
+    {
+      floorGradient = ctx.createLinearGradient(0, floorY, 0, h);
+      floorGradient.addColorStop(0, `hsl(${brickHue}, 16%, 6%)`);
+      floorGradient.addColorStop(1, `hsl(${brickHue}, 14%, 3%)`);
+
+      const gx = cx - 280 * s;
+      const gy = floorY + 10 * s;
+      floorGlowGradient = ctx.createRadialGradient(gx, gy, 10 * s, gx, gy, 560 * s);
+      floorGlowGradient.addColorStop(0, `hsla(${hotHue}, 95%, 55%, 1)`);
+      floorGlowGradient.addColorStop(1, 'rgba(0,0,0,0)');
+    }
 
     // anvil highlight gradient (alpha is controlled by globalAlpha at draw-time)
     {
@@ -174,6 +193,7 @@ export function createChannel({ seed, audio }) {
     cx = w * 0.5;
     cy = h * 0.55;
     s = Math.min(w, h) / 900;
+    floorY = Math.min(h - 120 * s, cy + 205 * s);
 
     // clear particles
     for (const sp of sparks) sp.a = 0;
@@ -364,7 +384,7 @@ export function createChannel({ seed, audio }) {
 
     const bw = 120 * s;
     const bh = 54 * s;
-    const ox = (t * 9) % (bw * 2);
+    const ox = brickPhase * (bw * 2);
 
     for (let y = 0; y < h + bh; y += bh) {
       const odd = ((y / bh) | 0) % 2;
@@ -376,6 +396,42 @@ export function createChannel({ seed, audio }) {
       }
     }
 
+    ctx.restore();
+  }
+
+  function drawFloor(ctx) {
+    if (floorY <= 0 || floorY >= h) return;
+
+    ctx.save();
+    ctx.fillStyle = floorGradient;
+    ctx.fillRect(0, floorY, w, h - floorY);
+
+    // floor edge (anchors objects; avoids "floating" look)
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, floorY - 2 * s, w, 4 * s);
+
+    // subtle seams
+    ctx.globalAlpha = 0.10;
+    ctx.strokeStyle = `hsla(${brickHue}, 22%, ${10 + forgeHeat * 8}%, 1)`;
+    ctx.lineWidth = 1.4 * s;
+    const lines = 7;
+    for (let i = 1; i <= lines; i++) {
+      const x0 = (w * i) / (lines + 1);
+      ctx.beginPath();
+      ctx.moveTo(x0, floorY);
+      ctx.lineTo(x0 + (x0 - cx) * 0.06, h);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // warm glow near the forge
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.08 + forgeHeat * 0.18;
+    ctx.fillStyle = floorGlowGradient;
+    ctx.fillRect(0, floorY, w, h - floorY);
     ctx.restore();
   }
 
@@ -571,6 +627,7 @@ export function createChannel({ seed, audio }) {
     ctx.fillRect(0, 0, w, h);
 
     drawBricks(ctx);
+    drawFloor(ctx);
 
     // forge glow wash
     ctx.save();
