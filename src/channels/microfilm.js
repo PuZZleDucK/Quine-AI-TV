@@ -48,6 +48,8 @@ const NOTE_SNIPPETS = [
 
 export function createChannel({ seed, audio }) {
   const rand = mulberry32(seed);
+  // Dedicated PRNG for rare “special moments” so we don't perturb the main channel rand() sequence.
+  const specialRand = mulberry32((seed ^ 0x3b2f1d6a) >>> 0);
 
   let w = 0;
   let h = 0;
@@ -75,6 +77,13 @@ export function createChannel({ seed, audio }) {
   let frames = []; // {code, lines: [..], ink}
   let highlightIdx = 0;
   let noteText = '';
+
+  // rare special moments (2–5 min cadence; deterministic per seed)
+  let special = null; // { kind: 'jam'|'overexpose', t0, dur }
+  let nextSpecialAt = 0;
+  let filmJitter = 0;
+  let jamFx = 0;
+  let glitchFx = 0;
 
   // motion
   let filmOffset = 0; // in frame-widths
@@ -320,6 +329,12 @@ export function createChannel({ seed, audio }) {
     ensureScratches();
 
     regenRoll(true);
+
+    special = null;
+    filmJitter = 0;
+    jamFx = 0;
+    glitchFx = 0;
+    scheduleNextSpecial();
   }
 
   function regenRoll(isFresh) {
@@ -418,6 +433,23 @@ export function createChannel({ seed, audio }) {
     onAudioOff();
   }
 
+  function scheduleNextSpecial() {
+    // deterministic cadence: 2–5 minutes between special moments
+    nextSpecialAt = t + 120 + specialRand() * 180;
+  }
+
+  function startSpecial() {
+    const kind = specialRand() < 0.58 ? 'jam' : 'overexpose';
+    const dur = kind === 'jam' ? 6 + specialRand() * 6 : 4 + specialRand() * 5;
+    special = { kind, t0: t, dur };
+
+    // one-shot cue (subtle)
+    if (audio.enabled) {
+      const f = kind === 'jam' ? 420 : 780;
+      audio.beep({ freq: f, dur: 0.020, gain: 0.010, type: 'square' });
+    }
+  }
+
   function update(dt) {
     t += dt;
     phaseT += dt;
@@ -428,11 +460,33 @@ export function createChannel({ seed, audio }) {
     }
 
     const key = PHASES[phaseIdx].key;
+
+    // Special moments (rare; deterministic per seed) — independent schedule.
+    filmJitter = 0;
+    jamFx = 0;
+    glitchFx = 0;
+
+    if (!special && t >= nextSpecialAt) startSpecial();
+
+    if (special) {
+      const u = clamp((t - special.t0) / Math.max(0.001, special.dur), 0, 1);
+      const amt = Math.sin(u * Math.PI); // ease-in/out (0→1→0)
+      if (special.kind === 'jam') jamFx = amt;
+      else glitchFx = amt;
+
+      if (u >= 1) {
+        special = null;
+        scheduleNextSpecial();
+      }
+    }
+
     filmSpeed = key === 'scan' ? 0.12 : key === 'index' ? 0.045 : 0.07;
 
-    filmOffset = (filmOffset + dt * filmSpeed * 3.1) % Math.max(1, frames.length);
+    const speedMul = 1 - jamFx * 0.88;
+    filmOffset = (filmOffset + dt * filmSpeed * 3.1 * speedMul) % Math.max(1, frames.length);
+    filmJitter = jamFx * 0.22 * Math.sin(t * 22 + seed * 0.0015);
 
-    const spin = dt * (0.9 + filmSpeed * 5);
+    const spin = dt * (0.9 + filmSpeed * 5) * (1 - jamFx * 0.75);
     reelA += spin;
     reelB -= spin * 0.92;
 
@@ -440,6 +494,11 @@ export function createChannel({ seed, audio }) {
     if (t >= nextFlashAt) {
       flash = 1;
       nextFlashAt = t + 7 + rand() * 13;
+    }
+
+    if (glitchFx > 0) {
+      const pulse = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 13 + seed * 0.0009));
+      flash = Math.max(flash, glitchFx * pulse);
     }
 
     // dust drift
@@ -718,8 +777,9 @@ export function createChannel({ seed, audio }) {
     const fh = Math.max(44, Math.floor(stripH * 0.78));
 
     // visible frames
-    const idx0 = Math.floor(filmOffset);
-    const frac = filmOffset - idx0;
+    const off = (filmOffset + filmJitter + frames.length * 10) % Math.max(1, frames.length);
+    const idx0 = Math.floor(off);
+    const frac = off - idx0;
     const count = Math.ceil(stripW / fw) + 2;
     const startX = stripX - frac * fw;
 
@@ -771,8 +831,15 @@ export function createChannel({ seed, audio }) {
     ctx.font = `${Math.floor(small * 0.9)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.fillStyle = 'rgba(231,238,246,0.70)';
     ctx.textBaseline = 'top';
-    const cur = (Math.floor(filmOffset) + 1) % frames.length;
+    const cur = (Math.floor(off) + 1) % frames.length;
     ctx.fillText(`FRAME ${pad3(cur)} / ${pad3(frames.length)}`, winX + 10, winY + 10);
+    if (jamFx > 0) {
+      ctx.fillStyle = 'rgba(255, 215, 120, 0.88)';
+      ctx.fillText('RETHREADING…', winX + 10, winY + 10 + Math.floor(small * 1.15));
+    } else if (glitchFx > 0) {
+      ctx.fillStyle = 'rgba(255, 215, 120, 0.88)';
+      ctx.fillText('CALIBRATING…', winX + 10, winY + 10 + Math.floor(small * 1.15));
+    }
     ctx.restore();
 
     // note overlay
@@ -828,6 +895,22 @@ export function createChannel({ seed, audio }) {
       ctx.restore();
     }
 
+    // brief “overexpose” glitch bands (rare special moment)
+    if (glitchFx > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      const n = 3;
+      for (let i = 0; i < n; i++) {
+        const yy = bodyY + bodyH * (0.20 + i * 0.22 + 0.06 * Math.sin(t * 1.7 + i * 2.1));
+        const bh = Math.max(10, bodyH * (0.05 + 0.02 * i));
+        const shift = Math.sin(t * 10 + i * 9.2 + seed * 0.001) * 14 * glitchFx;
+        ctx.globalAlpha = glitchFx * (0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * 12 + i * 3.0)));
+        ctx.fillRect(bodyX + shift, yy, bodyW, bh);
+      }
+      ctx.restore();
+    }
+
     // flash/exposure
     if (flash > 0) {
       ctx.fillStyle = `rgba(255, 255, 255, ${flash * 0.06})`;
@@ -843,6 +926,22 @@ export function createChannel({ seed, audio }) {
       vg.addColorStop(1, 'rgba(0,0,0,0.60)');
       ctx.fillStyle = vg;
       ctx.fillRect(0, 0, w, h);
+    }
+
+    // Special moment banner (kept in the header to avoid obscuring the content/OSD)
+    if (jamFx > 0 || glitchFx > 0) {
+      const a = Math.max(jamFx, glitchFx);
+      const txt = jamFx >= glitchFx ? 'FILM JAM — RETHREADING…' : 'OVEREXPOSE — RECOVERING…';
+      ctx.save();
+      ctx.globalAlpha = 0.30 + 0.60 * a;
+      ctx.font = `800 ${Math.floor(small * 0.92)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = 'rgba(255, 215, 120, 0.95)';
+      const tw = ctx.measureText(txt).width;
+      const tx = Math.max(pad + font, w - pad - tw - Math.floor(font * 0.8));
+      const ty = top + Math.floor(font * 0.55);
+      ctx.fillText(txt, tx, ty);
+      ctx.restore();
     }
 
     drawLabel(ctx, pad + font, top + Math.floor(font * 2.25), 'CH', 'MICROFILM');
