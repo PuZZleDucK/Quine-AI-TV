@@ -155,6 +155,10 @@ function sandScrape(audio, rand, {gain=0.03}={}){
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
 
+  // Use a separate deterministic RNG for render-only noise so 30fps/60fps
+  // captures match at fixed time offsets (render must not consume channel RNG).
+  const speckleSeedBase = (seed ^ 0x9e3779b9) >>> 0;
+
   let w = 0, h = 0, dpr = 1;
   let t = 0;
 
@@ -728,14 +732,18 @@ export function createChannel({ seed, audio }){
     drawDust(ctx, box);
     drawStylus(ctx, box);
 
-    // broadcast speckle
+    // broadcast speckle (render-only RNG: do not consume channel RNG state)
     ctx.save();
     ctx.globalAlpha = 0.035;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
+
+    const speckleFrame = Math.floor(t * 30); // lock noise to time, not render FPS
+    const speckleRand = mulberry32((speckleSeedBase + speckleFrame) >>> 0);
+
     const n = 160 + ((120 * (0.5 + 0.5 * Math.sin(t * 0.55))) | 0);
     for (let i = 0; i < n; i++){
-      const x = (rand() * w) | 0;
-      const y = (rand() * h) | 0;
+      const x = (speckleRand() * w) | 0;
+      const y = (speckleRand() * h) | 0;
       if (((x + y + i) & 7) === 0) ctx.fillRect(x, y, 1, 1);
     }
     ctx.restore();
