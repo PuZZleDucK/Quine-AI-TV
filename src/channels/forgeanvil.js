@@ -132,7 +132,7 @@ export function createChannel({ seed, audio }) {
       floorGradient.addColorStop(0, `hsl(${brickHue}, 16%, 6%)`);
       floorGradient.addColorStop(1, `hsl(${brickHue}, 14%, 3%)`);
 
-      const gx = cx - 280 * s;
+      const gx = cx - 320 * s;
       const gy = floorY + 10 * s;
       floorGlowGradient = ctx.createRadialGradient(gx, gy, 10 * s, gx, gy, 560 * s);
       floorGlowGradient.addColorStop(0, `hsla(${hotHue}, 95%, 55%, 1)`);
@@ -151,7 +151,7 @@ export function createChannel({ seed, audio }) {
 
     // forge opening gradient buckets (quantized by forgeHeat)
     {
-      const fx = cx - 280 * s;
+      const fx = cx - 320 * s;
       const fy = cy - 80 * s;
       const fw = 240 * s;
       const fh = 220 * s;
@@ -717,7 +717,7 @@ export function createChannel({ seed, audio }) {
 
   function drawForge(ctx) {
     // forge opening + flame
-    const fx = cx - 280 * s;
+    const fx = cx - 320 * s;
     const fy = cy - 80 * s;
     const fw = 240 * s;
     const fh = 220 * s;
