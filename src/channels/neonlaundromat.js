@@ -570,10 +570,17 @@ export function createChannel({ seed, audio }){
     const wallBottom = floorY || (h * 0.55);
     if (wallBottom > wallTop){
       const wg = ctx.createLinearGradient(0, wallTop, 0, wallBottom);
-      wg.addColorStop(0, 'rgba(228,235,243,0.16)');
+      wg.addColorStop(0, 'rgba(233,239,247,0.26)');
       wg.addColorStop(1, 'rgba(214,225,236,0.34)');
       ctx.fillStyle = wg;
       ctx.fillRect(0, wallTop, w, wallBottom - wallTop);
+
+      const mid = wallTop + (wallBottom - wallTop) * 0.52;
+      const topLift = ctx.createLinearGradient(0, wallTop, 0, mid);
+      topLift.addColorStop(0, 'rgba(242,246,252,0.26)');
+      topLift.addColorStop(1, 'rgba(242,246,252,0.06)');
+      ctx.fillStyle = topLift;
+      ctx.fillRect(0, wallTop, w, mid - wallTop);
 
       ctx.strokeStyle = 'rgba(32,48,68,0.28)';
       ctx.lineWidth = Math.max(1, Math.floor(dpr));
@@ -592,10 +599,10 @@ export function createChannel({ seed, audio }){
 
     // mirrored outward-facing channel sign inside window
     ctx.save();
-    const sx = wx + ww * 0.12;
-    const sy = wy + wh * 0.22;
-    const sw = ww * 0.40;
-    const sh = wh * 0.34;
+    const sx = wx + ww * 0.08;
+    const sy = wy + wh * 0.18;
+    const sw = ww * 0.50;
+    const sh = wh * 0.42;
     const sr = Math.max(10, sh * 0.24);
 
     // mounts
