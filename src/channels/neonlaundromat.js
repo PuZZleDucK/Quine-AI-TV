@@ -60,6 +60,8 @@ export function createChannel({ seed, audio }){
   let beatPulse = 0;
 
   let machines = []; // {x,y,w,h,doorR,rot,tint}
+  let dryers = [];   // {x,y,w,h,doorR,tint}
+  let counter = { x: 0, y: 0, w: 0, h: 0 };
 
   // midground window details
   let windowFx = { x: 0, y: 0, w: 0, h: 0, lights: [] };
@@ -152,6 +154,49 @@ export function createChannel({ seed, audio }){
         tint,
       });
     }
+
+    // Room fixtures (dryers + folding counter). Use a separate RNG so we don't
+    // perturb the main `rand()` sequence that drives timing/special moments.
+    const frand = mulberry32((seed ^ 0x2c9ab33f) >>> 0);
+
+    dryers = [];
+    const bankBaseY = floorY + h * 0.02;
+    const gapY = clamp(h * 0.018, 10, 22);
+    const dh = clamp(h * 0.11, 72, 124);
+    const dw = clamp(dh * 0.92, 68, 150);
+    const gapX = clamp(w * 0.02, 10, 24);
+
+    const cols = 2;
+    const rows = 2;
+    const bankW = cols * dw + (cols - 1) * gapX;
+    const bankH = rows * dh + (rows - 1) * gapY;
+
+    const washersRight = x0 + totalW;
+    const maxX = Math.max(w * 0.52, w - bankW - w * 0.05);
+    const minX = Math.max(w * 0.60, washersRight + w * 0.04);
+    const dx0 = clamp(minX, w * 0.52, maxX);
+    const dy0 = bankBaseY - bankH;
+
+    const dryerCols = [pal.neonO, pal.neonC, pal.neonM];
+    for (let r = 0; r < rows; r++){
+      for (let c = 0; c < cols; c++){
+        dryers.push({
+          x: dx0 + c * (dw + gapX),
+          y: dy0 + r * (dh + gapY),
+          w: dw,
+          h: dh,
+          doorR: Math.min(dw, dh) * 0.32,
+          tint: dryerCols[(frand() * dryerCols.length) | 0],
+        });
+      }
+    }
+
+    // Folding counter under the window (left side), kept intentionally subtle.
+    const cw = Math.min(w * 0.44, Math.max(200, w * 0.34));
+    const ch = clamp(h * 0.07, 44, 72);
+    const cx = w * 0.08;
+    const cy = floorY + h * 0.015;
+    counter = { x: cx, y: cy, w: cw, h: ch };
   }
 
   function reset(){
@@ -524,6 +569,194 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(0, 0, w, h);
   }
 
+  function drawFixtures(ctx, P){
+    drawCounter(ctx, P);
+    drawDryers(ctx, P);
+  }
+
+  function drawCounter(ctx, P){
+    if (!counter || counter.w <= 0) return;
+
+    const x = counter.x;
+    const y = counter.y;
+    const cw = counter.w;
+    const ch = counter.h;
+    const rr = Math.max(12, Math.floor(Math.min(cw, ch) * 0.14));
+
+    // shadow
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.34)';
+    ctx.beginPath();
+    ctx.ellipse(x + cw * 0.55, y + ch * 0.95, cw * 0.55, ch * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // top
+    const tg = ctx.createLinearGradient(0, y, 0, y + ch);
+    tg.addColorStop(0, 'rgba(28,38,52,0.62)');
+    tg.addColorStop(1, 'rgba(10,12,16,0.86)');
+    ctx.fillStyle = tg;
+    roundedRect(ctx, x, y, cw, ch, rr);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(220,240,255,0.10)';
+    ctx.lineWidth = Math.max(1, Math.floor(dpr));
+    roundedRect(ctx, x + 1, y + 1, cw - 2, ch - 2, rr);
+    ctx.stroke();
+
+    // laundry basket
+    const bx = x + cw * 0.74;
+    const by = y + ch * 0.18;
+    const bw = cw * 0.20;
+    const bh = ch * 0.64;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    roundedRect(ctx, bx, by, bw, bh, rr * 0.65);
+    ctx.fill();
+
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.10 + P.glow * 0.18;
+    ctx.fillStyle = pal.neonC;
+    ctx.fillRect(bx + 2, by + bh - Math.max(2, Math.floor(dpr)), bw - 4, Math.max(2, Math.floor(dpr)));
+
+    ctx.restore();
+  }
+
+  function drawDryers(ctx, P){
+    if (!dryers || dryers.length === 0) return;
+
+    // sign
+    const left = dryers.reduce((m, d) => Math.min(m, d.x), dryers[0].x);
+    const top = dryers.reduce((m, d) => Math.min(m, d.y), dryers[0].y);
+    const right = dryers.reduce((m, d) => Math.max(m, d.x + d.w), dryers[0].x + dryers[0].w);
+
+    const sw = right - left;
+    const sh = Math.min(h * 0.05, 42);
+    const sx = left;
+    const sy = Math.max(h * 0.42, top - sh - h * 0.012);
+
+    ctx.save();
+    ctx.globalAlpha = 0.88;
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    roundedRect(ctx, sx, sy, sw, sh, 10);
+    ctx.fill();
+
+    ctx.font = `${Math.floor(small * 0.92)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = `rgba(255,207,106,${0.78 + 0.22 * P.glow})`;
+    ctx.fillText('DRYERS', sx + 14, sy + sh * 0.5);
+    ctx.restore();
+
+    for (let i = 0; i < dryers.length; i++){
+      drawDryerUnit(ctx, dryers[i], P, i);
+    }
+  }
+
+  function drawDryerUnit(ctx, d, P, idx){
+    const x = d.x;
+    const y = d.y;
+    const dw = d.w;
+    const dh = d.h;
+
+    const r = Math.max(14, Math.floor(Math.min(dw, dh) * 0.10));
+
+    // shadow
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.36)';
+    ctx.beginPath();
+    ctx.ellipse(x + dw * 0.52, y + dh * 0.92, dw * 0.50, dh * 0.10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // body
+    const bg = ctx.createLinearGradient(x, y, x + dw, y + dh);
+    bg.addColorStop(0, '#182332');
+    bg.addColorStop(0.55, '#0f1722');
+    bg.addColorStop(1, '#090c12');
+    ctx.fillStyle = bg;
+    roundedRect(ctx, x, y, dw, dh, r);
+    ctx.fill();
+
+    // trim
+    ctx.strokeStyle = 'rgba(220,240,255,0.18)';
+    ctx.lineWidth = Math.max(1, Math.floor(dpr));
+    roundedRect(ctx, x + 1, y + 1, dw - 2, dh - 2, r);
+    ctx.stroke();
+
+    // vent panel
+    const vx = x + dw * 0.10;
+    const vy = y + dh * 0.10;
+    const vw = dw * 0.80;
+    const vh = dh * 0.18;
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    roundedRect(ctx, vx, vy, vw, vh, r * 0.65);
+    ctx.fill();
+
+    ctx.save();
+    ctx.globalAlpha = 0.12 + P.glow * 0.18;
+    ctx.fillStyle = d.tint;
+    const slits = 6;
+    for (let i = 0; i < slits; i++){
+      const yy = vy + vh * (0.22 + (i / (slits - 1)) * 0.56);
+      ctx.fillRect(vx + vw * 0.10, yy, vw * 0.80, Math.max(1, Math.floor(dpr)));
+    }
+    ctx.restore();
+
+    // door
+    const cx = x + dw * 0.5;
+    const cy = y + dh * 0.62;
+    const R = d.doorR;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.36)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 1.18, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,207,106,0.14)';
+    ctx.lineWidth = Math.max(2, Math.floor(dpr * 1.2));
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 1.18, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // glass
+    const gg = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.35, 1, cx, cy, R * 1.2);
+    gg.addColorStop(0, 'rgba(255,255,255,0.10)');
+    gg.addColorStop(0.35, pal.glass);
+    gg.addColorStop(1, 'rgba(0,0,0,0.72)');
+    ctx.fillStyle = gg;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fill();
+
+    // heat glow (stronger during DRY phase)
+    const heatBase = (P.id === 'dry' ? 1.0 : 0.35);
+    const heat = heatBase * (0.5 + 0.5 * Math.sin(t * 1.0 + idx * 1.7));
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.06 + 0.18 * heat;
+    ctx.fillStyle = pal.neonO;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 0.92, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // label
+    ctx.save();
+    ctx.font = `${Math.floor(small * 0.86)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(235,245,255,0.55)';
+    ctx.fillText(`D${idx + 1}`, x + dw * 0.10, y + dh * 0.86);
+    ctx.restore();
+
+    // subtle edge glow
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.strokeStyle = `rgba(255,207,106,${0.04 + 0.12 * P.glow})`;
+    ctx.lineWidth = Math.max(2, Math.floor(dpr * 1.2));
+    roundedRect(ctx, x + 4, y + 4, dw - 8, dh - 8, r * 0.95);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function drawMachine(ctx, m, P, idx){
     const x = m.x;
     const y = m.y;
@@ -892,6 +1125,7 @@ export function createChannel({ seed, audio }){
 
     drawBackground(ctx, P);
     drawFloor(ctx, P);
+    drawFixtures(ctx, P);
 
     // machines (foreground)
     for (let i = 0; i < machines.length; i++){
