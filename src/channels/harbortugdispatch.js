@@ -4,6 +4,7 @@ import { simpleDrone } from '../util/audio.js';
 // Harbor Tug Dispatch
 // Port map dispatch: tug lines guide ship silhouettes; tide gauge + squall pulses,
 // with a satisfying docked “ALL CLEAR” stamp.
+// REVIEWED: 2026-02-13
 
 function lerp(a, b, t){ return a + (b - a) * t; }
 function clamp01(x){ return Math.max(0, Math.min(1, x)); }
@@ -185,13 +186,26 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
-    bed = audio.noiseSource({ type: 'brown', gain: 0.018 });
-    drone = simpleDrone(audio, { root: 55, detune: 1.1, gain: 0.030 });
-    try { bed.start(); } catch {}
+
+    // Defensive/idempotent: ensure repeated calls don't stack sources.
+    onAudioOff();
+
+    const bed_ = audio.noiseSource({ type: 'brown', gain: 0.018 });
+    const drone_ = simpleDrone(audio, { root: 55, detune: 1.1, gain: 0.030 });
+
+    bed = bed_;
+    drone = drone_;
+
+    try { bed_.start(); } catch {}
+
+    // IMPORTANT: capture local refs so AudioManager.stopCurrent() can't accidentally
+    // stop *new* sources due to outer-variable mutation.
     audio.setCurrent({
       stop(){
-        try { bed?.stop?.(); } catch {}
-        try { drone?.stop?.(); } catch {}
+        try { bed_?.stop?.(); } catch {}
+        try { drone_?.stop?.(); } catch {}
+        if (bed === bed_) bed = null;
+        if (drone === drone_) drone = null;
       }
     });
   }
