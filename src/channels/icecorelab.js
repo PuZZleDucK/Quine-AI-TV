@@ -662,6 +662,138 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function drawSampleTray(ctx){
+    if (!core || !panel) return;
+
+    // Simple storytelling affordance: when CUT happens, show a chip extracted and placed into a tray.
+    // Keep it subtle and away from the OSD/panel.
+    const gap = Math.min(w, h) * 0.03;
+    const tx0 = core.x + core.w + gap;
+    const tx1 = panel.x - gap;
+    const tw = Math.min(core.w * 1.05, Math.max(110, tx1 - tx0));
+    const th = Math.max(26, core.w * 0.22);
+    const ty = clamp(core.y + core.h * 0.78, 0, h - th);
+    const tray = { x: clamp(tx0, 0, w - tw), y: ty, w: tw, h: th, r: th * 0.45 };
+
+    // Tray body
+    ctx.save();
+    ctx.fillStyle = 'rgba(12, 16, 20, 0.82)';
+    ctx.strokeStyle = 'rgba(170, 220, 255, 0.14)';
+    ctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) * 0.0016));
+    ctx.beginPath();
+    ctx.roundRect(tray.x, tray.y, tray.w, tray.h, tray.r);
+    ctx.fill();
+    ctx.stroke();
+
+    // Slots
+    const pad = tray.w * 0.06;
+    const slotGap = tray.w * 0.04;
+    const slotW = (tray.w - pad * 2 - slotGap * 2) / 3;
+    const slotH = tray.h * 0.64;
+    const slotY = tray.y + tray.h * 0.18;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.strokeStyle = 'rgba(200,240,255,0.10)';
+    ctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) * 0.0012));
+    for (let i = 0; i < 3; i++){
+      const sx = tray.x + pad + i * (slotW + slotGap);
+      ctx.beginPath();
+      ctx.roundRect(sx, slotY, slotW, slotH, slotH * 0.35);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Label
+    ctx.save();
+    ctx.fillStyle = 'rgba(210,250,255,0.28)';
+    ctx.font = `${Math.max(9, Math.floor(th * 0.32))}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`;
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('SAMPLE TRAY', tray.x + tray.w * 0.12, tray.y - Math.max(2, th * 0.12));
+    ctx.restore();
+
+    // Chip motion
+    let chipA = 0;
+    let moveT = 1;
+    let cutU = 0.8;
+
+    if (mode === 'CUT'){
+      const local = clamp((loopT - scanDur) / cutDur, 0, 1);
+      cutU = 0.18 + 0.62 * ease(local);
+      const tt = clamp((local - 0.14) / 0.56, 0, 1);
+      chipA = ease(tt);
+      moveT = ease(tt);
+    } else if (mode === 'ANALYZE'){
+      chipA = 1;
+      moveT = 1;
+    } else if (mode === 'VOLCANO'){
+      const local = clamp((loopT - (scanDur + cutDur + analyzeDur)) / volcanoDur, 0, 1);
+      chipA = clamp(1 - local * 1.4, 0, 1);
+      moveT = 1;
+    }
+
+    if (chipA > 0){
+      const startX = core.x + core.w * 1.02;
+      const startY = core.y + cutU * core.h;
+
+      // Middle slot is the “active” one.
+      const slotMidX = tray.x + pad + 1 * (slotW + slotGap) + slotW * 0.5;
+      const slotMidY = slotY + slotH * 0.52;
+
+      const cx = lerp(startX, slotMidX, moveT);
+      const cy = lerp(startY, slotMidY, moveT);
+
+      // Extraction guide line (CUT only)
+      if (mode === 'CUT'){
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.strokeStyle = `rgba(140, 220, 255, ${0.10 * chipA})`;
+        ctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) * 0.0013));
+        ctx.setLineDash([Math.max(6, tray.w * 0.06), Math.max(4, tray.w * 0.03)]);
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(slotMidX, slotMidY);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      const chipW = Math.max(10, slotW * 0.56);
+      const chipH = Math.max(8, tray.h * 0.44);
+
+      const pulse = (mode === 'ANALYZE') ? (0.72 + 0.28 * Math.sin(t * 1.9)) : 1;
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.75 * chipA * pulse;
+
+      ctx.fillStyle = 'rgba(230, 255, 255, 0.20)';
+      ctx.strokeStyle = 'rgba(220, 250, 255, 0.22)';
+      ctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) * 0.0011));
+      ctx.beginPath();
+      ctx.roundRect(cx - chipW * 0.5, cy - chipH * 0.5, chipW, chipH, chipH * 0.35);
+      ctx.fill();
+      ctx.stroke();
+
+      // Tiny “ice grit” flecks (deterministic-ish: time-hash, not RNG)
+      ctx.save();
+      ctx.globalAlpha *= 0.55;
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      const n = 8;
+      for (let i = 0; i < n; i++){
+        const hh = ((i * 97.3 + t * 13.7) % 1);
+        const px = cx - chipW * 0.35 + hh * chipW * 0.7;
+        const py = cy - chipH * 0.25 + (((i * 51.9 + t * 7.1) % 1)) * chipH * 0.5;
+        ctx.fillRect(px, py, 1, 1);
+      }
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
   function drawPanel(ctx){
     const { x, y, w: pw, h: ph } = panel;
 
@@ -832,6 +964,7 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     drawCore(ctx);
+    drawSampleTray(ctx);
     drawPanel(ctx);
 
     // Subtle vignette
