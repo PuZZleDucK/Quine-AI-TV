@@ -1,3 +1,5 @@
+- 2026-02-13 13:45 (Australia/Melbourne) [project:quine-tv] `orbits` (src/channels/orbits.js): time structure — added a ~1.5 minute phase cycle (CALM→WARP→DRIFT) modulating orbit speed + nebula wash intensity. Commit: 33bd1d0
+
 - 2026-02-13 13:33 (Australia/Melbourne) [project:quine-tv] `orbits` (src/channels/orbits.js): ui — overlay label now shows the current orbit-layout name (ORIGIN/TILT/BULGE/SPIN). Commit: ec27195
 
 - 2026-02-13 13:15 (Australia/Melbourne) [project:quine-tv] `orbits` (src/channels/orbits.js): bug — prevent sun/planet/moon overlap (orbit spacing adjusted; moons skip draw when overlapping). Commit: db0761c
