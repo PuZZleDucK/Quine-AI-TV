@@ -203,9 +203,9 @@ export function createChannel({ seed, audio }){
 
   function drawWallSigns(ctx, P){
     const signs = [
-      { text: 'OPEN ALL NIGHT', x: w * 0.09, y: h * 0.252, w: w * 0.23, h: h * 0.057, col: pal.neonC },
-      { text: 'NO DYE AFTER 10PM', x: w * 0.35, y: h * 0.252, w: w * 0.25, h: h * 0.057, col: pal.neonM },
-      { text: 'SOAP + TOKENS', x: w * 0.62, y: h * 0.252, w: w * 0.14, h: h * 0.057, col: pal.neonO },
+      { text: 'OPEN ALL NIGHT', x: w * 0.07, y: h * 0.285, w: w * 0.23, h: h * 0.057, col: pal.neonC },
+      { text: 'NO DYE AFTER 10PM', x: w * 0.33, y: h * 0.285, w: w * 0.25, h: h * 0.057, col: pal.neonM },
+      { text: 'SOAP + TOKENS', x: w * 0.58, y: h * 0.285, w: w * 0.14, h: h * 0.057, col: pal.neonO },
     ];
 
     ctx.save();
@@ -255,9 +255,9 @@ export function createChannel({ seed, audio }){
     }
 
     const tubes = [
-      { x: w * 0.11, y: h * 0.324, w: w * 0.21, col: pal.neonM },
-      { x: w * 0.39, y: h * 0.324, w: w * 0.18, col: pal.neonC },
-      { x: w * 0.64, y: h * 0.324, w: w * 0.11, col: pal.neonO },
+      { x: w * 0.09, y: h * 0.357, w: w * 0.21, col: pal.neonM },
+      { x: w * 0.37, y: h * 0.357, w: w * 0.18, col: pal.neonC },
+      { x: w * 0.60, y: h * 0.357, w: w * 0.11, col: pal.neonO },
     ];
     for (let i = 0; i < tubes.length; i++){
       const n = tubes[i];
@@ -564,6 +564,24 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(wx - frame, wy + wh + frame * 0.25, ww + frame * 2, Math.max(4, Math.floor(frame * 0.35)));
 
     ctx.restore();
+
+    // pale interior wall panel between window band and floor
+    const wallTop = h * 0.29;
+    const wallBottom = floorY || (h * 0.55);
+    if (wallBottom > wallTop){
+      const wg = ctx.createLinearGradient(0, wallTop, 0, wallBottom);
+      wg.addColorStop(0, 'rgba(228,235,243,0.16)');
+      wg.addColorStop(1, 'rgba(214,225,236,0.34)');
+      ctx.fillStyle = wg;
+      ctx.fillRect(0, wallTop, w, wallBottom - wallTop);
+
+      ctx.strokeStyle = 'rgba(32,48,68,0.28)';
+      ctx.lineWidth = Math.max(1, Math.floor(dpr));
+      ctx.beginPath();
+      ctx.moveTo(0, wallBottom - 1);
+      ctx.lineTo(w, wallBottom - 1);
+      ctx.stroke();
+    }
 
     // keep the top-left clear; title and 24H now live on the mirrored window placard
     const surge = powerSurge.a;
