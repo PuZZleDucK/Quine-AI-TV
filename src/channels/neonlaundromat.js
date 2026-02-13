@@ -119,11 +119,11 @@ export function createChannel({ seed, audio }){
     // Rebalanced room composition:
     // keep machines in the middle band (not parked on the bottom edge)
     // and align fixtures around them so the scene reads as one space.
-    floorY = h * 0.48;
-    const marginB = Math.max(80, h * 0.18);
-    const baseY = floorY + h * 0.02;
+    floorY = h * 0.55;
+    const marginB = Math.max(62, h * 0.14);
+    const baseY = floorY + h * 0.015;
 
-    let mh = clamp(h * 0.27, 126, 210);
+    let mh = clamp(h * 0.24, 118, 186);
     mh = Math.min(mh, Math.max(116, h - baseY - marginB));
 
     let mw = Math.min(w * 0.24, 232);
@@ -162,11 +162,11 @@ export function createChannel({ seed, audio }){
     const frand = mulberry32((seed ^ 0x2c9ab33f) >>> 0);
 
     dryers = [];
-    const bankBaseY = baseY + mh * 0.98;
-    const gapY = clamp(h * 0.018, 10, 22);
-    const dh = clamp(h * 0.11, 72, 124);
-    const dw = clamp(dh * 0.92, 68, 150);
-    const gapX = clamp(w * 0.02, 10, 24);
+    const bankBaseY = baseY + mh * 0.92;
+    const gapY = clamp(h * 0.022, 12, 26);
+    const dh = clamp(h * 0.105, 72, 118);
+    const dw = clamp(dh * 0.92, 72, 138);
+    const gapX = clamp(w * 0.025, 14, 28);
 
     const cols = 2;
     const rows = 2;
@@ -195,9 +195,9 @@ export function createChannel({ seed, audio }){
 
     // Folding counter under the window (left side), kept intentionally subtle.
     const cw = Math.min(w * 0.44, Math.max(200, w * 0.34));
-    const ch = clamp(h * 0.07, 44, 72);
+    const ch = clamp(h * 0.055, 38, 58);
     const cx = w * 0.08;
-    const cy = baseY + mh + h * 0.03;
+    const cy = baseY + mh * 0.16;
     counter = { x: cx, y: cy, w: cw, h: ch };
   }
 
@@ -583,42 +583,53 @@ export function createChannel({ seed, audio }){
     const y = counter.y;
     const cw = counter.w;
     const ch = counter.h;
-    const rr = Math.max(12, Math.floor(Math.min(cw, ch) * 0.14));
+    const rr = Math.max(8, Math.floor(Math.min(cw, ch) * 0.20));
 
-    // shadow
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.34)';
+    // table shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.beginPath();
-    ctx.ellipse(x + cw * 0.55, y + ch * 0.95, cw * 0.55, ch * 0.22, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + cw * 0.50, y + ch * 1.55, cw * 0.52, ch * 0.30, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // top
+    // table top
     const tg = ctx.createLinearGradient(0, y, 0, y + ch);
-    tg.addColorStop(0, 'rgba(28,38,52,0.62)');
-    tg.addColorStop(1, 'rgba(10,12,16,0.86)');
+    tg.addColorStop(0, 'rgba(34,46,64,0.78)');
+    tg.addColorStop(1, 'rgba(14,18,24,0.92)');
     ctx.fillStyle = tg;
     roundedRect(ctx, x, y, cw, ch, rr);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(220,240,255,0.10)';
+    ctx.strokeStyle = 'rgba(220,240,255,0.14)';
     ctx.lineWidth = Math.max(1, Math.floor(dpr));
     roundedRect(ctx, x + 1, y + 1, cw - 2, ch - 2, rr);
     ctx.stroke();
 
-    // laundry basket
-    const bx = x + cw * 0.74;
-    const by = y + ch * 0.18;
-    const bw = cw * 0.20;
-    const bh = ch * 0.64;
+    // legs so it clearly reads as a table
+    const legW = Math.max(4, cw * 0.026);
+    const legH = ch * 0.92;
+    ctx.fillStyle = 'rgba(14,18,24,0.88)';
+    ctx.fillRect(x + cw * 0.14, y + ch * 0.90, legW, legH);
+    ctx.fillRect(x + cw * 0.80, y + ch * 0.90, legW, legH);
 
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    roundedRect(ctx, bx, by, bw, bh, rr * 0.65);
-    ctx.fill();
-
-    ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 0.10 + P.glow * 0.18;
-    ctx.fillStyle = pal.neonC;
-    ctx.fillRect(bx + 2, by + bh - Math.max(2, Math.floor(dpr)), bw - 4, Math.max(2, Math.floor(dpr)));
+    // folded towels
+    const stackW = cw * 0.22;
+    const stackH = ch * 0.24;
+    const tx = x + cw * 0.68;
+    const ty = y + ch * 0.20;
+    const towelCols = [pal.neonC, pal.neonM, pal.neonO];
+    for (let i = 0; i < 3; i++){
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      roundedRect(ctx, tx - i * 2, ty + i * (stackH * 0.85), stackW, stackH, stackH * 0.35);
+      ctx.fill();
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.12 + P.glow * 0.10;
+      ctx.fillStyle = towelCols[i % towelCols.length];
+      roundedRect(ctx, tx - i * 2, ty + i * (stackH * 0.85), stackW, stackH, stackH * 0.35);
+      ctx.fill();
+      ctx.restore();
+    }
 
     ctx.restore();
   }
@@ -810,7 +821,7 @@ export function createChannel({ seed, audio }){
     // panel UI (display + dial + buttons) so the machines read a bit more “real”
     const dispX = px + pw * 0.06;
     const dispY = py + ph * 0.20;
-    const dispW = pw * 0.40;
+    const dispW = pw * 0.34;
     const dispH = ph * 0.52;
 
     ctx.fillStyle = 'rgba(0,0,0,0.42)';
@@ -832,9 +843,9 @@ export function createChannel({ seed, audio }){
 
     // Dial + buttons spacing: avoid overlap on smaller viewports by
     // pushing the dial right a touch and keeping buttons further left.
-    const dialX = px + pw * 0.80;
+    const dialX = px + pw * 0.87;
     const dialY = py + ph * 0.50;
-    const dialR = Math.min(ph * 0.30, pw * 0.11);
+    const dialR = Math.min(ph * 0.26, pw * 0.095);
 
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath();
@@ -856,8 +867,8 @@ export function createChannel({ seed, audio }){
 
     const btnY = py + ph * 0.50;
     const btnR = Math.max(2, Math.floor(Math.min(pw, ph) * 0.06));
-    for (let b = 0; b < 3; b++){
-      const bx = px + pw * (0.50 + b * 0.055);
+    for (let b = 0; b < 2; b++){
+      const bx = px + pw * (0.57 + b * 0.085);
       ctx.fillStyle = 'rgba(0,0,0,0.42)';
       ctx.beginPath();
       ctx.arc(bx, btnY, btnR * 1.25, 0, Math.PI * 2);
