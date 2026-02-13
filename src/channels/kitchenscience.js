@@ -122,6 +122,8 @@ function makeCanvas(W, H){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  // separate RNG so special moments don't perturb experiment selection
+  const fairRand = mulberry32((((seed | 0) ^ 0xdecafbad) >>> 0));
 
   let w = 0, h = 0, t = 0;
   let font = 16;
@@ -151,6 +153,14 @@ export function createChannel({ seed, audio }){
   // layout
   let bx = 0, by = 0, bw = 0, bh = 0;
   let liquidY = 0;
+
+  // special moment: rare deterministic “SCIENCE FAIR” overlay
+  const FAIR_COLORS = ['#6cf2ff', '#ff5aa5', '#ffd36b', '#63ffb6', '#7d5cff'];
+  let fairConfetti = []; // {x,y,s,phase,color}
+  let fairNext = 0; // seconds until next fair moment
+  let fairT = 0; // seconds remaining
+  let fairTotal = 0;
+  let fairKind = 0; // 0|1
 
   let fizz = null;
 
@@ -213,6 +223,11 @@ export function createChannel({ seed, audio }){
 
     bgLayer = rebuildBackgroundLayer();
     rebuildFoam();
+    rebuildScienceFair();
+
+    fairT = 0;
+    fairTotal = 0;
+    scheduleScienceFair();
 
     expBag = [];
     expLastShown = new Map();
@@ -321,6 +336,15 @@ export function createChannel({ seed, audio }){
         // recycle below
         b.y = by + bh - 8 - rand() * 40;
       }
+    }
+
+    // science fair special moment scheduler (no per-frame RNG)
+    if (fairT > 0){
+      fairT -= dt;
+      if (fairT < 0) fairT = 0;
+    } else {
+      fairNext -= dt;
+      if (fairNext <= 0) startScienceFair();
     }
 
     // keep bounded
@@ -462,6 +486,122 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function rebuildScienceFair(){
+    const r = mulberry32((((seed | 0) ^ 0x7f4a7c15) >>> 0));
+    const N = 140;
+    fairConfetti = [];
+    for (let i = 0; i < N; i++){
+      fairConfetti.push({
+        x: r() * w,
+        y: r() * h,
+        s: 1.6 + r() * 3.2,
+        phase: r() * Math.PI * 2,
+        color: FAIR_COLORS[(r() * FAIR_COLORS.length) | 0],
+      });
+    }
+  }
+
+  function scheduleScienceFair(){
+    fairNext = 45 + fairRand() * 75;
+  }
+
+  function startScienceFair(){
+    fairKind = fairRand() < 0.5 ? 0 : 1;
+    fairT = 6 + fairRand() * 4;
+    fairTotal = fairT;
+    scheduleScienceFair();
+
+    reaction = Math.min(1, reaction + 0.35);
+
+    if (audio.enabled){
+      const base = fairKind === 0 ? 520 : 640;
+      audio.beep({ freq: base, dur: 0.06, gain: 0.02, type: 'sine' });
+      audio.beep({ freq: base * 1.25, dur: 0.05, gain: 0.018, type: 'triangle' });
+    }
+  }
+
+  function drawScienceFair(ctx){
+    if (!(fairT > 0 && fairTotal > 0)) return;
+
+    const fadeIn = Math.min(1, (fairTotal - fairT) / 0.6);
+    const fadeOut = Math.min(1, fairT / 0.8);
+    const a = Math.min(fadeIn, fadeOut);
+    if (a <= 0) return;
+
+    // confetti layer
+    ctx.save();
+    ctx.globalAlpha = a * 0.9;
+    const speed = fairKind === 0 ? 55 : 75;
+    for (const c of fairConfetti){
+      const yy = ((c.y + t * speed + c.phase * 12) % (h + 20)) - 10;
+      const xx = c.x + Math.sin(t * 0.9 + c.phase) * 12;
+      ctx.fillStyle = c.color;
+      ctx.save();
+      ctx.translate(xx, yy);
+      ctx.rotate(Math.sin(t * 1.2 + c.phase) * 0.7);
+      ctx.fillRect(-c.s, -c.s * 0.25, c.s * 2, c.s * 0.5);
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // ribbon banner
+    ctx.save();
+    ctx.translate(w * 0.5, Math.floor(h * 0.23));
+    ctx.rotate(fairKind === 0 ? -0.09 : 0.09);
+    const rw = Math.floor(w * 0.74);
+    const rh = Math.floor(font * 1.4);
+
+    const grad = ctx.createLinearGradient(-rw / 2, 0, rw / 2, 0);
+    grad.addColorStop(0, 'rgba(255,90,165,0.85)');
+    grad.addColorStop(0.5, 'rgba(108,242,255,0.85)');
+    grad.addColorStop(1, 'rgba(255,211,107,0.85)');
+
+    ctx.globalAlpha = a * 0.9;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    roundRect(ctx, -rw / 2 + 6, -rh / 2 + 6, rw, rh, Math.floor(rh / 2));
+    ctx.fill();
+
+    ctx.fillStyle = grad;
+    roundRect(ctx, -rw / 2, -rh / 2, rw, rh, Math.floor(rh / 2));
+    ctx.fill();
+
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(18, 26, 36, 0.9)';
+    ctx.font = `${Math.floor(font * 1.05)}px ui-sans-serif, system-ui`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    ctx.fillText('SCIENCE FAIR', 0, 1);
+
+    if (fairKind === 1){
+      ctx.font = `${Math.floor(font * 0.72)}px ui-sans-serif, system-ui`;
+      ctx.fillStyle = 'rgba(18, 26, 36, 0.75)';
+      ctx.fillText('SHOW & TELL', 0, Math.floor(font * 0.95));
+    }
+
+    ctx.restore();
+
+    if (fairKind === 1){
+      // starburst around beaker
+      ctx.save();
+      ctx.globalAlpha = a * 0.55;
+      const cx = bx + bw * 0.5;
+      const cy = by + bh * 0.45;
+      const rays = 18;
+      ctx.strokeStyle = 'rgba(255,211,107,0.7)';
+      ctx.lineWidth = Math.max(1, Math.floor(font * 0.09));
+      for (let i = 0; i < rays; i++){
+        const ang = (i / rays) * Math.PI * 2 + Math.sin(t * 0.6) * 0.15;
+        const r0 = bw * 0.26;
+        const r1 = bw * 0.44;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0);
+        ctx.lineTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
   function render(ctx){
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -593,6 +733,8 @@ export function createChannel({ seed, audio }){
     ctx.textBaseline = 'middle';
     ctx.fillText('safe, small, supervised • no fire • no pressure • no mystery chemicals', Math.floor(w * 0.05), Math.floor(h * 0.96));
     ctx.restore();
+
+    drawScienceFair(ctx);
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
