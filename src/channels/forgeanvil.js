@@ -178,6 +178,60 @@ export function createChannel({ seed, audio }) {
   let roomNoise = null;
   let musicHandle = null;
 
+  // one-shot SFX handles (stop previous to avoid runaway stacking)
+  let quenchHiss = null;
+
+  function stopQuenchHiss() {
+    try { quenchHiss?.stop?.(); } catch {}
+    quenchHiss = null;
+  }
+
+  function noiseBurst({ dur = 0.08, gain = 0.02, hp = 400, bp = 1800, q = 0.8 } = {}) {
+    const ctx = audio.ensure();
+    const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+    const out = buffer.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const u = i / len;
+      const env = (1 - u) * (1 - u);
+      out[i] = (Math.random() * 2 - 1) * env;
+    }
+
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+
+    const hpF = ctx.createBiquadFilter();
+    hpF.type = 'highpass';
+    hpF.frequency.value = hp;
+
+    const bpF = ctx.createBiquadFilter();
+    bpF.type = 'bandpass';
+    bpF.frequency.value = bp;
+    bpF.Q.value = q;
+
+    const g = ctx.createGain();
+    g.gain.value = 0;
+
+    src.connect(hpF);
+    hpF.connect(bpF);
+    bpF.connect(g);
+    g.connect(audio.master);
+
+    const t0 = ctx.currentTime;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain, t0 + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    src.start();
+    src.stop(t0 + dur + 0.02);
+
+    return {
+      stop() {
+        try { src.stop(); } catch {}
+      },
+    };
+  }
+
   function pick(arr) {
     return arr[(rand() * arr.length) | 0];
   }
@@ -293,6 +347,7 @@ export function createChannel({ seed, audio }) {
 
   function onAudioOff() {
     try { musicHandle?.stop?.(); } catch {}
+    stopQuenchHiss();
     drone = null;
     roomNoise = null;
     musicHandle = null;
@@ -346,18 +401,26 @@ export function createChannel({ seed, audio }) {
 
     if (!audio.enabled) return;
 
-    // “metal hit”
+    // "metal hit" = noisy transient + short tone body (less "beep-y")
+    noiseBurst({
+      dur: 0.05,
+      gain: perfect ? 0.016 : 0.013,
+      hp: 520,
+      bp: perfect ? 2100 : 1700,
+      q: 0.9,
+    });
+
     audio.beep({
-      freq: perfect ? 380 : 260,
-      dur: 0.06,
-      gain: perfect ? 0.03 : 0.022,
-      type: perfect ? 'square' : 'triangle',
+      freq: perfect ? 340 : 240,
+      dur: 0.075,
+      gain: perfect ? 0.018 : 0.014,
+      type: 'triangle',
     });
 
     if (perfect) {
-      // “ring” (two quick overtones)
-      audio.beep({ freq: 640, dur: 0.11, gain: 0.018, type: 'sine' });
-      audio.beep({ freq: 960, dur: 0.095, gain: 0.012, type: 'triangle' });
+      // "ring" (two quick overtones)
+      audio.beep({ freq: 640, dur: 0.11, gain: 0.016, type: 'sine' });
+      audio.beep({ freq: 960, dur: 0.095, gain: 0.011, type: 'triangle' });
     }
   }
 
@@ -368,8 +431,12 @@ export function createChannel({ seed, audio }) {
     strikeGlow = Math.max(strikeGlow, 0.55);
 
     if (!audio.enabled) return;
-    audio.beep({ freq: 160, dur: 0.08, gain: 0.014, type: 'sine' });
-    audio.beep({ freq: 220, dur: 0.06, gain: 0.012, type: 'triangle' });
+
+    stopQuenchHiss();
+    quenchHiss = noiseBurst({ dur: 0.22, gain: 0.022, hp: 650, bp: 2400, q: 0.7 });
+
+    // a low "plunge" thump under the hiss
+    audio.beep({ freq: 120, dur: 0.09, gain: 0.01, type: 'sine' });
   }
 
   function update(dt) {
