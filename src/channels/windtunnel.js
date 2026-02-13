@@ -93,6 +93,11 @@ export function createChannel({ seed, audio }) {
   // Audio
   let drone = null;
   let windNoise = null;
+  let windGain = null;
+  let windHP = null;
+  let windLP = null;
+  let whooshLfo = null;
+  let whooshLfoGain = null;
 
   function setPhase(i){
     phaseIndex = (i + commonPhases.length) % commonPhases.length;
@@ -332,16 +337,56 @@ export function createChannel({ seed, audio }) {
 
   function onAudioOn(){
     if (!audio.enabled) return;
-    const root = 70 + ((rand() * 22) | 0);
-    drone = simpleDrone(audio, { root, detune: 0.9, gain: 0.04 });
-    windNoise = audio.noiseSource({ type: 'pink', gain: 0.02 });
+    const ctx = audio.ensure();
+    const root = 62 + ((rand() * 16) | 0);
+    drone = simpleDrone(audio, { root, detune: 0.7, gain: 0.022 });
+
+    // Filtered noise + slow gain modulation reads as "air whoosh", not static.
+    windNoise = audio.noiseSource({ type: 'white', gain: 0.0 });
+    windHP = ctx.createBiquadFilter();
+    windHP.type = 'highpass';
+    windHP.frequency.value = 180;
+    windHP.Q.value = 0.72;
+    windLP = ctx.createBiquadFilter();
+    windLP.type = 'lowpass';
+    windLP.frequency.value = 2800;
+    windLP.Q.value = 0.58;
+    windGain = ctx.createGain();
+    windGain.gain.value = 0.0001;
+
+    try { windNoise.gain.disconnect(); } catch {}
+    windNoise.gain.connect(windHP);
+    windHP.connect(windLP);
+    windLP.connect(windGain);
+    windGain.connect(audio.master);
+
+    whooshLfo = ctx.createOscillator();
+    whooshLfo.type = 'sine';
+    whooshLfo.frequency.value = 0.18 + rand() * 0.12;
+    whooshLfoGain = ctx.createGain();
+    whooshLfoGain.gain.value = 0.012;
+    whooshLfo.connect(whooshLfoGain);
+    whooshLfoGain.connect(windGain.gain);
+    whooshLfo.start();
+
     windNoise.start();
     audio.setCurrent({
       stop(){
         try { drone?.stop?.(); } catch {}
         try { windNoise?.stop?.(); } catch {}
+        try { whooshLfo?.stop?.(); } catch {}
+        try { windNoise?.gain?.disconnect?.(); } catch {}
+        try { windHP?.disconnect?.(); } catch {}
+        try { windLP?.disconnect?.(); } catch {}
+        try { windGain?.disconnect?.(); } catch {}
+        try { whooshLfoGain?.disconnect?.(); } catch {}
         drone = null;
         windNoise = null;
+        windGain = null;
+        windHP = null;
+        windLP = null;
+        whooshLfo = null;
+        whooshLfoGain = null;
       }
     });
   }
@@ -350,6 +395,11 @@ export function createChannel({ seed, audio }) {
     audio.stopCurrent();
     drone = null;
     windNoise = null;
+    windGain = null;
+    windHP = null;
+    windLP = null;
+    whooshLfo = null;
+    whooshLfoGain = null;
   }
 
   function destroy(){
@@ -406,6 +456,17 @@ export function createChannel({ seed, audio }) {
     computeTargets();
     lift = lerp(lift, liftTgt, 1 - Math.pow(0.002, dt));
     drag = lerp(drag, dragTgt, 1 - Math.pow(0.002, dt));
+
+    if (audio.enabled && windGain && windHP && windLP){
+      const absAoa = Math.abs(body.aoa);
+      const whoosh = 0.018 + absAoa * 0.018 + burst * 0.016 + stall * 0.012;
+      windGain.gain.value = lerp(windGain.gain.value, whoosh, 1 - Math.exp(-dt * 2.8));
+
+      const hpTarget = 170 + absAoa * 520 + burst * 220 + Math.sin(t * 0.9) * 36;
+      const lpTarget = 2900 - absAoa * 780 + burst * 460 + stall * 220;
+      windHP.frequency.value = lerp(windHP.frequency.value, clamp(hpTarget, 120, 1400), 1 - Math.exp(-dt * 3.0));
+      windLP.frequency.value = lerp(windLP.frequency.value, clamp(lpTarget, 1600, 5200), 1 - Math.exp(-dt * 2.6));
+    }
 
     // Move puffs
     for (const p of puffs) {
@@ -744,6 +805,8 @@ export function createChannel({ seed, audio }) {
       ctx.arc(s * 0.20, s * 0.45, s * 0.14, 0, Math.PI * 2);
       ctx.stroke();
     } else if (body.type === 'rubber_duck') {
+      ctx.fillStyle = 'rgba(248,219,72,0.96)';
+      ctx.strokeStyle = 'rgba(255,238,168,0.42)';
       ctx.beginPath();
       ctx.ellipse(-s * 0.08, s * 0.08, s * 0.82, s * 0.50, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -752,6 +815,17 @@ export function createChannel({ seed, audio }) {
       ctx.arc(s * 0.48, -s * 0.28, s * 0.26, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+      ctx.fillStyle = 'rgba(255,154,54,0.95)';
+      ctx.beginPath();
+      ctx.moveTo(s * 0.63, -s * 0.24);
+      ctx.lineTo(s * 0.92, -s * 0.18);
+      ctx.lineTo(s * 0.63, -s * 0.10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(22,28,36,0.72)';
+      ctx.beginPath();
+      ctx.arc(s * 0.52, -s * 0.32, s * 0.040, 0, Math.PI * 2);
+      ctx.fill();
     } else if (body.type === 'grand_piano') {
       ctx.beginPath();
       ctx.moveTo(-s * 1.2, -s * 0.40);
