@@ -14,6 +14,7 @@ The repository includes a Playwright-based capture tool: `scripts/capture-channe
 - Channels should aim to have (most of):
   - Focus on the layout, visual, text and animation elemets and effects.
   - A strong visual identity (palette + composition) with **layered motion** (background/midground/foreground).
+  - Bugs where components are mistakenly overlayed.
   - Improvments to visual components. Visuals that look bad or incorrect are a serious bug.
   - A couple of uncommon and rare **“special moments”** (e.g. meteor/flash/glitch/rare-event/rare-text) triggered on timers.
   - Add more funny dialog scripts or text snippets to cycle through.
