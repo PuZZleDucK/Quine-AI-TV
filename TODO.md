@@ -43,4 +43,4 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (kitchen bg cache) -->
 <!-- done: moved to TODONE.md (kitchen audio hygiene) -->
 <!-- done: moved to TODONE.md (kitchen experiments shuffle-bag) -->
-- [ ] `kitchen` (src/channels/kitchenscience.js): special moment — add 1–2 rare deterministic “SCIENCE FAIR” events (~45–120s cadence) with a clear visual signature and clean reset.
+<!-- done: moved to TODONE.md (kitchen science fair) -->
