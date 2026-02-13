@@ -150,6 +150,9 @@ export function createChannel({ seed, audio }){
   // cached static background (avoid per-frame gradients)
   let bgLayer = null; // CanvasImageSource | null
 
+  // cached glass highlight/caustic overlay for the beaker (rebuilt on resize)
+  let glassLayer = null; // CanvasImageSource | null
+
   // layout
   let bx = 0, by = 0, bw = 0, bh = 0;
   let liquidY = 0;
@@ -242,6 +245,7 @@ export function createChannel({ seed, audio }){
     cardHWhy = Math.floor(h * 0.27);
 
     bgLayer = rebuildBackgroundLayer();
+    glassLayer = rebuildGlassLayer();
     rebuildFoam();
     rebuildScienceFair();
 
@@ -548,6 +552,85 @@ export function createChannel({ seed, audio }){
     return c;
   }
 
+  function rebuildGlassLayer(){
+    const c = makeCanvas(w, h);
+    if (!c) return null;
+    const cctx = c.getContext('2d');
+    if (!cctx) return null;
+
+    cctx.setTransform(1, 0, 0, 1, 0, 0);
+    cctx.clearRect(0, 0, w, h);
+
+    // clipped overlay: subtle specular + caustic-ish glow to sell the glass
+    cctx.save();
+    beakerPath(cctx);
+    cctx.clip();
+
+    const cx = bx + bw * 0.5;
+    const top = by;
+    const bottom = by + bh;
+
+    // gentle overall tint
+    const tint = cctx.createLinearGradient(0, top, 0, bottom);
+    tint.addColorStop(0, 'rgba(231,238,246,0.06)');
+    tint.addColorStop(0.6, 'rgba(231,238,246,0.028)');
+    tint.addColorStop(1, 'rgba(231,238,246,0.012)');
+    cctx.fillStyle = tint;
+    cctx.fillRect(bx, top, bw, bh);
+
+    // specular highlight stripe (left-ish)
+    const hl = cctx.createLinearGradient(bx, 0, bx + bw, 0);
+    hl.addColorStop(0.0, 'rgba(255,255,255,0)');
+    hl.addColorStop(0.12, 'rgba(255,255,255,0.10)');
+    hl.addColorStop(0.24, 'rgba(255,255,255,0.17)');
+    hl.addColorStop(0.34, 'rgba(255,255,255,0.05)');
+    hl.addColorStop(0.55, 'rgba(255,255,255,0)');
+    cctx.fillStyle = hl;
+    cctx.fillRect(bx, top, bw, bh);
+
+    // caustic blobs (screen blend keeps it airy)
+    cctx.globalCompositeOperation = 'screen';
+
+    const rg1 = cctx.createRadialGradient(
+      cx - bw * 0.18,
+      top + bh * 0.22,
+      0,
+      cx - bw * 0.18,
+      top + bh * 0.22,
+      bw * 0.46
+    );
+    rg1.addColorStop(0, 'rgba(255,255,255,0.12)');
+    rg1.addColorStop(1, 'rgba(255,255,255,0)');
+    cctx.fillStyle = rg1;
+    cctx.fillRect(bx, top, bw, bh);
+
+    const rg2 = cctx.createRadialGradient(
+      cx + bw * 0.16,
+      top + bh * 0.58,
+      0,
+      cx + bw * 0.16,
+      top + bh * 0.58,
+      bw * 0.52
+    );
+    rg2.addColorStop(0, 'rgba(108,242,255,0.07)');
+    rg2.addColorStop(1, 'rgba(108,242,255,0)');
+    cctx.fillStyle = rg2;
+    cctx.fillRect(bx, top, bw, bh);
+
+    // a thin, soft internal glint stroke
+    cctx.globalCompositeOperation = 'source-over';
+    cctx.globalAlpha = 0.22;
+    cctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    cctx.lineWidth = Math.max(1, Math.floor(font * 0.07));
+    cctx.beginPath();
+    cctx.moveTo(bx + bw * 0.32, top + bh * 0.12);
+    cctx.quadraticCurveTo(cx - bw * 0.04, top + bh * 0.55, bx + bw * 0.35, top + bh * 0.92);
+    cctx.stroke();
+
+    cctx.restore();
+    return c;
+  }
+
   function rebuildFoam(){
     const N = 22;
     const r = mulberry32((((seed | 0) ^ 0x9e3779b9) >>> 0));
@@ -777,6 +860,15 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(bx + bw * 0.27, by, bw * 0.46, 2);
     ctx.fillRect(bx + bw * 0.23, rimY, bw * 0.54, 1);
     ctx.restore();
+
+    // cached glass highlight/caustic overlay (rebuilt on resize)
+    if (glassLayer){
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.globalCompositeOperation = 'screen';
+      ctx.drawImage(glassLayer, 0, 0);
+      ctx.restore();
+    }
 
     // cards: needs + why
     drawCard(
