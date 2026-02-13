@@ -154,6 +154,16 @@ export function createChannel({ seed, audio }){
   let bx = 0, by = 0, bw = 0, bh = 0;
   let liquidY = 0;
 
+  // card layout (computed on init/resize for wrapping)
+  let cardLeftX = 0, cardRightX = 0, cardY0 = 0;
+  let cardW = 0, cardRightW = 0;
+  let cardHNeeds = 0, cardHWhy = 0;
+
+  // pre-wrapped experiment text (avoid clipping on long lines)
+  let expWrapped = { whyLines: [] };
+  const measureCanvas = makeCanvas(8, 8);
+  const measureCtx = measureCanvas?.getContext?.('2d') || null;
+
   // special moment: rare deterministic “SCIENCE FAIR” overlay
   const FAIR_COLORS = ['#6cf2ff', '#ff5aa5', '#ffd36b', '#63ffb6', '#7d5cff'];
   let fairConfetti = []; // {x,y,s,phase,color}
@@ -208,6 +218,7 @@ export function createChannel({ seed, audio }){
     dropT = 1.2 + rand() * 1.8;
     reaction = 0.2 + rand() * 0.25;
     bubbles = [];
+    rebuildExpWrapped();
   }
 
   function init({ width, height }){
@@ -220,6 +231,15 @@ export function createChannel({ seed, audio }){
     bx = Math.floor(w * 0.5 - bw * 0.5);
     by = Math.floor(h * 0.24);
     liquidY = by + Math.floor(bh * 0.62);
+
+    // cards
+    cardW = Math.floor(w * 0.25);
+    cardRightW = Math.floor(w * 0.27);
+    cardLeftX = Math.floor(w * 0.06);
+    cardRightX = Math.floor(w * 0.69);
+    cardY0 = Math.floor(h * 0.28);
+    cardHNeeds = Math.floor(h * 0.22);
+    cardHWhy = Math.floor(h * 0.27);
 
     bgLayer = rebuildBackgroundLayer();
     rebuildFoam();
@@ -384,6 +404,68 @@ export function createChannel({ seed, audio }){
 
     // back to neck
     ctx.closePath();
+  }
+
+  function wrapTextToWidth(ctx, text, maxWidth){
+    if (!text) return [];
+    const raw = String(text).replace(/\n+/g, ' ').trim();
+    if (!raw) return [];
+
+    const words = raw.split(/\s+/g).filter(Boolean);
+    const out = [];
+    let line = '';
+
+    for (const word of words){
+      const test = line ? (line + ' ' + word) : word;
+      if (line && ctx.measureText(test).width > maxWidth){
+        out.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+
+      // Hard-break a single too-wide token (rare, but avoids clipping)
+      if (line && ctx.measureText(line).width > maxWidth){
+        let rest = line;
+        line = '';
+        while (rest){
+          let cut = 1;
+          for (let i = 1; i <= rest.length; i++){
+            if (ctx.measureText(rest.slice(0, i)).width > maxWidth){
+              cut = Math.max(1, i - 1);
+              break;
+            }
+            cut = i;
+          }
+          out.push(rest.slice(0, cut));
+          rest = rest.slice(cut);
+        }
+      }
+    }
+
+    if (line) out.push(line);
+    return out;
+  }
+
+  function rebuildExpWrapped(){
+    const blocks = [];
+    if (exp?.happens) blocks.push(`Happens: ${exp.happens}`);
+    if (exp?.why) blocks.push(exp.why);
+
+    if (!measureCtx){
+      expWrapped = { whyLines: blocks };
+      return;
+    }
+
+    measureCtx.font = `${small}px ui-sans-serif, system-ui`;
+    const padX = Math.floor(font * 0.8);
+    const maxW = Math.max(40, cardRightW - padX * 2 - 2);
+
+    const lines = [];
+    for (const b of blocks){
+      lines.push(...wrapTextToWidth(measureCtx, b, maxW));
+    }
+    expWrapped = { whyLines: lines };
   }
 
   function drawCard(ctx, x, y, ww, hh, title, lines, accent){
@@ -696,17 +778,12 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // cards: needs + why
-    const cardW = Math.floor(w * 0.25);
-    const leftX = Math.floor(w * 0.06);
-    const rightX = Math.floor(w * 0.69);
-    const y0 = Math.floor(h * 0.28);
-
     drawCard(
       ctx,
-      leftX,
-      y0,
+      cardLeftX,
+      cardY0,
       cardW,
-      Math.floor(h * 0.22),
+      cardHNeeds,
       'You need',
       (exp?.needs || []).map((s) => `• ${s}`),
       'rgba(108,242,255,0.85)'
@@ -714,12 +791,12 @@ export function createChannel({ seed, audio }){
 
     drawCard(
       ctx,
-      rightX,
-      y0,
-      Math.floor(w * 0.27),
-      Math.floor(h * 0.27),
+      cardRightX,
+      cardY0,
+      cardRightW,
+      cardHWhy,
       'Why it works',
-      [exp?.happens ? `Happens: ${exp.happens}` : '', exp?.why || ''].filter(Boolean),
+      expWrapped.whyLines || [],
       'rgba(255,90,165,0.85)'
     );
 
