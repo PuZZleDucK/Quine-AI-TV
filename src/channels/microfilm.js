@@ -402,23 +402,32 @@ export function createChannel({ seed, audio }) {
     ctx.save();
 
     const body = ctx.createRadialGradient(cx, cy, 1, cx, cy, r);
-    body.addColorStop(0, `rgba(231,238,246,${0.06 + bright * 0.06})`);
-    body.addColorStop(1, 'rgba(231,238,246,0.015)');
+    body.addColorStop(0, `rgba(231,238,246,${0.08 + bright * 0.09})`);
+    body.addColorStop(0.55, `rgba(231,238,246,${0.03 + bright * 0.03})`);
+    body.addColorStop(1, 'rgba(231,238,246,0.018)');
     ctx.fillStyle = body;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(231,238,246,0.10)';
+    // outer rim
+    ctx.strokeStyle = `rgba(231,238,246,${0.14 + bright * 0.08})`;
     ctx.lineWidth = Math.max(1, h / 620);
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.stroke();
 
+    // inner rim (adds contrast/readability)
+    ctx.strokeStyle = `rgba(108,242,255,${0.05 + bright * 0.06})`;
+    ctx.lineWidth = Math.max(1, h / 900);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+    ctx.stroke();
+
     // spokes
     const spokes = 6;
-    ctx.strokeStyle = `rgba(108,242,255,${0.10 + bright * 0.12})`;
-    ctx.lineWidth = Math.max(1, h / 700);
+    ctx.strokeStyle = `rgba(108,242,255,${0.14 + bright * 0.18})`;
+    ctx.lineWidth = Math.max(1, h / 760);
     for (let i = 0; i < spokes; i++) {
       const a = ang + (i / spokes) * Math.PI * 2;
       const x0 = cx + Math.cos(a) * r * 0.18;
@@ -431,10 +440,16 @@ export function createChannel({ seed, audio }) {
       ctx.stroke();
     }
 
+    // hub
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath();
     ctx.arc(cx, cy, r * 0.18, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = `rgba(231,238,246,${0.08 + bright * 0.10})`;
+    ctx.lineWidth = Math.max(1, h / 980);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.18, 0, Math.PI * 2);
+    ctx.stroke();
 
     ctx.restore();
   }
@@ -543,6 +558,48 @@ export function createChannel({ seed, audio }) {
     const stripH = Math.max(64, Math.floor(bodyH * 0.18));
     const stripX = bodyX + bodyW * 0.08;
     const stripW = bodyW * 0.84;
+
+    // subtle film path hint between reels and strip (helps composition/readability)
+    {
+      const pY = stripY - stripH * 0.55;
+      const a = (0.06 + bright * 0.08) * (0.8 + 0.2 * Math.sin(t * 0.6));
+      const lw = Math.max(1, h / 820);
+
+      ctx.save();
+      ctx.lineCap = 'round';
+
+      // dark under-stroke to help it read on the dark body
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = lw + 2;
+
+      ctx.beginPath();
+      ctx.moveTo(rx0 + r * 0.65, reelY + r * 0.15);
+      ctx.bezierCurveTo(
+        rx0 + r * 1.05,
+        reelY + r * 0.90,
+        stripX + stripW * 0.30,
+        pY - stripH * 0.35,
+        stripX + stripW * 0.22,
+        pY,
+      );
+      ctx.moveTo(rx1 - r * 0.65, reelY + r * 0.15);
+      ctx.bezierCurveTo(
+        rx1 - r * 1.05,
+        reelY + r * 0.90,
+        stripX + stripW * 0.70,
+        pY - stripH * 0.35,
+        stripX + stripW * 0.78,
+        pY,
+      );
+      ctx.stroke();
+
+      // highlight
+      ctx.strokeStyle = `rgba(231,238,246,${a})`;
+      ctx.lineWidth = lw;
+      ctx.stroke();
+
+      ctx.restore();
+    }
 
     // strip frame
     ctx.fillStyle = 'rgba(231,238,246,0.05)';
