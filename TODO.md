@@ -43,7 +43,7 @@ if `TODO.md` has no ready items:
 
 - [ ] `kitchen` (src/channels/kitchenscience.js): **visual depth** — add a subtle cached glass highlight/caustic overlay for the beaker (rebuild on resize), so the central prop has more “material” without cluttering OSD.
 
-- [ ] `kitchen` (src/channels/kitchenscience.js): **special moment tuning** — consider making “SCIENCE FAIR” rarer (e.g. 2–4 min) and/or add a second, even rarer moment (e.g. “BUBBLE OVER” foam surge) with a distinct signature.
+<!-- done: moved to TODONE.md (kitchen science fair cadence/variant tuning) -->
 
 <!-- done: moved to TODONE.md (kitchen foam band determinism) -->
 <!-- done: moved to TODONE.md (kitchen bg cache) -->

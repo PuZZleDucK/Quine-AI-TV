@@ -1,3 +1,5 @@
+- 2026-02-14 07:46 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): special moment tuning — made “SCIENCE FAIR” rarer (~2–4 min cadence) and made “SHOW & TELL” variant extra-rare. Commit: 27b990c
+
 - 2026-02-14 07:31 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): cleanup — removed unused local `topW` in `spawnBubble()`. Commit: d2b26ae
 
 - 2026-02-14 07:20 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): text wrapping — pre-wrapped `Why it works` lines on experiment change + resize (no clipping). Commit: 7b7c904

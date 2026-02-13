@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): special moment tuning — made “SCIENCE FAIR” rarer (~2–4 min between banners) and made “SHOW & TELL” variant extra-rare. Commit: 27b990c
+
 - [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): cleanup — removed unused local `topW` in `spawnBubble()` (quick scan for other obvious dead locals nearby). Commit: d2b26ae
 
 - [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): text wrapping — pre-wrap `Why it works` card lines via `wrapTextToWidth()` on experiment change + resize (prevents clipping). Commit: 7b7c904
