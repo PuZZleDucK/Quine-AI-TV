@@ -3,6 +3,4 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [ ] [project:quine-tv] `orbits` (src/channels/orbits.js): ui - change overlay text to a name for each orbital config.
-
 - [ ] [project:quine-tv] `orbits` (src/channels/orbits.js): time structure — add a 1-2 min phase cycle (CALM→WARP→DRIFT) modulating orbit speeds + palette/nebula intensity.

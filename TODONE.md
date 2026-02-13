@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `orbits` (src/channels/orbits.js): ui - overlay label now shows the current orbit-layout name (ORIGIN/TILT/BULGE/SPIN). Commit: ec27195
+
 - [x] [project:quine-tv] `orbits` (src/channels/orbits.js): bug - prevent sun/planet/moon overlap (widened orbit spacing; moons skip draw when overlapping). Commit: db0761c
 
 - [x] [project:quine-tv] `orbits` (src/channels/orbits.js): special moment — added rare deterministic “COMET PASS” (shooting star + trail) scheduled ~3–5 minutes. Commit: 21e93a3
