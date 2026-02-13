@@ -219,6 +219,19 @@ export function createChannel({ seed, audio }){
   let motes = [];
   let ambience = null;
 
+  // Rare deterministic special moment (~45–120s): DOCENT NOTE + exhibit light flicker.
+  // Keep an explicit start/duration so we can ramp the signature in/out cleanly.
+  const DOCENT_NOTES = [
+    'Please do not feed the {TITLE}. It becomes nostalgic.',
+    'If the lights flicker, that is normal. This wing is still being remembered.',
+    'The {TITLE} is on loan from the Department of Mild Regrets.',
+    'Do not tap the glass. The glass will tap back.',
+    'Conservation note: fingerprints are considered a form of annotation.',
+    'Audio guide update: the {TITLE} is not actually haunted. It is merely thinking.',
+  ];
+  let docent = { active: false, start: 0, dur: 0, until: 0, note: '', pulses: null, flicker: 0, alpha: 0 };
+  let nextDocentAt = 0;
+
   // Cache static gradients so the background hot path allocates 0 gradients/frame.
   // Gradients are tied to a specific 2D context, so we rebuild when ctx changes.
   let bgCache = {
@@ -322,6 +335,51 @@ export function createChannel({ seed, audio }){
     cardT = 0;
     cardDur = 14 + rand() * 10;
     trans = 1;
+
+    // Reset deterministic special-moment schedule on regen/resize.
+    docent.active = false;
+    docent.note = '';
+    docent.pulses = null;
+    docent.flicker = 0;
+    docent.alpha = 0;
+    scheduleNextDocent(0);
+  }
+
+  function scheduleNextDocent(fromT = t){
+    nextDocentAt = fromT + 45 + rand() * 75;
+  }
+
+  function startDocent(at = t){
+    const dur = 3.8 + rand() * 2.6;
+    const nP = 4 + ((rand() * 3) | 0); // 4–6 pulses
+    const pulses = [];
+    for (let i = 0; i < nP; i++){
+      pulses.push({
+        t: rand() * dur,
+        w: 0.05 + rand() * 0.12,
+        a: 0.10 + rand() * 0.22,
+      });
+    }
+    pulses.sort((a, b) => a.t - b.t);
+
+    const tpl = DOCENT_NOTES[(rand() * DOCENT_NOTES.length) | 0];
+    const title = current?.title ?? 'artifact';
+    const note = tpl.replaceAll('{TITLE}', title);
+
+    docent.active = true;
+    docent.start = at;
+    docent.dur = dur;
+    docent.until = at + dur;
+    docent.note = note;
+    docent.pulses = pulses;
+    docent.flicker = 0;
+    docent.alpha = 0;
+
+    if (audio.enabled){
+      const base = 520 + rand() * 160;
+      audio.beep({ freq: base, dur: 0.035, gain: 0.010, type: 'triangle' });
+      audio.beep({ freq: base * 1.45, dur: 0.028, gain: 0.008, type: 'sine' });
+    }
   }
 
   function init({ width, height }){
@@ -375,6 +433,40 @@ export function createChannel({ seed, audio }){
         const base = 360 + rand() * 90;
         audio.beep({ freq: base, dur: 0.03, gain: 0.018, type: 'square' });
         audio.beep({ freq: base * 1.7, dur: 0.02, gain: 0.010, type: 'triangle' });
+      }
+    }
+
+    // Rare deterministic special moment (~45–120s): docent note + exhibit light flicker.
+    if (!docent.active){
+      if (t >= nextDocentAt){
+        startDocent(nextDocentAt);
+      }
+    } else {
+      const lt = t - docent.start;
+      const inT = 0.40;
+      const outT = 0.70;
+      const aIn = clamp(lt / inT, 0, 1);
+      const aOut = clamp((docent.until - t) / outT, 0, 1);
+      const sIn = aIn * aIn * (3 - 2 * aIn);
+      const sOut = aOut * aOut * (3 - 2 * aOut);
+      docent.alpha = sIn * sOut;
+
+      let f = 0;
+      for (const p of docent.pulses || []){
+        const d = Math.abs(lt - p.t);
+        const x = clamp(1 - d / p.w, 0, 1);
+        f = Math.max(f, x * x * p.a);
+      }
+      docent.flicker = f * docent.alpha;
+
+      if (t >= docent.until){
+        const endAt = docent.until;
+        docent.active = false;
+        docent.note = '';
+        docent.pulses = null;
+        docent.flicker = 0;
+        docent.alpha = 0;
+        scheduleNextDocent(endAt);
       }
     }
   }
@@ -676,6 +768,87 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function wrapLines(ctx, text, maxW){
+    const words = String(text).split(/\s+/g);
+    const lines = [];
+    let line = '';
+    for (let i = 0; i < words.length; i++){
+      const test = line ? (line + ' ' + words[i]) : words[i];
+      if (ctx.measureText(test).width > maxW && line){
+        lines.push(line);
+        line = words[i];
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function drawDocentNote(ctx, { alpha = 1 } = {}){
+    if (!alpha || !docent.note) return;
+
+    const margin = Math.floor(w * 0.05);
+    const ww = clamp(Math.floor(w * 0.34), 260, 620);
+    const x = w - margin - ww;
+    const y = Math.floor(h * 0.20);
+    const pad = Math.floor(font * 0.85);
+
+    const headerH = Math.floor(font * 1.55);
+    const bodyFont = `${Math.floor(small * 1.06)}px ui-sans-serif, system-ui, -apple-system, Segoe UI`;
+    const headerFont = `800 ${Math.floor(small * 1.00)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    const lineH = Math.floor(small * 1.35);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    ctx.font = bodyFont;
+    const maxW = ww - pad * 2;
+    let lines = wrapLines(ctx, docent.note, maxW);
+    const maxLines = 4;
+    if (lines.length > maxLines){
+      lines = lines.slice(0, maxLines);
+      const last = lines[lines.length - 1];
+      lines[lines.length - 1] = last.replace(/\s*$/, '') + '…';
+    }
+
+    const hh = pad + headerH + pad * 0.35 + lines.length * lineH + pad;
+
+    // panel
+    ctx.save();
+    ctx.globalAlpha *= 0.92;
+    ctx.fillStyle = 'rgba(255,248,230,0.10)';
+    roundRect(ctx, x, y, ww, hh, 14);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,240,170,0.26)';
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, ww, hh, 14);
+    ctx.stroke();
+
+    // accent bar
+    ctx.fillStyle = 'rgba(255,220,110,0.22)';
+    roundRect(ctx, x + 10, y + 10, 6, hh - 20, 4);
+    ctx.fill();
+    ctx.restore();
+
+    // header
+    ctx.fillStyle = 'rgba(255,235,170,0.88)';
+    ctx.font = headerFont;
+    ctx.fillText('DOCENT NOTE', x + pad, y + pad + headerH * 0.70);
+
+    // body
+    ctx.fillStyle = 'rgba(245,248,255,0.74)';
+    ctx.font = bodyFont;
+    let yy = y + pad + headerH + pad * 0.20;
+    for (const ln of lines){
+      ctx.fillText(ln, x + pad, yy);
+      yy += lineH;
+    }
+
+    ctx.restore();
+  }
+
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -698,13 +871,16 @@ export function createChannel({ seed, audio }){
     const slide = 1 - tt;
     const dx = slide * (w * 0.02);
 
+    let prevPlacard = null;
+    let curPlacard = { artifact: current, opts: { alpha: prev ? tt : 1, dx: -dx * 0.15 } };
+
     if (prev && tt < 1){
       // previous card fades out
       ctx.save();
       ctx.globalAlpha = 1 - tt;
       drawArtifact(ctx, prev.kind, cx + dx, cy - s * 0.10, s * 0.50);
       ctx.restore();
-      drawPlacard(ctx, prev, { alpha: 1 - tt, dx: dx * 0.35 });
+      prevPlacard = { artifact: prev, opts: { alpha: 1 - tt, dx: dx * 0.35 } };
     }
 
     // current card fades in
@@ -712,7 +888,25 @@ export function createChannel({ seed, audio }){
     ctx.globalAlpha = prev ? tt : 1;
     drawArtifact(ctx, current.kind, cx - dx * 0.5, cy - s * 0.10, s * 0.50);
     ctx.restore();
-    drawPlacard(ctx, current, { alpha: prev ? tt : 1, dx: -dx * 0.15 });
+
+    // Exhibit light flicker: affects scene (bg/pedestal/artifact), but NOT the placard.
+    if (docent.flicker > 0){
+      const f = docent.flicker;
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = f * 0.18;
+      ctx.fillStyle = 'rgb(255,248,232)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = f * 0.28;
+      ctx.fillStyle = 'rgb(72,78,94)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+
+    // placards (kept legible)
+    if (prevPlacard) drawPlacard(ctx, prevPlacard.artifact, prevPlacard.opts);
+    drawPlacard(ctx, curPlacard.artifact, curPlacard.opts);
 
     // channel label
     ctx.save();
@@ -723,6 +917,10 @@ export function createChannel({ seed, audio }){
     ctx.font = `${Math.floor(h / 36)}px ui-sans-serif, system-ui`;
     ctx.fillText('A museum tour of us, interpreted badly (affectionately).', w * 0.05, h * 0.16);
     ctx.restore();
+
+    if (docent.active && docent.alpha > 0){
+      drawDocentNote(ctx, { alpha: docent.alpha });
+    }
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
