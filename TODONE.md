@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): special moment — added deterministic “FOG HORN” (visibility haze sweep) + “SECURITY SWEEP” beam scheduled ~45–120s, with OSD-safe banner + one-shot audio cues. Commit: 4f08d4d
+
 - [x] [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): text/dialog — added a seeded rotating “VHF DISPATCH” log strip (funny/immersive harbor chatter), ~6+ minutes before repeating; clipped to stay OSD-safe. Commit: TBD
 
 - [x] [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): determinism — schedule squall lightning from the previously scheduled `nextFlashAt` time (catch-up loop) so 30fps vs 60fps matches at the same capture offsets. Screenshots: screenshots/autopilot-tugdispatch-determinism-before + screenshots/autopilot-tugdispatch-determinism-after. Commit: TBD
