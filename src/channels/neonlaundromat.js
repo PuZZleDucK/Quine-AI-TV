@@ -121,9 +121,9 @@ export function createChannel({ seed, audio }){
     // and align fixtures around them so the scene reads as one space.
     floorY = h * 0.55;
     const marginB = Math.max(62, h * 0.14);
-    const baseY = floorY - h * 0.08;
+    const baseY = floorY - h * 0.12;
 
-    let mh = clamp(h * 0.20, 98, 150);
+    let mh = clamp(h * 0.18, 88, 136);
     mh = Math.min(mh, Math.max(96, h - baseY - marginB));
 
     let mw = Math.min(w * 0.24, 232);
@@ -151,7 +151,7 @@ export function createChannel({ seed, audio }){
         x, y,
         w: mw,
         h: mh,
-        doorR: Math.min(mw, mh) * 0.34,
+        doorR: Math.min(mw, mh) * 0.29,
         rot: rand() * Math.PI * 2,
         tint,
       });
@@ -162,9 +162,9 @@ export function createChannel({ seed, audio }){
     const frand = mulberry32((seed ^ 0x2c9ab33f) >>> 0);
 
     dryers = [];
-    const bankBaseY = baseY + mh * 0.92;
+    const bankBaseY = baseY + mh * 0.86;
     const gapY = clamp(h * 0.022, 12, 26);
-    const dh = clamp(h * 0.105, 72, 118);
+    const dh = clamp(h * 0.095, 66, 104);
     const dw = clamp(dh * 0.92, 72, 138);
     const gapX = clamp(w * 0.025, 14, 28);
 
@@ -187,7 +187,7 @@ export function createChannel({ seed, audio }){
           y: dy0 + r * (dh + gapY),
           w: dw,
           h: dh,
-          doorR: Math.min(dw, dh) * 0.32,
+          doorR: Math.min(dw, dh) * 0.27,
           tint: dryerCols[(frand() * dryerCols.length) | 0],
         });
       }
@@ -750,7 +750,7 @@ export function createChannel({ seed, audio }){
 
     // door
     const cx = x + dw * 0.5;
-    const cy = y + dh * 0.62;
+    const cy = y + dh * 0.68;
     const R = d.doorR;
 
     ctx.fillStyle = 'rgba(0,0,0,0.36)';
@@ -840,7 +840,7 @@ export function createChannel({ seed, audio }){
     const px = x + bodyW * 0.08;
     const py = y + bodyH * 0.10;
     const pw = bodyW * 0.84;
-    const ph = bodyH * 0.17;
+    const ph = bodyH * 0.15;
     ctx.fillStyle = 'rgba(0,0,0,0.30)';
     roundedRect(ctx, px, py, pw, ph, r * 0.7);
     ctx.fill();
@@ -920,7 +920,7 @@ export function createChannel({ seed, audio }){
 
     // door
     const cx = x + bodyW * 0.5;
-    const cy = y + bodyH * 0.62;
+    const cy = y + bodyH * 0.69;
     const R = m.doorR;
 
     // bezel
