@@ -334,11 +334,15 @@ export function createChannel({ seed, audio }){
     }
 
     // lightning flash only in squall
+    // Determinism: schedule via the *previous scheduled time* (not the observed phaseT)
+    // so 30fps vs 60fps hits the same flash times at the same capture offsets.
     flash = Math.max(0, flash - dt * 2.0);
     if (phase.id === 'squall'){
-      if (phaseT >= nextFlashAt){
+      // Catch up in case we overshot nextFlashAt this frame.
+      let guard = 0;
+      while (phaseT >= nextFlashAt && guard++ < 4){
         flash = 0.9;
-        nextFlashAt = phaseT + 1.2 + rand() * 2.8;
+        nextFlashAt += 1.2 + rand() * 2.8;
         if (audio.enabled) audio.beep({ freq: 90, dur: 0.08, gain: 0.020, type: 'sine' });
       }
     }
