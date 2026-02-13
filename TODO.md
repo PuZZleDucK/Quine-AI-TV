@@ -5,5 +5,4 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: forgeanvil
 
-- [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals — make workshop props opaque and pushed further to the side
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visual storytelling — add an explicit quench tank/bucket and a dunk motion synced to QUENCH phase (steam should originate from the waterline).

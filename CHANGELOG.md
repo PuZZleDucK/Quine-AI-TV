@@ -1,3 +1,5 @@
+- 2026-02-13 17:30 (Australia/Melbourne) [project:quine-tv] Cleanup: removed stale TODO entry for `forgeanvil` workshop prop opacity (already completed earlier; see commit b3a5a62). Commit: TBD
+
 - 2026-02-13 17:15 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — moved the forge + fire further to the side (shifted forge left; aligned floor glow + opening gradients). Commit: 90f5af1
 
 - 2026-02-13 17:00 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — rotate through several glowing hot items on the anvil; swap immediately after QUENCH. Screenshots: screenshots/autopilot-forgeanvil-hotitems-before-20260213-1700 + screenshots/autopilot-forgeanvil-hotitems-after-20260213-1700. Commit: da4cb97
