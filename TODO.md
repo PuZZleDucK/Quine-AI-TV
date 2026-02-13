@@ -9,7 +9,6 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: tugdispatch
 
-- [ ] [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): perf — cache the map water background gradient created in `drawMap()`; rebuild on `onResize()` / ctx swap. Accept: steady-state `drawMap()` does 0 `createLinearGradient()` calls.
 - [ ] [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): perf — cache the tide gauge fill gradient created in `drawHUD()`; rebuild on `onResize()` / ctx swap. Accept: steady-state `drawHUD()` does 0 `createLinearGradient()` calls.
 - [ ] [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): perf — replace per-frame scanline `for` loop (many `fillRect`) with a cached scanline pattern/offscreen layer built on resize. Accept: render no longer loops over `y` to draw scanlines each frame.
 - [ ] [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): text/dialog — add a seeded rotating “VHF DISPATCH” log strip (funny/immersive harbor chatter), lasting 5+ minutes without repeats; keep OSD-safe.
