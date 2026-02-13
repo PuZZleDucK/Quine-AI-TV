@@ -1,5 +1,9 @@
 # Done
 
+- [x] [project:quine-tv] `sandtable` (src/channels/sandtable.js): visual/bug — tile sand texture in Y (and X) so drift never reveals blank sand under the clip. Commit: be3ff52
+
+- [x] [project:quine-tv] Review channel `sandtable` (src/channels/sandtable.js): captured screenshots (0–300s) to `screenshots/review-sandtable` + completion shots to `screenshots/review-sandtable-post-20260214-0430` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+
 - [x] [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): UI/visuals — tied isotope proxy chart to ash bands (ash marker + deterministic spike aligned to volcanic layer depth). Screenshots: screenshots/autopilot-icecorelab-ashchart-before-20260214-0400 + screenshots/autopilot-icecorelab-ashchart-after-20260214-0400. Commit: TBD
 
 - [x] [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): UI — probe-tied depth/age readout (DEPTH m + AGE kyr BP) with panel+core markers; nudged readout/chart down during rare banner so it never overlaps. Screenshots: screenshots/autopilot-icecorelab-depthage-before-20260214-0345 + screenshots/autopilot-icecorelab-depthage-after-20260214-0345. Commit: c53a1cb

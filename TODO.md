@@ -29,3 +29,9 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (icecorelab micro-striation) -->
 <!-- done: moved to TODONE.md (icecorelab sample tray chip) -->
 <!-- done: moved to TODONE.md (icecorelab ash/isotope chart tie) -->
+
+## Follow-ups queued from review: sandtable
+
+<!-- done: moved to TODONE.md (sandtable sand texture Y tiling) -->
+- [ ] `sandtable` (src/channels/sandtable.js): determinism — avoid consuming `rand()` inside `render()` (broadcast speckle) so 30fps/60fps captures match at fixed offsets.
+- [ ] `sandtable` (src/channels/sandtable.js): audio determinism/perf — replace `Math.random()` in `sandScrape()` with the seeded PRNG (and consider reusing a small noise buffer).
