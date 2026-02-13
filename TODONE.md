@@ -1,6 +1,12 @@
 # Done
 
-- [x] [project:quine-tv] Review channel `lighthouse` (src/channels/lighthousewatch.js): captured screenshots (0–300s) to `screenshots/review-lighthouse-2026-02-14` + completion shots to `screenshots/review-lighthouse-2026-02-14-post` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+- [x] [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): audio hygiene — made `onAudioOn()` idempotent (no stacking) and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned. Commit: TBD
+
+- [x] [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): perf — cached sky/sea gradients + horizon glow + moon glow + beam gradients (angle-binned) and lantern core gradient (rebuild on init/resize/ctx swap) so steady-state render allocates 0 gradients/frame. Commit: TBD
+
+- [x] [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): determinism — removed `rand()` usage from the rain wrap/reset path by deriving rain streak x/y analytically from initial params + absolute time (with deterministic per-wrap jitter); 30fps/60fps captures now match. Commit: 5f0761e
+
+- [x] [project:quine-tv] Review channel `lighthouse` (src/channels/lighthousewatch.js): captured screenshots (0–300s) to `screenshots/review-lighthouse-2026-02-14` + completion shots to `screenshots/review-lighthouse-2026-02-14-post` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: 9f1346a
 
 - [x] [project:quine-tv] `microfilm` (src/channels/microfilm.js): long-run interest — added rare deterministic special moments (FILM JAM “RETHREADING…” + OVEREXPOSE glitch) on a ~2–5 minute seeded cadence (separate PRNG; clean reset). Commit: cc4ead9
 

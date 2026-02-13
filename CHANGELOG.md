@@ -1,3 +1,7 @@
+- 2026-02-14 10:52 (Australia/Melbourne) [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): determinism — removed `rand()` usage from rain wrap/reset by deriving streak x/y analytically from initial params + absolute time (deterministic per-wrap jitter); 30fps/60fps captures now match. Commit: 5f0761e
+
+- 2026-02-14 10:34 (Australia/Melbourne) [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned. Commit: TBD
+
 - 2026-02-14 09:36 (Australia/Melbourne) [project:quine-tv] `microfilm` (src/channels/microfilm.js): long-run interest — added rare deterministic special moments (FILM JAM “RETHREADING…” + OVEREXPOSE glitch) on a ~2–5 minute seeded cadence (separate PRNG; clean reset). Commit: cc4ead9
 
 - 2026-02-14 09:18 (Australia/Melbourne) [project:quine-tv] `microfilm` (src/channels/microfilm.js): visuals — added deterministic cached scratches/edge-wear overlay layer (rebuilt on init/resize; no per-frame RNG). Commit: 9428a03

@@ -60,8 +60,8 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: lighthouse
 
-- [ ] `lighthouse` (src/channels/lighthousewatch.js): audio hygiene — make `onAudioOn()` idempotent (stop our previous handle before restarting) and ensure `onAudioOff()`/`destroy()` only clear `AudioManager.current` when owned.
-- [ ] `lighthouse` (src/channels/lighthousewatch.js): determinism — remove `rand()` usage from the rain wrap/reset path; compute streak positions analytically from initial params + time so 30fps/60fps captures match.
-- [ ] `lighthouse` (src/channels/lighthousewatch.js): perf — cache sky/sea/horizon gradients (and any beam gradients) on init/resize/ctx swap so steady-state render allocates 0 gradients/frame.
+<!-- done: moved to TODONE.md (lighthouse audio hygiene) -->
+<!-- done: moved to TODONE.md (lighthouse rain determinism) -->
+<!-- done: moved to TODONE.md (lighthouse gradient cache) -->
 - [ ] `lighthouse` (src/channels/lighthousewatch.js): visuals — add a subtle cached cliff/rock texture (or rim-light) so the left foreground reads less like a flat black wedge.
 - [ ] `lighthouse` (src/channels/lighthousewatch.js): special moments — add 1–2 rare deterministic events beyond storm/ship (e.g. AURORA ribbon sweep / BUOY BLINK / KEEPER SILHOUETTE) scheduled ~60–150s, with an OSD-safe label and clean reset.
