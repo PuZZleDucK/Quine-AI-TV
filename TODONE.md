@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): long-run interest — expanded `EXPERIMENTS` (more variety) and switched experiment selection to a seeded shuffle-bag with a 5-minute cooldown (avoids back-to-back repeats; keeps the bag moving even if cooldown can’t be satisfied). Commit: 2781e7b
+
 - [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): determinism — removed `rand()` usage from `render()` foam band by precomputing deterministic foam bubble params in init/resize; 30fps/60fps captures now match. Screenshots: screenshots/autopilot-kitchen-foamdet-before-20260214-0615 + screenshots/autopilot-kitchen-foamdet-after-20260214-0615. Commit: 5147d78
 
 - [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): perf — cached the static background (bg gradient + countertop texture lines) into an offscreen layer rebuilt on init/resize; steady-state `render()` now blits the layer (no per-frame `createLinearGradient()` calls for backdrop). Commit: 6335226

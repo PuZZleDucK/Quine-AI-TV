@@ -1,3 +1,5 @@
+- 2026-02-14 06:35 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): long-run interest — expanded `EXPERIMENTS` and switched selection to a seeded shuffle-bag with a 5-minute cooldown (avoids immediate repeats). Commit: 2781e7b
+
 - 2026-02-14 06:23 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): determinism — removed `rand()` usage from `render()` foam band by precomputing deterministic foam params on init/resize. Commit: 5147d78
 
 - 2026-02-14 06:03 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): perf — cached the static background (bg gradient + countertop texture lines) into an offscreen layer rebuilt on init/resize (steady-state render avoids backdrop gradients/line loops). Commit: 6335226

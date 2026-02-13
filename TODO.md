@@ -42,5 +42,5 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (kitchen foam band determinism) -->
 <!-- done: moved to TODONE.md (kitchen bg cache) -->
 <!-- done: moved to TODONE.md (kitchen audio hygiene) -->
-- [ ] `kitchen` (src/channels/kitchenscience.js): long-run interest — expand `EXPERIMENTS` + use a seeded shuffle-bag (no immediate repeats; 5+ minutes before repeating).
+<!-- done: moved to TODONE.md (kitchen experiments shuffle-bag) -->
 - [ ] `kitchen` (src/channels/kitchenscience.js): special moment — add 1–2 rare deterministic “SCIENCE FAIR” events (~45–120s cadence) with a clear visual signature and clean reset.
