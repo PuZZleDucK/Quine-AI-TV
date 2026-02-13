@@ -42,6 +42,18 @@ const EXPERIMENTS = [
 
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 
+function makeCanvas(W, H){
+  if (!(W > 0 && H > 0)) return null;
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+  if (typeof document !== 'undefined'){
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    return c;
+  }
+  return null;
+}
+
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
 
@@ -58,6 +70,9 @@ export function createChannel({ seed, audio }){
   // bubble particles
   let bubbles = []; // {x,y,r,vy,a}
   let spawnAcc = 0;
+
+  // cached static background (avoid per-frame gradients)
+  let bgLayer = null; // CanvasImageSource | null
 
   // layout
   let bx = 0, by = 0, bw = 0, bh = 0;
@@ -83,6 +98,8 @@ export function createChannel({ seed, audio }){
     bx = Math.floor(w * 0.5 - bw * 0.5);
     by = Math.floor(h * 0.24);
     liquidY = by + Math.floor(bh * 0.62);
+
+    bgLayer = rebuildBackgroundLayer();
 
     nextExperiment();
   }
@@ -272,10 +289,7 @@ export function createChannel({ seed, audio }){
     ctx.closePath();
   }
 
-  function render(ctx){
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, w, h);
-
+  function drawStaticBackground(ctx){
     // warm kitchen-ish backdrop
     const bg = ctx.createLinearGradient(0, 0, 0, h);
     bg.addColorStop(0, '#0a1220');
@@ -299,6 +313,30 @@ export function createChannel({ seed, audio }){
       ctx.fillRect(0, y, w, 1);
     }
     ctx.restore();
+  }
+
+  function rebuildBackgroundLayer(){
+    const c = makeCanvas(w, h);
+    if (!c) return null;
+    const cctx = c.getContext('2d');
+    if (!cctx) return null;
+
+    cctx.setTransform(1, 0, 0, 1, 0, 0);
+    cctx.clearRect(0, 0, w, h);
+    drawStaticBackground(cctx);
+    return c;
+  }
+
+  function render(ctx){
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    if (bgLayer){
+      ctx.drawImage(bgLayer, 0, 0);
+    } else {
+      drawStaticBackground(ctx);
+    }
 
     // title banner
     ctx.save();
