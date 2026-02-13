@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): visuals — added a sample tray + extracted “chip” animation during CUT→ANALYZE (kept OSD/panel clear). Screenshots: screenshots/autopilot-icecorelab-before + screenshots/autopilot-icecorelab-tray-after. Commit: ca9b8bf
+
 - [x] [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): special moment — added rare deterministic “BUBBLE INCLUSIONS” sparkle moment (~45–120s cadence; seeded schedule; no per-frame RNG). Commit: f6ededb
 
 - [x] [project:quine-tv] `icecorelab` (src/channels/icecorelab.js): visuals — added cached vertical micro-striation texture overlay to reduce “TV banding” (rebuild on init/resize). Commit: fb7b6ec
