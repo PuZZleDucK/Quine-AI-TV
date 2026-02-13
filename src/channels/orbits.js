@@ -113,6 +113,24 @@ export function createChannel({ seed, audio }){
     // center star
     bodies.unshift({ center: true, size0: 32 + rand() * 22, size: 0 });
 
+    // Prevent overlap: ensure orbit radii are spaced far enough from the sun and each other,
+    // accounting for the tightest orbit squish across layout variants.
+    const minScale = ORBIT_LAYOUTS.reduce((m, o) => Math.min(m, Math.min(o.ex, o.ey)), Infinity);
+    const pad0 = 6;
+    let prevD0 = 0; // previous body center distance from cx/cy at minScale
+    let prevExtent0 = bodies[0].size0;
+    for (let i = 1; i < bodies.length; i++) {
+      const b = bodies[i];
+      const extent0 = b.size0;
+      const desiredD0 = prevD0 + prevExtent0 + extent0 + pad0;
+      const currentD0 = b.r0 * minScale;
+      if (currentD0 < desiredD0) {
+        b.r0 = desiredD0 / minScale;
+      }
+      prevD0 = b.r0 * minScale;
+      prevExtent0 = extent0;
+    }
+
     rebuildSizes();
 
     // Rare deterministic special moment: the first comet is fixed (~4 min) so
@@ -282,13 +300,30 @@ export function createChannel({ seed, audio }){
     ctx.arc(cx, cy, sr, 0, Math.PI * 2);
     ctx.fill();
 
-    // planets
-    for (const b of bodies){
+    // planets (precompute positions so moons can avoid overlapping other bodies)
+    const planetPos = [];
+    for (const b of bodies) {
       if (b.center) continue;
       const ax = Math.cos(b.a) * b.r * ex;
       const ay = Math.sin(b.a) * b.r * ey;
       const x = cx + ax * rotCos - ay * rotSin;
       const y = cy + ax * rotSin + ay * rotCos;
+      planetPos.push({ b, x, y });
+    }
+
+    function circlesOverlap(x1, y1, r1, x2, y2, r2, pad){
+      const dx = x1 - x2;
+      const dy = y1 - y2;
+      const rr = r1 + r2 + pad;
+      return (dx * dx + dy * dy) < rr * rr;
+    }
+
+    const padPx = Math.max(1, (h / 540) * 3);
+
+    for (const p0 of planetPos){
+      const b = p0.b;
+      const x = p0.x;
+      const y = p0.y;
 
       // rings (simple: draw under the planet, then the planet hides the inner ring)
       if (b.ring) {
@@ -411,12 +446,24 @@ export function createChannel({ seed, audio }){
       ctx.restore();
 
       if (b.moon){
+        const mr = b.size * 0.35;
         const mx = x + Math.cos(b.moonA) * (b.size * 2.2);
         const my = y + Math.sin(b.moonA) * (b.size * 1.4);
-        ctx.fillStyle = 'rgba(230,230,245,0.85)';
-        ctx.beginPath();
-        ctx.arc(mx, my, b.size * 0.35, 0, Math.PI * 2);
-        ctx.fill();
+
+        let ok = !circlesOverlap(mx, my, mr, cx, cy, sr, padPx);
+        if (ok) {
+          for (const p1 of planetPos) {
+            if (p1.b === b) continue;
+            if (circlesOverlap(mx, my, mr, p1.x, p1.y, p1.b.size, padPx)) { ok = false; break; }
+          }
+        }
+
+        if (ok) {
+          ctx.fillStyle = 'rgba(230,230,245,0.85)';
+          ctx.beginPath();
+          ctx.arc(mx, my, mr, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
 
