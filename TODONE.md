@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `sandtable` (src/channels/sandtable.js): determinism — render speckle now uses a separate time-seeded PRNG (no channel `rand()` consumption) so 30fps/60fps captures match at fixed offsets. Commit: ad0eddd
+
 - [x] [project:quine-tv] `sandtable` (src/channels/sandtable.js): audio determinism/perf — seeded PRNG inside `sandScrape()` (no `Math.random()`); hoisted flutter params. Commit: d64ebd9
 
 - [x] [project:quine-tv] `sandtable` (src/channels/sandtable.js): visual/bug — tile sand texture in Y (and X) so drift never reveals blank sand under the clip. Commit: be3ff52
