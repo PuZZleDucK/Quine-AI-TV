@@ -272,6 +272,48 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  // Cache pedestal gradients so steady-state render allocates 0 gradients/frame.
+  // Gradients are tied to a specific 2D context, so rebuild on ctx swap/resize.
+  let pedestalCache = {
+    ctx: null,
+    w: 0,
+    h: 0,
+    cone: null,
+    pg: null,
+  };
+
+  function rebuildPedestalCache(ctx){
+    // Note: render() adds a subtle camera drift; we intentionally key gradients to
+    // the stable center so we don’t allocate per-frame. Drift is small enough
+    // that the look remains consistent.
+    const cx = w * 0.5;
+    const cy = h * 0.42;
+    const s = Math.min(w, h) * 0.38;
+
+    const cone = ctx.createRadialGradient(cx, h * 0.08, 0, cx, h * 0.08, h * 0.82);
+    cone.addColorStop(0, 'rgba(210,230,255,0.18)');
+    cone.addColorStop(0.35, 'rgba(210,230,255,0.06)');
+    cone.addColorStop(1, 'rgba(210,230,255,0.00)');
+
+    const pw = s * 0.95;
+    const ph = s * 0.56;
+    const x = cx - pw / 2;
+    const y = cy + s * 0.22;
+
+    const pg = ctx.createLinearGradient(x, y, x + pw, y + ph);
+    pg.addColorStop(0, 'rgba(245,248,255,0.16)');
+    pg.addColorStop(0.45, 'rgba(245,248,255,0.08)');
+    pg.addColorStop(1, 'rgba(0,0,0,0.20)');
+
+    pedestalCache = { ctx, w, h, cone, pg };
+  }
+
+  function ensurePedestalCache(ctx){
+    if (!pedestalCache.cone || pedestalCache.ctx !== ctx || pedestalCache.w !== w || pedestalCache.h !== h){
+      rebuildPedestalCache(ctx);
+    }
+  }
+
   // Seeded shuffle-bag so we see every artifact once per cycle.
   // With 16+ artifacts and ~14–24s cards, this yields ~5+ minutes before repeats.
   let bag = [];
@@ -713,13 +755,11 @@ export function createChannel({ seed, audio }){
   function drawPedestal(ctx, cx, cy, s){
     ctx.save();
 
+    ensurePedestalCache(ctx);
+
     // spotlight cone
     ctx.save();
-    const cone = ctx.createRadialGradient(cx, h * 0.08, 0, cx, h * 0.08, h * 0.82);
-    cone.addColorStop(0, 'rgba(210,230,255,0.18)');
-    cone.addColorStop(0.35, 'rgba(210,230,255,0.06)');
-    cone.addColorStop(1, 'rgba(210,230,255,0.00)');
-    ctx.fillStyle = cone;
+    ctx.fillStyle = pedestalCache.cone;
     ctx.beginPath();
     ctx.moveTo(cx - s * 0.95, cy);
     ctx.lineTo(cx + s * 0.95, cy);
@@ -735,12 +775,7 @@ export function createChannel({ seed, audio }){
     const x = cx - pw / 2;
     const y = cy + s * 0.22;
 
-    const pg = ctx.createLinearGradient(x, y, x + pw, y + ph);
-    pg.addColorStop(0, 'rgba(245,248,255,0.16)');
-    pg.addColorStop(0.45, 'rgba(245,248,255,0.08)');
-    pg.addColorStop(1, 'rgba(0,0,0,0.20)');
-
-    ctx.fillStyle = pg;
+    ctx.fillStyle = pedestalCache.pg;
     roundRect(ctx, x, y, pw, ph, 18);
     ctx.fill();
 

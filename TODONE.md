@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): perf — cached pedestal gradients (spotlight cone + pedestal body); rebuild on resize/ctx swap. Screenshots: screenshots/autopilot-futurearch-pedcache-before-20260213-224746 + screenshots/autopilot-futurearch-pedcache-after-20260213-224931. Commit: TBD
+
 - [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): audio hygiene — make `onAudioOn()` idempotent and ensure `onAudioOff()`/`destroy()` clear `AudioManager.current` only when owned. Commit: 867c4cf
 
 - [x] [project:quine-tv] `futurearch` (src/channels/futurearch.js): visual correctness — added a distinct `watch` artifact icon and set smartwatch artifact `kind` to `watch` (was rendering as a phone). Commit: 1e77af9
