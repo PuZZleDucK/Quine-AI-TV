@@ -14,5 +14,4 @@ if `TODO.md` has no ready items:
 ## Follow-ups queued from review: futurearch
 
 - [ ] `futurearch` (src/channels/futurearch.js): special moment — add a rare deterministic “DOCENT NOTE” / “EXHIBIT LIGHTS FLICKER” event (~45–120s cadence; seeded) with a clear signature look and clean reset; keep placard legible + OSD-safe.
-- [ ] `futurearch` (src/channels/futurearch.js): content — expand `ARTIFACTS` to ≥16 and use a seeded shuffle-bag (no back-to-back repeats); target ≥5 minutes before repeating.
 - [ ] `futurearch` (src/channels/futurearch.js): transition — make artifact + placard transition more readable (stronger crossfade; less slide) so it feels like a museum dissolve.
