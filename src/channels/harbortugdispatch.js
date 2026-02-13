@@ -88,6 +88,11 @@ export function createChannel({ seed, audio }){
   let tideGaugeGradCtx = null;
   let tideGaugeGradKey = '';
 
+  let scanlineSrc = null;
+  let scanlinePat = null;
+  let scanlinePatCtx = null;
+  let scanlinePatKey = '';
+
   function invalidatePaintCache(){
     mapWaterGrad = null;
     mapWaterGradCtx = null;
@@ -95,6 +100,11 @@ export function createChannel({ seed, audio }){
     tideGaugeGrad = null;
     tideGaugeGradCtx = null;
     tideGaugeGradKey = '';
+
+    scanlineSrc = null;
+    scanlinePat = null;
+    scanlinePatCtx = null;
+    scanlinePatKey = '';
   }
 
   function getMapWaterGradient(ctx){
@@ -124,6 +134,27 @@ export function createChannel({ seed, audio }){
     tideGaugeGradCtx = ctx;
     tideGaugeGradKey = key;
     return g;
+  }
+
+  function getScanlinePattern(ctx){
+    const step = Math.max(2, Math.floor(3 * dpr));
+    const key = `${step}`;
+    if (scanlinePat && scanlinePatCtx === ctx && scanlinePatKey === key) return scanlinePat;
+
+    if (!scanlineSrc || scanlineSrc.height !== step){
+      scanlineSrc = document.createElement('canvas');
+      scanlineSrc.width = 4;
+      scanlineSrc.height = step;
+      const g = scanlineSrc.getContext('2d');
+      g.clearRect(0, 0, scanlineSrc.width, scanlineSrc.height);
+      g.fillStyle = '#000';
+      g.fillRect(0, 0, scanlineSrc.width, 1);
+    }
+
+    scanlinePat = ctx.createPattern(scanlineSrc, 'repeat');
+    scanlinePatCtx = ctx;
+    scanlinePatKey = key;
+    return scanlinePat;
   }
 
   // animation
@@ -781,9 +812,8 @@ export function createChannel({ seed, audio }){
     // scanlines
     ctx.save();
     ctx.globalAlpha = 0.06;
-    ctx.fillStyle = '#000';
-    const step = Math.max(2, Math.floor(3 * dpr));
-    for (let y = 0; y < h; y += step) ctx.fillRect(0, y, w, 1);
+    ctx.fillStyle = getScanlinePattern(ctx);
+    ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
 

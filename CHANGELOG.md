@@ -1,3 +1,5 @@
+- 2026-02-14 00:49 (Australia/Melbourne) [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): perf — replaced per-frame scanline loop with a cached scanline pattern (rebuild on resize/ctx swap). Accept: render no longer loops over `y` to draw scanlines each frame. Commit: TBD
+
 - 2026-02-14 00:32 (Australia/Melbourne) [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): perf — cached tide gauge fill gradient in `drawHUD()` (rebuild on resize/ctx swap; steady-state 0 `createLinearGradient()` calls). Commit: bfd60b3
 
 - 2026-02-14 00:17 (Australia/Melbourne) [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): perf — cached map water background gradient in `drawMap()` (rebuild on resize/ctx swap; steady-state 0 `createLinearGradient()` calls). Commit: 7be71c6
