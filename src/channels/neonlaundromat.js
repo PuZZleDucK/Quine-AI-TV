@@ -123,7 +123,7 @@ export function createChannel({ seed, audio }){
     const marginB = Math.max(62, h * 0.14);
     const baseY = floorY - h * 0.12;
 
-    let mh = clamp(h * 0.18, 88, 136);
+    let mh = clamp(h * 0.205, 98, 150);
     mh = Math.min(mh, Math.max(96, h - baseY - marginB));
 
     let mw = Math.min(w * 0.24, 232);
@@ -164,7 +164,7 @@ export function createChannel({ seed, audio }){
     dryers = [];
     const bankBaseY = baseY + mh * 0.86;
     const gapY = clamp(h * 0.022, 12, 26);
-    const dh = clamp(h * 0.095, 66, 104);
+    const dh = clamp(h * 0.105, 74, 118);
     const dw = clamp(dh * 0.92, 72, 138);
     const gapX = clamp(w * 0.025, 14, 28);
 
@@ -750,8 +750,11 @@ export function createChannel({ seed, audio }){
 
     // door
     const cx = x + dw * 0.5;
-    const cy = y + dh * 0.68;
-    const R = d.doorR;
+    const topBound = y + dh * 0.30;
+    const bottomBound = y + dh * 0.80;
+    const fitR = Math.max(8, ((bottomBound - topBound) * 0.5) / 1.18);
+    const R = Math.min(d.doorR, fitR);
+    const cy = clamp(y + dh * 0.60, topBound + R * 1.18, bottomBound - R * 1.18);
 
     ctx.fillStyle = 'rgba(0,0,0,0.36)';
     ctx.beginPath();
@@ -920,8 +923,11 @@ export function createChannel({ seed, audio }){
 
     // door
     const cx = x + bodyW * 0.5;
-    const cy = y + bodyH * 0.69;
-    const R = m.doorR;
+    const topBound = y + bodyH * 0.30;
+    const bottomBound = y + bodyH * 0.80;
+    const fitR = Math.max(10, ((bottomBound - topBound) * 0.5) / 1.18);
+    const R = Math.min(m.doorR, fitR);
+    const cy = clamp(y + bodyH * 0.60, topBound + R * 1.18, bottomBound - R * 1.18);
 
     // bezel
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
