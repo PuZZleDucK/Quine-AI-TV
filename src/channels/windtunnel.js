@@ -36,16 +36,29 @@ export function createChannel({ seed, audio }) {
   let chamber = { x: 0, y: 0, w: 0, h: 0 };
 
   // Phases / test series
-  const phaseOrder = shuffle(rand, [
-    { id: 'cyl', name: 'CYLINDER', type: 'cylinder' },
-    { id: 'wing', name: 'WING', type: 'wing' },
-    { id: 'car', name: 'TOY CAR', type: 'car' },
-    { id: 'kite', name: 'KITE', type: 'kite' },
+  const commonPhases = shuffle(rand, [
+    { id: 'cyl', name: 'CYLINDER', type: 'cylinder', rarity: 'common' },
+    { id: 'wing', name: 'WING', type: 'wing', rarity: 'common' },
+    { id: 'car', name: 'TOY CAR', type: 'car', rarity: 'common' },
+    { id: 'kite', name: 'KITE', type: 'kite', rarity: 'common' },
   ]);
+  const uncommonPhases = [
+    { id: 'cone', name: 'TRAFFIC CONE', type: 'traffic_cone', rarity: 'uncommon' },
+    { id: 'umb', name: 'UMBRELLA', type: 'umbrella', rarity: 'uncommon' },
+    { id: 'cart', name: 'SHOPPING CART', type: 'shopping_cart', rarity: 'uncommon' },
+    { id: 'duck', name: 'RUBBER DUCK', type: 'rubber_duck', rarity: 'uncommon' },
+  ];
+  const rarePhases = [
+    { id: 'piano', name: 'GRAND PIANO', type: 'grand_piano', rarity: 'rare' },
+    { id: 'chand', name: 'CHANDELIER', type: 'chandelier', rarity: 'rare' },
+  ];
+  let currentPhase = commonPhases[0];
 
   let phaseIndex = 0;
   let phaseT = 0;
   let phaseDur = 12 + rand() * 5;
+  let phasesSinceUncommon = 0;
+  let phasesSinceRare = 0;
 
   // Streamlines
   let lines = [];
@@ -55,7 +68,7 @@ export function createChannel({ seed, audio }) {
 
   // Body under test
   let body = {
-    type: phaseOrder[0].type,
+    type: commonPhases[0].type,
     size: 1,
     aoa: 0,
     aoaTarget: 0,
@@ -82,12 +95,34 @@ export function createChannel({ seed, audio }) {
   let windNoise = null;
 
   function setPhase(i){
-    phaseIndex = (i + phaseOrder.length) % phaseOrder.length;
+    phaseIndex = (i + commonPhases.length) % commonPhases.length;
     phaseT = 0;
     phaseDur = 12 + rand() * 6;
 
-    body.type = phaseOrder[phaseIndex].type;
-    body.size = 0.8 + rand() * 0.55;
+    const roll = rand();
+    const forceRare = phasesSinceRare >= 7 && rand() < 0.7;
+    const forceUncommon = phasesSinceUncommon >= 2 && rand() < 0.75;
+
+    if (forceRare || roll < 0.055) {
+      currentPhase = pick(rand, rarePhases);
+      phasesSinceRare = 0;
+      phasesSinceUncommon += 1;
+    } else if (forceUncommon || roll < 0.28) {
+      currentPhase = pick(rand, uncommonPhases);
+      phasesSinceUncommon = 0;
+      phasesSinceRare += 1;
+    } else {
+      currentPhase = commonPhases[phaseIndex];
+      phasesSinceUncommon += 1;
+      phasesSinceRare += 1;
+    }
+
+    body.type = currentPhase.type;
+    body.size = currentPhase.rarity === 'rare'
+      ? 0.96 + rand() * 0.72
+      : currentPhase.rarity === 'uncommon'
+        ? 0.88 + rand() * 0.62
+        : 0.8 + rand() * 0.55;
     body.aoa = (rand() * 2 - 1) * 0.25;
     body.aoaTarget = (rand() * 2 - 1) * 0.35;
     body.spin = rand() * Math.PI * 2;
@@ -164,6 +199,19 @@ export function createChannel({ seed, audio }) {
     };
   }
 
+  function flowProfileFor(type){
+    if (type === 'wing') return { rx: 0.18, ry: 0.07, push: 0.0044, liftMul: 1.00, wakeW: 0.20 };
+    if (type === 'kite') return { rx: 0.14, ry: 0.11, push: 0.0040, liftMul: 0.85, wakeW: 0.22 };
+    if (type === 'car') return { rx: 0.13, ry: 0.085, push: 0.0037, liftMul: 0.35, wakeW: 0.18 };
+    if (type === 'traffic_cone') return { rx: 0.11, ry: 0.13, push: 0.0042, liftMul: 0.10, wakeW: 0.20 };
+    if (type === 'umbrella') return { rx: 0.17, ry: 0.12, push: 0.0048, liftMul: 0.40, wakeW: 0.24 };
+    if (type === 'shopping_cart') return { rx: 0.18, ry: 0.10, push: 0.0052, liftMul: 0.24, wakeW: 0.26 };
+    if (type === 'rubber_duck') return { rx: 0.14, ry: 0.11, push: 0.0045, liftMul: 0.16, wakeW: 0.20 };
+    if (type === 'grand_piano') return { rx: 0.24, ry: 0.11, push: 0.0062, liftMul: 0.08, wakeW: 0.30 };
+    if (type === 'chandelier') return { rx: 0.12, ry: 0.15, push: 0.0054, liftMul: 0.14, wakeW: 0.28 };
+    return { rx: 0.105, ry: 0.105, push: 0.0034, liftMul: 0.20, wakeW: 0.16 };
+  }
+
   function flowOffset(nx, ny, sideBias = 0){
     // nx,ny in chamber-local [0..1]
     const c = bodyCenter();
@@ -179,13 +227,7 @@ export function createChannel({ seed, audio }) {
     if (upstreamRamp <= 0 && nx < cx) return 0;
 
     // Approximate per-body influence footprint so streamlines "fit" the tested shape.
-    const profile = body.type === 'wing'
-      ? { rx: 0.18, ry: 0.07, push: 0.0044, liftMul: 1.00, wakeW: 0.20 }
-      : body.type === 'kite'
-        ? { rx: 0.14, ry: 0.11, push: 0.0040, liftMul: 0.85, wakeW: 0.22 }
-        : body.type === 'car'
-          ? { rx: 0.13, ry: 0.085, push: 0.0037, liftMul: 0.35, wakeW: 0.18 }
-          : { rx: 0.105, ry: 0.105, push: 0.0034, liftMul: 0.20, wakeW: 0.16 };
+    const profile = flowProfileFor(body.type);
 
     const sdx = dx / profile.rx;
     const sdy = dy / profile.ry;
@@ -257,7 +299,15 @@ export function createChannel({ seed, audio }) {
     const abs = Math.abs(aoa);
 
     // Baseline drag for each body
-    const baseDrag = body.type === 'cylinder' ? 0.55 : body.type === 'car' ? 0.45 : 0.35;
+    const baseDrag = body.type === 'cylinder' ? 0.55
+      : body.type === 'car' ? 0.45
+      : body.type === 'traffic_cone' ? 0.62
+      : body.type === 'umbrella' ? 0.78
+      : body.type === 'shopping_cart' ? 0.72
+      : body.type === 'rubber_duck' ? 0.58
+      : body.type === 'grand_piano' ? 0.83
+      : body.type === 'chandelier' ? 0.76
+      : 0.35;
 
     // Lift curve: wings/kites get more lift with AOA, stalls hard.
     let l = 0;
@@ -266,12 +316,14 @@ export function createChannel({ seed, audio }) {
       // pseudo-stall around ~0.45 rad
       const stallK = clamp((abs - 0.42) / 0.18, 0, 1);
       l *= (1 - 0.6 * stallK);
+    } else if (body.type === 'umbrella' || body.type === 'rubber_duck') {
+      l = Math.sin(aoa * 1.4) * 0.22;
     } else {
       l = Math.sin(aoa * 1.2) * 0.18;
     }
 
     // Drag rises with AOA, with extra during stall moments
-    let d = baseDrag + abs * (body.type === 'car' ? 0.55 : 0.75);
+    let d = baseDrag + abs * (body.type === 'car' ? 0.55 : body.type === 'wing' || body.type === 'kite' ? 0.75 : 0.62);
     d += stall * 0.35;
 
     liftTgt = clamp(l, -1, 1);
@@ -346,6 +398,9 @@ export function createChannel({ seed, audio }) {
     if (phaseT >= phaseDur) {
       setPhase(phaseIndex + 1);
       if (audio.enabled) audio.beep({ freq: 520, dur: 0.05, gain: 0.02, type: 'sine' });
+      if (audio.enabled && currentPhase.rarity !== 'common') {
+        audio.beep({ freq: currentPhase.rarity === 'rare' ? 960 : 820, dur: 0.06, gain: 0.02, type: 'triangle' });
+      }
     }
 
     computeTargets();
@@ -494,13 +549,7 @@ export function createChannel({ seed, audio }) {
     const c = bodyCenter();
     const cx = (c.x - chamber.x) / chamber.w;
     const cy = (c.y - chamber.y) / chamber.h;
-    const profile = body.type === 'wing'
-      ? { rx: 0.18, ry: 0.07 }
-      : body.type === 'kite'
-        ? { rx: 0.14, ry: 0.11 }
-        : body.type === 'car'
-          ? { rx: 0.13, ry: 0.085 }
-          : { rx: 0.105, ry: 0.105 };
+    const profile = flowProfileFor(body.type);
 
     const steps = 70;
     const dx = 1 / steps;
@@ -564,13 +613,7 @@ export function createChannel({ seed, audio }) {
     const ch = chamber.h;
     const cy = (bodyCenter().y - chamber.y) / chamber.h;
     const cx = (bodyCenter().x - chamber.x) / chamber.w;
-    const profile = body.type === 'wing'
-      ? { rx: 0.18, ry: 0.07 }
-      : body.type === 'kite'
-        ? { rx: 0.14, ry: 0.11 }
-        : body.type === 'car'
-          ? { rx: 0.13, ry: 0.085 }
-          : { rx: 0.105, ry: 0.105 };
+    const profile = flowProfileFor(body.type);
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -615,7 +658,7 @@ export function createChannel({ seed, audio }) {
     ctx.translate(c.x, c.y);
 
     // angle of attack tilt for wing-ish bodies
-    const tilt = (body.type === 'wing' || body.type === 'kite') ? body.aoa : body.aoa * 0.4;
+    const tilt = (body.type === 'wing' || body.type === 'kite' || body.type === 'umbrella') ? body.aoa : body.aoa * 0.4;
     ctx.rotate(tilt);
 
     // Body fill
@@ -658,6 +701,82 @@ export function createChannel({ seed, audio }) {
         ctx.lineTo(xx, yy);
       }
       ctx.stroke();
+    } else if (body.type === 'traffic_cone') {
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.9);
+      ctx.lineTo(s * 0.6, s * 0.8);
+      ctx.lineTo(-s * 0.6, s * 0.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(240,245,255,0.28)';
+      ctx.fillRect(-s * 0.45, s * 0.02, s * 0.9, s * 0.10);
+    } else if (body.type === 'umbrella') {
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.95, 0);
+      ctx.quadraticCurveTo(0, -s * 0.95, s * 0.95, 0);
+      ctx.lineTo(-s * 0.95, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(220,255,255,0.55)';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, s * 0.88);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(s * 0.14, s * 0.95, s * 0.12, Math.PI, Math.PI * 2);
+      ctx.stroke();
+    } else if (body.type === 'shopping_cart') {
+      roundedRect(ctx, -s * 0.95, -s * 0.34, s * 1.7, s * 0.68, s * 0.12);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(220,255,255,0.35)';
+      for (let r = -2; r <= 2; r++) {
+        const yy = r * s * 0.12;
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.85, yy);
+        ctx.lineTo(s * 0.55, yy);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(-s * 0.50, s * 0.45, s * 0.14, 0, Math.PI * 2);
+      ctx.arc(s * 0.20, s * 0.45, s * 0.14, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (body.type === 'rubber_duck') {
+      ctx.beginPath();
+      ctx.ellipse(-s * 0.08, s * 0.08, s * 0.82, s * 0.50, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(s * 0.48, -s * 0.28, s * 0.26, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else if (body.type === 'grand_piano') {
+      ctx.beginPath();
+      ctx.moveTo(-s * 1.2, -s * 0.40);
+      ctx.lineTo(s * 1.05, -s * 0.24);
+      ctx.lineTo(s * 1.12, s * 0.46);
+      ctx.lineTo(-s * 1.2, s * 0.56);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(-s * 0.98, -s * 0.26, s * 0.96, s * 0.18);
+    } else if (body.type === 'chandelier') {
+      ctx.strokeStyle = 'rgba(220,255,255,0.55)';
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.98);
+      ctx.lineTo(0, -s * 0.52);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, -s * 0.18, s * 0.62, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.stroke();
+      for (let k = -2; k <= 2; k++){
+        ctx.beginPath();
+        ctx.arc(k * s * 0.22, s * 0.06, s * 0.11, 0, Math.PI * 2);
+        ctx.fill();
+      }
     } else {
       // wing
       roundedRect(ctx, -s * 1.15, -s * 0.20, s * 2.3, s * 0.40, s * 0.18);
@@ -709,7 +828,7 @@ export function createChannel({ seed, audio }) {
     ctx.font = `${Math.max(12, Math.floor(h * 0.022))}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.textBaseline = 'top';
 
-    const phase = phaseOrder[phaseIndex];
+    const phase = currentPhase;
     const left = x + pad;
     const top = y + pad * 0.55;
 
@@ -718,6 +837,21 @@ export function createChannel({ seed, audio }) {
 
     ctx.globalAlpha = 0.7;
     ctx.fillText(`TEST: ${phase.name}`, left, top + pad * 1.35);
+    if (phase.rarity !== 'common'){
+      const tag = phase.rarity === 'rare' ? 'RARE ARTICLE' : 'UNCOMMON ARTICLE';
+      const tagX = left + bw * 0.20;
+      const tagY = top + pad * 1.30;
+      const tagW = Math.max(110, Math.floor(bw * 0.18));
+      const tagH = Math.max(18, Math.floor(boxH * 0.23));
+      roundedRect(ctx, tagX, tagY, tagW, tagH, 6);
+      ctx.fillStyle = phase.rarity === 'rare' ? 'rgba(255,120,120,0.20)' : 'rgba(255,206,120,0.20)';
+      ctx.fill();
+      ctx.strokeStyle = phase.rarity === 'rare' ? 'rgba(255,130,130,0.64)' : 'rgba(255,210,130,0.64)';
+      ctx.stroke();
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = 'rgba(240,250,255,0.92)';
+      ctx.fillText(tag, tagX + 8, tagY + 3);
+    }
 
     // AOA line
     const aoaDeg = (body.aoa * 180 / Math.PI);

@@ -508,10 +508,11 @@ export function createChannel({ seed, audio }) {
 
     // --- Quench bucket (near the steam origin)
     {
-      const bx = cx + 290 * s + parX;
-      const by = floorY - 6 * s + parY;
       const bw = 96 * s;
       const bh = 104 * s;
+      const bxTarget = cx + 340 * s + parX;
+      const bx = Math.max(bw * 0.5 + 18 * s, Math.min(w - bw * 0.5 - 18 * s, bxTarget));
+      const by = floorY - 6 * s + parY;
 
       // shadow
       ctx.save();
@@ -565,10 +566,10 @@ export function createChannel({ seed, audio }) {
     // --- Wall tools silhouettes (subtle; adds depth without clutter)
     {
       ctx.save();
-      ctx.globalAlpha = 0.12;
-      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = `hsl(${steelHue}, 10%, 8%)`;
 
-      const wx = cx + 250 * s + parX * 0.35;
+      const wx = cx + 320 * s + parX * 0.35;
       const wy = cy - 150 * s + parY * 0.25;
       const toolW = 14 * s;
       const toolH = 110 * s;
