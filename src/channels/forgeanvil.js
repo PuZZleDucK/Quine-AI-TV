@@ -392,6 +392,32 @@ export function createChannel({ seed, audio }) {
     }
   }
 
+
+  function clamp(v, lo, hi) {
+    return Math.max(lo, Math.min(hi, v));
+  }
+
+  function getQuenchBucketPose() {
+    const parX = Math.sin(t * 0.55) * 4 * s;
+    const parY = Math.cos(t * 0.42) * 2 * s;
+
+    const bw = 96 * s;
+    const bh = 104 * s;
+
+    const bxTarget = cx + 430 * s + parX;
+    const lo = bw * 0.5 + 18 * s;
+    const hi = w - bw * 0.5 - 18 * s;
+    const bx = hi >= lo ? clamp(bxTarget, lo, hi) : cx;
+
+    const by = floorY - 6 * s + parY;
+
+    // Inner opening is drawn slightly below the rim; treat it as the waterline.
+    const waterX = bx;
+    const waterY = by - bh + 12 * s;
+
+    return { parX, parY, bw, bh, bx, by, waterX, waterY };
+  }
+
   function strike({ perfect = false } = {}) {
     hammerSwing = 1;
     strikeGlow = 1;
@@ -431,10 +457,14 @@ export function createChannel({ seed, audio }) {
     }
   }
 
+  function quenchPuff(strength = 8) {
+    const pose = getQuenchBucketPose();
+    for (let i = 0; i < strength; i++) spawnSteam(pose.waterX, pose.waterY);
+  }
+
   function quench() {
-    const qx = cx + 210 * s;
-    const qy = cy + 150 * s;
-    for (let i = 0; i < 14; i++) spawnSteam(qx, qy);
+    // Steam should originate from the bucket waterline.
+    quenchPuff(14);
     strikeGlow = Math.max(strikeGlow, 0.55);
 
     // Rotate the item right after quenching (keeps long-run visuals fresh).
@@ -478,6 +508,9 @@ export function createChannel({ seed, audio }) {
 
       if (inQuench && b === 24) {
         quench();
+      } else if (inQuench && (b === 25 || b === 26)) {
+        // Keep a little steam going while the item is visibly "in the water".
+        quenchPuff(10);
       }
 
       // tiny “stoke” pulse while heating
@@ -580,16 +613,10 @@ export function createChannel({ seed, audio }) {
     // Midground props for depth: a quench bucket + faint wall tools.
     // Keep OSD clear (top-left) by staying below the HUD region.
 
-    const parX = Math.sin(t * 0.55) * 4 * s;
-    const parY = Math.cos(t * 0.42) * 2 * s;
+    const { parX, parY, bw, bh, bx, by } = getQuenchBucketPose();
 
     // --- Quench bucket (near the steam origin)
     {
-      const bw = 96 * s;
-      const bh = 104 * s;
-      const bxTarget = cx + 430 * s + parX;
-      const bx = Math.max(bw * 0.5 + 18 * s, Math.min(w - bw * 0.5 - 18 * s, bxTarget));
-      const by = floorY - 6 * s + parY;
 
       // shadow
       ctx.save();
@@ -874,10 +901,33 @@ export function createChannel({ seed, audio }) {
       const heat = forgeHeat;
       const kind = HOT_ITEMS[hotItemIndex];
 
-      const x0 = ax - 50 * s;
-      const y0 = ay - 74 * s;
       const len = 190 * s;
       const thick = 18 * s;
+
+      // During QUENCH, dunk the hot item into the bucket (travel out and back over beats 24..27).
+      const beat = beatIndex < 0 ? 0 : beatIndex;
+      const b = beat % cycleBeats;
+      const beatFrac = (t / beatPeriod) - Math.floor(t / beatPeriod);
+
+      let travel = 0;
+      let dunk = 0;
+      if (b >= 24 && b <= 27) {
+        const q = Math.max(0, Math.min(1, (b - 24 + beatFrac) / 4));
+        travel = Math.sin(Math.PI * q);
+        dunk = travel * travel;
+      }
+
+      const bucket = getQuenchBucketPose();
+      const anvilCx = ax + 45 * s;
+      const anvilCy = ay - 65 * s;
+      const bucketCx = bucket.waterX;
+      const bucketCy = bucket.waterY - 6 * s;
+
+      const itemCx = anvilCx + (bucketCx - anvilCx) * travel;
+      const itemCy = anvilCy + (bucketCy - anvilCy) * travel + dunk * 18 * s;
+
+      const x0 = itemCx - len * 0.5;
+      const y0 = itemCy - thick * 0.5;
 
       const glowFlicker = 0.85 + 0.15 * Math.sin(t * 6.0 + hotItemIndex);
       const glowA = (0.1 + heat * 0.55) * glowFlicker;
