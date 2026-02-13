@@ -13,6 +13,9 @@ export function createChannel({ seed, audio }){
   let stars = [];
   let drone = null;
 
+  let comet = null;
+  let nextCometAt = 0;
+
   function rebuildSizes(){
     const s = h / 540;
     for (const b of bodies) {
@@ -59,12 +62,24 @@ export function createChannel({ seed, audio }){
     bodies.unshift({ center: true, size0: 32 + rand() * 22, size: 0 });
 
     rebuildSizes();
+
+    // Rare deterministic special moment: the first comet is fixed (~4 min) so
+    // it can be reliably captured in review screenshots; subsequent comets are
+    // scheduled ~3–5 minutes apart (seeded).
+    comet = null;
+    nextCometAt = 240;
   }
 
   function onResize(width, height){
     w = width;
     h = height;
     rebuildSizes();
+
+    if (comet) {
+      const s = h / 540;
+      comet.headR = 2.2 * s;
+      comet.trail = 220 * s;
+    }
   }
 
   function stopDrone({ clearCurrent = false } = {}){
@@ -103,12 +118,46 @@ export function createChannel({ seed, audio }){
     stopDrone({ clearCurrent: true });
   }
 
+  function scheduleNextComet(now){
+    // ~3–5 minutes
+    nextCometAt = now + 180 + rand() * 120;
+  }
+
+  function spawnComet(){
+    const s = h / 540;
+    const margin = Math.max(w, h) * 0.12;
+    const fromLeft = rand() < 0.5;
+
+    const x0 = fromLeft ? -margin : w + margin;
+    const y0 = h * (0.15 + rand() * 0.55);
+    const x1 = fromLeft ? w + margin : -margin;
+    const y1 = Math.max(-margin, Math.min(h + margin, y0 + (rand() - 0.5) * h * 0.35));
+
+    comet = {
+      t0: t,
+      dur: 5.0 + rand() * 2.0,
+      x0, y0, x1, y1,
+      headR: 2.2 * s,
+      trail: 220 * s,
+      hue: 40 + rand() * 40,
+    };
+  }
+
   function update(dt){
     t += dt;
     for (const b of bodies){
       if (b.center) continue;
       b.a += dt * b.sp;
       if (b.moon) b.moonA += dt * b.moonSp;
+    }
+
+    if (comet && t > comet.t0 + comet.dur + 1.1) {
+      comet = null;
+    }
+
+    if (t >= nextCometAt) {
+      spawnComet();
+      scheduleNextComet(t);
     }
   }
 
@@ -181,6 +230,74 @@ export function createChannel({ seed, audio }){
         ctx.beginPath();
         ctx.arc(mx, my, b.size * 0.35, 0, Math.PI * 2);
         ctx.fill();
+      }
+    }
+
+    // special moment: comet pass
+    if (comet) {
+      const age = t - comet.t0;
+      const p = Math.min(1, Math.max(0, age / comet.dur));
+      const ease = 1 - (1 - p) * (1 - p);
+      const x = comet.x0 + (comet.x1 - comet.x0) * ease;
+      const y = comet.y0 + (comet.y1 - comet.y0) * ease;
+
+      const dx = comet.x1 - comet.x0;
+      const dy = comet.y1 - comet.y0;
+      const dl = Math.hypot(dx, dy) || 1;
+      const ux = dx / dl;
+      const uy = dy / dl;
+
+      const fadeIn = Math.min(1, age / 0.35);
+      const fadeOut = Math.min(1, Math.max(0, (comet.dur + 0.9 - age) / 0.9));
+      const a = fadeIn * fadeOut;
+
+      if (a > 0) {
+        const tx = x - ux * comet.trail;
+        const ty = y - uy * comet.trail;
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.9 * a;
+
+        const lg = ctx.createLinearGradient(x, y, tx, ty);
+        lg.addColorStop(0, `hsla(${comet.hue},95%,82%,0.95)`);
+        lg.addColorStop(0.35, `hsla(${comet.hue + 18},95%,62%,0.55)`);
+        lg.addColorStop(1, `hsla(${comet.hue + 35},95%,45%,0)`);
+        ctx.strokeStyle = lg;
+        ctx.lineWidth = comet.headR * 1.1;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+
+        ctx.fillStyle = `hsla(${comet.hue},95%,90%,0.95)`;
+        ctx.beginPath();
+        ctx.arc(x, y, comet.headR * 1.25, 0, Math.PI * 2);
+        ctx.fill();
+
+        // sparkle
+        ctx.globalAlpha = 0.55 * a;
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = Math.max(1, comet.headR * 0.3);
+        ctx.beginPath();
+        ctx.moveTo(x - ux * comet.headR * 2.8, y - uy * comet.headR * 2.8);
+        ctx.lineTo(x + ux * comet.headR * 0.6, y + uy * comet.headR * 0.6);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - uy * comet.headR * 1.8, y + ux * comet.headR * 1.8);
+        ctx.lineTo(x + uy * comet.headR * 1.8, y - ux * comet.headR * 1.8);
+        ctx.stroke();
+
+        ctx.restore();
+
+        // OSD-safe label
+        ctx.save();
+        ctx.globalAlpha = 0.55 * a;
+        ctx.font = `${Math.floor(h / 38)}px ui-sans-serif, system-ui`;
+        ctx.fillStyle = 'rgba(240,250,255,0.92)';
+        ctx.fillText('COMET PASS', w * 0.72, h * 0.12);
+        ctx.restore();
       }
     }
 
