@@ -1,6 +1,6 @@
 # Done
 
-- [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — rotate through several glowing hot items on the anvil; swap immediately after QUENCH. Screenshots: screenshots/autopilot-forgeanvil-hotitems-before-20260213-1700 + screenshots/autopilot-forgeanvil-hotitems-after-20260213-1700. Commit: TBD
+- [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — rotate through several glowing hot items on the anvil; swap immediately after QUENCH. Screenshots: screenshots/autopilot-forgeanvil-hotitems-before-20260213-1700 + screenshots/autopilot-forgeanvil-hotitems-after-20260213-1700. Commit: da4cb97
 
 - [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — improved hammer swing so it follows a readable arc and reaches the anvil strike point. Commit: 658b16d
 
