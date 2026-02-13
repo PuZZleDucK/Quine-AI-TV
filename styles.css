@@ -49,6 +49,20 @@ body{
 }
 #noise{position:absolute; inset:0; opacity:0; pointer-events:none; mix-blend-mode:screen;}
 
+/* Fullscreen: fill the display with the channel output (and overlays). */
+.screen-wrap:fullscreen{
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  border: none;
+}
+.screen-wrap:fullscreen #screen,
+.screen-wrap:fullscreen #noise{
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
 .crt{
   position:absolute; inset:0; pointer-events:none;
   background:

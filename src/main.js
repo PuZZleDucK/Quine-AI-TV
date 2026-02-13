@@ -94,7 +94,7 @@ function saveState(){
 const $ = (id) => document.getElementById(id);
 $('btn-power').addEventListener('click', () => togglePower());
 $('btn-audio').addEventListener('click', () => toggleAudio());
-$('btn-info').addEventListener('click', () => toggleOsdPin());
+$('btn-fullscreen')?.addEventListener('click', () => toggleFullscreen());
 $('btn-ch-up').addEventListener('click', () => channelStep(+1));
 $('btn-ch-down').addEventListener('click', () => channelStep(-1));
 $('btn-scan')?.addEventListener('click', () => toggleScan());
@@ -121,6 +121,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key.toLowerCase() === 'a') { toggleAudio(); }
   else if (e.key.toLowerCase() === 's') { toggleScan(); }
   else if (e.key.toLowerCase() === 'i') { toggleOsdPin(); }
+  else if (e.key.toLowerCase() === 'f') { toggleFullscreen(); }
   else if (e.key.toLowerCase() === 'g') {
     showGuide = !showGuide;
     guide?.classList.toggle('hidden', !showGuide);
@@ -245,6 +246,30 @@ function toggleOsdPin(){
   }
   saveState();
 }
+
+async function toggleFullscreen(){
+  // Fullscreen just the channel output (screen-wrap), not the whole "TV" controls.
+  const target = document.querySelector('.screen-wrap');
+  if (!target?.requestFullscreen) return;
+
+  try {
+    if (document.fullscreenElement){
+      await document.exitFullscreen();
+    } else {
+      await target.requestFullscreen();
+    }
+  } catch {}
+}
+
+document.addEventListener('fullscreenchange', () => {
+  // Fullscreen changes layout; ensure canvas backing store matches.
+  resize();
+
+  const btn = $('btn-fullscreen');
+  if (btn){
+    btn.textContent = document.fullscreenElement ? 'Exit' : 'Full';
+  }
+});
 
 function disarmScan(){
   if (scanTimer){
@@ -477,4 +502,4 @@ if (powered) {
 requestAnimationFrame(tick);
 
 // initial help hint
-$('btn-info').addEventListener('dblclick', () => (help.hidden = false));
+$('btn-fullscreen')?.addEventListener('dblclick', () => (help.hidden = false));
