@@ -5,6 +5,8 @@ if `TODO.md` has no ready items:
 
 ## Channel review queue
 
+- [ ] Review channel `kitchen` (src/channels/kitchenscience.js)
+
 <!-- done: moved to TODONE.md -->
 
 ## Follow-ups queued from review: tugdispatch
@@ -34,3 +36,11 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (sandtable sand texture Y tiling) -->
 <!-- done: moved to TODONE.md (sandtable render speckle determinism) -->
+
+## Follow-ups queued from review: kitchen
+
+- [ ] `kitchen` (src/channels/kitchenscience.js): determinism — remove `rand()` usage from `render()` (foam band); precompute foam bubble radii/phase in `update(dt)` via scheduled/hash noise so 30fps/60fps captures match.
+- [ ] `kitchen` (src/channels/kitchenscience.js): perf — cache/pre-render static background elements (bg gradient + countertop texture lines) on init/resize so steady-state `render()` does 0 `createLinearGradient()` calls.
+<!-- done: moved to TODONE.md (kitchen audio hygiene) -->
+- [ ] `kitchen` (src/channels/kitchenscience.js): long-run interest — expand `EXPERIMENTS` + use a seeded shuffle-bag (no immediate repeats; 5+ minutes before repeating).
+- [ ] `kitchen` (src/channels/kitchenscience.js): special moment — add 1–2 rare deterministic “SCIENCE FAIR” events (~45–120s cadence) with a clear visual signature and clean reset.

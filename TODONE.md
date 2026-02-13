@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clears AudioManager.current when owned. Screenshots: screenshots/autopilot-kitchen-audiohygiene-before-20260214-0545 + screenshots/autopilot-kitchen-audiohygiene-after-20260214-0545. Commit: 115b407
+
 - [x] [project:quine-tv] `sandtable` (src/channels/sandtable.js): determinism — render speckle now uses a separate time-seeded PRNG (no channel `rand()` consumption) so 30fps/60fps captures match at fixed offsets. Commit: ad0eddd
 
 - [x] [project:quine-tv] `sandtable` (src/channels/sandtable.js): audio determinism/perf — seeded PRNG inside `sandScrape()` (no `Math.random()`); hoisted flutter params. Commit: d64ebd9
