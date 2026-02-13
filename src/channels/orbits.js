@@ -14,9 +14,24 @@ export function createChannel({ seed, audio }){
     { name: 'SPIN',   cx: 0.50, cy: 0.50, ex: 1.08, ey: 0.92, rot: 0.72 },
   ];
 
+  // Phase cycle: add a bit of time structure so orbit pacing + palette breathe.
+  // ~1–2 minutes feels “alive” without getting twitchy.
+  const PHASE_CYCLE_S = 96; // CALM→WARP→DRIFT
+  const PHASE_TRANSITION_S = 8;
+  const PHASES = [
+    { name: 'CALM',  speed: 0.78, nebula: 0.12 },
+    { name: 'WARP',  speed: 1.65, nebula: 0.62 },
+    { name: 'DRIFT', speed: 1.05, nebula: 0.30 },
+  ];
+
   let w = 0;
   let h = 0;
   let t = 0;
+
+  let phase = { name: 'CALM', speedMul: 1, nebula: 0 };
+  let nebulaHue0 = 0;
+  let nebulaHue1 = 0;
+  let nebulaSeed = 0;
 
   let bodies = [];
   let stars = [];
@@ -41,6 +56,12 @@ export function createChannel({ seed, audio }){
     w = width;
     h = height;
     t = 0;
+
+    // Deterministic nebula tint params (phase cycle modulates intensity).
+    nebulaHue0 = rand() * 360;
+    nebulaHue1 = (nebulaHue0 + 80 + rand() * 140) % 360;
+    nebulaSeed = rand() * Math.PI * 2;
+    phase = { name: PHASES[0].name, speedMul: PHASES[0].speed, nebula: PHASES[0].nebula };
 
     // Precompute a deterministic starfield so it doesn't flicker (no rand() in render()).
     stars = Array.from({ length: 220 }, () => {
@@ -213,12 +234,39 @@ export function createChannel({ seed, audio }){
     };
   }
 
+  function computePhase(now){
+    const segS = PHASE_CYCLE_S / PHASES.length;
+    const tt = ((now % PHASE_CYCLE_S) + PHASE_CYCLE_S) % PHASE_CYCLE_S;
+    const base = Math.floor(tt / segS);
+    const next = (base + 1) % PHASES.length;
+    const frac = (tt - base * segS) / segS;
+
+    // Blend only near the boundary so each phase gets a stable “hold” window.
+    const transitionFrac = Math.min(0.49, PHASE_TRANSITION_S / segS);
+    const x0 = 1 - transitionFrac;
+    const u0 = transitionFrac > 0 ? Math.min(1, Math.max(0, (frac - x0) / transitionFrac)) : 1;
+    const u = u0 * u0 * (3 - 2 * u0); // smoothstep
+
+    const p0 = PHASES[base];
+    const p1 = PHASES[next];
+
+    const speedMul = p0.speed + (p1.speed - p0.speed) * u;
+    const nebula = p0.nebula + (p1.nebula - p0.nebula) * u;
+    const name = (u < 0.5 ? p0.name : p1.name);
+
+    return { name, speedMul, nebula };
+  }
+
   function update(dt){
-    t += dt;
+    const tNext = t + dt;
+    phase = computePhase(tNext);
+    const speedMul = phase.speedMul;
+    t = tNext;
+
     for (const b of bodies){
       if (b.center) continue;
-      b.a += dt * b.sp;
-      if (b.moon) b.moonA += dt * b.moonSp;
+      b.a += dt * b.sp * speedMul;
+      if (b.moon) b.moonA += dt * b.moonSp * speedMul;
     }
 
     if (comet && t > comet.t0 + comet.dur + 1.1) {
@@ -242,9 +290,26 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, w, h);
 
+    // nebula wash (phase-controlled; deterministic, no rand() in render()).
+    if (phase.nebula > 0) {
+      const p = phase.nebula;
+      const drift = t * 0.015 + nebulaSeed;
+      const nx = w * (0.50 + Math.sin(drift) * 0.12);
+      const ny = h * (0.52 + Math.cos(drift * 0.9) * 0.12);
+
+      const ng = ctx.createRadialGradient(nx, ny, 0, w / 2, h / 2, Math.max(w, h) * 0.78);
+      ng.addColorStop(0, `hsla(${(nebulaHue0 + t * 2.0) % 360},90%,60%,${0.22 * p})`);
+      ng.addColorStop(1, `hsla(${(nebulaHue1 + t * 1.2) % 360},90%,38%,0)`);
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = ng;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+
     // star specks
     ctx.save();
-    ctx.globalAlpha = 0.65;
+    ctx.globalAlpha = 0.55 + phase.nebula * 0.18;
     for (const s of stars) {
       const x = (s.nx * w) | 0;
       const y = (s.ny * h) | 0;
@@ -278,7 +343,8 @@ export function createChannel({ seed, audio }){
 
     // orbits
     ctx.save();
-    ctx.strokeStyle = 'rgba(180,200,255,0.14)';
+    ctx.globalAlpha = 0.11 + phase.nebula * 0.07;
+    ctx.strokeStyle = 'rgb(180,200,255)';
     ctx.lineWidth = Math.max(1, Math.floor(h / 540));
     for (const b of bodies){
       if (b.center) continue;
