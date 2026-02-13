@@ -1,3 +1,5 @@
+- 2026-02-14 00:32 (Australia/Melbourne) [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): perf — cached tide gauge fill gradient in `drawHUD()` (rebuild on resize/ctx swap; steady-state 0 `createLinearGradient()` calls). Commit: bfd60b3
+
 - 2026-02-14 00:17 (Australia/Melbourne) [project:quine-tv] `tugdispatch` (src/channels/harbortugdispatch.js): perf — cached map water background gradient in `drawMap()` (rebuild on resize/ctx swap; steady-state 0 `createLinearGradient()` calls). Commit: 7be71c6
 
 - 2026-02-13 23:00 (Australia/Melbourne) [project:quine-tv] `futurearch` (src/channels/futurearch.js): perf — cached placard bullet wrapping lines per artifact+layout (avoids per-frame split/measureText). Screenshots: screenshots/autopilot-futurearch-perf-2026-02-13-start + screenshots/autopilot-futurearch-perf-2026-02-13-end2. Commit: 5936ec1
