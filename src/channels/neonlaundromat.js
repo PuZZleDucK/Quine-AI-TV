@@ -31,9 +31,9 @@ export function createChannel({ seed, audio }){
   const pal = {
     bg0: '#05060b',
     bg1: '#07111a',
-    floor0: '#05080d',
-    floor1: '#0a0f16',
-    grout: 'rgba(255,255,255,0.06)',
+    floor0: '#f2f5f8',
+    floor1: '#d7e0e8',
+    grout: 'rgba(30,44,62,0.20)',
     machine: '#121a24',
     machineHi: '#1c2a3b',
     metal: 'rgba(220,240,255,0.22)',
@@ -565,35 +565,12 @@ export function createChannel({ seed, audio }){
 
     ctx.restore();
 
-    // interior header and info text (main title now lives on mirrored window placard)
+    // keep the top-left clear; title and 24H now live on the mirrored window placard
     const surge = powerSurge.a;
     const flick = (neonFlicker > 0 || surge > 0)
       ? ((surge > 0 ? 0.12 : 0.35) + (surge > 0 ? 0.88 : 0.65) * (0.5 + 0.5 * Math.sin(t * (surge > 0 ? 86 : 42))))
       : 1;
     const neonA = (0.92 + 0.18 * flick) * (0.92 + P.glow) * (1 + 0.38 * surge);
-
-    ctx.save();
-    ctx.textBaseline = 'middle';
-    ctx.font = `${Math.floor(font * 1.15)}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
-
-    const nx = w * 0.10;
-    const ny = h * 0.20;
-
-    ctx.fillStyle = `rgba(0,0,0,0.28)`;
-    roundedRect(ctx, nx - 14, ny - 22, w * 0.44, 54, 16);
-    ctx.fill();
-
-    ctx.shadowBlur = 24 + beatPulse * 16;
-    ctx.shadowColor = `rgba(108,242,255,${0.55 * neonA})`;
-    ctx.fillStyle = `rgba(108,242,255,${0.85 * neonA})`;
-    ctx.fillText('24H', nx, ny);
-
-    ctx.shadowBlur = 0;
-    ctx.font = `${Math.floor(small * 0.95)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.fillStyle = `rgba(255,207,106,${0.75})`;
-    ctx.fillText('WASH  •  DRY  •  FOLD', nx, ny + 28);
-
-    ctx.restore();
 
     // mirrored outward-facing channel sign inside window
     ctx.save();
@@ -645,7 +622,7 @@ export function createChannel({ seed, audio }){
     ctx.shadowBlur = 12 + beatPulse * 8;
     ctx.fillStyle = `rgba(255,102,217,${0.90 * neonA})`;
     ctx.textAlign = 'center';
-    ctx.fillText('NEON LAUNDROMAT', 0, 0);
+    ctx.fillText('NEON LAUNDROMAT  •  24H', 0, 0);
     ctx.restore();
   }
 
@@ -680,11 +657,11 @@ export function createChannel({ seed, audio }){
       ctx.stroke();
     }
 
-    // glossy reflection band
+    // soft cool reflection over white tile
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     const r = ctx.createLinearGradient(0, yH, 0, h);
-    r.addColorStop(0, `rgba(108,242,255,${0.08 + P.glow * 0.18})`);
+    r.addColorStop(0, `rgba(108,242,255,${0.04 + P.glow * 0.10})`);
     r.addColorStop(1, 'rgba(108,242,255,0)');
     ctx.fillStyle = r;
     ctx.fillRect(0, yH, w, h - yH);
@@ -693,7 +670,7 @@ export function createChannel({ seed, audio }){
     // vignette
     const v = ctx.createRadialGradient(w * 0.5, h * 0.72, Math.min(w, h) * 0.1, w * 0.5, h * 0.72, Math.min(w, h) * 0.7);
     v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.60)');
+    v.addColorStop(1, 'rgba(0,0,0,0.42)');
     ctx.fillStyle = v;
     ctx.fillRect(0, 0, w, h);
   }
@@ -1194,8 +1171,8 @@ export function createChannel({ seed, audio }){
       const a = powerSurge.a;
       const bw = Math.min(w * 0.30, 340);
       const bh = Math.min(h * 0.06, 56);
-      const bx = w * 0.5 - bw * 0.5;
-      const by = h * 0.055;
+      const bx = w - bw - w * 0.04;
+      const by = h - bh - h * 0.26;
       const blink = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(t * 18));
 
       ctx.save();
@@ -1224,7 +1201,7 @@ export function createChannel({ seed, audio }){
       const cw = Math.min(w * 0.44, 460);
       const ch = Math.min(h * 0.18, 150);
       const cx0 = w - cw - w * 0.05;
-      const cy0 = h * 0.12;
+      const cy0 = h - ch - h * 0.10;
 
       const pop = 1 - (1 - a) * (1 - a);
       const yoff = (1 - pop) * 18;

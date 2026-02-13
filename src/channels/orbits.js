@@ -237,26 +237,18 @@ export function createChannel({ seed, audio }){
 
     // Layout cycle: swap orbit geometry every ~5 minutes for long-run variety.
     // Deterministic (time-based), with a short ease-in transition at the boundary.
-    const LAYOUT_PERIOD_S = 300;
-    const LAYOUTS = [
-      { cx: 0.50, cy: 0.50, ex: 1.00, ey: 1.00, rot: 0.00 },
-      { cx: 0.52, cy: 0.46, ex: 1.25, ey: 0.78, rot: 0.28 },
-      { cx: 0.46, cy: 0.55, ex: 0.82, ey: 1.30, rot: -0.22 },
-      { cx: 0.50, cy: 0.50, ex: 1.08, ey: 0.92, rot: 0.72 },
-    ];
-
-    const lt = t / LAYOUT_PERIOD_S;
+    const lt = t / ORBIT_LAYOUT_PERIOD_S;
     const base = Math.floor(lt);
-    const i0 = ((base % LAYOUTS.length) + LAYOUTS.length) % LAYOUTS.length;
-    const i1 = (i0 + 1) % LAYOUTS.length;
+    const i0 = ((base % ORBIT_LAYOUTS.length) + ORBIT_LAYOUTS.length) % ORBIT_LAYOUTS.length;
+    const i1 = (i0 + 1) % ORBIT_LAYOUTS.length;
     const frac = lt - base;
 
-    const TRANSITION_S = 6;
-    const u0 = Math.min(1, Math.max(0, frac / (TRANSITION_S / LAYOUT_PERIOD_S)));
+    const transitionFrac = ORBIT_LAYOUT_TRANSITION_S / ORBIT_LAYOUT_PERIOD_S;
+    const u0 = transitionFrac > 0 ? Math.min(1, Math.max(0, frac / transitionFrac)) : 1;
     const u = u0 * u0 * (3 - 2 * u0); // smoothstep
 
-    const a0 = LAYOUTS[i0];
-    const a1 = LAYOUTS[i1];
+    const a0 = ORBIT_LAYOUTS[i0];
+    const a1 = ORBIT_LAYOUTS[i1];
 
     const cx = w * (a0.cx + (a1.cx - a0.cx) * u);
     const cy = h * (a0.cy + (a1.cy - a0.cy) * u);
