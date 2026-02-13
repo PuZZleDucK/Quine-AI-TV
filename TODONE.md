@@ -1,6 +1,6 @@
 # Done
 
-- [x] [project:quine-tv] `orbits` (src/channels/orbits.js): visual - more interesting planets (rings + bands/craters + rim/highlights; deterministic per seed). Screenshots: screenshots/autopilot-orbits-before-2026-02-13-1215 + screenshots/autopilot-orbits-planets-after-2026-02-13-1215. Commit: TBD
+- [x] [project:quine-tv] `orbits` (src/channels/orbits.js): visual - more interesting planets (rings + bands/craters + rim/highlights; deterministic per seed). Screenshots: screenshots/autopilot-orbits-before-2026-02-13-1215 + screenshots/autopilot-orbits-planets-after-2026-02-13-1215. Commit: 14cd112
 
 - [x] [project:quine-tv] `orbits` (src/channels/orbits.js): audio hygiene — made `onAudioOn()` idempotent (no stacking) and ensured `destroy()` only clears AudioManager.current when owned. Screenshots: screenshots/autopilot-orbits-audiohygiene-before + screenshots/autopilot-orbits-audiohygiene-after. Commit: 9c17123
 
