@@ -8,10 +8,10 @@ export function createChannel({ seed, audio }){
   const ORBIT_LAYOUT_PERIOD_S = 300;
   const ORBIT_LAYOUT_TRANSITION_S = 6;
   const ORBIT_LAYOUTS = [
-    { cx: 0.50, cy: 0.50, ex: 1.00, ey: 1.00, rot: 0.00 },
-    { cx: 0.52, cy: 0.46, ex: 1.25, ey: 0.78, rot: 0.28 },
-    { cx: 0.46, cy: 0.55, ex: 0.82, ey: 1.30, rot: -0.22 },
-    { cx: 0.50, cy: 0.50, ex: 1.08, ey: 0.92, rot: 0.72 },
+    { name: 'ORIGIN', cx: 0.50, cy: 0.50, ex: 1.00, ey: 1.00, rot: 0.00 },
+    { name: 'TILT',   cx: 0.52, cy: 0.46, ex: 1.25, ey: 0.78, rot: 0.28 },
+    { name: 'BULGE',  cx: 0.46, cy: 0.55, ex: 0.82, ey: 1.30, rot: -0.22 },
+    { name: 'SPIN',   cx: 0.50, cy: 0.50, ex: 1.08, ey: 0.92, rot: 0.72 },
   ];
 
   let w = 0;
@@ -536,10 +536,11 @@ export function createChannel({ seed, audio }){
     }
 
     // label
+    const layoutName = (u < 0.5 ? a0.name : a1.name) || 'ORBIT';
     ctx.save();
     ctx.font = `${Math.floor(h / 18)}px ui-sans-serif, system-ui`;
     ctx.fillStyle = 'rgba(200,220,255,0.75)';
-    ctx.fillText('ORBITAL DESKTOY', w * 0.05, h * 0.12);
+    ctx.fillText(`ORBITAL DESKTOY - ${layoutName}`, w * 0.05, h * 0.12);
     ctx.restore();
   }
 
