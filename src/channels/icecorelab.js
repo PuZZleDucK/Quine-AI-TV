@@ -1,8 +1,27 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-14
+
 function lerp(a, b, t){ return a + (b - a) * t; }
 function ease(t){ t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+
+function probeDepth01({ mode, loopT, t, scanDur, cutDur }){
+  if (mode === 'SCAN') return ease(loopT / scanDur);
+  if (mode === 'CUT') return 0.18 + 0.62 * ease((loopT - scanDur) / cutDur);
+  if (mode === 'ANALYZE') return 0.74 + 0.06 * Math.sin(t * 0.8);
+  return 0.5;
+}
+
+function depthMeters(u){
+  // Plausible-ish mapping for a long core; purely a UI affordance.
+  return 350 + u * 2650;
+}
+
+function ageKyr(u){
+  // Nonlinear compaction / thinning vibe: older ice piles up at the bottom.
+  return 0.6 + 128 * Math.pow(clamp(u, 0, 1), 1.7);
+}
 
 export function createChannel({ seed, audio }){
   const baseRand = mulberry32(seed);
@@ -11,13 +30,15 @@ export function createChannel({ seed, audio }){
   let h = 0;
   let dpr = 1;
 
-  let t = 0;
+  let t = 0;      // per-cycle time (resets each sample)
+  let worldT = 0; // monotonic time since tune (rare events / schedules)
   let loopT = 0;
   let cycle = 0;
 
   // Scene
   let core = null; // {x,y,w,h,r}
   let layers = []; // [{y0,y1, tone, ash}]
+  let ashBands = []; // [{y0,y1}]
   let dust = []; // [{x,y,z,a}]
 
   // UI panel
@@ -39,6 +60,106 @@ export function createChannel({ seed, audio }){
   let nextGlintAt = 0;
   let volcanoPulse = 0;
 
+  // Rare special moment: "BUBBLE INCLUSIONS" sparkle (deterministic schedule)
+  let bubble = 0;
+  let bubbleText = 0;
+  let bubbleStartWorldT = 0;
+  let nextBubbleAt = 0;
+  let bubbleIdx = 0;
+  let bubblePos = { x: 0.5, y: 0.5 };
+  let bubbleSparks = []; // [{dx,dy,ph,s}]
+  let bubblePlan = null;
+
+  // Cached texture layers (rebuilt on init/resize)
+  const cache = {
+    striation: null, // CanvasImageSource | false | null
+    striationW: 0,
+    striationH: 0,
+    striationPad: 0,
+    striationLW: 0,
+  };
+
+  function makeCanvas(W, H){
+    if (!(W > 0 && H > 0)) return null;
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+    if (typeof document !== 'undefined'){
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    }
+    return null;
+  }
+
+  function ensureStriation(){
+    if (!core) return;
+
+    const pad = Math.max(6, Math.floor(Math.min(core.w, core.h) * 0.04));
+    const W = Math.max(1, Math.ceil(core.w + pad * 2));
+    const H = Math.max(1, Math.ceil(core.h + pad * 2));
+    const lw = Math.max(1, Math.floor(Math.min(w, h) * 0.0012));
+
+    // Rebuild only when geometry changes (init/resize). sceneInit() is also called per-cycle.
+    if (
+      cache.striation !== null &&
+      cache.striationW === W &&
+      cache.striationH === H &&
+      cache.striationPad === pad &&
+      cache.striationLW === lw
+    ) return;
+
+    cache.striationW = W;
+    cache.striationH = H;
+    cache.striationPad = pad;
+    cache.striationLW = lw;
+
+    const c = makeCanvas(W, H);
+    if (!c){
+      cache.striation = false;
+      return;
+    }
+
+    const g = c.getContext('2d');
+    g.clearRect(0, 0, W, H);
+
+    // Subtle vertical micro-striations to break up the "TV banding" feel.
+    // Deterministic and isolated so it never consumes the channel's main PRNG stream.
+    const r = mulberry32(((seed | 0) ^ 0x1ce0c0de) >>> 0);
+
+    const step = Math.max(2, Math.floor(lw * 2.6));
+    const segs = 18;
+
+    function pass(alpha, color, ampMul){
+      g.save();
+      g.globalAlpha = alpha;
+      g.strokeStyle = color;
+      g.lineWidth = lw;
+
+      for (let x = -pad; x <= core.w + pad + 0.001; x += step){
+        const jitter = (r() * 2 - 1) * step * 0.35;
+        const xx = pad + x + jitter;
+        const amp = (0.6 + r() * 0.8) * lw * ampMul;
+        const ph = r() * Math.PI * 2;
+
+        g.beginPath();
+        for (let i = 0; i <= segs; i++){
+          const yy = (i / segs) * H;
+          const wob = Math.sin(i * 0.7 + ph) * amp;
+          if (i === 0) g.moveTo(xx + wob, yy);
+          else g.lineTo(xx + wob, yy);
+        }
+        g.stroke();
+      }
+
+      g.restore();
+    }
+
+    pass(0.11, 'rgba(255,255,255,0.35)', 1.6);
+    pass(0.08, 'rgba(0,0,0,0.45)', 1.1);
+
+    cache.striation = c;
+  }
+
   // Audio
   let drone = null;
   let noise = null;
@@ -47,6 +168,32 @@ export function createChannel({ seed, audio }){
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
   function pick(arr, r){ return arr[(r() * arr.length) | 0]; }
+
+  function makeBubblePlan(i){
+    const r = mulberry32(((seed ^ 0xB00B1E5) + i * 0x9e3779b9) >>> 0);
+    const delay = 45 + r() * 75; // 45–120s
+    const x = 0.18 + r() * 0.64;
+    const y = 0.1 + r() * 0.8;
+    const n = 14 + ((r() * 10) | 0);
+    const sparks = [];
+    for (let k = 0; k < n; k++){
+      const a = r() * Math.PI * 2;
+      const rad = 0.015 + r() * 0.05;
+      sparks.push({
+        dx: Math.cos(a) * rad,
+        dy: Math.sin(a) * rad * 0.85,
+        ph: r() * Math.PI * 2,
+        s: 0.6 + r() * 1.2,
+      });
+    }
+    return { delay, x, y, sparks };
+  }
+
+  function planNextBubble(){
+    bubblePlan = makeBubblePlan(bubbleIdx);
+    nextBubbleAt = worldT + bubblePlan.delay;
+    bubbleIdx++;
+  }
 
   function sceneInit(width, height, nextDpr){
     w = width;
@@ -78,6 +225,8 @@ export function createChannel({ seed, audio }){
       h: coreH,
       r: coreW * 0.22,
     };
+
+    ensureStriation();
 
     // Layers: thin stratified bands.
     layers = [];
@@ -114,6 +263,8 @@ export function createChannel({ seed, audio }){
       layers[layers.length - 1].y1 = 1;
     }
 
+    ashBands = layers.filter(L => L.ash).map(L => ({ y0: L.y0, y1: L.y1 }));
+
     // Chart: pretend isotope ratio line; derived from layers.
     const n = 42;
     chart = [];
@@ -147,6 +298,14 @@ export function createChannel({ seed, audio }){
   }
 
   function init({ width, height, dpr: nextDpr }){
+    worldT = 0;
+    bubble = 0;
+    bubbleText = 0;
+    bubbleStartWorldT = 0;
+    bubbleIdx = 0;
+    bubblePlan = null;
+    planNextBubble();
+
     sceneInit(width, height, nextDpr || 1);
   }
 
@@ -178,6 +337,7 @@ export function createChannel({ seed, audio }){
 
   function update(dt){
     t += dt;
+    worldT += dt;
     loopT += dt;
 
     // Modes
@@ -212,6 +372,18 @@ export function createChannel({ seed, audio }){
       glint = 1;
       nextGlintAt = loopT + 5.5 + baseRand() * 7;
       if (audio.enabled) safeBeep({ freq: 990, dur: 0.03, gain: 0.012, type: 'sine' });
+    }
+
+    bubble = Math.max(0, bubble - dt * 0.17);
+    bubbleText = Math.max(0, bubbleText - dt * 0.11);
+    if (bubblePlan && worldT >= nextBubbleAt){
+      bubble = 1;
+      bubbleText = 1;
+      bubbleStartWorldT = worldT;
+      bubblePos = { x: bubblePlan.x, y: bubblePlan.y };
+      bubbleSparks = bubblePlan.sparks;
+      if (audio.enabled) safeBeep({ freq: 1240, dur: 0.03, gain: 0.010, type: 'sine' });
+      planNextBubble();
     }
 
     // Next cycle
@@ -320,6 +492,21 @@ export function createChannel({ seed, audio }){
       }
     }
 
+    // Micro-striation texture (cached on init/resize) to reduce flat banding.
+    if (cache.striation){
+      ctx.save();
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.globalAlpha = 0.22;
+      ctx.drawImage(
+        cache.striation,
+        x - cache.striationPad,
+        y - cache.striationPad,
+        cache.striationW,
+        cache.striationH
+      );
+      ctx.restore();
+    }
+
     // Scan line / cut mark overlay
     const s = loopT;
     let scanA = 0;
@@ -341,6 +528,23 @@ export function createChannel({ seed, audio }){
       ctx.fillRect(x, yy - ch * 0.05, cw, ch * 0.1);
       ctx.fillStyle = `rgba(180, 250, 255, ${0.35 * scanA})`;
       ctx.fillRect(x, yy - 1, cw, 2);
+      ctx.restore();
+    }
+
+    // Probe position marker (ties the panel readout to the physical core)
+    {
+      const u = probeDepth01({ mode, loopT, t, scanDur, cutDur });
+      const yy = y + u * ch;
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.strokeStyle = 'rgba(210, 250, 255, 0.22)';
+      ctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) * 0.0014));
+      ctx.beginPath();
+      ctx.moveTo(x + cw * 0.05, yy);
+      ctx.lineTo(x + cw * 0.18, yy);
+      ctx.moveTo(x + cw * 0.82, yy);
+      ctx.lineTo(x + cw * 0.95, yy);
+      ctx.stroke();
       ctx.restore();
     }
 
@@ -372,13 +576,64 @@ export function createChannel({ seed, audio }){
       ctx.restore();
     }
 
-    // Volcano highlight
+    // Bubble inclusions (rare special moment)
+    if (bubble > 0 && bubbleSparks.length){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      const age = worldT - bubbleStartWorldT;
+      const env = bubble * (0.6 + 0.4 * Math.sin(age * 5.2));
+      const bx = x + bubblePos.x * cw;
+      const by = y + bubblePos.y * ch;
+      const baseR = Math.max(0.9, Math.min(cw, ch) * 0.006);
+
+      for (const sp of bubbleSparks){
+        const tw = 0.5 + 0.5 * Math.sin(age * 9.0 + sp.ph);
+        const a = (0.06 + tw * 0.12) * env;
+        ctx.fillStyle = `rgba(230, 255, 255, ${a})`;
+        const rr = baseR * sp.s * (0.65 + tw * 0.75);
+        ctx.beginPath();
+        ctx.arc(bx + sp.dx * cw, by + sp.dy * ch, rr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.strokeStyle = `rgba(220, 250, 255, ${0.10 * env})`;
+      ctx.lineWidth = Math.max(1, Math.floor(Math.min(w, h) * 0.0012));
+      ctx.beginPath();
+      ctx.arc(bx, by, Math.min(cw, ch) * 0.06, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Volcano highlight (ash bands + warm wash)
     if (mode === 'VOLCANO'){
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
-      const pulse = 0.35 + 0.65 * Math.sin(t * 3.1);
-      ctx.fillStyle = `rgba(255, 160, 90, ${0.08 + pulse * 0.07})`;
+      const pulse = 0.45 + 0.55 * Math.sin(t * 3.1);
+
+      // subtle warm wash
+      ctx.fillStyle = `rgba(255, 160, 90, ${0.03 + pulse * 0.02})`;
       ctx.fillRect(x, y, cw, ch);
+
+      // highlight the actual ash layer(s)
+      for (const B of ashBands){
+        const by0 = y + B.y0 * ch;
+        const by1 = y + B.y1 * ch;
+        const bh = Math.max(2, by1 - by0);
+        const mid = (by0 + by1) * 0.5;
+
+        const glowH = Math.min(ch * 0.08, bh + ch * 0.02);
+        const gg = ctx.createLinearGradient(0, mid - glowH * 0.5, 0, mid + glowH * 0.5);
+        gg.addColorStop(0, 'rgba(255,180,120,0)');
+        gg.addColorStop(0.5, `rgba(255, 190, 140, ${0.14 + pulse * 0.12})`);
+        gg.addColorStop(1, 'rgba(255,180,120,0)');
+        ctx.fillStyle = gg;
+        ctx.fillRect(x, mid - glowH * 0.5, cw, glowH);
+
+        // thin inner glimmer so it reads even when the glow overlaps soft bands
+        ctx.fillStyle = `rgba(255, 220, 200, ${0.05 + pulse * 0.04})`;
+        ctx.fillRect(x + cw * 0.06, by0, cw * 0.88, Math.max(1, bh * 0.18));
+      }
+
       ctx.restore();
     }
 
@@ -432,6 +687,39 @@ export function createChannel({ seed, audio }){
     ctx.fillText('isotope proxy (stylised)', x + pw * 0.08, y + ph * 0.11);
     ctx.restore();
 
+    // Rare banner (OSD-safe): bubble inclusion sparkle moment
+    if (bubbleText > 0){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      const age = worldT - bubbleStartWorldT;
+      const a = bubbleText * (0.55 + 0.45 * Math.sin(age * 4.0));
+      ctx.fillStyle = `rgba(220, 255, 255, ${0.30 * a})`;
+      ctx.font = `${Math.max(10, Math.floor(ph * 0.028))}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`;
+      ctx.textBaseline = 'top';
+      ctx.fillText('BUBBLE INCLUSIONS', x + pw * 0.08, y + ph * 0.145);
+      ctx.restore();
+    }
+
+    // Depth/age readout (tied to probe position)
+    const probeU = probeDepth01({ mode, loopT, t, scanDur, cutDur });
+    {
+      const dm = Math.round(depthMeters(probeU));
+      const ak = ageKyr(probeU);
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = 'rgba(210, 250, 255, 0.62)';
+      ctx.font = `${Math.max(10, Math.floor(ph * 0.026))}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`;
+      ctx.textBaseline = 'top';
+      const yy = y + ph * 0.175;
+      ctx.textAlign = 'left';
+      ctx.fillText(`DEPTH  ${dm} m`, x + pw * 0.08, yy);
+      const ageLabel = `AGE  ${ak.toFixed(1)} kyr BP`;
+      ctx.textAlign = 'right';
+      ctx.fillText(ageLabel, x + pw * 0.92, yy);
+      ctx.restore();
+    }
+
     // Chart area
     const cx0 = x + pw * 0.1;
     const cy0 = y + ph * 0.2;
@@ -475,14 +763,8 @@ export function createChannel({ seed, audio }){
     ctx.stroke();
     ctx.restore();
 
-    // marker shows current scan depth
-    let depth = 0.5;
-    if (mode === 'SCAN') depth = ease(loopT / scanDur);
-    else if (mode === 'CUT') depth = 0.18 + 0.62 * ease((loopT - scanDur) / cutDur);
-    else if (mode === 'ANALYZE') depth = 0.74 + 0.06 * Math.sin(t * 0.8);
-    else depth = 0.5;
-
-    const my = cy0 + depth * chh;
+    // marker shows current probe depth
+    const my = cy0 + probeU * chh;
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
