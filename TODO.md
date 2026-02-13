@@ -25,7 +25,6 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: icecorelab
 
-- [ ] `icecorelab` (src/channels/icecorelab.js): add rare deterministic “BUBBLE INCLUSIONS” sparkle moment (~45–120s cadence; seeded schedule; no per-frame RNG).
 - [ ] `icecorelab` UI (src/channels/icecorelab.js): add a depth/age readout tied to scan position (panel + core marker).
 <!-- done: moved to TODONE.md (icecorelab micro-striation) -->
 - [ ] `icecorelab` visuals (src/channels/icecorelab.js): add a small “sample tray / chip” extracted during CUT→ANALYZE so the action reads (keep OSD clear).
