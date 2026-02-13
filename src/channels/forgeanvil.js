@@ -1,3 +1,5 @@
+// REVIEWED: 2026-02-13
+
 import { mulberry32 } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
@@ -67,6 +69,74 @@ export function createChannel({ seed, audio }) {
   const steelHue = 205 + rand() * 18; // blue-ish steel
   const brickHue = 18 + rand() * 10;
 
+  // gradient cache (rebuild on resize or ctx swap)
+  let gradientsDirty = true;
+  let cachedCtx = null;
+  let bgGradient = null;
+  let vignetteGradient = null;
+  let anvilHighlightGradient = null;
+  const FORGE_GRAD_STEPS = 20;
+  let forgeOpeningGradients = null;
+
+  function rebuildGradients(ctx) {
+    // background gradient
+    bgGradient = ctx.createLinearGradient(0, 0, 0, h);
+    bgGradient.addColorStop(0, `hsl(${brickHue}, 26%, 6%)`);
+    bgGradient.addColorStop(0.55, `hsl(${brickHue}, 20%, 4%)`);
+    bgGradient.addColorStop(1, `hsl(${brickHue}, 22%, 3%)`);
+
+    // subtle vignette
+    vignetteGradient = ctx.createRadialGradient(
+      cx,
+      cy,
+      Math.min(w, h) * 0.1,
+      cx,
+      cy,
+      Math.max(w, h) * 0.8
+    );
+    vignetteGradient.addColorStop(0, 'rgba(0,0,0,0)');
+    vignetteGradient.addColorStop(1, 'rgba(0,0,0,0.55)');
+
+    // anvil highlight gradient (alpha is controlled by globalAlpha at draw-time)
+    {
+      const ax = cx + 70 * s;
+      const ay = cy + 110 * s;
+      anvilHighlightGradient = ctx.createLinearGradient(ax - 240 * s, ay - 80 * s, ax + 220 * s, ay + 140 * s);
+      anvilHighlightGradient.addColorStop(0, 'rgba(255,255,255,0)');
+      anvilHighlightGradient.addColorStop(0.55, `hsla(${hotHue + 18}, 95%, 70%, 0.55)`);
+      anvilHighlightGradient.addColorStop(1, 'rgba(255,255,255,0)');
+    }
+
+    // forge opening gradient buckets (quantized by forgeHeat)
+    {
+      const fx = cx - 280 * s;
+      const fy = cy - 80 * s;
+      const fw = 240 * s;
+      const fh = 220 * s;
+      const ox = fx + fw * 0.52;
+      const oy = fy + fh * 0.72;
+      const innerR = 10 * s;
+      const outerR = fw * 0.75;
+
+      forgeOpeningGradients = new Array(FORGE_GRAD_STEPS + 1);
+      for (let i = 0; i <= FORGE_GRAD_STEPS; i++) {
+        const heat = i / FORGE_GRAD_STEPS;
+        const g = ctx.createRadialGradient(ox, oy, innerR, ox, oy, outerR);
+        g.addColorStop(0, `hsla(${hotHue}, 95%, ${56 + heat * 12}%, ${0.95})`);
+        g.addColorStop(0.35, `hsla(${hotHue + 10}, 95%, ${40 + heat * 8}%, ${0.55})`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        forgeOpeningGradients[i] = g;
+      }
+    }
+  }
+
+  function ensureGradients(ctx) {
+    if (!gradientsDirty && cachedCtx === ctx) return;
+    cachedCtx = ctx;
+    gradientsDirty = false;
+    rebuildGradients(ctx);
+  }
+
   // audio
   let drone = null;
   let roomNoise = null;
@@ -100,6 +170,9 @@ export function createChannel({ seed, audio }) {
     ringFlash = 0;
     ringWave = 0;
     resetCycle();
+
+    gradientsDirty = true;
+    cachedCtx = null;
   }
 
   function onAudioOn() {
@@ -299,19 +372,9 @@ export function createChannel({ seed, audio }) {
     ctx.fillStyle = `hsl(${brickHue}, 30%, ${8 + forgeHeat * 8}%)`;
     ctx.fillRect(fx - 20 * s, fy - 40 * s, fw + 40 * s, fh + 70 * s);
 
-    // opening
-    const g = ctx.createRadialGradient(
-      fx + fw * 0.52,
-      fy + fh * 0.72,
-      10 * s,
-      fx + fw * 0.52,
-      fy + fh * 0.72,
-      fw * 0.75
-    );
-    g.addColorStop(0, `hsla(${hotHue}, 95%, ${56 + forgeHeat * 12}%, ${0.95})`);
-    g.addColorStop(0.35, `hsla(${hotHue + 10}, 95%, ${40 + forgeHeat * 8}%, ${0.55})`);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
+    // opening (cached gradients; quantized by forgeHeat)
+    const heatIdx = Math.max(0, Math.min(FORGE_GRAD_STEPS, Math.round(forgeHeat * FORGE_GRAD_STEPS)));
+    ctx.fillStyle = forgeOpeningGradients[heatIdx];
 
     roundRect(ctx, fx + 20 * s, fy + 30 * s, fw - 40 * s, fh - 60 * s, 26 * s);
     ctx.fill();
@@ -367,11 +430,7 @@ export function createChannel({ seed, audio }) {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     ctx.globalAlpha = 0.22 + strikeGlow * 0.2 + ringFlash * 0.25;
-    const hg = ctx.createLinearGradient(ax - 240 * s, ay - 80 * s, ax + 220 * s, ay + 140 * s);
-    hg.addColorStop(0, 'rgba(255,255,255,0)');
-    hg.addColorStop(0.55, `hsla(${hotHue + 18}, 95%, 70%, 0.55)`);
-    hg.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = hg;
+    ctx.fillStyle = anvilHighlightGradient;
     ctx.fillRect(ax - 260 * s, ay - 110 * s, 520 * s, 260 * s);
     ctx.restore();
 
@@ -477,12 +536,10 @@ export function createChannel({ seed, audio }) {
   }
 
   function draw(ctx) {
-    // background gradient
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, `hsl(${brickHue}, 26%, 6%)`);
-    bg.addColorStop(0.55, `hsl(${brickHue}, 20%, 4%)`);
-    bg.addColorStop(1, `hsl(${brickHue}, 22%, 3%)`);
-    ctx.fillStyle = bg;
+    ensureGradients(ctx);
+
+    // background gradient (cached)
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, w, h);
 
     drawBricks(ctx);
@@ -520,12 +577,9 @@ export function createChannel({ seed, audio }) {
 
     drawHUD(ctx);
 
-    // subtle vignette
+    // subtle vignette (cached)
     ctx.save();
-    const vg = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.1, cx, cy, Math.max(w, h) * 0.8);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = vignetteGradient;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
