@@ -39,8 +39,6 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: kitchen
 
-- [ ] `kitchen` (src/channels/kitchenscience.js): **text wrapping** — long `Why it works` lines currently clip (no wrapping). Add a small `wrapTextToWidth(ctx, text, maxWidth)` helper and pre-wrap `exp.happens/why` into `expWrapped` on experiment change + `onResize()`.
-
 - [ ] `kitchen` (src/channels/kitchenscience.js): **cleanup** — remove unused locals (e.g. `topW` in `spawnBubble()`) and run a quick pass for any other dead code.
 
 - [ ] `kitchen` (src/channels/kitchenscience.js): **visual depth** — add a subtle cached glass highlight/caustic overlay for the beaker (rebuild on resize), so the central prop has more “material” without cluttering OSD.

@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): text wrapping — pre-wrap `Why it works` card lines via `wrapTextToWidth()` on experiment change + resize (prevents clipping). Commit: 7b7c904
+
 - [x] [project:quine-tv] Review channel `kitchen` (src/channels/kitchenscience.js): captured screenshots (0–300s) to `screenshots/review-kitchen-2026-02-14` (errors/warnings: 0), did code+audio/perf review, confirmed `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
 
 - [x] [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): special moment — added rare deterministic “SCIENCE FAIR” overlay (confetti + ribbon banner; ~45–120s cadence; clean reset; schedule uses separate RNG). Commit: c6adb58
