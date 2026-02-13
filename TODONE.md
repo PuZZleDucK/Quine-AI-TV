@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — second pass: pushed workshop props further right + increased opacity (bucket/tools/tongs). Commit: 9c7325b
+
 - [x] [project:quine-tv] Cleanup: removed stale TODO entry for `forgeanvil` workshop prop opacity (already completed earlier; see commit b3a5a62). Commit: TBD
 
 - [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — moved the forge + fire further to the side (shifted forge left; aligns floor glow + opening gradients). Commit: 90f5af1
