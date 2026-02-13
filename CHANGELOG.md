@@ -1,3 +1,5 @@
+- 2026-02-13 16:20 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): audio polish — replaced “beep-y” strike hits with a noise transient + tone body; added a short quench hiss burst (with stop-guard). Screenshots: screenshots/autopilot-forgeanvil-audio-2026-02-13-before + screenshots/autopilot-forgeanvil-audio-2026-02-13-after. Commit: 1e40323
+
 - 2026-02-13 16:04 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — made workshop props more opaque and pushed further to the side (bucket/tools/tongs). Commit: b3a5a62
 
 - 2026-02-13 15:45 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visual depth — added workshop props (quench bucket + hanging tools + floor tongs) with subtle parallax/lighting; kept OSD clear. Screenshots: screenshots/autopilot-forgeanvil-props-before-20260213-1545 + screenshots/autopilot-forgeanvil-props-after-20260213-1545. Commit: 1f2ce41
