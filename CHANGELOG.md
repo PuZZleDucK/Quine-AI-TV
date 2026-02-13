@@ -1,3 +1,5 @@
+- 2026-02-14 06:03 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): perf — cached the static background (bg gradient + countertop texture lines) into an offscreen layer rebuilt on init/resize (steady-state render avoids backdrop gradients/line loops). Commit: 6335226
+
 - 2026-02-14 05:51 (Australia/Melbourne) [project:quine-tv] `kitchen` (src/channels/kitchenscience.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clears AudioManager.current when owned. Commit: 115b407
 
 - 2026-02-14 05:17 (Australia/Melbourne) [project:quine-tv] `sandtable` (src/channels/sandtable.js): determinism — render speckle now uses a separate time-seeded PRNG (no channel `rand()` consumption) so captures are FPS-stable. Commit: ad0eddd
