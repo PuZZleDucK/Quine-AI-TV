@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] Review channel `lighthouse` (src/channels/lighthousewatch.js): captured screenshots (0–300s) to `screenshots/review-lighthouse-2026-02-14` + completion shots to `screenshots/review-lighthouse-2026-02-14-post` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+
 - [x] [project:quine-tv] `microfilm` (src/channels/microfilm.js): long-run interest — added rare deterministic special moments (FILM JAM “RETHREADING…” + OVEREXPOSE glitch) on a ~2–5 minute seeded cadence (separate PRNG; clean reset). Commit: cc4ead9
 
 - [x] [project:quine-tv] `microfilm` (src/channels/microfilm.js): visuals — added a deterministic cached scratches/edge-wear overlay layer (rebuilt on init/resize; no per-frame RNG). Commit: 9428a03

@@ -1,5 +1,6 @@
 import { mulberry32 } from '../util/prng.js';
 
+// REVIEWED: 2026-02-14
 // Tiny Lighthouse Watch
 // Coastal vignette: rotating Fresnel beam, fog banks, ship silhouettes;
 // timed storm pulses and a calm dawn reset.
