@@ -1,3 +1,5 @@
+- 2026-02-13 12:46 (Australia/Melbourne) [project:quine-tv] `orbits` (src/channels/orbits.js): visual — cycle through different orbit layouts every 5 minutes (smooth transition; avoids per-frame layout allocations). Commit: e1b1c7a
+
 - 2026-02-13 12:21 (Australia/Melbourne) [project:quine-tv] `orbits` (src/channels/orbits.js): visual — planets now have deterministic variety (rings, gas bands/storms, rock craters, rim glow/spec highlight). Screenshots: screenshots/autopilot-orbits-before-2026-02-13-1215 + screenshots/autopilot-orbits-planets-after-2026-02-13-1215. Commit: 14cd112
 
 - 2026-02-13 11:49 (Australia/Melbourne) [project:quine-tv] `orbits` (src/channels/orbits.js): audio hygiene — made `onAudioOn()` idempotent (no stacking) and ensured `destroy()` only clears AudioManager.current when owned. Screenshots: screenshots/autopilot-orbits-audiohygiene-before + screenshots/autopilot-orbits-audiohygiene-after. Commit: 9c17123
