@@ -210,6 +210,7 @@ export function createChannel({ seed, audio }){
 
   let current = null;
   let next = null;
+  let prev = null;
 
   let cardT = 0;
   let cardDur = 16;
@@ -317,6 +318,7 @@ export function createChannel({ seed, audio }){
 
     current = chooseArtifact(null);
     next = chooseArtifact(current);
+    prev = null;
     cardT = 0;
     cardDur = 14 + rand() * 10;
     trans = 1;
@@ -358,8 +360,10 @@ export function createChannel({ seed, audio }){
     cardT += dt;
 
     trans = clamp(trans + dt * 1.2, 0, 1);
+    if (trans >= 1) prev = null;
 
     if (cardT >= cardDur){
+      prev = current;
       current = next;
       next = chooseArtifact(current);
       cardT = 0;
@@ -689,24 +693,26 @@ export function createChannel({ seed, audio }){
     const s = Math.min(w, h) * 0.38;
     drawPedestal(ctx, cx, cy, s);
 
-    // artifact crossfade + slide
-    const slide = (1 - trans);
-    const dx = slide * (w * 0.06);
+    // Artifact + placard transition: museum dissolve (strong crossfade, minimal slide)
+    const tt = trans * trans * (3 - 2 * trans); // smoothstep
+    const slide = 1 - tt;
+    const dx = slide * (w * 0.02);
 
-    if (next && trans < 1){
+    if (prev && tt < 1){
+      // previous card fades out
       ctx.save();
-      ctx.globalAlpha = 0.20 * (1 - trans);
-      drawArtifact(ctx, next.kind, cx - dx * 0.6, cy - s * 0.10, s * 0.45);
+      ctx.globalAlpha = 1 - tt;
+      drawArtifact(ctx, prev.kind, cx + dx, cy - s * 0.10, s * 0.50);
       ctx.restore();
+      drawPlacard(ctx, prev, { alpha: 1 - tt, dx: dx * 0.35 });
     }
 
+    // current card fades in
     ctx.save();
-    ctx.globalAlpha = 1;
-    drawArtifact(ctx, current.kind, cx + dx, cy - s * 0.10, s * 0.50);
+    ctx.globalAlpha = prev ? tt : 1;
+    drawArtifact(ctx, current.kind, cx - dx * 0.5, cy - s * 0.10, s * 0.50);
     ctx.restore();
-
-    // placard
-    drawPlacard(ctx, current, { alpha: 1, dx: dx * 0.55 });
+    drawPlacard(ctx, current, { alpha: prev ? tt : 1, dx: -dx * 0.15 });
 
     // channel label
     ctx.save();
