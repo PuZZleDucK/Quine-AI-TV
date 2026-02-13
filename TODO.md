@@ -55,5 +55,5 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (microfilm reel contrast + film path hint) -->
 <!-- done: moved to TODONE.md (microfilm scratches overlay) -->
-- [ ] [project:quine-tv] `microfilm` (src/channels/microfilm.js): long-run interest — add 1–2 rare special moments (e.g. FILM JAM jitter + “RETHREADING”, or a brief GLITCH/OVEREXPOSE sequence) on a 2–5 minute deterministic cadence.
+<!-- done: moved to TODONE.md (microfilm rare special moments) -->
 <!-- done: moved to TODONE.md (microfilm bg/vignette cache) -->

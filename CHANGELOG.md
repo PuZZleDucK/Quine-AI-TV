@@ -1,3 +1,5 @@
+- 2026-02-14 09:36 (Australia/Melbourne) [project:quine-tv] `microfilm` (src/channels/microfilm.js): long-run interest — added rare deterministic special moments (FILM JAM “RETHREADING…” + OVEREXPOSE glitch) on a ~2–5 minute seeded cadence (separate PRNG; clean reset). Commit: cc4ead9
+
 - 2026-02-14 09:18 (Australia/Melbourne) [project:quine-tv] `microfilm` (src/channels/microfilm.js): visuals — added deterministic cached scratches/edge-wear overlay layer (rebuilt on init/resize; no per-frame RNG). Commit: 9428a03
 
 - 2026-02-14 09:04 (Australia/Melbourne) [project:quine-tv] `microfilm` (src/channels/microfilm.js): visual readability — increased reel rim/spoke contrast and added a subtle film path hint between reels and strip. Commit: df479ba
