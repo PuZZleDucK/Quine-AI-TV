@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-14
 import { mulberry32, clamp } from '../util/prng.js';
 
 // Sand Table Cartography
@@ -466,12 +467,21 @@ export function createChannel({ seed, audio }){
     roundRect(ctx, sx, sy, sw, sh, trayR * 0.6);
     ctx.clip();
 
-    // animate subtle drift of the texture
+    // animate subtle drift of the texture (tile in both axes so drift never reveals blank sand)
     const driftX = Math.sin(t * 0.07) * 12;
     const driftY = Math.cos(t * 0.05) * 8;
+
+    const tileW = sandTex.width * sandScale;
+    const tileH = sandTex.height * sandScale;
+    const offX = ((driftX % tileW) + tileW) % tileW;
+    const offY = ((driftY % tileH) + tileH) % tileH;
+
     ctx.globalAlpha = 0.98;
-    ctx.drawImage(sandTex, sx + driftX, sy + driftY, sandTex.width * sandScale, sandTex.height * sandScale);
-    ctx.drawImage(sandTex, sx + driftX - sandTex.width * sandScale, sy + driftY, sandTex.width * sandScale, sandTex.height * sandScale);
+    for (let y = sy - offY - tileH; y < sy + sh + tileH; y += tileH){
+      for (let x = sx - offX - tileW; x < sx + sw + tileW; x += tileW){
+        ctx.drawImage(sandTex, x, y, tileW, tileH);
+      }
+    }
 
     // lighting gradient
     const lg = ctx.createLinearGradient(sx, sy, sx, sy + sh);
