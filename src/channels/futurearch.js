@@ -727,7 +727,12 @@ export function createChannel({ seed, audio }){
     const cw = Math.min(w * 0.84, 1020);
     const ch = Math.min(h * 0.30, 320);
     const x = (w - cw) / 2 + dx;
-    const y = h * 0.67;
+
+    // OSD-safe: keep the placard (and especially bullet text) clear of the DOM OSD pills.
+    // The OSD sits bottom-right and can wrap to multiple lines for long channel names.
+    const osdSafeBottom = Math.max(72, Math.floor(h * 0.16));
+    const yMax = Math.max(0, h - osdSafeBottom - ch);
+    const y = clamp(h * 0.67, 0, yMax);
 
     ctx.save();
     ctx.globalAlpha = alpha;
