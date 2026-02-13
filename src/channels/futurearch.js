@@ -560,6 +560,32 @@ export function createChannel({ seed, audio }){
     return yy;
   }
 
+  // Placard bullet wrapping is relatively expensive (split + measureText).
+  // Cache per artifact per layout so the hot-path render just fillText()s.
+  let placardTextCache = { ctx: null, noteFontPx: 0, maxW: 0, byId: new Map() };
+
+  function ensurePlacardTextCache(ctx, noteFontPx, maxW){
+    if (placardTextCache.ctx !== ctx || placardTextCache.noteFontPx !== noteFontPx || placardTextCache.maxW !== maxW){
+      placardTextCache = { ctx, noteFontPx, maxW, byId: new Map() };
+    }
+  }
+
+  function getPlacardBullets(ctx, artifact, noteFontPx, maxW){
+    ensurePlacardTextCache(ctx, noteFontPx, maxW);
+
+    const id = artifact?.id ?? '';
+    let cached = placardTextCache.byId.get(id);
+    if (!cached){
+      ctx.save();
+      ctx.font = `${noteFontPx}px ui-sans-serif, system-ui`;
+      const bullets = (artifact?.plaque || []).map(line => wrapLines(ctx, '• ' + line, maxW));
+      ctx.restore();
+      cached = { bullets };
+      placardTextCache.byId.set(id, cached);
+    }
+    return cached.bullets;
+  }
+
   function drawArtifact(ctx, kind, x, y, s){
     ctx.save();
     ctx.translate(x, y);
@@ -829,12 +855,20 @@ export function createChannel({ seed, audio }){
 
     // notes
     ctx.fillStyle = 'rgba(240,245,255,0.70)';
-    ctx.font = `${Math.floor(font * 0.98)}px ui-sans-serif, system-ui`;
+    const noteFontPx = Math.floor(font * 0.98);
+    ctx.font = `${noteFontPx}px ui-sans-serif, system-ui`;
     const lineH = Math.floor(font * 1.40);
+    const bulletGap = Math.floor(lineH * 0.20);
     let yy = y + pad * 3.40;
     const maxW = cw - pad * 2;
-    for (const line of artifact.plaque){
-      yy = wrapText(ctx, '• ' + line, x + pad, yy, maxW, lineH) + Math.floor(font * 0.40);
+
+    const bullets = getPlacardBullets(ctx, artifact, noteFontPx, maxW);
+    for (const bulletLines of bullets){
+      for (let i = 0; i < bulletLines.length; i++){
+        ctx.fillText(bulletLines[i], x + pad, yy);
+        yy += lineH;
+      }
+      yy += bulletGap;
     }
 
     ctx.restore();
