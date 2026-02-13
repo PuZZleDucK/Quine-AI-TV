@@ -71,6 +71,9 @@ export function createChannel({ seed, audio }){
   let bubbles = []; // {x,y,r,vy,a}
   let spawnAcc = 0;
 
+  // foam band bubbles (precomputed; avoids per-frame rand() usage in render)
+  let foam = []; // {x,baseR,rAmp,rPhase,rSpeed,yPhase}
+
   // cached static background (avoid per-frame gradients)
   let bgLayer = null; // CanvasImageSource | null
 
@@ -100,6 +103,7 @@ export function createChannel({ seed, audio }){
     liquidY = by + Math.floor(bh * 0.62);
 
     bgLayer = rebuildBackgroundLayer();
+    rebuildFoam();
 
     nextExperiment();
   }
@@ -327,6 +331,25 @@ export function createChannel({ seed, audio }){
     return c;
   }
 
+  function rebuildFoam(){
+    const N = 22;
+    const r = mulberry32((((seed | 0) ^ 0x9e3779b9) >>> 0));
+    foam = [];
+    for (let i = 0; i < N; i++){
+      const u = N === 1 ? 0.5 : i / (N - 1);
+      const jitter = (r() * 2 - 1) * bw * 0.008;
+      const x = bx + u * bw + jitter;
+      foam.push({
+        x,
+        baseR: 3 + r() * 7,
+        rAmp: 1.5 + r() * 3.5,
+        rPhase: r() * Math.PI * 2,
+        rSpeed: 1.2 + r() * 1.6,
+        yPhase: r() * Math.PI * 2,
+      });
+    }
+  }
+
   function render(ctx){
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -379,14 +402,16 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = g;
     ctx.fillRect(bx, ly, bw, by + bh - ly);
 
-    // foam band
+    // foam band (deterministic: no per-frame rand() usage)
     ctx.globalAlpha = 0.22 + reaction * 0.22;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    for (let i = 0; i < 22; i++){
-      const x = bx + (i / 21) * bw;
-      const rr = 3 + rand() * 7 + reaction * 8;
+    for (let i = 0; i < foam.length; i++){
+      const f = foam[i];
+      const x = Math.min(bx + bw, Math.max(bx, f.x));
+      const wobble = Math.sin(t * 3 + f.yPhase) * (2 + reaction * 0.9);
+      const rr = f.baseR + reaction * 8 + f.rAmp * (0.5 + 0.5 * Math.sin(t * f.rSpeed + f.rPhase));
       ctx.beginPath();
-      ctx.arc(x, ly + Math.sin(t * 3 + i) * 2, rr, 0, Math.PI * 2);
+      ctx.arc(x, ly + wobble, rr, 0, Math.PI * 2);
       ctx.fill();
     }
 
