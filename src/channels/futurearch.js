@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-13
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
@@ -122,6 +123,46 @@ export function createChannel({ seed, audio }){
 
   let motes = [];
   let ambience = null;
+
+  // Cache static gradients so the background hot path allocates 0 gradients/frame.
+  // Gradients are tied to a specific 2D context, so we rebuild when ctx changes.
+  let bgCache = {
+    ctx: null,
+    w: 0,
+    h: 0,
+    bg: null,
+    floor: null,
+    floorY: 0,
+    vignette: null,
+  };
+
+  function rebuildBgCache(ctx){
+    const floorY = h * 0.72;
+
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#05070c');
+    bg.addColorStop(0.55, '#070b12');
+    bg.addColorStop(1, '#020305');
+
+    const floor = ctx.createLinearGradient(0, floorY, 0, h);
+    floor.addColorStop(0, 'rgba(130,160,190,0.06)');
+    floor.addColorStop(1, 'rgba(0,0,0,0.70)');
+
+    const vignette = ctx.createRadialGradient(
+      w * 0.52, h * 0.34, 0,
+      w * 0.52, h * 0.34, Math.max(w, h) * 0.76
+    );
+    vignette.addColorStop(0, 'rgba(255,255,255,0.05)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.86)');
+
+    bgCache = { ctx, w, h, bg, floor, floorY, vignette };
+  }
+
+  function ensureBgCache(ctx){
+    if (!bgCache.bg || bgCache.ctx !== ctx || bgCache.w !== w || bgCache.h !== h){
+      rebuildBgCache(ctx);
+    }
+  }
 
   function chooseDifferent(prev){
     let a = pick(rand, ARTIFACTS);
@@ -374,22 +415,16 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBackground(ctx){
+    ensureBgCache(ctx);
+
     // gallery room
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#05070c');
-    bg.addColorStop(0.55, '#070b12');
-    bg.addColorStop(1, '#020305');
-    ctx.fillStyle = bg;
+    ctx.fillStyle = bgCache.bg;
     ctx.fillRect(0, 0, w, h);
 
     // floor sheen
     ctx.save();
-    const floorY = h * 0.72;
-    const fg = ctx.createLinearGradient(0, floorY, 0, h);
-    fg.addColorStop(0, 'rgba(130,160,190,0.06)');
-    fg.addColorStop(1, 'rgba(0,0,0,0.70)');
-    ctx.fillStyle = fg;
-    ctx.fillRect(0, floorY, w, h - floorY);
+    ctx.fillStyle = bgCache.floor;
+    ctx.fillRect(0, bgCache.floorY, w, h - bgCache.floorY);
     ctx.restore();
 
     // columns
@@ -404,18 +439,17 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // vignette
-    const vg = ctx.createRadialGradient(w * 0.52, h * 0.34, 0, w * 0.52, h * 0.34, Math.max(w, h) * 0.76);
-    vg.addColorStop(0, 'rgba(255,255,255,0.05)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.86)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = bgCache.vignette;
     ctx.fillRect(0, 0, w, h);
 
     // floating dust
     ctx.save();
     ctx.fillStyle = 'rgba(255,255,255,1)';
     for (const m of motes){
-      const yy = (m.y + Math.sin(t * 0.4 + m.ph) * m.s) % h;
-      const xx = (m.x + Math.cos(t * 0.3 + m.ph) * (m.s * 0.5)) % w;
+      let yy = (m.y + Math.sin(t * 0.4 + m.ph) * m.s) % h;
+      let xx = (m.x + Math.cos(t * 0.3 + m.ph) * (m.s * 0.5)) % w;
+      if (yy < 0) yy += h;
+      if (xx < 0) xx += w;
       ctx.globalAlpha = m.a;
       ctx.beginPath();
       ctx.arc(xx, yy, m.r, 0, Math.PI * 2);
