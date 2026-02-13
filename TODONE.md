@@ -585,3 +585,4 @@
 - [x] [project:quine-tv] Long-run interest `stitchalong` (src/channels/constellationstitch.js): expanded pattern variety (added new constellations) and added a rare deterministic special moment (~45–120s) with a shooting-star sweep + brief re-thread highlight; clean reset; OSD-safe. Screenshots: screenshots/autopilot-stitchalong-before + screenshots/autopilot-stitchalong-after. Commit: TBD
 
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): added rare seeded “special moments” scheduled ~45–120s (LAMP FLICKER, SUCCESS STAMP, DUST PUFF) with clean reset + subtle audio signature. Commit: 8043a42
+- [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals - bugs: added a floor and made the brick wall pattern static (no drift). Screenshots: screenshots/autopilot-forgeanvil-floorwall-before + screenshots/autopilot-forgeanvil-floorwall-after. Commit: c97c39d

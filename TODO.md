@@ -8,7 +8,6 @@ if `TODO.md` has no ready items:
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - make anvil look better
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - improve hammer and make it swing in an arc
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - forge and fire needs to look better
-- [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - bugs: needs a floor, wall should not be moving
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): long-run interest — add a slow 2–4 minute phase cycle that materially changes the scene (e.g., bellows intensity, ambient light, ember density), beyond the current 32-beat loop.
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): text/dialog — add a seeded rotating “shop talk” caption strip (blacksmith jokes/status lines), 5+ minutes before repeating.
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): special moment — add 1–2 rare deterministic events (~45–120s) with a clear visual signature (e.g., BELLOW BURST with brighter forge wash + ember shower; QUENCH FLASH with steam plume + hiss).
