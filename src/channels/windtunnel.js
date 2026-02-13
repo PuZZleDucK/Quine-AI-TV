@@ -134,7 +134,7 @@ export function createChannel({ seed, audio }) {
     };
 
     // Streamlines (y0 in [0..1] across chamber height)
-    const n = Math.max(14, Math.min(22, Math.floor(chamber.h / 28)));
+    const n = Math.max(24, Math.min(36, Math.floor(chamber.h / 14)));
     lines = Array.from({ length: n }, (_, i) => {
       const u = (i + 0.5) / n;
       return {
