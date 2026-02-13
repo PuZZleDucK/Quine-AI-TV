@@ -235,6 +235,18 @@ export function createChannel({ seed, audio }){
   let nextFlashAt = 0;
   let stamp = { a: 0, rot: 0, s: 1 };
 
+  // special moments (rare, deterministic; clean reset)
+  const specialRR = mulberry32(((seed ^ 0x3c1f9b15) >>> 0));
+  const fogAt = 45 + specialRR() * 55; // 45–100s
+  const fogDur = 7.5 + specialRR() * 2.5;
+  const sweepAt = Math.min(120, fogAt + 14 + specialRR() * 18);
+  const sweepDur = 6.0 + specialRR() * 2.0;
+
+  let fog = { a: 0, start: -1, dur: fogDur };
+  let sweep = { a: 0, start: -1, dur: sweepDur };
+  let fogFired = false;
+  let sweepFired = false;
+
   // audio
   let bed = null;
   let drone = null;
@@ -385,6 +397,12 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function momentAlpha(tt, dur){
+    const fi = clamp01(tt / 0.9);
+    const fo = clamp01((dur - tt) / 1.2);
+    return ease(Math.min(fi, fo));
+  }
+
   function update(dt){
     t += dt;
 
@@ -418,6 +436,37 @@ export function createChannel({ seed, audio }){
         nextFlashAt += 1.2 + rand() * 2.8;
         if (audio.enabled) audio.beep({ freq: 90, dur: 0.08, gain: 0.020, type: 'sine' });
       }
+    }
+
+    // special moments (fog horn + security sweep)
+    if (!fogFired && t >= fogAt){
+      fogFired = true;
+      fog.start = t;
+      if (audio.enabled){
+        // Non-stacking cue: one-time short "horn".
+        audio.beep({ freq: 110, dur: 0.70, gain: 0.020, type: 'triangle' });
+        audio.beep({ freq: 82, dur: 0.85, gain: 0.012, type: 'sine' });
+      }
+    }
+    if (fog.start >= 0){
+      const tt = t - fog.start;
+      if (tt <= fog.dur) fog.a = momentAlpha(tt, fog.dur);
+      else { fog.a = 0; fog.start = -1; }
+    }
+
+    if (!sweepFired && t >= sweepAt){
+      sweepFired = true;
+      sweep.start = t;
+      if (audio.enabled){
+        // Tight "scanner" chirp.
+        audio.beep({ freq: 740, dur: 0.05, gain: 0.014, type: 'square' });
+        audio.beep({ freq: 520, dur: 0.07, gain: 0.012, type: 'triangle' });
+      }
+    }
+    if (sweep.start >= 0){
+      const tt = t - sweep.start;
+      if (tt <= sweep.dur) sweep.a = momentAlpha(tt, sweep.dur);
+      else { sweep.a = 0; sweep.start = -1; }
     }
 
     // stamp animation
@@ -832,6 +881,37 @@ export function createChannel({ seed, audio }){
       ctx.fillText('SQUALL WARNING', x, y + titleSize * 2.25);
     }
 
+    // special moment banner (OSD-safe, under tide gauge)
+    if (fog.a > 0.01 || sweep.a > 0.01){
+      const a = Math.max(fog.a, sweep.a);
+      const label = fog.a >= sweep.a ? 'FOG HORN' : 'SECURITY SWEEP';
+
+      const bx = gx;
+      const by = gy + gh + frame.h * 0.02;
+      const bw = gw;
+      const bh = Math.max(18, Math.floor(smallSize * 1.45));
+
+      ctx.save();
+      ctx.globalAlpha = 0.85 * a;
+      ctx.fillStyle = 'rgba(10, 14, 18, 0.82)';
+      roundRect(ctx, bx, by, bw, bh, Math.min(12, bh * 0.30));
+      ctx.fill();
+
+      ctx.globalAlpha = 0.22 * a;
+      ctx.strokeStyle = 'rgba(150,230,255,0.9)';
+      ctx.lineWidth = Math.max(1, Math.floor(dpr));
+      roundRect(ctx, bx, by, bw, bh, Math.min(12, bh * 0.30));
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.92 * a;
+      ctx.fillStyle = (label === 'FOG HORN') ? 'rgba(255, 235, 180, 0.9)' : 'rgba(255,255,255,0.82)';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.font = `${Math.max(10, Math.floor(smallSize * 0.95))}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.fillText(label, bx + bw * 0.06, by + bh * 0.55);
+      ctx.restore();
+    }
+
     ctx.restore();
   }
 
@@ -907,6 +987,62 @@ export function createChannel({ seed, audio }){
         ctx.lineTo(x + frame.w * 0.18, y - frame.h * 0.06);
         ctx.stroke();
       }
+      ctx.restore();
+    }
+
+    // special overlays (clip to frame)
+    if (fog.a > 0.01 || sweep.a > 0.01){
+      ctx.save();
+      roundRect(ctx, frame.x, frame.y, frame.w, frame.h, frame.r);
+      ctx.clip();
+
+      if (fog.a > 0.01){
+        const p = clamp01((t - fog.start) / Math.max(1e-6, fog.dur));
+        const sx = frame.x + frame.w * (p * 1.25 - 0.15);
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.10 + 0.22 * fog.a;
+        ctx.fillStyle = 'rgba(220,240,255,0.9)';
+        ctx.fillRect(frame.x, frame.y, frame.w, frame.h);
+
+        ctx.globalAlpha = 0.05 + 0.15 * fog.a;
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillRect(sx, frame.y, frame.w * 0.35, frame.h);
+        ctx.globalAlpha = 0.04 + 0.10 * fog.a;
+        ctx.fillRect(sx - frame.w * 0.10, frame.y, frame.w * 0.15, frame.h);
+        ctx.restore();
+      }
+
+      if (sweep.a > 0.01){
+        const p = clamp01((t - sweep.start) / Math.max(1e-6, sweep.dur));
+        const ox = dock.x + dock.w * 0.5;
+        const oy = dock.y + dock.h * 0.5;
+        const ang = -0.9 + p * 1.8;
+        const len = Math.max(frame.w, frame.h) * 1.15;
+        const spread = 0.22;
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.12 + 0.20 * sweep.a;
+        ctx.fillStyle = 'rgba(255,235,180,0.9)';
+        ctx.beginPath();
+        ctx.moveTo(ox, oy);
+        ctx.lineTo(ox + Math.cos(ang - spread) * len, oy + Math.sin(ang - spread) * len);
+        ctx.lineTo(ox + Math.cos(ang + spread) * len, oy + Math.sin(ang + spread) * len);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.globalAlpha = 0.10 + 0.25 * sweep.a;
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = Math.max(2, Math.floor(dpr * 2));
+        ctx.beginPath();
+        ctx.moveTo(ox, oy);
+        ctx.lineTo(ox + Math.cos(ang) * len, oy + Math.sin(ang) * len);
+        ctx.stroke();
+        ctx.restore();
+      }
+
       ctx.restore();
     }
 
