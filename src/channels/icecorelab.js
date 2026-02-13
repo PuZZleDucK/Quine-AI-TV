@@ -833,6 +833,9 @@ export function createChannel({ seed, audio }){
     }
 
     // Depth/age readout (tied to probe position)
+    // If the rare banner is visible, nudge the readout + chart down to avoid overlap.
+    const headerLift = bubbleText > 0 ? ph * 0.03 : 0;
+
     const probeU = probeDepth01({ mode, loopT, t, scanDur, cutDur });
     {
       const dm = Math.round(depthMeters(probeU));
@@ -843,7 +846,7 @@ export function createChannel({ seed, audio }){
       ctx.fillStyle = 'rgba(210, 250, 255, 0.62)';
       ctx.font = `${Math.max(10, Math.floor(ph * 0.026))}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`;
       ctx.textBaseline = 'top';
-      const yy = y + ph * 0.175;
+      const yy = y + ph * 0.175 + headerLift;
       ctx.textAlign = 'left';
       ctx.fillText(`DEPTH  ${dm} m`, x + pw * 0.08, yy);
       const ageLabel = `AGE  ${ak.toFixed(1)} kyr BP`;
@@ -854,7 +857,7 @@ export function createChannel({ seed, audio }){
 
     // Chart area
     const cx0 = x + pw * 0.1;
-    const cy0 = y + ph * 0.2;
+    const cy0 = y + ph * 0.2 + headerLift;
     const cww = pw * 0.8;
     const chh = ph * 0.33;
 
