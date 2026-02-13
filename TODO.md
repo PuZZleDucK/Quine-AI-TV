@@ -53,7 +53,7 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: microfilm
 
-- [ ] [project:quine-tv] `microfilm` (src/channels/microfilm.js): visual readability — increase reel visibility/contrast (spokes + rim) and add a subtle “film path” hint between reels and strip for better composition.
+<!-- done: moved to TODONE.md (microfilm reel contrast + film path hint) -->
 - [ ] [project:quine-tv] `microfilm` (src/channels/microfilm.js): visuals — add deterministic hairline scratches/edge wear overlay (cached on init/resize) to make the film feel more physical without adding per-frame RNG.
 - [ ] [project:quine-tv] `microfilm` (src/channels/microfilm.js): long-run interest — add 1–2 rare special moments (e.g. FILM JAM jitter + “RETHREADING”, or a brief GLITCH/OVEREXPOSE sequence) on a 2–5 minute deterministic cadence.
 <!-- done: moved to TODONE.md (microfilm bg/vignette cache) -->

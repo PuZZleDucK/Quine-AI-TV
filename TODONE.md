@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `microfilm` (src/channels/microfilm.js): visual readability — increased reel rim/spoke contrast and added a subtle film path hint between reels and strip. Commit: df479ba
+
 - [x] [project:quine-tv] `microfilm` (src/channels/microfilm.js): perf — cached static background + vignette into offscreen layers rebuilt on init/resize; steady-state render blits layers (no per-frame `createLinearGradient()`/`createRadialGradient()` for backdrop). Commit: ffb48cb
 
 - [x] [project:quine-tv] `microfilm` (src/channels/microfilm.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned. Screenshots: screenshots/autopilot-microfilm-audio-hygiene/before + screenshots/autopilot-microfilm-audio-hygiene/after. Commit: 3b58ccf
