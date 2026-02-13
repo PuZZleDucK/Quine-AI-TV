@@ -5,4 +5,6 @@ if `TODO.md` has no ready items:
 
 - [ ] [project:quine-tv] `orbits` (src/channels/orbits.js): bug - sun, planets and moons should not overlap.
 
+- [ ] [project:quine-tv] `orbits` (src/channels/orbits.js): ui - change overlay text to a name for each orbital config.
+
 - [ ] [project:quine-tv] `orbits` (src/channels/orbits.js): time structure — add a 1-2 min phase cycle (CALM→WARP→DRIFT) modulating orbit speeds + palette/nebula intensity.
