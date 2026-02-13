@@ -182,6 +182,70 @@ export function createChannel({ seed, audio }) {
     return arr[(rand() * arr.length) | 0];
   }
 
+  // ---- "shop talk" captions (seeded, 5+ minutes before repeating)
+  // Use a dedicated RNG so caption variety doesn't perturb scene randomness.
+  const talkRand = mulberry32((seed ^ 0x9e3779b9) >>> 0);
+
+  function shuffleInPlace(arr, rng) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = (rng() * (i + 1)) | 0;
+      const tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  const SHOP_TALK_LINES = [
+    'HEAT UP. STRIKE TRUE.',
+    'MIND THE TONGS — HOT EDGE.',
+    'THE ANVIL REMEMBERS.',
+    'TEMPER, DON\'T PANIC.',
+    'HAMMER FACE FLAT. EGO FLATTER.',
+    'ONE MORE HEAT, THEN QUENCH.',
+    'SCALE\'S JUST FREE TEXTURE.',
+    'LISTEN: THE RING TELLS YOU.',
+    'THE STEEL\'S TALKING. HEAR IT.',
+    'KEEP THE RHYTHM. KEEP THE HEAT.',
+    'BRIGHT ORANGE = MOVE FAST.',
+    'DULL RED = YOU\'RE LATE.',
+    'QUENCH LIGHTLY. DON\'T SHOCK IT.',
+    'OIL\'S FOR BLADES. WATER\'S FOR REGRET.',
+    'THE FORGE IS HUNGRY.',
+    'BLOW THE BELLOWS LIKE YOU MEAN IT.',
+    'HIT IT WHERE IT WANTS TO GO.',
+    'DON\'T CHASE THE SPARKS.',
+    'MORE HEAT, LESS DRAMA.',
+    'GRIND LATER. FORGE NOW.',
+    'IF IT\'S CRACKING, YOU\'RE RUSHING.',
+    'HARDEN, THEN TEMPER.',
+    'BRUSH THE SCALE. SAVE THE EDGE.',
+    'RIVET DAY IS A GOOD DAY.',
+    'MEASURE TWICE. FORGE ONCE.',
+    'COLD WORK IS JUST HAMMERING A ROCK.',
+    'HOLD THE LINE. HOLD THE TANG.',
+    'A CLEAN STRIKE IS A KIND STRIKE.',
+    'KEEP YOUR WRIST LOOSE.',
+    'SPARKS ARE JUST STEEL APOLOGIZING.',
+    'YES, IT\'S SUPPOSED TO BE LOUD.',
+    'NO, YOU CAN\'T WELD IT WITH HOPE.',
+    'THE FIRE\'S RIGHT. YOUR TIMING\'S NOT.',
+    'DON\'T QUENCH THE ANVIL. EVER.',
+    'WHEN IN DOUBT: NORMALIZE.',
+    'HIT, TURN, HIT, TURN.',
+    'HOTTER THAN IT LOOKS.',
+    'IT\'LL STRAIGHTEN UP. EVENTUALLY.',
+    'THE HAMMER SWINGS. THE SHOP LISTENS.',
+    'SAVE YOUR ARM: LET THE MASS WORK.',
+    'SLOW IS SMOOTH. SMOOTH IS FAST.',
+    'STOP STARING. START STRIKING.',
+  ];
+
+  const shopTalk = shuffleInPlace([...SHOP_TALK_LINES], talkRand);
+  // 42 lines * 9s = 378s (~6.3min) between repeats.
+  const shopTalkPeriod = 9.0;
+  const shopTalkPhase = talkRand() * shopTalkPeriod;
+
   function resetCycle() {
     // choose a “perfect ring” beat inside the hammer phase (even beats, deterministic)
     perfectBeat = 8 + 2 * (((rand() * 8) | 0) % 8); // {8,10,...,22}
@@ -615,6 +679,37 @@ export function createChannel({ seed, audio }) {
     ctx.fillRect(pad + 16 * s, pad + 76 * s, 280 * s, 14 * s);
     ctx.fillStyle = `hsla(${hotHue + 6}, 95%, 60%, ${0.5 + forgeHeat * 0.4})`;
     ctx.fillRect(pad + 16 * s, pad + 76 * s, 280 * s * forgeHeat, 14 * s);
+
+    // "shop talk" caption strip (seeded)
+    if (shopTalk.length) {
+      const time = t + shopTalkPhase;
+      const idx = Math.floor(time / shopTalkPeriod) % shopTalk.length;
+      const line = shopTalk[idx];
+
+      const u = (time % shopTalkPeriod) / shopTalkPeriod;
+      const fadeIn = 0.12;
+      const fadeOut = 0.14;
+      const a = u < fadeIn ? u / fadeIn : u > 1 - fadeOut ? (1 - u) / fadeOut : 1;
+
+      const barW = Math.min(w - 2 * pad, 980 * s);
+      const barH = 44 * s;
+      const x = cx - barW * 0.5;
+      const y = Math.max(pad + 140 * s, h - (barH + 92 * s));
+
+      ctx.globalAlpha = 0.55 * a;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      roundRect(ctx, x, y, barW, barH, 12 * s);
+      ctx.fill();
+
+      ctx.globalAlpha = 0.86 * a;
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.font = `${Math.floor(18 * s)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(line, x + barW * 0.5, y + barH * 0.56);
+      ctx.textAlign = 'start';
+      ctx.textBaseline = 'alphabetic';
+    }
 
     ctx.restore();
   }
