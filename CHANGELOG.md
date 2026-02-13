@@ -1,3 +1,5 @@
+- 2026-02-13 16:50 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — improved hammer swing so it follows a readable arc and reaches the anvil strike point. Commit: 658b16d
+
 - 2026-02-13 16:35 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — made the anvil read more like an anvil (stand/base plate, top face plate, hardy/pritchel holes, crisp outline + underside shading). Screenshots: screenshots/autopilot-2026-02-13-forgeanvil-before + screenshots/autopilot-2026-02-13-forgeanvil-anvil-after. Commit: 3db3956
 
 - 2026-02-13 16:20 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): audio polish — replaced “beep-y” strike hits with a noise transient + tone body; added a short quench hiss burst (with stop-guard). Screenshots: screenshots/autopilot-forgeanvil-audio-2026-02-13-before + screenshots/autopilot-forgeanvil-audio-2026-02-13-after. Commit: 1e40323
