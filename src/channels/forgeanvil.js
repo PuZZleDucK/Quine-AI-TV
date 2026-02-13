@@ -499,6 +499,143 @@ export function createChannel({ seed, audio }) {
     ctx.restore();
   }
 
+  function drawWorkshopPropsMidground(ctx) {
+    // Midground props for depth: a quench bucket + faint wall tools.
+    // Keep OSD clear (top-left) by staying below the HUD region.
+
+    const parX = Math.sin(t * 0.55) * 4 * s;
+    const parY = Math.cos(t * 0.42) * 2 * s;
+
+    // --- Quench bucket (near the steam origin)
+    {
+      const bx = cx + 290 * s + parX;
+      const by = floorY - 6 * s + parY;
+      const bw = 96 * s;
+      const bh = 104 * s;
+
+      // shadow
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      ctx.ellipse(bx + 8 * s, by + 10 * s, bw * 0.62, bw * 0.18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // body
+      const steel = (l) => `hsl(${steelHue}, 14%, ${l}%)`;
+      ctx.save();
+      ctx.fillStyle = steel(10);
+      roundRect(ctx, bx - bw * 0.5, by - bh, bw, bh, 14 * s);
+      ctx.fill();
+
+      // rim
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = steel(16);
+      ctx.beginPath();
+      ctx.ellipse(bx, by - bh + 10 * s, bw * 0.52, bw * 0.18, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // inner opening
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.beginPath();
+      ctx.ellipse(bx, by - bh + 12 * s, bw * 0.42, bw * 0.14, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // handle
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = steel(22);
+      ctx.lineWidth = 3.2 * s;
+      ctx.beginPath();
+      ctx.arc(bx, by - bh + 18 * s, bw * 0.55, Math.PI * 1.05, Math.PI * 1.95);
+      ctx.stroke();
+
+      // warm glow (forgeHeat + strike moment)
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.06 + forgeHeat * 0.12 + strikeGlow * 0.08;
+      ctx.fillStyle = `hsla(${hotHue + 6}, 95%, 58%, 0.9)`;
+      ctx.beginPath();
+      ctx.ellipse(bx - 10 * s, by - bh + 18 * s, bw * 0.55, bw * 0.22, 0.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // --- Wall tools silhouettes (subtle; adds depth without clutter)
+    {
+      ctx.save();
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+
+      const wx = cx + 250 * s + parX * 0.35;
+      const wy = cy - 150 * s + parY * 0.25;
+      const toolW = 14 * s;
+      const toolH = 110 * s;
+
+      // hanging tongs silhouette
+      ctx.fillRect(wx, wy, toolW, toolH);
+      ctx.beginPath();
+      ctx.ellipse(wx + toolW * 0.5, wy + toolH + 10 * s, 28 * s, 14 * s, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // small hammer silhouette
+      ctx.fillRect(wx - 60 * s, wy + 30 * s, toolW, toolH * 0.7);
+      ctx.fillRect(wx - 86 * s, wy + 24 * s, 52 * s, 22 * s);
+
+      ctx.restore();
+    }
+  }
+
+  function drawWorkshopPropsForeground(ctx) {
+    // Foreground prop: tongs on the floor (adds depth). Keep it low.
+
+    const parX = Math.sin(t * 0.55) * 6 * s;
+    const x = cx + 190 * s + parX;
+    const y = floorY + 38 * s;
+
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.lineWidth = 5.4 * s;
+    ctx.lineCap = 'round';
+
+    // two arms
+    ctx.beginPath();
+    ctx.moveTo(x - 80 * s, y - 10 * s);
+    ctx.lineTo(x + 10 * s, y - 32 * s);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x - 80 * s, y + 6 * s);
+    ctx.lineTo(x + 10 * s, y - 18 * s);
+    ctx.stroke();
+
+    // jaws
+    ctx.lineWidth = 6.4 * s;
+    ctx.beginPath();
+    ctx.moveTo(x + 10 * s, y - 34 * s);
+    ctx.lineTo(x + 40 * s, y - 48 * s);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x + 10 * s, y - 16 * s);
+    ctx.lineTo(x + 40 * s, y - 26 * s);
+    ctx.stroke();
+
+    // tiny warm specular hint
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.03 + forgeHeat * 0.05;
+    ctx.strokeStyle = `hsla(${hotHue + 18}, 95%, 70%, 0.8)`;
+    ctx.lineWidth = 2.4 * s;
+    ctx.beginPath();
+    ctx.moveTo(x - 70 * s, y - 8 * s);
+    ctx.lineTo(x - 10 * s, y - 22 * s);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
   function drawForge(ctx) {
     // forge opening + flame
     const fx = cx - 280 * s;
@@ -724,6 +861,8 @@ export function createChannel({ seed, audio }) {
     drawBricks(ctx);
     drawFloor(ctx);
 
+    drawWorkshopPropsMidground(ctx);
+
     // forge glow wash
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
@@ -738,6 +877,8 @@ export function createChannel({ seed, audio }) {
 
     drawSparks(ctx);
     drawSteam(ctx);
+
+    drawWorkshopPropsForeground(ctx);
 
     // ring wave (perfect moment)
     if (ringWave > 0) {
