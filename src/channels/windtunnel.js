@@ -339,7 +339,8 @@ export function createChannel({ seed, audio }) {
     if (!audio.enabled) return;
     const ctx = audio.ensure();
     const root = 62 + ((rand() * 16) | 0);
-    drone = simpleDrone(audio, { root, detune: 0.7, gain: 0.022 });
+    // Keep a faint tonal bed under the wind without sounding like RF static.
+    drone = simpleDrone(audio, { root, detune: 0.7, gain: 0.009 });
 
     // Filtered noise + slow gain modulation reads as "air whoosh", not static.
     windNoise = audio.noiseSource({ type: 'white', gain: 0.0 });
@@ -364,7 +365,7 @@ export function createChannel({ seed, audio }) {
     whooshLfo.type = 'sine';
     whooshLfo.frequency.value = 0.18 + rand() * 0.12;
     whooshLfoGain = ctx.createGain();
-    whooshLfoGain.gain.value = 0.012;
+    whooshLfoGain.gain.value = 0.018;
     whooshLfo.connect(whooshLfoGain);
     whooshLfoGain.connect(windGain.gain);
     whooshLfo.start();
@@ -459,11 +460,11 @@ export function createChannel({ seed, audio }) {
 
     if (audio.enabled && windGain && windHP && windLP){
       const absAoa = Math.abs(body.aoa);
-      const whoosh = 0.018 + absAoa * 0.018 + burst * 0.016 + stall * 0.012;
+      const whoosh = 0.024 + absAoa * 0.024 + burst * 0.022 + stall * 0.015;
       windGain.gain.value = lerp(windGain.gain.value, whoosh, 1 - Math.exp(-dt * 2.8));
 
-      const hpTarget = 170 + absAoa * 520 + burst * 220 + Math.sin(t * 0.9) * 36;
-      const lpTarget = 2900 - absAoa * 780 + burst * 460 + stall * 220;
+      const hpTarget = 190 + absAoa * 620 + burst * 260 + Math.sin(t * 0.9) * 44;
+      const lpTarget = 3200 - absAoa * 920 + burst * 520 + stall * 260;
       windHP.frequency.value = lerp(windHP.frequency.value, clamp(hpTarget, 120, 1400), 1 - Math.exp(-dt * 3.0));
       windLP.frequency.value = lerp(windLP.frequency.value, clamp(lpTarget, 1600, 5200), 1 - Math.exp(-dt * 2.6));
     }
