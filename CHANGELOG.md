@@ -1,3 +1,5 @@
+- 2026-02-13 17:00 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — rotate through several glowing hot items on the anvil; swap immediately after QUENCH. Screenshots: screenshots/autopilot-forgeanvil-hotitems-before-20260213-1700 + screenshots/autopilot-forgeanvil-hotitems-after-20260213-1700. Commit: TBD
+
 - 2026-02-13 16:50 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — improved hammer swing so it follows a readable arc and reaches the anvil strike point. Commit: 658b16d
 
 - 2026-02-13 16:35 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals — made the anvil read more like an anvil (stand/base plate, top face plate, hardy/pritchel holes, crisp outline + underside shading). Screenshots: screenshots/autopilot-2026-02-13-forgeanvil-before + screenshots/autopilot-2026-02-13-forgeanvil-anvil-after. Commit: 3db3956

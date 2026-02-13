@@ -87,6 +87,12 @@ export function createChannel({ seed, audio }) {
   const steelHue = 205 + rand() * 18; // blue-ish steel
   const brickHue = 18 + rand() * 10;
 
+  // Hot item variants (rotates right after each QUENCH beat).
+  // Keep deterministic and avoid per-frame rand() use.
+  const HOT_ITEMS = ['billet', 'knife', 'ring', 'hook', 'chisel'];
+  const hotItemIndexStart = (rand() * HOT_ITEMS.length) | 0;
+  let hotItemIndex = hotItemIndexStart;
+
   // keep the brick pattern stable (no wall movement)
   const brickPhase = rand();
 
@@ -326,6 +332,7 @@ export function createChannel({ seed, audio }) {
     ringWave = 0;
     resetCycle();
     reseedFlameTongues();
+    hotItemIndex = hotItemIndexStart;
 
     gradientsDirty = true;
     cachedCtx = null;
@@ -429,6 +436,9 @@ export function createChannel({ seed, audio }) {
     const qy = cy + 150 * s;
     for (let i = 0; i < 14; i++) spawnSteam(qx, qy);
     strikeGlow = Math.max(strikeGlow, 0.55);
+
+    // Rotate the item right after quenching (keeps long-run visuals fresh).
+    hotItemIndex = (hotItemIndex + 1) % HOT_ITEMS.length;
 
     if (!audio.enabled) return;
 
@@ -859,12 +869,142 @@ export function createChannel({ seed, audio }) {
     ctx.fillStyle = anvilHighlightGradient;
     ctx.fillRect(ax - 280 * s, ay - 120 * s, 560 * s, 280 * s);
 
-    // hot bar on anvil (kept subtle; boosted on HEAT)
-    const heat = forgeHeat;
-    ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 0.12 + heat * 0.55;
-    ctx.fillStyle = `hsla(${hotHue}, 95%, ${55 + heat * 10}%, 1)`;
-    ctx.fillRect(ax - 44 * s, ay - 72 * s, 170 * s, 18 * s);
+    // hot item on anvil (rotates right after QUENCH; keeps long-run visuals from feeling static)
+    {
+      const heat = forgeHeat;
+      const kind = HOT_ITEMS[hotItemIndex];
+
+      const x0 = ax - 50 * s;
+      const y0 = ay - 74 * s;
+      const len = 190 * s;
+      const thick = 18 * s;
+
+      const glowFlicker = 0.85 + 0.15 * Math.sin(t * 6.0 + hotItemIndex);
+      const glowA = (0.1 + heat * 0.55) * glowFlicker;
+      const glowStyle = `hsla(${hotHue}, 95%, ${56 + heat * 12}%, 1)`;
+
+      // base steel
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.82;
+      ctx.fillStyle = steel(18);
+
+      if (kind === 'billet') {
+        roundRect(ctx, x0, y0, len, thick, 6 * s);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.26;
+        ctx.strokeStyle = steel(6);
+        ctx.lineWidth = 2.0 * s;
+        ctx.stroke();
+
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = glowA;
+        ctx.fillStyle = glowStyle;
+        roundRect(ctx, x0, y0, len, thick, 6 * s);
+        ctx.fill();
+      } else if (kind === 'knife') {
+        const tip = 28 * s;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x0 + len - tip, y0);
+        ctx.lineTo(x0 + len, y0 + thick * 0.5);
+        ctx.lineTo(x0 + len - tip, y0 + thick);
+        ctx.lineTo(x0, y0 + thick);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.globalAlpha = 0.24;
+        ctx.strokeStyle = steel(6);
+        ctx.lineWidth = 2.0 * s;
+        ctx.stroke();
+
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = glowA;
+        ctx.fillStyle = glowStyle;
+        ctx.fill();
+      } else if (kind === 'chisel') {
+        const tip = 30 * s;
+        roundRect(ctx, x0, y0, len - tip, thick, 6 * s);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(x0 + len - tip, y0);
+        ctx.lineTo(x0 + len, y0 + thick * 0.5);
+        ctx.lineTo(x0 + len - tip, y0 + thick);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.globalAlpha = 0.24;
+        ctx.strokeStyle = steel(6);
+        ctx.lineWidth = 2.0 * s;
+        ctx.stroke();
+
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = glowA;
+        ctx.fillStyle = glowStyle;
+        roundRect(ctx, x0, y0, len - tip, thick, 6 * s);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x0 + len - tip, y0);
+        ctx.lineTo(x0 + len, y0 + thick * 0.5);
+        ctx.lineTo(x0 + len - tip, y0 + thick);
+        ctx.closePath();
+        ctx.fill();
+      } else if (kind === 'hook') {
+        const bodyLen = len * 0.62;
+        roundRect(ctx, x0, y0, bodyLen, thick, 6 * s);
+        ctx.fill();
+
+        // hook tip
+        const hx = x0 + bodyLen + 8 * s;
+        const hy = y0 + thick * 0.55;
+        ctx.globalAlpha = 0.74;
+        ctx.strokeStyle = steel(16);
+        ctx.lineWidth = 5.8 * s;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(hx - 6 * s, hy, 18 * s, -0.2, Math.PI * 1.2);
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = steel(6);
+        ctx.lineWidth = 2.0 * s;
+        ctx.beginPath();
+        ctx.arc(hx - 6 * s, hy, 18 * s, -0.2, Math.PI * 1.2);
+        ctx.stroke();
+
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = glowA;
+        ctx.fillStyle = glowStyle;
+        roundRect(ctx, x0, y0, bodyLen, thick, 6 * s);
+        ctx.fill();
+
+        ctx.strokeStyle = glowStyle;
+        ctx.lineWidth = 6.2 * s;
+        ctx.beginPath();
+        ctx.arc(hx - 6 * s, hy, 18 * s, -0.2, Math.PI * 1.2);
+        ctx.stroke();
+      } else if (kind === 'ring') {
+        const rx = x0 + len * 0.64;
+        const ry = y0 + thick * 0.55;
+        const rr = 16 * s;
+
+        ctx.globalAlpha = 0.75;
+        ctx.strokeStyle = steel(18);
+        ctx.lineWidth = 6.2 * s;
+        ctx.beginPath();
+        ctx.arc(rx, ry, rr, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = glowA;
+        ctx.strokeStyle = glowStyle;
+        ctx.lineWidth = 7.0 * s;
+        ctx.beginPath();
+        ctx.arc(rx, ry, rr, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
 
     ctx.restore();
   }

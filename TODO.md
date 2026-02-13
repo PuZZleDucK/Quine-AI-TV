@@ -7,5 +7,4 @@ if `TODO.md` has no ready items:
 
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - forge and fire needs to look better, move more to the side
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals — make workshop props more opaque and pushed further to the side
-- [ ] `forgeanvil` (src/channels/forgeanvil.js): visuals - rotate though several glowing hot items being worked on on anvil after quenching
 - [ ] `forgeanvil` (src/channels/forgeanvil.js): visual storytelling — add an explicit quench tank/bucket and a dunk motion synced to QUENCH phase (steam should originate from the waterline).
