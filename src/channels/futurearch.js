@@ -2,8 +2,6 @@
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
-function pick(rand, a){ return a[(rand() * a.length) | 0]; }
-
 // Speculative museum placards for present-day objects.
 // Playful fiction: not a serious forecast.
 const ARTIFACTS = [
@@ -103,6 +101,102 @@ const ARTIFACTS = [
       'Charging cases act as tiny sarcophagi for the pair.',
     ],
   },
+  {
+    id: 'smartwatch',
+    title: 'Wrist Chronicon',
+    era: 'Wearable Quantification Age',
+    material: 'Glass / silicone / lithium cell',
+    kind: 'phone',
+    plaque: [
+      'Kept time, health metrics, and social obligations in one polite rectangle.',
+      'The wrist placement suggests constant monitoring was considered reassuring.',
+      'Many units show micro-scratches: evidence of countless doorframe negotiations.',
+    ],
+  },
+  {
+    id: 'dongle',
+    title: 'Port Translation Idol',
+    era: 'Adapter Renaissance',
+    material: 'Aluminium / tiny chips / quiet despair',
+    kind: 'cable',
+    plaque: [
+      'A sacred intermediary enabling ancient devices to speak in newer tongues.',
+      'Collectors carried pouches of these idols, just in case “the projector” appeared.',
+      'Often misplaced at the moment of greatest need — a recurring tragedy motif.',
+    ],
+  },
+  {
+    id: 'keyfob',
+    title: 'Charmed Proximity Totem',
+    era: 'Automotive Convenience Period',
+    material: 'Plastic / radio coil / button membrane',
+    kind: 'keys',
+    plaque: [
+      'Pressed to summon vehicles from slumber and to silence their warning cries.',
+      'Worn shiny at the edges where anxious fingers performed reassurance loops.',
+      'Sometimes wrapped in leather: a domestication attempt that rarely succeeded.',
+    ],
+  },
+  {
+    id: 'travel-mug',
+    title: 'Thermal Cylinder of Perseverance',
+    era: 'Commute Era',
+    material: 'Steel / vacuum gap / gasket',
+    kind: 'mug',
+    plaque: [
+      'Designed to keep offerings warm during long migrations between buildings.',
+      'Seals fail catastrophically, suggesting the gods demanded tribute on trousers.',
+      'Lids are often missing — perhaps removed to encourage mindfulness.',
+    ],
+  },
+  {
+    id: 'gamepad',
+    title: 'Dual-Stick Diviner',
+    era: 'Console Dynasties',
+    material: 'ABS plastic / carbon domes',
+    kind: 'remote',
+    plaque: [
+      'Used to steer imaginary avatars through moral dilemmas and timed jumping trials.',
+      'Thumb-worn pits indicate favored spells ("jump") and forbidden spells ("pause").',
+      'Sometimes connected by cable, implying the diviner needed a leash.',
+    ],
+  },
+  {
+    id: 'respirator',
+    title: 'Particulate Veil (High Filtration)',
+    era: 'Mask Upgrade Cycle',
+    material: 'Melt-blown fiber / elastic loops',
+    kind: 'mask',
+    plaque: [
+      'A more serious cousin of the cloth veil, built for harsher indoor climates.',
+      'The rigid shape suggests prestige, or at least better cheekbone support.',
+      'Frequently stored in glove boxes: a sign that air was an intermittent problem.',
+    ],
+  },
+  {
+    id: 'takeout-cutlery',
+    title: 'Emergency Utensil of the Road',
+    era: 'Delivery Feast Epoch',
+    material: 'Biopolymer / optimistic branding',
+    kind: 'spork',
+    plaque: [
+      'Included with meals as a contingency plan against lost forks and fragile resolve.',
+      'Often arrives in duplicate, suggesting redundancy was an honored virtue.',
+      'Lightweight enough to become airborne in mild breezes, returning to the wild.',
+    ],
+  },
+  {
+    id: 'earbud-case',
+    title: 'Pocket Sarcophagus (Rechargeable)',
+    era: 'Wireless Pairing Era',
+    material: 'Polymer / magnets / tiny battery',
+    kind: 'earbuds',
+    plaque: [
+      'A cradle that both charges and imprisons the whisper stones between rituals.',
+      'Many cases are empty: the stones escaped, leaving only the coffin behind.',
+      'The hinge wear pattern implies frequent checking to confirm the stones existed.',
+    ],
+  },
 ];
 
 export function createChannel({ seed, audio }){
@@ -164,10 +258,40 @@ export function createChannel({ seed, audio }){
     }
   }
 
-  function chooseDifferent(prev){
-    let a = pick(rand, ARTIFACTS);
-    if (!prev) return a;
-    for (let i = 0; i < 6 && a.id === prev.id; i++) a = pick(rand, ARTIFACTS);
+  // Seeded shuffle-bag so we see every artifact once per cycle.
+  // With 16+ artifacts and ~14–24s cards, this yields ~5+ minutes before repeats.
+  let bag = [];
+  let bagI = 0;
+
+  function shuffleInPlace(a){
+    for (let i = a.length - 1; i > 0; i--){
+      const j = (rand() * (i + 1)) | 0;
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+  }
+
+  function refillBag(prev){
+    bag = Array.from({ length: ARTIFACTS.length }, (_, i) => i);
+    shuffleInPlace(bag);
+
+    // Avoid back-to-back repeats across bag boundaries.
+    if (prev && ARTIFACTS.length > 1 && ARTIFACTS[bag[0]]?.id === prev.id){
+      const t = bag[0]; bag[0] = bag[1]; bag[1] = t;
+    }
+
+    bagI = 0;
+  }
+
+  function chooseArtifact(prev){
+    if (!bag.length || bagI >= bag.length) refillBag(prev);
+    let a = ARTIFACTS[bag[bagI++]];
+
+    // Defensive: if we somehow matched prev, correct (still deterministic).
+    if (prev && a?.id === prev.id && ARTIFACTS.length > 1){
+      if (bagI >= bag.length) refillBag(prev);
+      a = ARTIFACTS[bag[bagI++]];
+    }
+
     return a;
   }
 
@@ -191,8 +315,8 @@ export function createChannel({ seed, audio }){
       });
     }
 
-    current = chooseDifferent(null);
-    next = chooseDifferent(current);
+    current = chooseArtifact(null);
+    next = chooseArtifact(current);
     cardT = 0;
     cardDur = 14 + rand() * 10;
     trans = 1;
@@ -237,7 +361,7 @@ export function createChannel({ seed, audio }){
 
     if (cardT >= cardDur){
       current = next;
-      next = chooseDifferent(current);
+      next = chooseArtifact(current);
       cardT = 0;
       cardDur = 14 + rand() * 10;
       trans = 0;
