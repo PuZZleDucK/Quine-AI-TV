@@ -1,3 +1,5 @@
+- 2026-02-13 13:15 (Australia/Melbourne) [project:quine-tv] `orbits` (src/channels/orbits.js): bug — prevent sun/planet/moon overlap (orbit spacing adjusted; moons skip draw when overlapping). Commit: db0761c
+
 - 2026-02-13 13:01 (Australia/Melbourne) [project:quine-tv] `orbits` (src/channels/orbits.js): special moment — added rare deterministic “COMET PASS” (shooting star + trail) scheduled ~3–5 minutes. Commit: 21e93a3
 
 - 2026-02-13 12:46 (Australia/Melbourne) [project:quine-tv] `orbits` (src/channels/orbits.js): visual — cycle through different orbit layouts every 5 minutes (smooth transition; avoids per-frame layout allocations). Commit: e1b1c7a
