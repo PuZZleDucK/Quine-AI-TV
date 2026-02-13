@@ -233,6 +233,25 @@ export function createChannel({ seed, audio }) {
     return off;
   }
 
+  function obstacleSplitOffset(nx, baseY, cx, cy, profile, fallbackSign = 1){
+    // Force a visible streamline split around the obstacle while preserving
+    // laminar flow on the left side of the tunnel.
+    const start = cx - 0.18;
+    const ramp = ease(clamp((nx - start) / 0.24, 0, 1));
+    if (ramp <= 0) return 0;
+
+    const xBell = Math.exp(-Math.pow((nx - cx) / (profile.rx * 1.25), 2));
+    const yn = (baseY - cy) / (profile.ry * 1.08);
+    const center = Math.exp(-(yn * yn));
+
+    let sign = yn >= 0 ? 1 : -1;
+    if (Math.abs(yn) < 0.05) sign = fallbackSign >= 0 ? 1 : -1;
+
+    // Strongest at centerlines near body, taper away from obstacle.
+    const amp = (0.018 + 0.055 * center) * body.size;
+    return sign * amp * xBell * ramp;
+  }
+
   function computeTargets(){
     const aoa = body.aoa;
     const abs = Math.abs(aoa);
@@ -520,6 +539,9 @@ export function createChannel({ seed, audio }) {
         const splitRamp = ease(clamp((nx - (cx - 0.16)) / 0.28, 0, 1));
         ny += side * 0.015 * shell * nearCenter * splitRamp;
 
+        // Additional forced split so deformation is clearly readable on-screen.
+        ny += obstacleSplitOffset(nx, baseY, cx, cy, profile, (i % 2 ? 1 : -1));
+
         const x = x0 + nx * cw;
         const y = y0 + ny * ch;
 
@@ -566,6 +588,7 @@ export function createChannel({ seed, audio }) {
       const side = (L.y0 - cy) >= 0 ? 1 : -1;
       const splitRamp = ease(clamp((nx - (cx - 0.16)) / 0.28, 0, 1));
       ny += side * 0.010 * shell * splitRamp;
+      ny += obstacleSplitOffset(nx, L.y0, cx, cy, profile, ((p.li % 2) ? 1 : -1)) * 0.7;
 
       const x = x0 + p.x;
       const y = y0 + ny * ch + Math.sin(p.wob * 2 + p.seed) * 1.2;
