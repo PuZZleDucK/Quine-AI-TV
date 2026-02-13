@@ -1,4 +1,4 @@
-- 2026-02-13 22:05 (Australia/Melbourne) [project:quine-tv] `futurearch` (src/channels/futurearch.js): UI — make the placard panel OSD-safe (bottom HUD must not cover bullet text). Commit: TBD
+- 2026-02-13 22:05 (Australia/Melbourne) [project:quine-tv] `futurearch` (src/channels/futurearch.js): UI — make the placard panel OSD-safe (bottom HUD must not cover bullet text). Commit: da22125
 
 - 2026-02-13 21:23 (Australia/Melbourne) [project:quine-tv] `futurearch` (src/channels/futurearch.js): special moment — added rare deterministic “DOCENT NOTE” overlay + exhibit light flicker (~45–120s cadence; seeded; placard stays stable). Commit: 2fa7df6
 
