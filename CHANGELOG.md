@@ -1,3 +1,5 @@
+- 2026-02-14 16:36 (Australia/Melbourne) [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): perf — replaced spark cap from `sparks.shift()` (O(n)) to O(1) swap-remove. Screenshots: screenshots/autopilot-2026-02-14-lasercutfile-before + screenshots/autopilot-2026-02-14-lasercutfile-after. Commit: TBD
+
 - 2026-02-14 16:05 (Australia/Melbourne) [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): determinism — switched packet spawning + waterfall updates to a fixed-timestep simulation loop (`SIM_DT=1/60`) so RNG consumption is FPS-stable (30fps/60fps captures match). Commit: dd311eb
 
 - 2026-02-14 15:51 (Australia/Melbourne) [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): text/dialog — added a seeded rotating “packet log” / callout strip (~5.6s cadence; ~6 minutes before repeating), clipped OSD-safe inside the waterfall panel. Commit: cbaddfa

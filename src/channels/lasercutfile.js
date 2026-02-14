@@ -300,7 +300,11 @@ export function createChannel({ seed, audio }){
   function emitSparks(x, y, amt, heat = 1){
     const n = Math.min(amt, 10);
     for (let i = 0; i < n; i++){
-      if (sparks.length >= MAX_SPARKS) sparks.shift();
+      if (sparks.length >= MAX_SPARKS){
+        // O(1) cap (order doesn't matter for sparks)
+        sparks[0] = sparks[sparks.length - 1];
+        sparks.pop();
+      }
       const a = (-Math.PI / 2) + (rand() * 2 - 1) * 0.9;
       const sp = (140 + rand() * 340) * (0.6 + heat * 0.7);
       sparks.push({

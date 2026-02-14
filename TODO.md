@@ -6,6 +6,7 @@ if `TODO.md` has no ready items:
 ## Channel review queue
 
 <!-- (empty) -->
+- [ ] Review channel `lasercutfile` (src/channels/lasercutfile.js)
 <!-- done: reviewed `news` (2026-02-14) → TODONE.md -->
 
 <!-- done: moved to TODONE.md -->
@@ -81,3 +82,10 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (lighthouse gradient cache) -->
 <!-- done: moved to TODONE.md (lighthouse cliff texture) -->
 <!-- done: moved to TODONE.md (lighthouse special moments) -->
+
+## Follow-ups queued from review: lasercutfile
+
+- [ ] `lasercutfile` (src/channels/lasercutfile.js): determinism — make sparks emission FPS-stable (drive from cut progress distance or fixed-timestep sim; avoid per-frame `rand()` in `update()` so 30fps/60fps captures match).
+<!-- done: moved to TODONE.md (lasercutfile sparks cap perf) -->
+- [ ] `lasercutfile` (src/channels/lasercutfile.js): special moments — add 1–2 rare deterministic events (~1–3 min cadence): e.g. “MATERIAL CHANGE” palette swap / “AIR ASSIST BURST” smoke puff + brief HUD badge, clean reset.
+- [ ] `lasercutfile` (src/channels/lasercutfile.js): visuals — add a subtle cached brushed-metal or stipple texture overlay on the bed frame (rebuild on resize) to increase material read without clutter.
