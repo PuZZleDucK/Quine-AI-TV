@@ -1,3 +1,5 @@
+- 2026-02-15 00:48 (Australia/Melbourne) [project:quine-tv] `micromyst` (src/channels/micromystery.js): audio hygiene/determinism — made `onAudioOn()` idempotent and split an `audioRand` PRNG so type-click beeps don’t consume the story/visual RNG sequence. Commit: TBD
+
 - 2026-02-15 00:38 (Australia/Melbourne) [project:quine-tv] `micromyst` (src/channels/micromystery.js): perf — cached background gradients/vignette + paper grain into offscreen layers (rebuild on init/resize) so steady-state `render()` blits layers (no per-frame gradients / grain loop). Commit: 66c06a9
 
 - 2026-02-15 00:23 (Australia/Melbourne) [project:quine-tv] Review channel `micromyst` (src/channels/micromystery.js): captured screenshots (0–300s) to `screenshots/review-micromyst-2026-02-15` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-15`, and queued concrete follow-ups in `TODO.md`. Commit: 187d397

@@ -124,6 +124,6 @@ if `TODO.md` has no ready items:
 
 - [ ] `micromyst` (src/channels/micromystery.js): determinism — remove `rand()` usage from `render()` (grain + per-line jitter) by precomputing deterministic jitter/grain (seeded) and indexing by line + time bucket.
 
-- [ ] `micromyst` (src/channels/micromystery.js): audio hygiene/determinism — make `onAudioOn()` idempotent and split an `audioRand` PRNG so type-click beeps don’t consume the visual/story RNG sequence.
+<!-- done: moved to TODONE.md (micromyst audio hygiene/determinism: audioRand split + onAudioOn idempotent) -->
 
 - [ ] `micromyst` (src/channels/micromystery.js): special moments/text — add 1–2 rare deterministic events (e.g. REDACTION bar sweep / INK BLOT / “CASE REOPENED”) on a ~2–5 min cadence with an OSD-safe label, and expand the text pools to reduce repetition.

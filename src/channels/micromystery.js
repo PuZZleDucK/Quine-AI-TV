@@ -273,6 +273,8 @@ function makeCanvas(W, H){
 export function createChannel({ seed, audio }){
   const baseSeed = (seed == null) ? 0 : (seed >>> 0);
   const rand = mulberry32(baseSeed);
+  // Keep audio randomness deterministic, but independent of story/visual RNG.
+  const audioRand = mulberry32((baseSeed ^ 0x85ebca6b) >>> 0);
   const grainSeed = (baseSeed ^ 0x9e3779b9) >>> 0;
 
   let w = 0, h = 0;
@@ -460,6 +462,8 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
+    // Idempotent: avoid stacking multiple beds if the host calls this twice.
+    if (bed) return;
     const d = simpleDrone(audio, { root: 70, detune: 0.9, gain: 0.035 });
     const n = audio.noiseSource({ type: 'pink', gain: 0.006 });
     n.start();
@@ -491,8 +495,8 @@ export function createChannel({ seed, audio }){
 
       // gentle type clicks, rate-limited (not per char)
       if (audio.enabled && now > prev && clickCooldown <= 0){
-        clickCooldown = 0.045 + rand() * 0.04;
-        audio.beep({ freq: 980 + rand() * 180, dur: 0.012, gain: 0.012, type: 'square' });
+        clickCooldown = 0.045 + audioRand() * 0.04;
+        audio.beep({ freq: 980 + audioRand() * 180, dur: 0.012, gain: 0.012, type: 'square' });
       }
     }
 
