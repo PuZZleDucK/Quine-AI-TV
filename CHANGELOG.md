@@ -1,3 +1,5 @@
+- 2026-02-15 05:01 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — tone down CRT flashing intensity (reduced flicker alpha + clamp). Commit: c35b4e7
+
 - 2026-02-15 04:47 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — clipped the HUD overlay contents so text can’t overflow the rounded overlay. Commit: d430929
 
 - 2026-02-15 04:30 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — moved the HUD overlay to the top-right to avoid overlapping boot text. Commit: d3fcf1e

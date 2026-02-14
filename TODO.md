@@ -3,7 +3,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — tone down CRT flashing intensity - previous attempt failed.
 - [project:quine-tv] `retroboot` (src/channels/retroboot.js): determinism — switch `update(dt)` to a fixed-timestep sim loop (`SIM_DT=1/60`) so click/beep schedules are FPS-stable for 30fps/60fps captures.
 - [project:quine-tv] `retroboot` (src/channels/retroboot.js): long-run interest — extend the segment cycle to ~3–5 minutes 
 - [project:quine-tv] `retroboot` add Win9x splash/installer.

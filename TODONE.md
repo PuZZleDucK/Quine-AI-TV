@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — tone down CRT flashing intensity (reduced flicker alpha + clamp). Commit: c35b4e7
+
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — overlay text overflows out of overlay. Commit: d430929
 
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — moved HUD overlay to the top-right to avoid overlapping boot text. Commit: d3fcf1e
