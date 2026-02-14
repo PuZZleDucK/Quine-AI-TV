@@ -237,6 +237,34 @@ function makeDosLines(rand){
   at += 0.95;
   lines.push({ at, text: `C:\\${cdDir}>`, color: colorH });
 
+  // quick disk-check beat (classic utilities): SCANDISK + Norton Disk Doctor
+  at += 1.05;
+  lines.push({ at, text: `C:\\${cdDir}>scandisk c: /autofix`, color: colorH });
+  at += 0.75;
+  lines.push({ at, text: 'Microsoft ScanDisk Version 6.22', color: colorL });
+  at += 0.65;
+  lines.push({ at, text: 'ScanDisk is checking drive C:', color: colorM });
+  at += 0.70;
+  lines.push({ at, text: 'Checking file allocation table...  OK', color: colorM });
+  at += 0.70;
+  lines.push({ at, text: 'Checking directory structure...     OK', color: colorM });
+  at += 0.70;
+  lines.push({ at, text: 'Checking file system...', color: colorM });
+  at += 0.70;
+  lines.push({ at, text: 'No errors found.', color: colorL });
+
+  at += 1.10;
+  lines.push({ at, text: `C:\\${cdDir}>ndd c:`, color: colorH });
+  at += 0.75;
+  lines.push({ at, text: 'Norton Utilities — Disk Doctor', color: colorL });
+  at += 0.70;
+  lines.push({ at, text: 'Analyzing disk structures...', color: colorM });
+  at += 0.75;
+  lines.push({ at, text: 'All tests completed successfully.', color: colorL });
+
+  at += 0.95;
+  lines.push({ at, text: `C:\\${cdDir}>`, color: colorH });
+
   return lines;
 }
 
