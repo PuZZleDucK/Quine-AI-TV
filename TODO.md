@@ -4,7 +4,5 @@ if `TODO.md` has no ready items:
 # TODO Queue
 
 <!-- done: moved to TODONE.md -->
-- [project:quine-tv] `retroboot` add Win9x splash/installer.
-- [project:quine-tv] `retroboot` add bsd - uncommon.
 - [project:quine-tv] `retroboot` add unixes - uncommon.
 - [project:quine-tv] `retroboot` add alien os - rare.

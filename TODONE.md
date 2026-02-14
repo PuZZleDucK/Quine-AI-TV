@@ -1,5 +1,8 @@
 # Done
 
+
+- [x] [project:quine-tv] `retroboot` add bsd - uncommon. Commit: 0fd5631
+
 - [x] [project:quine-tv] `retroboot` add beos - rare. Commit: 24fbe6d
 
 - [x] [project:quine-tv] `retroboot` add solaris - rare. Commit: 501cd35

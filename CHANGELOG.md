@@ -731,3 +731,4 @@
 - 2026-02-15 06:33 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): HUD overlay text clamped + ellipsized to prevent overflow on tiny/extreme aspect renders. Commit: 345058a
 
 - 2026-02-15 07:45 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): uncommon crash moment — added deterministic one-off BSOD/kernel panic screen (~3 min). Commit: 8188e3a
+- 2026-02-15 09:48 (Australia/Melbourne) [project:quine-tv] `retroboot`: BSD boot-log variant (uncommon) — moved TODO→TODONE and logged completion (work was in commit 0fd5631). Commit: 0fd5631
