@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] Review channel `micromyst` (src/channels/micromystery.js): captured screenshots (0–300s) to `screenshots/review-micromyst-2026-02-15` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-15`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+
 - [x] [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): text/dialog — expanded sign/tag pools and refreshes signs/tags + ledger + receipts once per 60s cycle using seeded shuffle-bags (no per-frame RNG). Commit: 75aec8d
 
 - [x] [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): special moments — added rare deterministic “POWER CUT” + “FLASH SALE” events (~120–300s) with OSD-safe banner + clean reset; schedule uses separate seeded RNG so core visuals remain stable. Commit: fc4c097

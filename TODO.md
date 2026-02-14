@@ -11,6 +11,8 @@ if `TODO.md` has no ready items:
 
 <!-- done: reviewed `news` (2026-02-14) → TODONE.md -->
 
+<!-- done: reviewed `micromyst` (2026-02-15) → TODONE.md -->
+
 <!-- done: moved to TODONE.md -->
 
 ## Follow-ups queued from review: mailroomtube
@@ -115,3 +117,13 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (nightmarket audio hygiene) -->
 <!-- done: moved to TODONE.md (nightmarket special moments) -->
 <!-- done: moved to TODONE.md (nightmarket text/dialog variety) -->
+
+## Follow-ups queued from review: micromyst
+
+- [ ] `micromyst` (src/channels/micromystery.js): perf — cache background gradients + paper grain into offscreen layers (rebuild on init/resize) so `render()` avoids per-frame `create*Gradient()` and the 140-rect grain loop.
+
+- [ ] `micromyst` (src/channels/micromystery.js): determinism — remove `rand()` usage from `render()` (grain + per-line jitter) by precomputing deterministic jitter/grain (seeded) and indexing by line + time bucket.
+
+- [ ] `micromyst` (src/channels/micromystery.js): audio hygiene/determinism — make `onAudioOn()` idempotent and split an `audioRand` PRNG so type-click beeps don’t consume the visual/story RNG sequence.
+
+- [ ] `micromyst` (src/channels/micromystery.js): special moments/text — add 1–2 rare deterministic events (e.g. REDACTION bar sweep / INK BLOT / “CASE REOPENED”) on a ~2–5 min cadence with an OSD-safe label, and expand the text pools to reduce repetition.

@@ -1,3 +1,5 @@
+- 2026-02-15 00:23 (Australia/Melbourne) [project:quine-tv] Review channel `micromyst` (src/channels/micromystery.js): captured screenshots (0–300s) to `screenshots/review-micromyst-2026-02-15` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-15`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+
 - 2026-02-15 00:06 (Australia/Melbourne) [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): text/dialog — expanded sign/tag pools and added seeded per-cycle refresh for signs/tags + ledger + receipts (no per-frame RNG). Commit: 75aec8d
 
 - 2026-02-14 23:19 (Australia/Melbourne) [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): determinism — removed `rand()` from the rain wrap/reset path in `update(dt)` by deriving per-wrap x-jitter from a deterministic hash of {seed, dropId, wrapCount} (no PRNG consumption during wraps). Commit: 53258ab
