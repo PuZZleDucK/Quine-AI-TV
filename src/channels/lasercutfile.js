@@ -147,6 +147,12 @@ export function createChannel({ seed, audio }){
   const MAX_SPARKS = 90;
   let sparks = [];
 
+  // determinism: drive sparks emission from cut distance, not per-frame update()
+  const SPARK_STEP_PX = 6;
+  let cutSparkDist = 0;
+  let cutSparkEvent = 0;
+  let wasCutPhase = false;
+
   // audio
   let hum = null;
   let hiss = null;
@@ -300,7 +306,7 @@ export function createChannel({ seed, audio }){
     totalLen = baked.total || 1;
   }
 
-  function emitSparks(x, y, amt, heat = 1){
+  function emitSparks(x, y, amt, heat = 1, rng = rand){
     const n = Math.min(amt, 10);
     for (let i = 0; i < n; i++){
       if (sparks.length >= MAX_SPARKS){
@@ -308,14 +314,14 @@ export function createChannel({ seed, audio }){
         sparks[0] = sparks[sparks.length - 1];
         sparks.pop();
       }
-      const a = (-Math.PI / 2) + (rand() * 2 - 1) * 0.9;
-      const sp = (140 + rand() * 340) * (0.6 + heat * 0.7);
+      const a = (-Math.PI / 2) + (rng() * 2 - 1) * 0.9;
+      const sp = (140 + rng() * 340) * (0.6 + heat * 0.7);
       sparks.push({
         x, y,
         vx: Math.cos(a) * sp,
         vy: Math.sin(a) * sp,
-        life: 0.12 + rand() * 0.22,
-        r: 0.7 + rand() * 1.9,
+        life: 0.12 + rng() * 0.22,
+        r: 0.7 + rng() * 1.9,
       });
     }
   }
@@ -343,6 +349,10 @@ export function createChannel({ seed, audio }){
     bakeToPixels();
 
     sparks = [];
+    cutSparkDist = 0;
+    cutSparkEvent = 0;
+    wasCutPhase = false;
+
     scan = 0;
     glowPulse = 0;
     popFlash = 0;
@@ -402,14 +412,31 @@ export function createChannel({ seed, audio }){
 
     const ph = phaseInfo(t);
 
+    if (ph.id !== 'cut') wasCutPhase = false;
+
     if (ph.id === 'cut'){
       const p = clamp(ph.t / ph.dur, 0, 1);
       const dist = p * totalLen;
       const pt = pointAlong(segs, dist);
 
-      // sparks / zaps
+      if (!wasCutPhase){
+        wasCutPhase = true;
+        cutSparkDist = 0;
+        cutSparkEvent = 0;
+      }
+
+      // sparks / zaps (distance-driven so 30fps/60fps captures match)
+      while (cutSparkDist <= dist){
+        const tt = (cutSparkDist / totalLen) * ph.dur;
+        const heat2 = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(tt * 3.1));
+        const pt2 = pointAlong(segs, cutSparkDist);
+        const sr = mulberry32((seed ^ 0x6c8e9cf5) + (cutSparkEvent * 0x9e3779b9));
+        emitSparks(pt2.x, pt2.y, 2 + ((heat2 * 2) | 0), heat2, sr);
+        cutSparkDist += SPARK_STEP_PX;
+        cutSparkEvent++;
+      }
+
       const heat = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(ph.t * 3.1));
-      emitSparks(pt.x, pt.y, 2 + ((heat * 2) | 0), heat);
 
       // gentle click/beep cadence
       if (audio.enabled && t >= nextCornerBeepAt){
