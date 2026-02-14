@@ -123,6 +123,44 @@ export function createChannel({ seed, audio }){
     RET: 'RETURNS',
   };
 
+  function shuffleInPlace(arr, r){
+    for (let i = arr.length - 1; i > 0; i--){
+      const j = (r() * (i + 1)) | 0;
+      const tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  // Seeded rotating log line (~6 minutes before repeating).
+  const DISPATCH_MSG_DUR = 10; // seconds per line
+  const DISPATCH_LOG = (() => {
+    const r = mulberry32(((seed | 0) ^ 0x6d2b79f5) >>> 0);
+    const stationKeys = Object.keys(STATION_NAMES);
+
+    const verbs = ['ROUTE','SCAN','STAMP','BATCH','VERIFY','REROUTE','HOLD','RELEASE','INDEX','PATCH'];
+    const nouns = ['PARCEL','ENVELOPE','FILM','DOSSIER','BAG','CRATE','FORM','TUBE'];
+    const quals = ['STD','AIR','SURFACE','INTL','FRAGILE','RUSH','INSURED','OVERSIZE','COLD','LITHO'];
+
+    const msgs = [];
+    const n = 36;
+    for (let i = 0; i < n; i++){
+      const from = stationKeys[(r() * stationKeys.length) | 0];
+      let to = stationKeys[(r() * stationKeys.length) | 0];
+      if (to === from) to = stationKeys[(r() * stationKeys.length) | 0];
+
+      const code = `MR-${((r() * 900) | 0) + 100}-${String.fromCharCode(65 + ((r() * 26) | 0))}${String.fromCharCode(65 + ((r() * 26) | 0))}`;
+      const v = verbs[(r() * verbs.length) | 0];
+      const n0 = nouns[(r() * nouns.length) | 0];
+      const q = quals[(r() * quals.length) | 0];
+
+      msgs.push(`${code} ${v} ${n0} ${q} ${STATION_NAMES[from]}->${STATION_NAMES[to]}`);
+    }
+
+    return shuffleInPlace(msgs, r);
+  })();
+
   // Edges are rebuilt per-resize (points in px).
   const EDGE_SPECS = [
     { id: 'IN_SORT', from: 'IN', to: 'SORT', mid: [0.22, 0.50] },
@@ -773,7 +811,7 @@ export function createChannel({ seed, audio }){
     const x = pad;
     const y = pad;
     const pw = Math.max(240, Math.min(w, h) * 0.40);
-    const ph = Math.max(92, Math.min(w, h) * 0.16);
+    const ph = Math.max(116, Math.min(w, h) * 0.19);
 
     ctx.save();
     ctx.globalAlpha = 0.95;
@@ -807,6 +845,34 @@ export function createChannel({ seed, audio }){
       ctx.globalAlpha = 0.2 + 0.8 * clearPulse;
       ctx.fillText('ROUTE CLEAR', x + pad, y + pad * 4.4);
     }
+
+    // Dispatch log strip (OSD-safe; deterministic rotation).
+    const stripX = x + pad;
+    const stripW = pw - pad * 2;
+    const stripH = Math.max(18, Math.floor(pad * 1.05));
+    const stripY = y + ph - pad * 0.8 - stripH;
+
+    ctx.globalAlpha = 0.70;
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    roundRect(ctx, stripX, stripY, stripW, stripH, stripH * 0.35);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.50;
+    ctx.strokeStyle = `hsla(${hue}, 60%, 70%, 0.22)`;
+    ctx.lineWidth = Math.max(1, h / 900);
+    ctx.stroke();
+
+    const msg = DISPATCH_LOG[((t / DISPATCH_MSG_DUR) | 0) % DISPATCH_LOG.length];
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = ink;
+    ctx.font = `${Math.floor(mono * 0.90)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+
+    ctx.beginPath();
+    roundRect(ctx, stripX, stripY, stripW, stripH, stripH * 0.35);
+    ctx.clip();
+    ctx.fillText(`DISPATCH: ${msg}`, stripX + pad * 0.6, stripY + stripH * 0.52);
 
     ctx.restore();
 
