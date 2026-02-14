@@ -1,3 +1,5 @@
+- 2026-02-14 12:08 (Australia/Melbourne) [project:quine-tv] Review channel `news` (src/channels/news.js): captured screenshots (0–300s) to `screenshots/review-news-start` + completion shots to `screenshots/review-news-2026-02-14-post` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+
 - 2026-02-14 11:35 (Australia/Melbourne) [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): special moments — added rare deterministic moments (AURORA ribbon sweep + optional BUOY blink / KEEPER silhouette) in a ~60–150s window (night+fog), with an OSD-safe EVENT badge and clean reset. Commit: 149523f
 
 - 2026-02-14 11:19 (Australia/Melbourne) [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): visuals — added subtle cached cliff texture + ridge rim-light so the foreground reads less like a flat black wedge. Screenshots: screenshots/autopilot-lighthouse-cliff-texture-before + screenshots/autopilot-lighthouse-cliff-texture-after. Commit: 34f77c9

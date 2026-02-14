@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-14
 import { mulberry32 } from '../util/prng.js';
 
 const WORDS = [
