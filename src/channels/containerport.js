@@ -1049,16 +1049,9 @@ export function createChannel({ seed, audio }){
       y = lerp(midY, job.endY, e);
     }
 
-    // Clamp to beam span so the hoist stays vertical (trolley always above the load).
-    const c = cranes[i];
-    const beamW = w * 0.32;
-    const leftX = c.x - beamW * 0.5;
-    const rightX = c.x + beamW * 0.5;
-
-    x = clamp(x, leftX, rightX);
-    const tx = clamp((x - leftX) / Math.max(1e-6, beamW), 0, 1);
-
-    return { active: true, x, y, tx, container: job.container };
+    // Keep motion continuous between true source/destination positions.
+    // Clamping to a crane-local beam span caused visible snap/jump artifacts.
+    return { active: true, x, y, tx: 0.5, container: job.container };
   }
 
   function drawCranes(ctx){
