@@ -68,7 +68,7 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: packetsfm
 
-- [ ] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): determinism — remove per-frame `rand()` usage from `updateWaterfall()` and packet spawning; schedule bursts in absolute time / fixed timestep so 30fps vs 60fps captures match.
+<!-- done: moved to TODONE.md (packetsfm determinism: fixed-timestep sim for FPS-stable captures) -->
 <!-- done: moved to TODONE.md (packetsfm gradient cache) -->
 <!-- done: moved to TODONE.md (packetsfm spectrum hsla allocs) -->
 <!-- done: moved to TODONE.md (audio hygiene) -->

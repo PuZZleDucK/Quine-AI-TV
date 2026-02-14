@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): determinism — switched `update()` to a fixed-timestep simulation loop (`SIM_DT=1/60`) so `updateWaterfall()` static and packet spawning consume RNG at a stable cadence; 30fps/60fps captures now match. Commit: dd311eb
+
 - [x] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): text/dialog — added a seeded rotating “packet log” / callout strip (~5.6s cadence; ~6 minutes before repeating), clipped OSD-safe inside the waterfall panel. Commit: cbaddfa
 
 - [x] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): perf — cached background+vignette gradients and panel gradients (waterfall sheen, dial header, knob radial) on init/resize/ctx swap. Accept: steady-state `render()` creates 0 gradients/frame. Commit: 328c94d
