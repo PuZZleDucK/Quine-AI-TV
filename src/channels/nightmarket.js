@@ -240,6 +240,13 @@ export function createChannel({ seed, audio }){
   function onAudioOn(){
     if (!audio.enabled) return;
 
+    // idempotent: if we're already the active ambience, don't stack/restart
+    if (ambience && audio?.current === ambience) return;
+
+    // if we still hold a stale handle, stop it before creating a new one
+    try { ambience?.stop?.(); } catch {}
+    ambience = null;
+
     // rain-ish bed + tiny drone
     const n = audio.noiseSource({ type: 'pink', gain: 0.0032 });
     n.start();
@@ -256,7 +263,9 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
+    // only clear AudioManager.current if we own it
+    if (audio?.current === ambience) audio.stopCurrent();
+    else { try { ambience?.stop?.(); } catch {} }
     ambience = null;
   }
 
