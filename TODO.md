@@ -22,7 +22,7 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (mailroomtube dispatch log expand + overrides) -->
 
-- [ ] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): special moment — add a second rare deterministic event “BULK DROP” (~90–210s) that temporarily increases spawn cadence + thickens tube glow for ~6–10s, with an OSD-safe HUD banner; clean reset; use separate RNG like `expressPlan`.
+<!-- done: moved to TODONE.md (mailroomtube BULK DROP) -->
 
 ## Follow-ups queued from review: tugdispatch
 
