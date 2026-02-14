@@ -87,5 +87,5 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (lasercutfile sparks determinism / FPS-stable) -->
 <!-- done: moved to TODONE.md (lasercutfile sparks cap perf) -->
-- [ ] `lasercutfile` (src/channels/lasercutfile.js): special moments — add 1–2 rare deterministic events (~1–3 min cadence): e.g. “MATERIAL CHANGE” palette swap / “AIR ASSIST BURST” smoke puff + brief HUD badge, clean reset.
+<!-- done: moved to TODONE.md (lasercutfile special moments) -->
 <!-- done: moved to TODONE.md (lasercutfile bed frame texture) -->

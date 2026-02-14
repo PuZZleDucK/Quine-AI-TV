@@ -1,3 +1,5 @@
+- 2026-02-14 18:15 (Australia/Melbourne) [project:quine-tv] Cleanup: moved stale TODO entry for `lasercutfile` special moments (implementation already present in src/channels/lasercutfile.js). Commit: TBD
+
 - 2026-02-14 17:00 (Australia/Melbourne) [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): determinism — drive sparks emission from cut distance (separate seeded PRNG) so 30fps/60fps captures match. Commit: d7e788a
 
 - 2026-02-14 16:50 (Australia/Melbourne) [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): visuals — added a subtle cached brushed-metal texture overlay on the bed frame (rebuilt on resize; deterministic tile). Commit: 3770c79
