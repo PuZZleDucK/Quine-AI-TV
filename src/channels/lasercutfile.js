@@ -125,6 +125,9 @@ export function createChannel({ seed, audio }){
 
   // layout / cached
   let bgGrad = null;
+  let bedTile = null;
+  let bedPattern = null;
+  let bedPatternCtx = null;
   let work = { x: 0, y: 0, w: 0, h: 0 };
 
   // cutfile
@@ -332,6 +335,9 @@ export function createChannel({ seed, audio }){
     work = { x: Math.floor((w - ww) * 0.5), y: Math.floor((h - wh) * 0.52), w: ww, h: wh };
 
     bgGrad = null;
+    bedTile = null;
+    bedPattern = null;
+    bedPatternCtx = null;
 
     buildDesign();
     bakeToPixels();
@@ -446,10 +452,79 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function rebuildBedTexture(ctx){
+    bedPattern = null;
+    bedTile = null;
+    bedPatternCtx = ctx;
+
+    try {
+      const sz = Math.max(96, Math.floor(128 * dpr));
+      const tile = (typeof OffscreenCanvas !== 'undefined')
+        ? new OffscreenCanvas(sz, sz)
+        : (typeof document !== 'undefined' ? Object.assign(document.createElement('canvas'), { width: sz, height: sz }) : null);
+      if (!tile) return;
+
+      const tctx = tile.getContext('2d');
+      if (!tctx) return;
+
+      const tr = mulberry32((seed ^ 0x6d2b79f5) >>> 0);
+
+      tctx.clearRect(0, 0, sz, sz);
+
+      // Brushed-metal vertical grain.
+      for (let x = 0; x < sz; x++){
+        const a = 0.02 + tr() * 0.05;
+        tctx.fillStyle = `rgba(255,255,255,${a})`;
+        tctx.fillRect(x, 0, 1, sz);
+      }
+      // A few darker streaks.
+      for (let i = 0; i < sz * 0.6; i++){
+        const x = (tr() * sz) | 0;
+        const a = 0.02 + tr() * 0.05;
+        tctx.fillStyle = `rgba(0,0,0,${a})`;
+        tctx.fillRect(x, 0, 1, sz);
+      }
+      // Light stipple.
+      for (let i = 0; i < 220; i++){
+        const x = (tr() * sz) | 0;
+        const y = (tr() * sz) | 0;
+        const s = 1 + ((tr() * 2) | 0);
+        const a = 0.04 + tr() * 0.10;
+        tctx.fillStyle = `rgba(255,255,255,${a})`;
+        tctx.fillRect(x, y, s, s);
+      }
+
+      bedTile = tile;
+      bedPattern = ctx.createPattern(tile, 'repeat');
+    } catch {
+      bedPattern = null;
+      bedTile = null;
+    }
+  }
+
+  function ensureBedTexture(ctx){
+    if (!bedPattern || bedPatternCtx !== ctx) rebuildBedTexture(ctx);
+  }
+
   function drawBed(ctx){
+    const frame = 18;
+    const fx = work.x - frame, fy = work.y - frame;
+    const fw = work.w + frame * 2, fh = work.h + frame * 2;
+
     ctx.save();
     ctx.fillStyle = pal.bed;
-    ctx.fillRect(work.x - 18, work.y - 18, work.w + 36, work.h + 36);
+    ctx.fillRect(fx, fy, fw, fh);
+
+    // subtle brushed-metal frame texture (cached; rebuilt on resize)
+    ensureBedTexture(ctx);
+    if (bedPattern){
+      ctx.save();
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.globalAlpha = 0.10;
+      ctx.fillStyle = bedPattern;
+      ctx.fillRect(fx, fy, fw, fh);
+      ctx.restore();
+    }
 
     // inner bed gradient
     const g = ctx.createLinearGradient(work.x, work.y, work.x, work.y + work.h);
