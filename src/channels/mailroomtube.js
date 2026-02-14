@@ -235,6 +235,7 @@ export function createChannel({ seed, audio }){
     col: ink,
     glow: 0,
     jammed: false,
+    express: false,
   }));
 
   let jam = null; // { idx, edgeIdx, until, pulse }
@@ -244,6 +245,15 @@ export function createChannel({ seed, audio }){
   let sweep = 0;
   let sweepT = 0;
   let nextSweepAt = 18 + rand() * 20;
+
+  // Rare deterministic special moment: a single PRIORITY EXPRESS run (~60–180s).
+  const expressPlan = (() => {
+    const r = mulberry32(((seed | 0) ^ 0x9e3779b9) >>> 0);
+    return { at: 60 + r() * 120, fired: false };
+  })();
+  let expressBadgeT = 0; // seconds remaining
+  let expressCanIdx = -1;
+  let expressSeq = 0;
 
   let drone = null;
   let noise = null;
@@ -308,6 +318,55 @@ export function createChannel({ seed, audio }){
     return best;
   }
 
+  function chooseNextEdgeDet(from, dest){
+    const outs = outgoing[from];
+    if (!outs || outs.length === 0) return null;
+
+    // Deterministic: always pick the edge that minimizes remaining distance.
+    // Used for the PRIORITY EXPRESS special moment so it isn't affected by RNG consumption.
+    let best = outs[0];
+    let bestScore = 1e9;
+    for (const ei of outs){
+      const s = edgeDirScore(ei, dest);
+      if (s < bestScore){ bestScore = s; best = ei; }
+    }
+    return best;
+  }
+
+  function spawnExpressCanister(){
+    for (let i = 0; i < cans.length; i++){
+      const c = cans[i];
+      if (c.active) continue;
+
+      expressSeq++;
+      c.active = true;
+      c.express = true;
+      c.id = `PX-${String(expressSeq % 100).padStart(2,'0')}`;
+      c.from = 'IN';
+      c.dest = 'SHIP';
+      c.edgeIdx = chooseNextEdgeDet(c.from, c.dest) ?? 0;
+      c.to = EDGES[c.edgeIdx].to;
+      c.s = 0;
+      c.dwell = 0;
+      c.speed = 1.05 * Math.min(w, h) * 0.34; // a bit faster than normal
+      c.col = `hsla(${(hue + 330) % 360}, 98%, 62%, 0.98)`;
+      c.glow = 1;
+      c.jammed = false;
+
+      expressCanIdx = i;
+      expressBadgeT = 8;
+
+      if (audio.enabled){
+        // short sting (deterministic)
+        safeBeep({ freq: 660, dur: 0.05, gain: 0.020, type: 'square' });
+        safeBeep({ freq: 880, dur: 0.05, gain: 0.018, type: 'square' });
+        safeBeep({ freq: 990, dur: 0.06, gain: 0.016, type: 'triangle' });
+      }
+      return true;
+    }
+    return false;
+  }
+
   function spawnCanister(){
     // spawn from IN most of the time; during maintenance/close, spawn from FIN too.
     const id = phase().id;
@@ -330,6 +389,7 @@ export function createChannel({ seed, audio }){
       c.col = `hsla(${(hue + (rand()*50-25)) % 360}, 90%, 66%, 0.98)`;
       c.glow = 0.65 + rand() * 0.35;
       c.jammed = false;
+      c.express = false;
 
       if (audio.enabled){
         safeBeep({ freq: 520 + rand() * 120, dur: 0.02, gain: 0.007, type: 'square' });
@@ -342,7 +402,7 @@ export function createChannel({ seed, audio }){
   function startJam(){
     if (jam) return;
     const activeIdx = [];
-    for (let i = 0; i < cans.length; i++) if (cans[i].active && cans[i].edgeIdx >= 0) activeIdx.push(i);
+    for (let i = 0; i < cans.length; i++) if (cans[i].active && cans[i].edgeIdx >= 0 && !cans[i].express) activeIdx.push(i);
     if (activeIdx.length === 0) return;
 
     const idx = pick(activeIdx);
@@ -380,6 +440,7 @@ export function createChannel({ seed, audio }){
     // During the sweep, route everything back through the router.
     for (const c of cans){
       if (!c.active) continue;
+      if (c.express) continue;
       c.dest = 'FIN';
       if (c.edgeIdx < 0){
         c.dwell = Math.min(c.dwell, 0.25);
@@ -471,6 +532,14 @@ export function createChannel({ seed, audio }){
     clearPulse = Math.max(0, clearPulse - dt * 1.8);
     if (jam) jam.pulse = Math.max(0, jam.pulse - dt * 1.6);
 
+    if (expressBadgeT > 0) expressBadgeT = Math.max(0, expressBadgeT - dt);
+    if (expressCanIdx >= 0 && !cans[expressCanIdx]?.active) expressCanIdx = -1;
+
+    // PRIORITY EXPRESS (rare deterministic special moment)
+    if (!expressPlan.fired && t >= expressPlan.at){
+      if (spawnExpressCanister()) expressPlan.fired = true;
+    }
+
     // phase loop
     if (phaseT >= phase().dur){
       phaseT = 0;
@@ -515,7 +584,7 @@ export function createChannel({ seed, audio }){
       if (c.edgeIdx < 0){
         c.dwell -= dt;
         if (c.dwell <= 0){
-          const next = chooseNextEdge(c.from, c.dest);
+          const next = c.express ? chooseNextEdgeDet(c.from, c.dest) : chooseNextEdge(c.from, c.dest);
           if (next != null){
             c.edgeIdx = next;
             c.to = EDGES[next].to;
@@ -542,17 +611,28 @@ export function createChannel({ seed, audio }){
         c.dwell = 0.15 + rand() * 0.55;
 
         if (c.from === c.dest){
-          c.dest = pickDestForPhase(c.from);
-          c.dwell += 0.25 + rand() * 0.8;
+          if (c.express){
+            // Delivered: clean reset (remove canister + clear badge over time).
+            c.active = false;
+            c.express = false;
+            if (expressCanIdx === ci) expressCanIdx = -1;
+            if (audio.enabled){
+              safeBeep({ freq: 520, dur: 0.05, gain: 0.018, type: 'triangle' });
+              safeBeep({ freq: 380, dur: 0.06, gain: 0.014, type: 'sine' });
+            }
+          } else {
+            c.dest = pickDestForPhase(c.from);
+            c.dwell += 0.25 + rand() * 0.8;
 
-          if (audio.enabled && rand() < 0.25){
-            safeBeep({ freq: 700 + rand() * 120, dur: 0.02, gain: 0.006, type: 'triangle' });
+            if (audio.enabled && rand() < 0.25){
+              safeBeep({ freq: 700 + rand() * 120, dur: 0.02, gain: 0.006, type: 'triangle' });
+            }
           }
         }
       }
 
       // retire a few canisters during close.
-      if (phase().id === 'close' && rand() < 0.0025){
+      if (!c.express && phase().id === 'close' && rand() < 0.0025){
         c.active = false;
       }
     }
@@ -777,11 +857,12 @@ export function createChannel({ seed, audio }){
 
       const jammed = c.jammed;
       const pulse = jammed ? (0.5 + 0.5*Math.sin(t*10)) : 0;
+      const isExpress = c.express && !jammed;
 
       // glow
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
-      ctx.fillStyle = jammed ? `rgba(255,80,140,${0.28 + 0.22*pulse})` : `hsla(${hue}, 90%, 62%, ${0.18 * c.glow})`;
+      ctx.fillStyle = jammed ? `rgba(255,80,140,${0.28 + 0.22*pulse})` : (isExpress ? `hsla(${(hue + 330) % 360}, 95%, 70%, ${0.26 * c.glow})` : `hsla(${hue}, 90%, 62%, ${0.18 * c.glow})`);
       ctx.beginPath();
       ctx.arc(px, py, r * 2.8, 0, Math.PI*2);
       ctx.fill();
@@ -795,6 +876,17 @@ export function createChannel({ seed, audio }){
       roundRect(ctx, px - r*2.0, py - r*1.15, r*4.0, r*2.3, r*1.1);
       ctx.fill();
       ctx.stroke();
+
+      if (isExpress){
+        // Express stripe
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        roundRect(ctx, px - r*1.6, py - r*0.35, r*3.2, r*0.7, r*0.4);
+        ctx.fill();
+        ctx.restore();
+      }
 
       // small label dot
       ctx.globalAlpha = 0.85;
@@ -844,6 +936,10 @@ export function createChannel({ seed, audio }){
       ctx.fillStyle = ok;
       ctx.globalAlpha = 0.2 + 0.8 * clearPulse;
       ctx.fillText('ROUTE CLEAR', x + pad, y + pad * 4.4);
+    } else if (expressBadgeT > 0){
+      ctx.fillStyle = warn;
+      ctx.globalAlpha = Math.min(1, expressBadgeT / 1.2) * (0.70 + 0.30 * Math.sin(t * 8));
+      ctx.fillText('PRIORITY EXPRESS', x + pad, y + pad * 4.4);
     }
 
     // Dispatch log strip (OSD-safe; deterministic rotation).
