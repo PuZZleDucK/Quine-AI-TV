@@ -460,6 +460,11 @@ export function createChannel({ seed, audio }){
     ctx.fill();
     ctx.stroke();
 
+    // Clip contents so text can’t overflow the rounded HUD container (small renders / long titles).
+    ctx.save();
+    roundRect(ctx, x+1, y+1, boxW-2, boxH-2, 11);
+    ctx.clip();
+
     ctx.fillStyle = 'rgba(255,255,255,0.86)';
     ctx.font = `${Math.floor(boxH*0.34)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.fillText('RETRO BOOT SEQUENCE', x + 14, y + Math.floor(boxH*0.24));
@@ -477,6 +482,7 @@ export function createChannel({ seed, audio }){
     ctx.arc(ledX, ledY, 5, 0, Math.PI*2);
     ctx.fill();
 
+    ctx.restore();
     ctx.restore();
   }
 
