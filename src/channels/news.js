@@ -75,6 +75,7 @@ function headline(rand){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  const specialRand = mulberry32(seed ^ 0x9e3779b9);
   let w=0,h=0,t=0;
   let tickerX=0;
   let headlines=[];
@@ -82,6 +83,12 @@ export function createChannel({ seed, audio }){
   let tickerWidth=0;
   let logo = {x:40,y:40,vx:120,vy:90};
   let murmur=null;
+
+  // Special moments (rare deterministic broadcast flourishes).
+  // Planned at init so captures are deterministic at fixed offsets.
+  let specialPlan = []; // { at:number (s), kind:'breaking'|'field' }
+  let nextSpecial = null;
+  let special = null; // { kind, t0, dur, title, body }
 
   function rebuildTickerCache(){
     // Update only when headlines rotate or when size changes (avoid per-frame join/width churn).
@@ -97,6 +104,24 @@ export function createChannel({ seed, audio }){
     rebuildTickerCache();
     tickerX = w;
     logo = {x:w*0.2,y:h*0.25,vx: 160+rand()*100, vy: 120+rand()*80};
+
+    // Plan 1–2 rare deterministic moments in the first ~45–120s window.
+    special = null;
+    specialPlan = [];
+
+    const at1 = 45 + specialRand() * 75;
+    const kind1 = specialRand() < 0.6 ? 'breaking' : 'field';
+    specialPlan.push({ at: at1, kind: kind1 });
+
+    if (specialRand() < 0.4){
+      const minAt2 = at1 + 18 + specialRand() * 32;
+      const at2 = Math.min(120, Math.max(55, minAt2));
+      const kind2 = kind1 === 'breaking' ? 'field' : 'breaking';
+      specialPlan.push({ at: at2, kind: kind2 });
+    }
+
+    specialPlan.sort((a, b) => a.at - b.at);
+    nextSpecial = specialPlan.shift() || null;
   }
 
   function onResize(width,height){
@@ -134,8 +159,45 @@ export function createChannel({ seed, audio }){
 
   function destroy(){ onAudioOff(); }
 
+  function startSpecial(at, kind){
+    const stripBreaking = (s) => String(s).replace(/^\s*BREAKING:\s*/i, '').trim();
+
+    if (kind === 'breaking'){
+      special = {
+        kind,
+        t0: at,
+        dur: 9.5,
+        title: 'BREAKING',
+        body: stripBreaking(headline(specialRand)),
+      };
+      if (audio.enabled) audio.beep({ freq: 740, dur: 0.06, gain: 0.05, type: 'square' });
+      if (audio.enabled) audio.beep({ freq: 520, dur: 0.08, gain: 0.04, type: 'triangle' });
+    } else {
+      const subj = WORDS[(specialRand() * WORDS.length) | 0];
+      special = {
+        kind,
+        t0: at,
+        dur: 10.5,
+        title: 'FIELD REPORT',
+        body: `${subj.toUpperCase()} UPDATE: ${stripBreaking(headline(specialRand))}`,
+      };
+      if (audio.enabled) audio.beep({ freq: 330, dur: 0.06, gain: 0.05, type: 'sine' });
+      if (audio.enabled) audio.beep({ freq: 660, dur: 0.05, gain: 0.04, type: 'sine' });
+    }
+  }
+
   function update(dt){
     t += dt;
+
+    // Trigger a planned special moment exactly at its scheduled time.
+    if (!special && nextSpecial && t >= nextSpecial.at){
+      startSpecial(nextSpecial.at, nextSpecial.kind);
+      nextSpecial = specialPlan.shift() || null;
+    }
+
+    if (special && t - special.t0 >= special.dur){
+      special = null;
+    }
     tickerX -= dt*(140 + (w/12));
     if (tickerX < -tickerWidth){
       tickerX = w;
@@ -271,6 +333,109 @@ export function createChannel({ seed, audio }){
       headlineY + headLines.length*lineH + Math.floor(subPx*0.9)
     );
     ctx.restore();
+
+    // special moments overlay (OSD-safe placement)
+    if (special){
+      const age = t - special.t0;
+      if (age >= 0 && age <= special.dur){
+        const fadeIn = 0.7;
+        const fadeOut = 0.9;
+        const fade = Math.max(0, Math.min(1, age / fadeIn, (special.dur - age) / fadeOut));
+
+        if (fade > 0){
+          const easeOut = (p) => 1 - Math.pow(1 - Math.max(0, Math.min(1, p)), 3);
+          const pulse = 0.5 + 0.5 * Math.sin(age * 10);
+
+          // quick broadcast flash
+          ctx.save();
+          ctx.globalAlpha = fade * 0.08 * pulse;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.restore();
+
+          if (special.kind === 'breaking'){
+            const bw = w * 0.84;
+            const bh = Math.max(56, h * 0.12);
+            const bx = (w - bw) / 2;
+            const by = h * 0.18;
+
+            ctx.save();
+            ctx.globalAlpha = fade;
+
+            const g = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
+            g.addColorStop(0, 'rgba(255,38,76,0.92)');
+            g.addColorStop(1, 'rgba(196,0,60,0.92)');
+            ctx.fillStyle = g;
+            ctx.fillRect(bx, by, bw, bh);
+
+            // border
+            ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+
+            // label block
+            const tagW = Math.max(160, bw * 0.22);
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.fillRect(bx, by, tagW, bh);
+
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            ctx.font = `${Math.floor(h/22)}px ui-sans-serif, system-ui`;
+            ctx.fillText(special.title, bx + 18, by + bh * 0.66);
+
+            ctx.fillStyle = 'rgba(0,0,0,0.85)';
+            ctx.font = `${Math.floor(h/28)}px ui-sans-serif, system-ui`;
+            const msg = fitEllipsis(ctx, special.body, bw - tagW - 36);
+            ctx.fillText(msg, bx + tagW + 18, by + bh * 0.66);
+
+            // strobe stripe
+            ctx.globalAlpha = fade * (0.35 + 0.35 * pulse);
+            ctx.fillStyle = 'rgba(255,255,255,0.22)';
+            ctx.fillRect(bx, by + bh - 6, bw, 6);
+
+            ctx.restore();
+          } else {
+            const barH = Math.floor(h * 0.12);
+            const bh = Math.max(54, h * 0.105);
+            const bw = w * 0.86;
+            const margin = (w - bw) / 2;
+            const y = h - barH - bh - Math.max(14, h * 0.04);
+
+            const inDur = 0.7;
+            const outDur = 0.8;
+            let x = margin;
+            if (age < inDur){
+              x = (-bw) + (margin + bw) * easeOut(age / inDur);
+            } else if (age > special.dur - outDur){
+              const p = (age - (special.dur - outDur)) / outDur;
+              x = margin + (w + bw - margin) * easeOut(p);
+            }
+
+            ctx.save();
+            ctx.globalAlpha = fade;
+
+            ctx.fillStyle = 'rgba(0,0,0,0.62)';
+            ctx.fillRect(x, y, bw, bh);
+            ctx.fillStyle = 'rgba(108,242,255,0.85)';
+            ctx.fillRect(x, y, bw, 3);
+
+            const tagW = Math.max(190, bw * 0.28);
+            ctx.fillStyle = 'rgba(108,242,255,0.18)';
+            ctx.fillRect(x, y, tagW, bh);
+
+            ctx.fillStyle = 'rgba(231,238,246,0.94)';
+            ctx.font = `${Math.floor(h/26)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+            ctx.fillText(special.title, x + 16, y + bh * 0.68);
+
+            ctx.fillStyle = 'rgba(231,238,246,0.88)';
+            ctx.font = `${Math.floor(h/30)}px ui-sans-serif, system-ui`;
+            const msg = fitEllipsis(ctx, special.body, bw - tagW - 32);
+            ctx.fillText(msg, x + tagW + 14, y + bh * 0.68);
+
+            ctx.restore();
+          }
+        }
+      }
+    }
 
     // ticker bar
     const barH = Math.floor(h*0.12);
