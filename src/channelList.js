@@ -15,6 +15,7 @@ export const CHANNELS = [
   { id: 'foleylab', name: 'Studio Foley Lab', file: 'foleylab.js' },
   { id: 'elevatorpanel', name: 'Elevator Control Panel Dreams', file: 'elevatorpanel.js' },
   { id: 'cargomanifest', name: 'Starship Cargo Manifest', file: 'cargomanifest.js' },
+  { id: 'containerport', name: 'Container Port Logistics', file: 'containerport.js' },
   { id: 'subwaystories', name: 'Subway Map Stories', file: 'subwaystories.js' },
   { id: 'circsafari', name: 'Circuit Safari', file: 'circuitsafari.js' },
   { id: 'candlechess', name: 'Candlelit Chess Engine', file: 'candlechess.js' },
