@@ -6,8 +6,8 @@ if `TODO.md` has no ready items:
 - [project:quine-tv] `retroboot` (src/channels/retroboot.js): determinism — switch `update(dt)` to a fixed-timestep sim loop (`SIM_DT=1/60`) so click/beep schedules are FPS-stable for 30fps/60fps captures.
 - [project:quine-tv] `retroboot` (src/channels/retroboot.js): long-run interest — extend the segment cycle to ~3–5 minutes 
 - [project:quine-tv] `retroboot` add Win9x splash/installer
-- [project:quine-tv] `retroboot` Norton/Scandisk
-- [project:quine-tv] `retroboot` BSOD/Kernel Panic
+- [project:quine-tv] `retroboot` add Norton/Scandisk
+- [project:quine-tv] `retroboot` add BSOD/Kernel Panic
 - [project:quine-tv] `retroboot` add bsd .
 - [project:quine-tv] `retroboot` add solaris.
 - [project:quine-tv] `retroboot` add beos.
