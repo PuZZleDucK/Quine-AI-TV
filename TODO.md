@@ -20,7 +20,7 @@ if `TODO.md` has no ready items:
 
 - [ ] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): visuals — replace tube direction tick dots with small chevrons oriented along edge direction (edit in `drawTubes()` direction ticks loop); cache tick positions/angles per edge in `rebuildGeometry()`.
 
-- [ ] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): text — expand `DISPATCH_LOG` generator to ~80–120 lines and add a deterministic jam/sweep override message (derive from `jam.edgeIdx` / stations; no new RNG consumption per frame).
+<!-- done: moved to TODONE.md (mailroomtube dispatch log expand + overrides) -->
 
 - [ ] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): special moment — add a second rare deterministic event “BULK DROP” (~90–210s) that temporarily increases spawn cadence + thickens tube glow for ~6–10s, with an OSD-safe HUD banner; clean reset; use separate RNG like `expressPlan`.
 

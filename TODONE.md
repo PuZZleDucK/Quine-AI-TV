@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): text — expanded `DISPATCH_LOG` to 96 lines (~16 minutes rotation) and added a deterministic jam/sweep override message for the HUD dispatch strip (no per-frame RNG consumption). Commit: 5b70c3f
+
 - [x] [project:quine-tv] Review channel `mailroomtube` (src/channels/mailroomtube.js): captured screenshots (0–300s) to `screenshots/review-mailroomtube-2026-02-14` (errors/warnings: 0), did code+audio/perf review, confirmed `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: 09efe22
 
 - [x] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): determinism — switched `update(dt)` to a fixed-timestep sim loop (`SIM_DT=1/60` accumulator) so 30fps/60fps captures match and `rand()` consumption is cadence-stable. Commit: 41138f7
