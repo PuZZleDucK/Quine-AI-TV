@@ -1,3 +1,5 @@
+- 2026-02-14 11:19 (Australia/Melbourne) [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): visuals — added subtle cached cliff texture + ridge rim-light so the foreground reads less like a flat black wedge. Screenshots: screenshots/autopilot-lighthouse-cliff-texture-before + screenshots/autopilot-lighthouse-cliff-texture-after. Commit: 34f77c9
+
 - 2026-02-14 10:52 (Australia/Melbourne) [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): determinism — removed `rand()` usage from rain wrap/reset by deriving streak x/y analytically from initial params + absolute time (deterministic per-wrap jitter); 30fps/60fps captures now match. Commit: 5f0761e
 
 - 2026-02-14 10:34 (Australia/Melbourne) [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned. Commit: TBD

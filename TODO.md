@@ -63,5 +63,5 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (lighthouse audio hygiene) -->
 <!-- done: moved to TODONE.md (lighthouse rain determinism) -->
 <!-- done: moved to TODONE.md (lighthouse gradient cache) -->
-- [ ] `lighthouse` (src/channels/lighthousewatch.js): visuals — add a subtle cached cliff/rock texture (or rim-light) so the left foreground reads less like a flat black wedge.
+<!-- done: moved to TODONE.md (lighthouse cliff texture) -->
 - [ ] `lighthouse` (src/channels/lighthousewatch.js): special moments — add 1–2 rare deterministic events beyond storm/ship (e.g. AURORA ribbon sweep / BUOY BLINK / KEEPER SILHOUETTE) scheduled ~60–150s, with an OSD-safe label and clean reset.
