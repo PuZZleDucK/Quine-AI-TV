@@ -1,3 +1,5 @@
+- 2026-02-14 21:15 (Australia/Melbourne) [project:quine-tv] Review channel `mailroomtube` (src/channels/mailroomtube.js): captured screenshots (0–300s) to `screenshots/review-mailroomtube-2026-02-14` (errors/warnings: 0), did code+audio/perf review, confirmed `// REVIEWED: 2026-02-14`, and queued follow-ups in `TODO.md`. Commit: TBD
+
 - 2026-02-14 21:02 (Australia/Melbourne) [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): determinism — switched to a fixed-timestep sim loop (`SIM_DT=1/60`) so RNG consumption is FPS-stable (30fps/60fps captures match). Commit: 41138f7
 
 - 2026-02-14 20:50 (Australia/Melbourne) [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): special moments — added rare deterministic “PRIORITY EXPRESS” run (~60–180s) with distinct canister + HUD badge + short audio sting; clean reset on delivery. Commit: 9a11001
