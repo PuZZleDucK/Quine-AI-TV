@@ -10,6 +10,7 @@ if `TODO.md` has no ready items:
 - [project:quine-tv] `retroboot` add Norton/Scandisk.
 - [project:quine-tv] `retroboot` add BSOD/Kernel Panic - uncommon.
 - [project:quine-tv] `retroboot` add bsd - uncommon.
+- [project:quine-tv] `retroboot` add unixes - uncommon.
 - [project:quine-tv] `retroboot` add solaris - rare.
 - [project:quine-tv] `retroboot` add beos - rare.
 - [project:quine-tv] `retroboot` add alien os - rare.
