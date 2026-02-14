@@ -18,7 +18,7 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (mailroomtube dispatch log strip) -->
 <!-- done: moved to TODONE.md (mailroomtube PRIORITY EXPRESS) -->
 
-- [ ] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): visuals — replace tube direction tick dots with small chevrons oriented along edge direction (edit in `drawTubes()` direction ticks loop); cache tick positions/angles per edge in `rebuildGeometry()`.
+<!-- done: moved to TODONE.md (mailroomtube direction chevrons) -->
 
 <!-- done: moved to TODONE.md (mailroomtube dispatch log expand + overrides) -->
 

@@ -1,3 +1,5 @@
+- 2026-02-14 21:49 (Australia/Melbourne) [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): visuals — replaced tube direction tick dots with small chevrons oriented along edge direction; cached tick positions/angles per edge in `rebuildGeometry()`. Commit: 54a13c7
+
 - 2026-02-14 21:30 (Australia/Melbourne) [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): text — expanded `DISPATCH_LOG` to 96 lines (~16 minutes rotation) and added deterministic jam/sweep override message for the HUD dispatch strip (no per-frame RNG consumption). Commit: 5b70c3f
 
 - 2026-02-14 21:15 (Australia/Melbourne) [project:quine-tv] Review channel `mailroomtube` (src/channels/mailroomtube.js): captured screenshots (0–300s) to `screenshots/review-mailroomtube-2026-02-14` (errors/warnings: 0), did code+audio/perf review, confirmed `// REVIEWED: 2026-02-14`, and queued follow-ups in `TODO.md`. Commit: 09efe22
