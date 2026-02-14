@@ -13,7 +13,6 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: mailroomtube
 
-- [ ] `mailroomtube` (src/channels/mailroomtube.js): determinism — convert `update(dt)` to a fixed-timestep sim loop (e.g. `SIM_DT=1/60` accumulator) so 30fps/60fps captures match and rand() consumption is cadence-stable.
 <!-- done: moved to TODONE.md (mailroomtube grid cache) -->
 <!-- done: moved to TODONE.md (mailroomtube status lamp) -->
 <!-- done: moved to TODONE.md (mailroomtube dispatch log strip) -->

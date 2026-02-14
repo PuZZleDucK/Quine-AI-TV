@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): determinism — switched `update(dt)` to a fixed-timestep sim loop (`SIM_DT=1/60` accumulator) so 30fps/60fps captures match and `rand()` consumption is cadence-stable. Commit: 41138f7
+
 - [x] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): special moments — added rare deterministic “PRIORITY EXPRESS” run (~60–180s) with a distinct canister + HUD badge + short audio sting; clean reset on delivery. Commit: 9a11001
 
 - [x] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): text — added a seeded rotating “dispatch log” strip in the HUD (OSD-safe; ~6 minutes before repeating). Commit: f70f68d
