@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): text polish — expand DOS/Linux line pools (more believable device/probe lines + longer directory listing) so each segment runs longer without obvious repeats. Commit: 6fe4c04
+
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): long-run interest — extend the segment cycle to ~3–5 minutes (dur scale 5.5×; ~3.8 min loop). Commit: f49216d
 
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — tone down CRT flashing intensity (reduced flicker alpha + clamp). Commit: c35b4e7
