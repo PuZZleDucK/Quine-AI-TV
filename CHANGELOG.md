@@ -1,3 +1,5 @@
+- 2026-02-14 15:51 (Australia/Melbourne) [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): text/dialog — added a seeded rotating “packet log” / callout strip (~5.6s cadence; ~6 minutes before repeating), clipped OSD-safe inside the waterfall panel. Commit: cbaddfa
+
 - 2026-02-14 15:34 (Australia/Melbourne) [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): perf — cached background+vignette gradients and panel gradients (waterfall sheen, dial header, knob radial) on init/resize/ctx swap so steady-state render allocates 0 gradients/frame. Commit: 328c94d
 
 - 2026-02-14 15:18 (Australia/Melbourne) [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned (avoid stacking on repeated toggles). Commit: 0c2a86b

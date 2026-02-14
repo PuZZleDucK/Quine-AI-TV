@@ -72,7 +72,7 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (packetsfm gradient cache) -->
 <!-- done: moved to TODONE.md (packetsfm spectrum hsla allocs) -->
 <!-- done: moved to TODONE.md (audio hygiene) -->
-- [ ] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): text/dialog — add a seeded rotating “packet log” / callout strip (5+ minutes before repeating), clipped OSD-safe.
+<!-- done: moved to TODONE.md (packetsfm packet log strip) -->
 
 ## Follow-ups queued from review: lighthouse
 
