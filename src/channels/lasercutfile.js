@@ -175,6 +175,27 @@ export function createChannel({ seed, audio }){
 
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
+  function stopLaserAudio({ clearCurrent = false } = {}){
+    const handle = audioHandle;
+    if (!handle){
+      hum = null;
+      hiss = null;
+      return;
+    }
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    hum = null;
+    hiss = null;
+    audioHandle = null;
+  }
+
   function toPx(u){
     // u: {x,y} in -0.5..0.5-ish
     return {
@@ -386,9 +407,15 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    stopLaserAudio({ clearCurrent: true });
+
     hum = simpleDrone(audio, { root: 44 + ((rand() * 12) | 0), detune: 1.2, gain: 0.045 });
     hiss = audio.noiseSource({ type: 'pink', gain: 0.018 });
     hiss.start();
+
     audioHandle = {
       stop(){
         try { hum?.stop?.(); } catch {}
@@ -399,15 +426,10 @@ export function createChannel({ seed, audio }){
   }
 
   function onAudioOff(){
-    try { audioHandle?.stop?.(); } catch {}
-    hum = null;
-    hiss = null;
-    audioHandle = null;
+    stopLaserAudio({ clearCurrent: true });
   }
 
-  function destroy(){
-    onAudioOff();
-  }
+  function destroy(){ onAudioOff(); }
 
   function phaseInfo(tt){
     const m = ((tt % CYCLE) + CYCLE) % CYCLE;
