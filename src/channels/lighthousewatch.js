@@ -59,6 +59,7 @@ export function createChannel({ seed, audio }){
   // Derive stable salts without consuming the channel PRNG (keeps existing seeds/visuals stable).
   const rainSalt = hashU32((seed | 0) ^ 0x4a39b70d);
   const cliffSalt = hashU32((seed | 0) ^ 0x73c1fe21);
+  const specialSalt = hashU32((seed | 0) ^ 0x1bbd1f0a);
 
   let w = 0, h = 0, t = 0;
 
@@ -267,6 +268,11 @@ export function createChannel({ seed, audio }){
   let ship = null; // {x,y,s, vx, life, horned}
   let nextShipAt = 0;
 
+  // special moments (deterministic, seeded; planned per cycle without consuming rand())
+  let specialCycle = -1;
+  let specialPlan = []; // [{type,label,at,dur,meta,fired}]
+  let specialActive = null; // {type,label,start,dur,meta,cycle}
+
   let lightning = 0;
   let nextLightningAt = 1e9;
   let wasStorm = false;
@@ -275,6 +281,116 @@ export function createChannel({ seed, audio }){
   let ah = null;
 
   function pick(arr){ return arr[(rand() * arr.length) | 0]; }
+
+  function planSpecialForCycle(cycleIndex){
+    // Aim for a 60–150s window, but keep it within night+fog so it reads as a calm-night surprise.
+    const windowStart = 60;
+    const windowEndRaw = Math.min(150, (cycle.night + cycle.fog) - 12);
+    const windowEnd = Math.max(windowStart + 5, windowEndRaw);
+
+    const base = (specialSalt ^ Math.imul(cycleIndex + 1, 0x9e3779b1)) >>> 0;
+
+    function at(key){
+      return windowStart + hash01(base + key) * (windowEnd - windowStart);
+    }
+
+    function dur(min, max, key){
+      return min + hash01(base + key) * (max - min);
+    }
+
+    const auroraAt = at(11);
+    const aurora = {
+      type: 'aurora',
+      label: 'AURORA',
+      at: auroraAt,
+      dur: dur(8, 14, 12),
+      meta: {
+        hue: 150 + hash01(base + 13) * 70,
+        band: 0.16 + hash01(base + 14) * 0.14,
+      },
+      fired: false,
+    };
+
+    const wantSecond = hash01(base + 20) < 0.55;
+    const secondType = hash01(base + 21) < 0.55 ? 'buoy' : 'keeper';
+
+    let second = null;
+    if (wantSecond){
+      let secondAt = at(22);
+      if (Math.abs(secondAt - auroraAt) < 16){
+        secondAt = windowStart + ((secondAt - windowStart + 24) % (windowEnd - windowStart));
+      }
+
+      if (secondType === 'buoy'){
+        second = {
+          type: 'buoy',
+          label: 'BUOY',
+          at: secondAt,
+          dur: dur(4.5, 7.5, 23),
+          meta: {
+            x: 0.55 + hash01(base + 24) * 0.38,
+            y: 0.03 + hash01(base + 25) * 0.06,
+          },
+          fired: false,
+        };
+      } else {
+        second = {
+          type: 'keeper',
+          label: 'KEEPER',
+          at: secondAt,
+          dur: dur(3.5, 6.5, 26),
+          meta: {
+            dir: hash01(base + 27) < 0.5 ? -1 : 1,
+          },
+          fired: false,
+        };
+      }
+    }
+
+    const plan = second ? [aurora, second] : [aurora];
+    plan.sort((a, b) => a.at - b.at);
+    return plan;
+  }
+
+  function updateSpecialMoments(){
+    const cycleIndex = Math.floor(t / cycleTotal) | 0;
+    if (cycleIndex !== specialCycle){
+      specialCycle = cycleIndex;
+      specialPlan = planSpecialForCycle(cycleIndex);
+      specialActive = null;
+    }
+
+    const cycleStart = specialCycle * cycleTotal;
+    for (const ev of specialPlan){
+      if (!ev.fired && t >= cycleStart + ev.at){
+        ev.fired = true;
+        specialActive = {
+          type: ev.type,
+          label: ev.label,
+          start: t,
+          dur: ev.dur,
+          meta: ev.meta,
+          cycle: specialCycle,
+        };
+        break;
+      }
+    }
+
+    if (specialActive && (t - specialActive.start) >= specialActive.dur){
+      specialActive = null;
+    }
+  }
+
+  function specialAlpha(){
+    if (!specialActive) return 0;
+    const u = t - specialActive.start;
+    const d = specialActive.dur;
+    const fi = 0.6;
+    const fo = 0.7;
+    const aIn = smoothstep(0, fi, u);
+    const aOut = 1 - smoothstep(Math.max(0, d - fo), d, u);
+    return clamp01(aIn * aOut);
+  }
 
   function sceneInit(width, height){
     w = width;
@@ -327,6 +443,11 @@ export function createChannel({ seed, audio }){
 
     ship = null;
     nextShipAt = 8 + rand() * 18;
+
+    specialCycle = -1;
+    specialPlan = [];
+    specialActive = null;
+
     lightning = 0;
     nextLightningAt = 1e9;
     wasStorm = false;
@@ -513,6 +634,9 @@ export function createChannel({ seed, audio }){
       }
     }
 
+    // special moments (aurora / buoy blink / keeper silhouette)
+    updateSpecialMoments();
+
     // rain streaks are computed analytically in drawStormOverlay (from x0/y0/sp + time),
     // so 30fps vs 60fps captures match. Nothing to update per-frame here.
   }
@@ -556,6 +680,73 @@ export function createChannel({ seed, audio }){
       ctx.restore();
     }
   }
+
+  function drawAurora(ctx, a, nightAmt, dawnAmt){
+    if (a <= 0.001) return;
+    if (!specialActive || specialActive.type !== 'aurora') return;
+
+    const hue = specialActive.meta?.hue ?? 170;
+    const band = specialActive.meta?.band ?? 0.22;
+
+    const baseY = h * 0.16;
+    const amp = h * (0.05 + band * 0.18);
+    const phase = (t * 0.6) + (specialActive.cycle * 0.9);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = a * 0.32 * nightAmt * (1 - dawnAmt * 0.65);
+    ctx.lineWidth = Math.max(1, h / 320);
+    ctx.lineJoin = 'round';
+
+    for (let k = 0; k < 3; k++){
+      const yy = baseY + k * h * 0.055;
+      ctx.strokeStyle = `hsla(${hue + k * 18}, 85%, 65%, ${0.58 - k * 0.14})`;
+      ctx.beginPath();
+      for (let x = -20; x <= w + 20; x += 22){
+        const y = yy
+          + Math.sin(x * 0.008 + phase + k * 1.7) * amp
+          + Math.sin(x * 0.015 - phase * 0.7 + k) * (amp * 0.35);
+        if (x === -20) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function drawBuoy(ctx, a, fogAmt, stormAmt, dawnAmt){
+    if (a <= 0.001) return;
+    if (!specialActive || specialActive.type !== 'buoy') return;
+
+    const mx = (specialActive.meta?.x ?? 0.78) * w;
+    const my = horizon + (specialActive.meta?.y ?? 0.05) * h;
+    const u = t - specialActive.start;
+
+    const blink = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(u * Math.PI * 4));
+    const env = (1 - fogAmt * 0.7) * (1 - stormAmt * 0.55) * (1 - dawnAmt * 0.3);
+
+    const r = Math.max(1.4, Math.min(w, h) * 0.006);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    ctx.globalAlpha = a * env * blink;
+    ctx.fillStyle = 'rgba(255, 220, 170, 0.9)';
+    ctx.beginPath();
+    ctx.arc(mx, my, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // tiny reflection streak
+    ctx.globalAlpha = a * env * blink * 0.35;
+    ctx.fillStyle = 'rgba(255, 200, 160, 0.6)';
+    ctx.beginPath();
+    ctx.ellipse(mx + 1, my + r * 2.2, r * 1.05, r * 2.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
 
 
   function drawSea(ctx, stormAmt, dawnAmt){
@@ -806,6 +997,34 @@ export function createChannel({ seed, audio }){
     ctx.fill();
     ctx.restore();
 
+    // rare special moment: keeper silhouette crosses the lantern room
+    if (specialActive && specialActive.type === 'keeper'){
+      const a = specialAlpha() * (0.75 - dawnAmt * 0.25) * (1 - stormAmt * 0.45);
+      if (a > 0.001){
+        const u = clamp01((t - specialActive.start) / Math.max(0.001, specialActive.dur));
+        const dir = specialActive.meta?.dir ?? 1;
+        const tx = dir > 0 ? u : (1 - u);
+        const sx = lerp(-lrW * 0.26, lrW * 0.26, tx);
+
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.fillStyle = 'rgba(10, 10, 14, 0.92)';
+
+        // head
+        ctx.beginPath();
+        ctx.arc(sx, -towerH - lrH * 0.55, lrH * 0.16, 0, Math.PI * 2);
+        ctx.fill();
+
+        // body
+        ctx.fillRect(sx - lrH * 0.09, -towerH - lrH * 0.46, lrH * 0.18, lrH * 0.34);
+
+        // little arm/lean hint
+        ctx.fillRect(sx + dir * lrH * 0.07, -towerH - lrH * 0.40, lrH * 0.12, lrH * 0.06);
+        ctx.restore();
+      }
+    }
+
     // tiny railing
     ctx.strokeStyle = 'rgba(210, 230, 255, 0.18)';
     ctx.lineWidth = Math.max(1, h / 900);
@@ -899,6 +1118,37 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function drawEventBadge(ctx, label, a){
+    if (!label || a <= 0.001) return;
+
+    const s = Math.min(w, h);
+    const pad = Math.max(12, Math.floor(s * 0.02));
+    const boxH = Math.floor(s * 0.11);
+
+    const text = `EVENT: ${label}`;
+    const bh = Math.floor(s * 0.05);
+
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = `${Math.floor(bh * 0.52)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    const tw = ctx.measureText(text).width;
+
+    const x = pad;
+    const y = pad + boxH + Math.floor(pad * 0.6);
+
+    ctx.fillStyle = 'rgba(10, 12, 18, 0.72)';
+    ctx.strokeStyle = 'rgba(255, 220, 160, 0.22)';
+    ctx.lineWidth = 1;
+    roundRect(ctx, x, y, tw + 18, bh, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 235, 190, 0.92)';
+    ctx.fillText(text, x + 9, y + Math.floor(bh * 0.70));
+    ctx.restore();
+  }
+
+
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -921,8 +1171,13 @@ export function createChannel({ seed, audio }){
     // beam intensity: always on, but muted a bit at dawn.
     const beamAmt = (0.55 + 0.45 * Math.sin(t * (Math.PI * 2 / beamPeriod)) * 0.5 + 0.5) * (0.85 - dawnAmt * 0.35);
 
+    const sa = specialAlpha();
+
     drawSky(ctx, nightAmt, dawnAmt);
+    drawAurora(ctx, sa, nightAmt, dawnAmt);
+
     drawSea(ctx, stormAmt, dawnAmt);
+    drawBuoy(ctx, sa, fogAmt, stormAmt, dawnAmt);
 
     // ship silhouette (behind fog)
     drawShip(ctx, fogAmt);
@@ -945,6 +1200,10 @@ export function createChannel({ seed, audio }){
     }
 
     drawTitle(ctx, nightAmt, fogAmt, stormAmt, dawnAmt);
+
+    if (specialActive){
+      drawEventBadge(ctx, specialActive.label, sa);
+    }
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
