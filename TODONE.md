@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): determinism — sparks emission is now distance-driven (separate seeded PRNG) so 30fps/60fps captures match. Commit: d7e788a
+
 - [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): visuals — added a subtle cached brushed-metal texture overlay on the bed frame (rebuilt on resize; deterministic tile). Commit: 3770c79
 
 - [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): perf — replaced spark cap from `shift()` (O(n)) to O(1) swap-remove (order-independent). Screenshots: screenshots/autopilot-2026-02-14-lasercutfile-before + screenshots/autopilot-2026-02-14-lasercutfile-after. Commit: 8431f59

@@ -85,7 +85,7 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: lasercutfile
 
-- [ ] `lasercutfile` (src/channels/lasercutfile.js): determinism — make sparks emission FPS-stable (drive from cut progress distance or fixed-timestep sim; avoid per-frame `rand()` in `update()` so 30fps/60fps captures match).
+<!-- done: moved to TODONE.md (lasercutfile sparks determinism / FPS-stable) -->
 <!-- done: moved to TODONE.md (lasercutfile sparks cap perf) -->
 - [ ] `lasercutfile` (src/channels/lasercutfile.js): special moments — add 1–2 rare deterministic events (~1–3 min cadence): e.g. “MATERIAL CHANGE” palette swap / “AIR ASSIST BURST” smoke puff + brief HUD badge, clean reset.
 <!-- done: moved to TODONE.md (lasercutfile bed frame texture) -->
