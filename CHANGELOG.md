@@ -1,3 +1,5 @@
+- 2026-02-14 22:45 (Australia/Melbourne) [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): perf — cached per-frame gradients (sky/road, stall counter, vignette, sign road-reflection) on init/resize/ctx swap so steady-state `render()` allocates 0 gradients/frame. Commit: 1e76de1
+
 - 2026-02-14 22:16 (Australia/Melbourne) [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): special moment — added a second rare deterministic “BULK DROP” surge (~90–210s) that temporarily increases spawn cadence + thickens tube glow for ~6–10s, with an OSD-safe HUD banner; clean reset; schedule uses separate RNG like `expressPlan`. Commit: a99939c
 
 - 2026-02-14 21:49 (Australia/Melbourne) [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): visuals — replaced tube direction tick dots with small chevrons oriented along edge direction; cached tick positions/angles per edge in `rebuildGeometry()`. Commit: 54a13c7

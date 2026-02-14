@@ -5,6 +5,8 @@ if `TODO.md` has no ready items:
 
 ## Channel review queue
 
+<!-- done: reviewed `nightmarket` (2026-02-14) → TODONE.md -->
+
 <!-- done: reviewed `mailroomtube` (2026-02-14) → TODONE.md -->
 
 <!-- done: reviewed `news` (2026-02-14) → TODONE.md -->
@@ -106,3 +108,11 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (lasercutfile sparks cap perf) -->
 <!-- done: moved to TODONE.md (lasercutfile special moments) -->
 <!-- done: moved to TODONE.md (lasercutfile bed frame texture) -->
+
+## Follow-ups queued from review: nightmarket
+
+<!-- done: moved to TODONE.md (nightmarket gradient cache) -->
+- [ ] `nightmarket` (src/channels/nightmarket.js): determinism — remove `rand()` from `update(dt)` rain wrap/reset paths (precompute per-drop wrap jitter in `regen()` or derive from a hash of {dropIndex, wrapCount}); ensure 30fps/60fps captures match at fixed offsets.
+- [ ] `nightmarket` (src/channels/nightmarket.js): audio hygiene — make `onAudioOn()` idempotent (no stacked sources); ensure `onAudioOff()`/`destroy()` stop+clear and only clear `AudioManager.current` when owned.
+- [ ] `nightmarket` (src/channels/nightmarket.js): long-run interest — add 1–2 *rare deterministic* “special moments” (e.g. POWER CUT / LANTERN RELEASE / FLASH SALE banner) scheduled ~2–5 minutes with a clear signature look, OSD-safe placement, and clean reset; use a separate seeded RNG so core visuals remain stable.
+- [ ] `nightmarket` (src/channels/nightmarket.js): text/dialog — expand sign/tag label pools and receipts/ledger variation so it stays fresh for 5+ minutes (prefer seeded shuffle-bags; avoid per-frame RNG).
