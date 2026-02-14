@@ -6,7 +6,6 @@ if `TODO.md` has no ready items:
 ## Channel review queue
 
 <!-- (empty) -->
-- [ ] Review channel `lasercutfile` (src/channels/lasercutfile.js)
 <!-- done: reviewed `news` (2026-02-14) → TODONE.md -->
 
 <!-- done: moved to TODONE.md -->
@@ -84,6 +83,10 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (lighthouse special moments) -->
 
 ## Follow-ups queued from review: lasercutfile
+
+- [ ] `lasercutfile` (src/channels/lasercutfile.js): audio hygiene — make `onAudioOn()` idempotent and ensure `onAudioOff()`/`destroy()` only clear AudioManager.current when owned (avoid stacking / clobbering other channel audio).
+- [ ] `lasercutfile` (src/channels/lasercutfile.js): perf — cache the inner bed gradient created in `drawBed()` (rebuild on resize/ctx swap) so steady-state render avoids per-frame `createLinearGradient()`.
+- [ ] `lasercutfile` (src/channels/lasercutfile.js): UI — clamp/ellipsize HUD badge text (e.g. `MATERIAL CHANGE: …`) so it never overflows its rounded-rect container at small resolutions.
 
 <!-- done: moved to TODONE.md (lasercutfile sparks determinism / FPS-stable) -->
 <!-- done: moved to TODONE.md (lasercutfile sparks cap perf) -->
