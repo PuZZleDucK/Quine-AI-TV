@@ -122,7 +122,7 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (micromyst bg+grain cache) -->
 
-- [ ] `micromyst` (src/channels/micromystery.js): determinism — remove `rand()` usage from `render()` (grain + per-line jitter) by precomputing deterministic jitter/grain (seeded) and indexing by line + time bucket.
+<!-- done: moved to TODONE.md (micromyst render determinism: no rand in render) -->
 
 <!-- done: moved to TODONE.md (micromyst audio hygiene/determinism: audioRand split + onAudioOn idempotent) -->
 

@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `micromyst` (src/channels/micromystery.js): determinism — removed `rand()` usage from `render()` by using deterministic (seeded) time-bucketed grain variants + per-line jitter hash (FPS-stable). Commit: 018201a
+
 - [x] [project:quine-tv] `micromyst` (src/channels/micromystery.js): special moments/text — added 1–2 rare deterministic “ALERT” moments (~2–5 min) (CASE REOPENED / REDACTION SWEEP / INK BLOT) and expanded text pools to reduce repetition. Commit: 4bd0587
 
 - [x] [project:quine-tv] `micromyst` (src/channels/micromystery.js): audio hygiene/determinism — made `onAudioOn()` idempotent and split an `audioRand` PRNG so type-click beeps don’t consume the story/visual RNG sequence. Commit: TBD
