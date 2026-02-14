@@ -3,4 +3,3 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- (empty)
