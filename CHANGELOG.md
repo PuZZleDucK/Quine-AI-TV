@@ -1,3 +1,5 @@
+- 2026-02-15 10:54 (Australia/Melbourne) [project:quine-tv] Review channel `neonlaundromat` (src/channels/neonlaundromat.js): screenshots 0–300s `screenshots/review-neonlaundromat-2026-02-15-pre` + completion `screenshots/review-neonlaundromat-2026-02-15-post` (errors/warnings: 0); queued follow-ups in TODO; split audio RNG from visual PRNG and marked file reviewed. Commit: ddb13d8
+
 - 2026-02-15 10:21 (Australia/Melbourne) [project:quine-tv] `retroboot` add alien os - rare. Screenshots: screenshots/autopilot-retroboot-alien-before + screenshots/autopilot-retroboot-alien-after. Commit: 2844e15
 
 - 2026-02-15 10:06 (Australia/Melbourne) [project:quine-tv] `retroboot` add unixes - uncommon. Commit: bc845aa
