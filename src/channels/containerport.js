@@ -983,7 +983,9 @@ export function createChannel({ seed, audio }){
     // One consistent container size used across yard/ship/crane.
     const u = yardContainerUnit();
     const ch = Math.max(10, Math.round(u * 0.62));
-    const dy = Math.max(12, Math.round(u * 0.78));
+    // Keep a clear vertical gap between stacked containers to avoid visual clipping.
+    const stackGap = Math.max(2, Math.round(2 * dpr));
+    const dy = Math.max(ch + stackGap, Math.round(u * 0.82));
     const cw = Math.max(26, Math.round(u * 2.2));
     return { u, cw, ch, dy };
   }
@@ -1116,6 +1118,7 @@ export function createChannel({ seed, audio }){
 
     for (let i = 0; i < CRANE_COUNT; i++){
       const c = cranes[i];
+      const mv = craneMoveFor(i);
 
       const mastH = h * 0.20;
       const mastW = Math.max(w * 0.012, 4 * dpr);
@@ -1126,34 +1129,73 @@ export function createChannel({ seed, audio }){
       const leftX = c.x - beamW * 0.50;
       const rightX = c.x + beamW * 0.50;
 
-      // mast (filled body + outline so it reads as a solid frame)
-      ctx.fillStyle = 'rgba(220,240,255,0.10)';
+      // Draw containers first so the crane frame always sits in front.
+      if (mv.active && mv.container){
+        const col = mv.container.col;
+        const { cw, ch } = containerDims();
+        drawContainer(ctx, mv.x - cw * 0.5, mv.y - ch * 0.5, cw, ch, col, mv.container.id, dpr);
+      } else if (mv.sourceVisible && mv.sourceContainer){
+        const { cw, ch } = containerDims();
+        const col = mv.sourceContainer.col;
+        drawContainer(ctx, mv.sourceX - cw * 0.5, mv.sourceY - ch * 0.5, cw, ch, col, mv.sourceContainer.id, dpr);
+      }
+
+      // Opaque gantry frame.
+      ctx.fillStyle = '#6f808c';
       ctx.fillRect(c.x - mastW * 0.5, beamY, mastW, mastH);
 
       ctx.lineWidth = Math.max(2, 2.2 * dpr);
-      ctx.strokeStyle = 'rgba(220,240,255,0.22)';
+      ctx.strokeStyle = '#3a4650';
       ctx.strokeRect(c.x - mastW * 0.5, beamY, mastW, mastH);
 
-      // base shoe
-      ctx.fillStyle = 'rgba(0,0,0,0.18)';
-      ctx.fillRect(c.x - mastW * 0.70, dockY - 2 * dpr, mastW * 1.40, 4 * dpr);
+      // mast inner seam + top cap to read as heavy steel.
+      ctx.fillStyle = '#8d9ca6';
+      ctx.fillRect(c.x - mastW * 0.12, beamY + 1, mastW * 0.24, mastH - 2);
+      ctx.fillStyle = '#9baab4';
+      ctx.fillRect(c.x - mastW * 0.65, beamY - beamH * 0.55, mastW * 1.30, beamH * 0.55);
 
-      // beam (chunky bar)
-      ctx.fillStyle = 'rgba(220,240,255,0.08)';
+      // base shoe (opaque, dark).
+      ctx.fillStyle = '#1f262d';
+      ctx.fillRect(c.x - mastW * 0.90, dockY - 2.5 * dpr, mastW * 1.80, 5 * dpr);
+
+      // beam (opaque chunky bar).
+      ctx.fillStyle = '#7e8e99';
       ctx.fillRect(leftX, beamY - beamH * 0.5, beamW, beamH);
-      ctx.strokeStyle = 'rgba(220,240,255,0.18)';
+      ctx.strokeStyle = '#3b4852';
       ctx.strokeRect(leftX, beamY - beamH * 0.5, beamW, beamH);
 
-      // highlight cap
-      ctx.strokeStyle = 'rgba(108,242,255,0.10)';
+      // top highlight + bottom shadow edge.
+      ctx.strokeStyle = '#b8c4cc';
       ctx.beginPath();
       ctx.moveTo(leftX, beamY - beamH * 0.5);
       ctx.lineTo(rightX, beamY - beamH * 0.5);
       ctx.stroke();
+      ctx.strokeStyle = '#2f3942';
+      ctx.beginPath();
+      ctx.moveTo(leftX, beamY + beamH * 0.5);
+      ctx.lineTo(rightX, beamY + beamH * 0.5);
+      ctx.stroke();
+
+      // hazard markers on beam.
+      const hzW = beamW * 0.08;
+      for (let hz = 0; hz < 2; hz++){
+        const hx = hz === 0 ? (leftX + beamW * 0.06) : (rightX - beamW * 0.06 - hzW);
+        ctx.fillStyle = '#f4b544';
+        ctx.fillRect(hx, beamY - beamH * 0.42, hzW, beamH * 0.84);
+        ctx.strokeStyle = '#22282f';
+        ctx.lineWidth = Math.max(1, 1.1 * dpr);
+        for (let s = 0; s < 4; s++){
+          const x0 = hx + s * (hzW / 4);
+          ctx.beginPath();
+          ctx.moveTo(x0, beamY + beamH * 0.42);
+          ctx.lineTo(x0 + hzW * 0.25, beamY - beamH * 0.42);
+          ctx.stroke();
+        }
+      }
 
       // truss braces
       ctx.lineWidth = Math.max(1, 1.6 * dpr);
-      ctx.strokeStyle = 'rgba(220,240,255,0.10)';
+      ctx.strokeStyle = '#5c6b75';
       const pad = beamW * 0.18;
       ctx.beginPath();
       ctx.moveTo(leftX + pad, beamY);
@@ -1161,7 +1203,7 @@ export function createChannel({ seed, audio }){
       ctx.lineTo(rightX - pad, beamY);
       ctx.stroke();
 
-      ctx.strokeStyle = 'rgba(220,240,255,0.08)';
+      ctx.strokeStyle = '#4b5963';
       for (let k = 0; k < 6; k++){
         const x0 = lerp(leftX + pad, rightX - pad, k/6);
         const x1 = lerp(leftX + pad, rightX - pad, (k+1)/6);
@@ -1171,33 +1213,29 @@ export function createChannel({ seed, audio }){
         ctx.stroke();
       }
 
-      const mv = craneMoveFor(i);
       const trolleyX = mv.x;
 
-      // trolley
-      ctx.fillStyle = 'rgba(108,242,255,0.22)';
-      roundedRect(ctx, trolleyX - 11, beamY - 8, 22, 16, 4);
+      // trolley (opaque carriage + wheel pods).
+      const tw = 24;
+      const th = 16;
+      ctx.fillStyle = '#d6a23b';
+      roundedRect(ctx, trolleyX - tw * 0.5, beamY - th * 0.5, tw, th, 4);
       ctx.fill();
+      ctx.strokeStyle = '#3b2d15';
+      ctx.lineWidth = Math.max(1, 1.3 * dpr);
+      ctx.stroke();
+      ctx.fillStyle = '#2f3942';
+      ctx.beginPath(); ctx.arc(trolleyX - tw * 0.25, beamY, 2.2 * dpr, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(trolleyX + tw * 0.25, beamY, 2.2 * dpr, 0, Math.PI * 2); ctx.fill();
 
-      // hoist cable
-      ctx.lineWidth = Math.max(1, 1.4 * dpr);
-      ctx.strokeStyle = 'rgba(180,220,255,0.22)';
+      // hoist cable (opaque).
+      ctx.lineWidth = Math.max(1, 1.7 * dpr);
+      ctx.strokeStyle = '#b8c3cc';
       ctx.beginPath();
       ctx.moveTo(trolleyX, beamY);
       ctx.lineTo(trolleyX, mv.y);
       ctx.stroke();
 
-      if (mv.active && mv.container){
-        // moving container (persistent entity)
-        const col = mv.container.col;
-        const { cw, ch } = containerDims();
-        drawContainer(ctx, mv.x - cw * 0.5, mv.y - ch * 0.5, cw, ch, col, mv.container.id, dpr);
-      } else if (mv.sourceVisible && mv.sourceContainer){
-        // Keep source container visible until pickup starts to avoid pop-in/pop-out artifacts.
-        const { cw, ch } = containerDims();
-        const col = mv.sourceContainer.col;
-        drawContainer(ctx, mv.sourceX - cw * 0.5, mv.sourceY - ch * 0.5, cw, ch, col, mv.sourceContainer.id, dpr);
-      }
     }
 
     ctx.restore();
