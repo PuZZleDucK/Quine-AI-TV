@@ -5,7 +5,6 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md -->
 - [project:quine-tv] `retroboot` add Win9x splash/installer.
-- [project:quine-tv] `retroboot` add Norton/Scandisk.
 - [project:quine-tv] `retroboot` add BSOD/Kernel Panic - uncommon.
 - [project:quine-tv] `retroboot` add bsd - uncommon.
 - [project:quine-tv] `retroboot` add unixes - uncommon.

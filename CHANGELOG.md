@@ -1,3 +1,5 @@
+- 2026-02-15 06:19 (Australia/Melbourne) [project:quine-tv] `retroboot` add Norton/Scandisk. Commit: cd83fc0
+
 - 2026-02-15 06:04 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): text polish — expand DOS/Linux line pools (more believable device/probe lines + longer directory listing) so each segment runs longer without obvious repeats. Commit: 6fe4c04
 
 - 2026-02-15 05:33 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): long-run interest — extend the segment cycle to ~3–5 minutes (dur scale 5.5×; ~3.8 min loop). Commit: f49216d
