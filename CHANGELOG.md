@@ -1,3 +1,5 @@
+- 2026-02-14 14:50 (Australia/Melbourne) [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): perf/allocs — cached spectrum bar `hsl(...)` styles (lightness buckets) and switched the bar loop to use cached styles + `globalAlpha` (no per-bin template string churn). Commit: 07e2002
+
 - 2026-02-14 13:32 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): special moments — added rare deterministic events (~45–120s): BREAKING banner+flash + FIELD REPORT lower-third sweep (OSD-safe; clean reset). Commit: 46fd467
 
 - 2026-02-14 13:02 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned. Commit: 095530e

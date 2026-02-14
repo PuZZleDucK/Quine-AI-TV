@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): perf/allocs — removed per-bin `hsla(...)` template allocations in the spectrum bar loop by precomputing lightness-bucketed `hsl(...)` styles and varying intensity via `globalAlpha`. Commit: 07e2002
+
 - [x] [project:quine-tv] `news` (src/channels/news.js): special moments — added 1–2 rare deterministic events (~45–120s) with clear broadcast signature (BREAKING banner + flash, FIELD REPORT lower-third sweep), clean reset, and OSD-safe placement. Commit: 46fd467
 
 - [x] [project:quine-tv] `news` (src/channels/news.js): audio hygiene — made `onAudioOn()` idempotent (no stacking) and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned. Commit: 095530e
