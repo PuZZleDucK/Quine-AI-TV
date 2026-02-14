@@ -350,12 +350,29 @@ function makeCanvas(W, H){
   return null;
 }
 
+function hash32(x){
+  x >>>= 0;
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x7feb352d);
+  x ^= x >>> 15;
+  x = Math.imul(x, 0x846ca68b);
+  x ^= x >>> 16;
+  return x >>> 0;
+}
+
+function hash01(x){
+  return hash32(x) / 4294967296;
+}
+
 export function createChannel({ seed, audio }){
   const baseSeed = (seed == null) ? 0 : (seed >>> 0);
   const rand = mulberry32(baseSeed);
   // Keep audio randomness deterministic, but independent of story/visual RNG.
   const audioRand = mulberry32((baseSeed ^ 0x85ebca6b) >>> 0);
   const grainSeed = (baseSeed ^ 0x9e3779b9) >>> 0;
+  const jitterSeed = (baseSeed ^ 0x27d4eb2f) >>> 0;
+  const TIME_BUCKET_HZ = 3;
+  const GRAIN_VARIANTS = 4;
 
   let w = 0, h = 0;
   let t = 0;
@@ -375,7 +392,8 @@ export function createChannel({ seed, audio }){
   let layout = null;
   let bgLayer = null;
   let folderLayer = null;
-  let grainLayer = null;
+  let grainLayers = null;
+  let grainStripes = null;
 
   function computeLayout(){
     const pw = Math.floor(w * 0.84);
@@ -419,7 +437,10 @@ export function createChannel({ seed, audio }){
 
     bgLayer = makeCanvas(w, h) || false;
     folderLayer = makeCanvas(w, h) || false;
-    grainLayer = makeCanvas(w, h) || false;
+    // Precompute a few deterministic grain variants (indexed by time bucket) so render()
+    // never consumes the main RNG.
+    grainLayers = [];
+    grainStripes = [];
 
     if (bgLayer && bgLayer !== false){
       const b = bgLayer.getContext('2d');
@@ -494,26 +515,39 @@ export function createChannel({ seed, audio }){
       f.restore();
     }
 
-    if (grainLayer && grainLayer !== false){
-      const g = grainLayer.getContext('2d');
-      g.setTransform(1, 0, 0, 1, 0, 0);
-      g.clearRect(0, 0, w, h);
+    const { sx, sy, sw, sh, paperR } = layout;
 
-      const { sx, sy, sw, sh, paperR } = layout;
-      const gr = mulberry32(grainSeed);
+    for (let v = 0; v < GRAIN_VARIANTS; v++){
+      const stripes = [];
+      const gr = mulberry32((grainSeed ^ Math.imul(v + 1, 0x85ebca6b)) >>> 0);
 
-      g.save();
-      roundedRect(g, sx, sy, sw, sh, paperR);
-      g.clip();
-      g.globalAlpha = 0.06;
       for (let i = 0; i < 140; i++){
         const x = sx + gr() * sw;
         const y = sy + gr() * sh;
         const ww = 10 + gr() * 34;
-        g.fillStyle = (gr() < 0.5) ? 'rgba(0,0,0,1)' : 'rgba(90,70,40,1)';
-        g.fillRect(x, y, ww, 1);
+        stripes.push([x, y, ww, gr() < 0.5 ? 0 : 1]);
       }
-      g.restore();
+
+      grainStripes.push(stripes);
+
+      const layer = makeCanvas(w, h) || false;
+      grainLayers.push(layer);
+
+      if (layer && layer !== false){
+        const g = layer.getContext('2d');
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.clearRect(0, 0, w, h);
+
+        g.save();
+        roundedRect(g, sx, sy, sw, sh, paperR);
+        g.clip();
+        g.globalAlpha = 0.06;
+        for (const s of stripes){
+          g.fillStyle = (s[3] == 0) ? 'rgba(0,0,0,1)' : 'rgba(90,70,40,1)';
+          g.fillRect(s[0], s[1], s[2], 1);
+        }
+        g.restore();
+      }
     }
   }
 
@@ -666,20 +700,35 @@ export function createChannel({ seed, audio }){
       ctx.restore();
     }
 
-    if (grainLayer && grainLayer !== false) {
-      ctx.drawImage(grainLayer, 0, 0);
-    } else {
-      const gr = mulberry32(grainSeed);
+    const timeBucket = (t * TIME_BUCKET_HZ) | 0;
+
+    if (grainLayers?.length){
+      const gv = ((timeBucket % grainLayers.length) + grainLayers.length) % grainLayers.length;
+      const gl = grainLayers[gv];
+      if (gl && gl !== false){
+        ctx.drawImage(gl, 0, 0);
+      } else if (grainStripes?.length){
+        const stripes = grainStripes[gv % grainStripes.length];
+        ctx.save();
+        roundedRect(ctx, sx, sy, sw, sh, paperR);
+        ctx.clip();
+        ctx.globalAlpha = 0.06;
+        for (const s of stripes){
+          ctx.fillStyle = (s[3] == 0) ? 'rgba(0,0,0,1)' : 'rgba(90,70,40,1)';
+          ctx.fillRect(s[0], s[1], s[2], 1);
+        }
+        ctx.restore();
+      }
+    } else if (grainStripes?.length){
+      const gv = ((timeBucket % grainStripes.length) + grainStripes.length) % grainStripes.length;
+      const stripes = grainStripes[gv];
       ctx.save();
       roundedRect(ctx, sx, sy, sw, sh, paperR);
       ctx.clip();
       ctx.globalAlpha = 0.06;
-      for (let i = 0; i < 140; i++){
-        const x = sx + gr() * sw;
-        const y = sy + gr() * sh;
-        const ww = 10 + gr() * 34;
-        ctx.fillStyle = (gr() < 0.5) ? 'rgba(0,0,0,1)' : 'rgba(90,70,40,1)';
-        ctx.fillRect(x, y, ww, 1);
+      for (const s of stripes){
+        ctx.fillStyle = (s[3] == 0) ? 'rgba(0,0,0,1)' : 'rgba(90,70,40,1)';
+        ctx.fillRect(s[0], s[1], s[2], 1);
       }
       ctx.restore();
     }
@@ -704,7 +753,8 @@ export function createChannel({ seed, audio }){
     ctx.textBaseline = 'top';
 
     let y = ty;
-    for (const line of lines){
+    for (let li = 0; li < lines.length; li++){
+      const line = lines[li];
       const l = line.trimEnd();
       let color = 'rgba(20, 18, 16, 0.78)';
       if (l.startsWith('CLUE')) color = 'rgba(18, 45, 76, 0.82)';
@@ -714,9 +764,12 @@ export function createChannel({ seed, audio }){
       else if (l.startsWith('PAN:')) color = 'rgba(0, 0, 0, 0.46)';
       else if (l.startsWith('NOTE')) color = 'rgba(0, 0, 0, 0.56)';
 
-      // mild jitter like a tired typewriter
-      const jx = (rand() - 0.5) * 0.6;
-      const jy = (rand() - 0.5) * 0.6;
+      // Deterministic jitter (indexed by line + time bucket) so render() is FPS-stable.
+      const j0 = hash01(jitterSeed ^ Math.imul(timeBucket + 1, 0x9e3779b9) ^ Math.imul(li + 1, 0x85ebca6b));
+      const j1 = hash01((jitterSeed ^ 0x68bc21eb) ^ Math.imul(timeBucket + 1, 0xc2b2ae35) ^ Math.imul(li + 1, 0x27d4eb2f));
+      const jx = (j0 - 0.5) * 0.6;
+      const jy = (j1 - 0.5) * 0.6;
+
       ctx.fillStyle = color;
       ctx.fillText(l.replace(/^PAN: /, ''), tx + jx, y + jy);
       y += lineH;
