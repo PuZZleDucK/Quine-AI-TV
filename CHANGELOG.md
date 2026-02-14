@@ -1,3 +1,5 @@
+- 2026-02-14 15:04 (Australia/Melbourne) [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): special moments — added rare deterministic “network incident” events (~45–120s) (PORT SCAN / DDOS FLOOD / LINK DOWN), OSD-safe EVENT badge (dial panel), clean reset. Commit: f15b00b
+
 - 2026-02-14 14:50 (Australia/Melbourne) [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): perf/allocs — cached spectrum bar `hsl(...)` styles (lightness buckets) and switched the bar loop to use cached styles + `globalAlpha` (no per-bin template string churn). Commit: 07e2002
 
 - 2026-02-14 13:32 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): special moments — added rare deterministic events (~45–120s): BREAKING banner+flash + FIELD REPORT lower-third sweep (OSD-safe; clean reset). Commit: 46fd467

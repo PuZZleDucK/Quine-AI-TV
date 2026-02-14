@@ -68,7 +68,6 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: packetsfm
 
-- [ ] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): special moments — add 1–2 rare deterministic “network incident” events (~45–120s) with a clear signature (PORT SCAN / DDoS / LINK DOWN), OSD-safe EVENT badge, and clean reset.
 - [ ] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): determinism — remove per-frame `rand()` usage from `updateWaterfall()` and packet spawning; schedule bursts in absolute time / fixed timestep so 30fps vs 60fps captures match.
 - [ ] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): perf — cache background+vignette gradients and panel gradients (waterfall sheen, dial header, knob radial) on init/resize/ctx swap. Accept: steady-state `render()` creates 0 gradients/frame.
 <!-- done: moved to TODONE.md (packetsfm spectrum hsla allocs) -->
