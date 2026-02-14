@@ -723,3 +723,5 @@
 - 2026-02-13 15:19 (Australia/Melbourne) [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): bugfix — added a floor plane + removed wall motion (brick drift). Screenshots: screenshots/autopilot-forgeanvil-floorwall-before + screenshots/autopilot-forgeanvil-floorwall-after. Commit: c97c39d
 - 2026-02-14 23:36 (Australia/Melbourne) [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): special moments — added rare deterministic “POWER CUT” + “FLASH SALE” events (~120–300s) with OSD-safe banner + clean reset; schedule uses separate seeded RNG. Commit: fc4c097
 - 2026-02-15 05:19 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): determinism — fixed-timestep sim loop (`SIM_DT=1/60` accumulator) so click/beep schedules are FPS-stable across 30fps/60fps captures. Commit: db76fa9
+
+- 2026-02-15 06:33 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): HUD overlay text clamped + ellipsized to prevent overflow on tiny/extreme aspect renders. Commit: 345058a

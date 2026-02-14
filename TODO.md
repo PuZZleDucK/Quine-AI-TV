@@ -11,4 +11,3 @@ if `TODO.md` has no ready items:
 - [project:quine-tv] `retroboot` add solaris - rare.
 - [project:quine-tv] `retroboot` add beos - rare.
 - [project:quine-tv] `retroboot` add alien os - rare.
-- [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — overlay text overflows out of overlay - previous attempt failed.

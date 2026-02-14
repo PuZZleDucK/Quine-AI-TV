@@ -814,3 +814,5 @@
 
 - [x] [project:quine-tv] `fixit` (src/channels/fixit.js): added rare seeded “special moments” scheduled ~45–120s (LAMP FLICKER, SUCCESS STAMP, DUST PUFF) with clean reset + subtle audio signature. Commit: 8043a42
 - [x] [project:quine-tv] `forgeanvil` (src/channels/forgeanvil.js): visuals - bugs: added a floor and made the brick wall pattern static (no drift). Screenshots: screenshots/autopilot-forgeanvil-floorwall-before + screenshots/autopilot-forgeanvil-floorwall-after. Commit: c97c39d
+
+- [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — overlay text overflowed out of HUD; now clamped + ellipsized. Commit: 345058a
