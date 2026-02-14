@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): perf — cached CRT scanlines+vignette into an offscreen overlay layer so steady-state `renderCRT()` does 0 `createPattern()` / `createRadialGradient()` calls. Screenshots: screenshots/autopilot-2026-02-15-retroboot-crtcache-before + screenshots/autopilot-2026-02-15-retroboot-crtcache-after. Commit: 86c6343
+
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — mac os progress bar overlaps text (progress bar now lays out below the welcome line with a fixed gap). Commit: af46980
 
 - [x] [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): long-run interest — added a third rare deterministic “PAPER AIRPLANE” moment (~90–300s cadence) alongside CAT VISIT + PHONE BUZZ, with OSD-safe banner + clean reset. Commit: 4345b49
