@@ -659,6 +659,68 @@ function makeSolarisLines(rand){
   return lines;
 }
 
+function makeBeosLines(rand){
+  const host = pick(rand, ['be-box', 'beige-beast', 'media-station', 'beos']);
+  const release = pick(rand, ['R5.0.3', 'R5.0.2', 'R5.0.1']);
+  const cpu = pick(rand, ['Pentium 90', 'Pentium II 300', 'K6-2 350', 'Celeron 433']);
+  const disk = pick(rand, ['hda', 'hdb', 'sda']);
+
+  const cK = 'rgba(190,210,255,0.85)';
+  const cG = 'rgba(210,255,220,0.85)';
+  const cY = 'rgba(255,240,170,0.85)';
+  const cW = 'rgba(255,255,255,0.92)';
+
+  const lines = [
+    { at: 0.0, text: `BeOS ${release} (Intel) booting…`, color: cW },
+    { at: 0.7, text: `KERNEL: cpu0: ${cpu} detected`, color: cK },
+    { at: 1.3, text: `KERNEL: mounting /boot on /dev/${disk}…`, color: cK },
+    { at: 2.0, text: 'KERNEL: Initializing devices…', color: cG },
+    { at: 2.7, text: 'KERNEL: Loading add-ons…', color: cG },
+  ];
+
+  let at = 3.4;
+  const addonPool = [
+    'keyboard', 'mouse', 'console', 'net_server', 'ppp', 'usb', 'ata', 'scsi',
+    'accelerant', 'sound', 'media', 'printer', 'serial', 'joystick',
+    'textencoding', 'storage', 'input_server', 'screen_saver'
+  ];
+  const n = 12 + ((rand() * 6) | 0);
+  for (let i = 0; i < n; i++){
+    const a = addonPool[(i + ((rand() * addonPool.length) | 0)) % addonPool.length];
+    lines.push({ at, text: `  /boot/beos/system/add-ons/${a}`, color: cG });
+    at += 0.75 + rand() * 0.55;
+  }
+
+  at += 0.35;
+  lines.push({ at, text: 'APP: Starting app_server…', color: cY });
+  at += 0.95;
+  lines.push({ at, text: 'APP: Starting registrar…', color: cY });
+  at += 0.95;
+  lines.push({ at, text: 'MEDIA: media_server is now running.', color: cK });
+  at += 0.85;
+  lines.push({ at, text: `NET: ${host} is ready.`, color: cW });
+
+  // a tiny terminal beat
+  const prompt = '/boot/home> ';
+  at += 1.3;
+  lines.push({ at, text: `${prompt}ls /boot/beos/system/add-ons/kernel`, color: cG });
+  at += 0.9;
+  lines.push({ at, text: 'bfs  debug  net  usb  vesa', color: cK });
+  at += 1.1;
+  lines.push({ at, text: `${prompt}ps | head -n 5`, color: cG });
+  at += 0.9;
+  lines.push({ at, text: '  1  registrar', color: cK });
+  lines.push({ at: at + 0.5, text: '  2  app_server', color: cK });
+  lines.push({ at: at + 1.0, text: '  3  media_server', color: cK });
+  lines.push({ at: at + 1.5, text: '  4  net_server', color: cK });
+  at += 2.2;
+
+  at += 1.0;
+  lines.push({ at, text: `${prompt}`, color: cG });
+
+  return lines;
+}
+
 function hexByte(rand){
   return (((rand() * 256) | 0).toString(16).padStart(2, '0').toUpperCase());
 }
@@ -1109,9 +1171,11 @@ export function createChannel({ seed, audio }){
   let linuxLines = [];
   let bsdLines = [];
   let solarisLines = [];
+  let beosLines = [];
   let macScreen = null;
   let unixIsBsd = false;
   let unixIsSolaris = false;
+  let unixIsBeos = false;
 
   // audio
   let ah = null;
@@ -1124,6 +1188,11 @@ export function createChannel({ seed, audio }){
     unixIsBsd = (unixVariant === 0);
     unixIsSolaris = (unixVariant === 1);
 
+    // “Rare rare” cameo: BeOS.
+    // Independent of unixVariant so it doesn’t perturb the existing BSD/Solaris mapping.
+    unixIsBeos = ((hash32(seed ^ 0xBE05) % 29) === 0);
+    if (unixIsBeos){ unixIsBsd = false; unixIsSolaris = false; }
+
     biosLines = makeBootLines(rand);
     dosLines = makeDosLines(rand);
     win9xScreen = makeWin9xScreen(rand);
@@ -1133,6 +1202,7 @@ export function createChannel({ seed, audio }){
     // Rare variants use forked PRNGs so they don’t perturb the main content sequence.
     bsdLines = makeBsdLines(mulberry32(hash32(seed ^ 0xBADC0DE)));
     solarisLines = makeSolarisLines(mulberry32(hash32(seed ^ 0x501A815)));
+    beosLines = makeBeosLines(mulberry32(hash32(seed ^ 0xBE05)));
 
     macScreen = makeMacScreen(rand);
   }
@@ -1610,7 +1680,7 @@ export function createChannel({ seed, audio }){
       const y0 = pad * 1.8;
       const lineH = Math.floor(font * 1.35);
       const maxLines = Math.floor((h - y0 - pad * 0.8) / lineH);
-      const unixLines = unixIsSolaris ? solarisLines : (unixIsBsd ? bsdLines : linuxLines);
+      const unixLines = unixIsBeos ? beosLines : (unixIsSolaris ? solarisLines : (unixIsBsd ? bsdLines : linuxLines));
       drawTyped(bctx, { x: pad, y: y0, lineH, maxLines, lines: unixLines, t: segT, cps: 58, cursor: true });
 
       // a little "progress" spinner
@@ -1631,11 +1701,13 @@ export function createChannel({ seed, audio }){
 
     ctx.drawImage(buf, 0, 0);
 
-    const hudTitle = (seg.key === 'linux' && unixIsSolaris)
-      ? 'Solaris Boot Log'
-      : (seg.key === 'linux' && unixIsBsd)
-        ? 'BSD Boot Log'
-        : seg.title;
+    const hudTitle = (seg.key === 'linux' && unixIsBeos)
+      ? 'BeOS Boot Log'
+      : (seg.key === 'linux' && unixIsSolaris)
+        ? 'Solaris Boot Log'
+        : (seg.key === 'linux' && unixIsBsd)
+          ? 'BSD Boot Log'
+          : seg.title;
     drawHud(ctx, hudTitle);
     renderCRT(ctx);
   }
