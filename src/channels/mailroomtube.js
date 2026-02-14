@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-14
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
@@ -343,29 +344,64 @@ export function createChannel({ seed, audio }){
     onResize(width, height, _dpr);
   }
 
+  function stopMusic({ clearCurrent = false } = {}){
+    const handle = musicHandle;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    musicHandle = null;
+    drone = null;
+    noise = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
-    drone = simpleDrone(audio, { root: 62 + rand() * 10, detune: 1.1, gain: 0.035 });
-    noise = audio.noiseSource({ type: 'brown', gain: 0.010 });
-    try { noise.start(); } catch {}
-    musicHandle = {
+
+    // Defensive: onAudioOn() can be called repeatedly while audio is enabled
+    // (e.g. channel switches), so ensure we don't stack overlapping ambience.
+    if (musicHandle && audio.current === musicHandle) return;
+
+    stopMusic({ clearCurrent: true });
+
+    const ctx = audio.ensure();
+    const d = simpleDrone(audio, { root: 62 + rand() * 10, detune: 1.1, gain: 0.035 });
+    const n = audio.noiseSource({ type: 'brown', gain: 0.010 });
+    try { n.start(); } catch {}
+
+    let stopped = false;
+    const handle = {
       stop(){
-        try { drone?.stop?.(); } catch {}
-        try { noise?.stop?.(); } catch {}
+        if (stopped) return;
+        stopped = true;
+
+        // Tiny fade-out reduces click risk on stop.
+        const now = ctx.currentTime;
+        try { n.gain.gain.setTargetAtTime(0.0001, now, 0.05); } catch {}
+        try { d?.stop?.(); } catch {}
+        try { n.src.stop(now + 0.12); } catch { try { n?.stop?.(); } catch {} }
       }
     };
-    audio.setCurrent(musicHandle);
+
+    drone = d;
+    noise = n;
+    musicHandle = handle;
+    audio.setCurrent(handle);
   }
 
   function onAudioOff(){
-    try { musicHandle?.stop?.(); } catch {}
-    drone = null;
-    noise = null;
-    musicHandle = null;
+    stopMusic({ clearCurrent: true });
   }
 
   function destroy(){
-    onAudioOff();
+    // Only clears AudioManager.current when we own it.
+    stopMusic({ clearCurrent: true });
   }
 
   function update(dt){
