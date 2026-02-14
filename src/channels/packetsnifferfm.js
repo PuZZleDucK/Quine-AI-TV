@@ -27,6 +27,9 @@ function roundRect(ctx, x, y, w, h, r){
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
 
+  // Use a separate PRNG for UI text so we don't perturb the main visual/audio randomness.
+  const logRand = mulberry32(((seed >>> 0) ^ 0x9E3779B9) >>> 0);
+
   let w = 0, h = 0, t = 0;
 
   // layout
@@ -140,10 +143,100 @@ export function createChannel({ seed, audio }){
   // floating labels
   let labels = [];
 
+  // OSD-safe rotating packet log strip (seeded; 5+ minutes before repeating)
+  const PACKET_LOG_PERIOD = 5.6;
+  let packetLog = [];
+  let packetLogOffset = 0;
+
   // audio
   let ah = null;
 
   function pick(arr){ return arr[(rand() * arr.length) | 0]; }
+
+  function pickLog(arr){ return arr[(logRand() * arr.length) | 0]; }
+
+  function buildPacketLogLines(){
+    const domains = [
+      'cdn.quine.local', 'auth.edge', 'mirror.node', 'telemetry.mesh', 'status.uplink',
+      'pkg.repo', 'updates.cache', 'stream.mux', 'sso.portal', 'api.gateway',
+    ];
+    const paths = [
+      '/', '/login', '/metrics', '/healthz', '/v1/events', '/v1/packets', '/sync', '/assets/app.js',
+      '/trace', '/static/noise.png',
+    ];
+    const reasons = ['TTL_EXPIRED', 'CHECKSUM', 'POLICY', 'RATELIMIT', 'NO_ROUTE', 'CONN_REFUSED'];
+    const ciphers = ['TLS_AES_128_GCM_SHA256', 'TLS_CHACHA20_POLY1305_SHA256', 'TLS_AES_256_GCM_SHA384'];
+
+    function ip(){
+      return `${10 + ((logRand() * 10) | 0)}.${((logRand() * 256) | 0)}.${((logRand() * 256) | 0)}.${1 + ((logRand() * 254) | 0)}`;
+    }
+
+    function port(){
+      return 1024 + ((logRand() * 54000) | 0);
+    }
+
+    function mmss(seconds){
+      const m = (seconds / 60) | 0;
+      const ss = (seconds | 0) % 60;
+      return `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+    }
+
+    const lines = [];
+    const N = 64;
+
+    for (let i = 0; i < N; i++){
+      const tt = i * PACKET_LOG_PERIOD;
+      const ts = mmss(tt);
+
+      const src = ip();
+      const dst = ip();
+      const sport = port();
+      const dport = port();
+
+      const dom = pickLog(domains);
+      const path0 = pickLog(paths);
+      const proto = pickLog(['TCP', 'UDP', 'ICMP', 'ARP']);
+      const kind = pickLog(['SYN', 'ACK', 'PSH', 'FIN', 'ECHO', 'QRY', 'RESP', 'DROP', 'RETX', 'HANDSHAKE']);
+
+      let line = '';
+      if (proto === 'TCP'){
+        let extra = '';
+        if (kind === 'ACK') extra = ` win=${256 + ((logRand() * 4096) | 0)}`;
+        else if (kind === 'PSH') extra = ` len=${40 + ((logRand() * 1400) | 0)}`;
+        else if (kind === 'RETX') extra = ` seq=${(logRand() * 9000) | 0}`;
+
+        line = `T+${ts}  TCP ${kind.padEnd(4, ' ')} ${src}:${sport} → ${dst}:${dport}${extra}`;
+      } else if (proto === 'UDP'){
+        if ((kind === 'QRY' || kind === 'RESP') && logRand() < 0.6){
+          const q = pickLog(['A?', 'AAAA?', 'TXT?', 'SRV?', 'MX?']);
+          const id = (((logRand() * 65535) | 0).toString(16)).padStart(4, '0');
+          line = `T+${ts}  DNS ${q.padEnd(5, ' ')} ${dom}  id=${id}`;
+        } else {
+          const ln = 18 + ((logRand() * 1400) | 0);
+          line = `T+${ts}  UDP       ${src}:${sport} → ${dst}:${dport}  len=${ln}`;
+        }
+      } else if (proto === 'ICMP'){
+        const seq = 1 + ((logRand() * 4096) | 0);
+        const ttl = 32 + ((logRand() * 160) | 0);
+        line = `T+${ts}  ICMP ECHO  ${src} → ${dst}  seq=${seq} ttl=${ttl}`;
+      } else {
+        line = `T+${ts}  ARP who-has ${dst} tell ${src}`;
+      }
+
+      // sprinkle in higher-level callouts
+      if (i % 11 === 7){
+        line = `T+${ts}  TLS ClientHello  sni=${dom}  cipher=${pickLog(ciphers)}`;
+      } else if (i % 13 === 9){
+        line = `T+${ts}  HTTP GET  https://${dom}${path0}`;
+      } else if (i % 17 === 12){
+        line = `T+${ts}  DROP ${pickLog(reasons)}  ${src}:${sport} → ${dst}:${dport}`;
+      }
+
+      lines.push(line);
+    }
+
+    return lines;
+  }
 
   function init({ width, height }){
     w = width; h = height; t = 0;
@@ -179,6 +272,9 @@ export function createChannel({ seed, audio }){
     pktAcc = 0;
 
     labels = [];
+
+    packetLog = buildPacketLogLines();
+    packetLogOffset = ((seed >>> 0) % packetLog.length) | 0;
 
     // waterfall backing store: small canvas, scaled up when drawn
     wfRows = Math.max(120, Math.min(220, Math.floor(h * 0.28)));
@@ -691,6 +787,56 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function drawPacketLog(ctx){
+    if (!packetLog.length) return;
+
+    // OSD-safe: clipped to the waterfall panel and inset away from edges.
+    const idx = (packetLogOffset + ((t / PACKET_LOG_PERIOD) | 0)) % packetLog.length;
+    const txt0 = packetLog[idx];
+
+    ctx.save();
+
+    // clip to the same rounded rect as the waterfall panel
+    roundRect(ctx, wfX - 2, wfY - 2, wfW + 4, wfH + 4, 16);
+    ctx.clip();
+
+    const pad = Math.max(12, Math.floor(Math.min(w, h) * 0.018));
+    const stripH = Math.max(22, Math.floor(h * 0.040));
+    const x = wfX + pad;
+    const y = wfY + pad;
+    const ww = wfW - pad * 2;
+
+    // background strip
+    ctx.globalAlpha = 0.85;
+    roundRect(ctx, x, y, ww, stripH, 10);
+    ctx.fillStyle = 'rgba(0,0,0,0.36)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(180,210,255,0.14)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // text
+    ctx.globalAlpha = 0.92;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(220,240,255,0.74)';
+    ctx.font = `700 ${Math.max(11, Math.floor(h * 0.018))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+
+    // cheap clipping/ellipsis: keep string bounded, then measure/trim if still too wide.
+    let txt = txt0.length > 96 ? (txt0.slice(0, 95) + '…') : txt0;
+    const maxW = ww - 20;
+    if (ctx.measureText(txt).width > maxW){
+      while (txt.length > 6 && ctx.measureText(txt + '…').width > maxW){
+        txt = txt.slice(0, -1);
+      }
+      txt = txt + '…';
+    }
+
+    ctx.fillText(txt, x + 10, y + stripH * 0.55);
+
+    ctx.restore();
+  }
+
   function drawLabels(ctx){
     if (!labels.length) return;
     const s = STATIONS[stationIdx];
@@ -843,6 +989,7 @@ export function createChannel({ seed, audio }){
 
     drawBackground(ctx);
     drawWaterfall(ctx);
+    drawPacketLog(ctx);
     drawLabels(ctx);
     drawDial(ctx);
   }
