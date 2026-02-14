@@ -42,6 +42,15 @@ export function createChannel({ seed, audio }){
   let bigFlash = 0;
   let nextBigAt = 0;
 
+  // special moments: rare deterministic “network incident” events (OSD-safe badge)
+  let incidentKind = null; // 'PORT_SCAN' | 'DDOS' | 'LINK_DOWN'
+  let incidentBadge = '';
+  let incidentT = 0;
+  let incidentDur = 0;
+  let nextIncidentAt = 0;
+  let scanAcc = 0;
+  let scanStep = 0;
+
   // spectrum / waterfall
   const BINS = 64;
   const energy = new Float32Array(BINS);
@@ -101,6 +110,14 @@ export function createChannel({ seed, audio }){
 
     bigFlash = 0;
     nextBigAt = 6 + rand() * 10;
+
+    incidentKind = null;
+    incidentBadge = '';
+    incidentT = 0;
+    incidentDur = 0;
+    nextIncidentAt = 45 + rand() * 75;
+    scanAcc = 0;
+    scanStep = 0;
 
     for (let i = 0; i < BINS; i++) { energy[i] = 0; peaks[i] = 0; }
     pktAcc = 0;
@@ -237,6 +254,58 @@ export function createChannel({ seed, audio }){
 
   function destroy(){ onAudioOff(); }
 
+  function spikeBin(idx, intensity = 1, beep = false){
+    idx = Math.max(0, Math.min(BINS - 1, idx | 0));
+
+    const v = (0.35 + 0.9 * intensity);
+    energy[idx] = Math.min(1.2, energy[idx] + v);
+    peaks[idx] = Math.max(peaks[idx], 0.35 + v * 0.65);
+
+    if (beep && audio.enabled){
+      const f = 200 + idx * 12;
+      audio.beep({ freq: f, dur: 0.012, gain: 0.010 + 0.008 * intensity, type: 'square' });
+    }
+  }
+
+  function startIncident(){
+    const choices = [
+      { kind: 'PORT_SCAN', badge: 'EVENT: PORT SCAN', dur: 8.5 },
+      { kind: 'DDOS', badge: 'EVENT: DDOS FLOOD', dur: 9.5 },
+      { kind: 'LINK_DOWN', badge: 'EVENT: LINK DOWN', dur: 7.2 },
+    ];
+
+    const c = choices[(rand() * choices.length) | 0];
+
+    incidentKind = c.kind;
+    incidentBadge = c.badge;
+    incidentDur = c.dur;
+    incidentT = 0;
+    scanAcc = 0;
+    scanStep = 0;
+
+    // kickoff signature + reset-friendly state tweaks
+    if (incidentKind === 'LINK_DOWN'){
+      for (let i = 0; i < BINS; i++){
+        energy[i] *= 0.18;
+        peaks[i] *= 0.28;
+      }
+      tuneFx = Math.max(tuneFx, 0.25);
+    } else if (incidentKind === 'DDOS'){
+      bigFlash = Math.max(bigFlash, 0.7);
+    }
+
+    // (optional) one floating callout in the playfield
+    labels.push({
+      text: c.badge.replace('EVENT: ', ''),
+      x: wfX + wfW * (0.18 + rand() * 0.64),
+      y: wfY + wfH * (0.18 + rand() * 0.58),
+      a: 0.95,
+      life: 1.3,
+      vx: (-10 + rand() * 20),
+      vy: (-26 - rand() * 22),
+    });
+  }
+
   function spawnPacket(intensity = 1){
     // map a synthetic packet “size” to a frequency bin (log-ish)
     const size = 40 + rand() * 1460;
@@ -337,6 +406,56 @@ export function createChannel({ seed, audio }){
       switchStation(stationIdx + 1);
     }
 
+    // network incident special moments (rare, deterministic; badge is OSD-safe in dial panel)
+    if (!incidentKind && t >= nextIncidentAt){
+      startIncident();
+    }
+
+    let incidentMul = 1.0;
+    if (incidentKind){
+      incidentT += dt;
+
+      if (incidentKind === 'DDOS'){
+        incidentMul = 2.6;
+        // keep the dial a little “angry”
+        bigFlash = Math.max(bigFlash, 0.15 * (0.5 + 0.5 * Math.sin(t * 7.0)));
+      } else if (incidentKind === 'LINK_DOWN'){
+        incidentMul = 0.08;
+        // dampen energy slightly for a “dead carrier” feel
+        if (incidentT < 0.8){
+          for (let i = 0; i < BINS; i++){
+            energy[i] *= 0.88;
+            peaks[i] *= 0.90;
+          }
+        }
+      } else if (incidentKind === 'PORT_SCAN'){
+        incidentMul = 1.15;
+
+        const pulseEvery = 0.075;
+        scanAcc += dt;
+        while (scanAcc >= pulseEvery){
+          scanAcc -= pulseEvery;
+
+          const span = BINS - 12;
+          const idx = 6 + (scanStep % span);
+          const beep = (scanStep % 4) === 0;
+          spikeBin(idx, 1.05, beep);
+          scanStep++;
+        }
+      }
+
+      if (incidentT >= incidentDur){
+        incidentKind = null;
+        incidentBadge = '';
+        incidentT = 0;
+        incidentDur = 0;
+        scanAcc = 0;
+        scanStep = 0;
+
+        nextIncidentAt = t + 45 + rand() * 75;
+      }
+    }
+
     // big “event” flashes
     if (t >= nextBigAt){
       bigFlash = 1.0;
@@ -363,7 +482,7 @@ export function createChannel({ seed, audio }){
     const rate = s.rate * (0.78 + 0.44 * (0.5 + 0.5 * Math.sin(t * 0.35 + stationIdx)));
     const burst = (tuneFx > 0 ? 0.55 : 1.0) * (0.92 + 0.20 * bigFlash);
 
-    pktAcc += rate * dt * burst;
+    pktAcc += rate * dt * burst * incidentMul;
     while (pktAcc >= 1.0){
       spawnPacket(1.0 + bigFlash * 0.6);
       pktAcc -= 1.0;
@@ -606,6 +725,40 @@ export function createChannel({ seed, audio }){
     ctx.stroke();
 
     ctx.restore();
+
+    // incident badge (OSD-safe, within dial panel)
+    if (incidentKind){
+      const fadeIn = Math.min(1, incidentT / 0.25);
+      const fadeOut = Math.min(1, (incidentDur - incidentT) / 0.4);
+      const a = clamp01(Math.min(fadeIn, fadeOut));
+
+      const txt = incidentBadge || 'EVENT';
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.65 * a;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+
+      const bh = Math.max(18, Math.floor(dialH * 0.18));
+      const bx = dialX + 14;
+      const by = dialY + dialH - bh - 12;
+
+      const padX = 10;
+      ctx.font = `800 ${Math.max(11, Math.floor(h * 0.018))}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+      const tw = ctx.measureText(txt).width;
+      const bw = Math.min(dialW - 28, tw + padX * 2);
+
+      roundRect(ctx, bx, by, bw, bh, 10);
+      ctx.fillStyle = incidentKind === 'LINK_DOWN' ? 'rgba(255, 90, 90, 0.18)' : 'rgba(255, 215, 120, 0.14)';
+      ctx.fill();
+      ctx.strokeStyle = incidentKind === 'LINK_DOWN' ? 'rgba(255, 120, 120, 0.22)' : 'rgba(255, 220, 150, 0.20)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = incidentKind === 'LINK_DOWN' ? 'rgba(255, 200, 200, 0.92)' : 'rgba(255, 235, 180, 0.92)';
+      ctx.fillText(txt, bx + padX, by + bh * 0.52);
+
+      ctx.restore();
+    }
 
     // tuning static hint
     if (tuneFx > 0){
