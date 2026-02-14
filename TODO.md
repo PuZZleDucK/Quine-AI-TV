@@ -17,7 +17,7 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (mailroomtube grid cache) -->
 <!-- done: moved to TODONE.md (mailroomtube status lamp) -->
 <!-- done: moved to TODONE.md (mailroomtube dispatch log strip) -->
-- [ ] `mailroomtube` (src/channels/mailroomtube.js): special moment — add rare deterministic “PRIORITY EXPRESS” event (~60–180s) (distinct canister + HUD badge + short audio sting) with clean reset.
+<!-- done: moved to TODONE.md (mailroomtube PRIORITY EXPRESS) -->
 
 ## Follow-ups queued from review: tugdispatch
 
