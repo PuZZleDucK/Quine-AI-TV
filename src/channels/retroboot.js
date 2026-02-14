@@ -497,8 +497,8 @@ export function createChannel({ seed, audio }){
     // flicker
     const flickerBucket = Math.floor(t * 24);
     const flickerN = hash01((seed ^ 0x9e3779b9) + flickerBucket * 0x85ebca6b);
-    const f = 0.012 + 0.012 * Math.sin(t * 23.0) + 0.006 * (flickerN - 0.5);
-    ctx.fillStyle = `rgba(255,255,255,${Math.max(0, f)})`;
+    const f = 0.006 + 0.006 * Math.sin(t * 23.0) + 0.0025 * (flickerN - 0.5);
+    ctx.fillStyle = `rgba(255,255,255,${Math.min(0.018, Math.max(0, f))})`;
     ctx.fillRect(0, 0, w, h);
 
     // tiny noise specks (cheap)
