@@ -1,4 +1,4 @@
-- 2026-02-14 23:02 (Australia/Melbourne) [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): audio hygiene — made `onAudioOn()` idempotent (no restart if already current) and ensured `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: TBD
+- 2026-02-14 23:02 (Australia/Melbourne) [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): audio hygiene — made `onAudioOn()` idempotent (no restart if already current) and ensured `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: faad336
 
 - 2026-02-14 22:45 (Australia/Melbourne) [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): perf — cached per-frame gradients (sky/road, stall counter, vignette, sign road-reflection) on init/resize/ctx swap so steady-state `render()` allocates 0 gradients/frame. Commit: 1e76de1
 
