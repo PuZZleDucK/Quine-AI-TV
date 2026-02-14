@@ -14,6 +14,11 @@ const SETTINGS = [
   'a library basement',
   'a rooftop greenhouse',
   'a tiny community theatre',
+  'a service elevator stuck between floors',
+  'the staff-only corridor of an aquarium',
+  'a laundromat under buzzing lights',
+  'a closed bowling alley',
+  'a courthouse records room',
   'a hotel corridor with bad carpet',
 ];
 
@@ -26,6 +31,11 @@ const MISSING = [
   'a jar of black sand',
   'a train ticket stamped twice',
   'a postcard from a city that doesn\'t exist',
+  'a matchbook from a vanished bar',
+  'a photograph with one face scratched away',
+  'a pager that only buzzes once',
+  'a museum tag that reads “RETURNED”',
+  'a vial of clear liquid marked “DO NOT INHALE”',
   'a ring that was never worn',
   'a folded map with one street inked out',
 ];
@@ -49,6 +59,11 @@ const TITLES_B = [
   'Unworn Ring',
   'Locked Drawer',
   'Half Letter',
+  'Scratched Photo',
+  'Buzzing Pager',
+  'Returned Tag',
+  'Vanished Matchbook',
+  'Clear Vial',
 ];
 
 const SUSPECTS = [
@@ -95,6 +110,34 @@ const CLUE_FORMS = [
   'three hummed notes, repeated',
   'a crack avoided too carefully',
   'a timestamp that doesn\'t match',
+  'a paperclip bent into a question mark',
+  'a coffee ring on a clean file',
+  'a tiny fleck of glitter in dust',
+  'a stamp impression with no ink',
+];
+
+const SPECIAL_MOMENTS = [
+  {
+    label: 'CASE REOPENED',
+    lines: [
+      'ALERT: CASE REOPENED.',
+      'NOTE: The file was supposed to be closed.',
+    ],
+  },
+  {
+    label: 'REDACTION SWEEP',
+    lines: [
+      'ALERT: REDACTION SWEEP.',
+      '…a black bar passes over the page, taking names with it.',
+    ],
+  },
+  {
+    label: 'INK BLOT',
+    lines: [
+      'ALERT: INK BLOT.',
+      '…a dark bloom spreads, hiding one sentence entirely.',
+    ],
+  },
 ];
 
 function makeStory(rand){
@@ -243,6 +286,43 @@ function makeStory(rand){
   while (total < 300){
     stretched.splice(2 + ((rand() * (stretched.length - 3)) | 0), 0, { duration: 12 + rand() * 8, lines: [`PAN: ${pick(rand, PANS)}`] });
     total = stretched.reduce((s, b) => s + b.duration, 0);
+  }
+
+  // Rare deterministic “special moments” (~2–5 min cadence), inserted into the beat stream.
+  if (SPECIAL_MOMENTS.length && rand() < 0.9){
+    const momentCount = (rand() < 0.25) ? 2 : 1;
+    let lastTarget = 0;
+    let lastMomentIx = -1;
+
+    for (let m = 0; m < momentCount; m++){
+      const targetSec = Math.min(
+        total - 24,
+        (m === 0)
+          ? (120 + rand() * 180)
+          : (lastTarget + 50 + rand() * 120)
+      );
+      lastTarget = targetSec;
+
+      let cum = 0;
+      let insertAt = stretched.length - 1;
+      for (let i = 0; i < stretched.length; i++){
+        cum += stretched[i].duration;
+        if (cum >= targetSec){
+          insertAt = Math.min(i + 1, stretched.length - 1);
+          break;
+        }
+      }
+
+      let ix = (rand() * SPECIAL_MOMENTS.length) | 0;
+      if (SPECIAL_MOMENTS.length > 1 && ix === lastMomentIx){
+        ix = (ix + 1 + ((rand() * (SPECIAL_MOMENTS.length - 1)) | 0)) % SPECIAL_MOMENTS.length;
+      }
+      lastMomentIx = ix;
+
+      const dur = 10 + rand() * 6;
+      stretched.splice(insertAt, 0, { duration: dur, lines: SPECIAL_MOMENTS[ix].lines });
+      total += dur;
+    }
   }
 
   return { caseNo, title, setting, missing, suspects, culprit, motive, method, clues, beats: stretched, totalSeconds: total };
@@ -629,6 +709,7 @@ export function createChannel({ seed, audio }){
       let color = 'rgba(20, 18, 16, 0.78)';
       if (l.startsWith('CLUE')) color = 'rgba(18, 45, 76, 0.82)';
       else if (l.startsWith('REVEAL')) color = 'rgba(92, 18, 26, 0.85)';
+      else if (l.startsWith('ALERT')) color = 'rgba(92, 18, 26, 0.9)';
       else if (l.startsWith('FINAL CLUE RECAP')) color = 'rgba(0, 0, 0, 0.7)';
       else if (l.startsWith('PAN:')) color = 'rgba(0, 0, 0, 0.46)';
       else if (l.startsWith('NOTE')) color = 'rgba(0, 0, 0, 0.56)';
