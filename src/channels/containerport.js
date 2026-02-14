@@ -149,6 +149,7 @@ export function createChannel({ seed, audio }){
   const CRANE_COUNT = 3;
   let cranes = []; // {x, y, s, off}
   let craneJobs = new Array(CRANE_COUNT).fill(null); // {startT,dur,startX,startY,endX,endY,container,destBay,kind}
+  let craneTrolleyX = new Array(CRANE_COUNT).fill(0);
 
   let moveNextT = 0;
   let moveCursor = 0;
@@ -218,6 +219,7 @@ export function createChannel({ seed, audio }){
       const fx = lerp(dockX0 + w * 0.08, dockX1 - w * 0.08, (i + 0.5) / CRANE_COUNT);
       cranes.push({ x: fx, y: dockY - h * 0.10, s: 0.9 + rand()*0.25, off: rand() * 10 });
     }
+    craneTrolleyX = cranes.map((c) => c.x);
 
     gradientsDirty = true;
   }
@@ -238,6 +240,7 @@ export function createChannel({ seed, audio }){
     }
 
     craneJobs = new Array(CRANE_COUNT).fill(null);
+    craneTrolleyX = cranes.map((c) => c.x);
     moveNextT = 1.0;
     moveCursor = 0;
 
@@ -449,6 +452,20 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function startCraneJob(ci, job, phaseRand){
+    const fromX = Number.isFinite(craneTrolleyX[ci]) ? craneTrolleyX[ci] : cranes[ci].x;
+    const travel = Math.abs(fromX - job.startX);
+    const travelNorm = Math.min(1, travel / Math.max(1, w * 0.24));
+    const approachDur = 0.24 + 1.0 * travelNorm + 0.22 * phaseRand;
+
+    craneJobs[ci] = {
+      ...job,
+      fromX,
+      approachDur,
+      dur: job.dur + approachDur,
+    };
+  }
+
   function tryScheduleOneMove(ci){
     // Returns true if a job started on this crane.
     const dims = containerDims();
@@ -503,8 +520,9 @@ export function createChannel({ seed, audio }){
         const endX = bays[dest].x + bays[dest].w * 0.5;
         const endY = baseY - (stackCount(dest) + 1) * dims.dy + dims.ch * 0.5;
 
-        const dur = 2.5 + 0.8 * moveRand01(container.id ^ (ci<<8));
-        craneJobs[ci] = { kind: 'toYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
+        const randK = moveRand01(container.id ^ (ci<<8));
+        const dur = 2.5 + 0.8 * randK;
+        startCraneJob(ci, { kind: 'toYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY }, randK);
         return true;
       };
 
@@ -545,8 +563,9 @@ export function createChannel({ seed, audio }){
         const topY = lay.baseY - (newLen - 1) * lay.dy;
         const endY = topY + lay.ch * 0.5;
 
-        const dur = 2.4 + 0.9 * moveRand01(container.id ^ 0x2f1a0d19 ^ (ci<<8));
-        craneJobs[ci] = { kind: 'toShip', container, destSlot, startT: t, dur, startX, startY, endX, endY };
+        const randK = moveRand01(container.id ^ 0x2f1a0d19 ^ (ci<<8));
+        const dur = 2.4 + 0.9 * randK;
+        startCraneJob(ci, { kind: 'toShip', container, destSlot, startT: t, dur, startX, startY, endX, endY }, randK);
         return true;
       };
 
@@ -593,8 +612,9 @@ export function createChannel({ seed, audio }){
       const endX = bays[dest].x + bays[dest].w * 0.5;
       const endY = baseY - (stackCount(dest) + 1) * dims.dy + dims.ch * 0.5;
 
-      const dur = 2.3 + 0.9 * moveRand01(container.id ^ 0x51ed270b);
-      craneJobs[ci] = { kind: 'yardToYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
+      const randK = moveRand01(container.id ^ 0x51ed270b);
+      const dur = 2.3 + 0.9 * randK;
+      startCraneJob(ci, { kind: 'yardToYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY }, randK);
       return true;
     }
 
@@ -619,8 +639,9 @@ export function createChannel({ seed, audio }){
       const endX = bays[dest].x + bays[dest].w * 0.5;
       const endY = baseY - (stackCount(dest) + 1) * dims.dy + dims.ch * 0.5;
 
-      const dur = 2.1 + 0.7 * moveRand01(container.id ^ 0x27d4eb2d);
-      craneJobs[ci] = { kind: 'yardToYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY };
+      const randK = moveRand01(container.id ^ 0x27d4eb2d);
+      const dur = 2.1 + 0.7 * randK;
+      startCraneJob(ci, { kind: 'yardToYard', container, destBay: dest, startT: t, dur, startX, startY, endX, endY }, randK);
       return true;
     }
 
@@ -670,8 +691,16 @@ export function createChannel({ seed, audio }){
     for (let i = 0; i < CRANE_COUNT; i++){
       const job = craneJobs[i];
       if (job && (t - job.startT) >= job.dur){
+        craneTrolleyX[i] = job.endX;
         completeCraneJob(job);
         craneJobs[i] = null;
+      }
+    }
+    for (let i = 0; i < CRANE_COUNT; i++){
+      if (!craneJobs[i]){
+        const target = cranes[i]?.x ?? 0;
+        const cur = Number.isFinite(craneTrolleyX[i]) ? craneTrolleyX[i] : target;
+        craneTrolleyX[i] = lerp(cur, target, clamp(dt * 0.85, 0, 1));
       }
     }
 
@@ -1026,32 +1055,60 @@ export function createChannel({ seed, audio }){
   }
   function craneMoveFor(i){
     const job = craneJobs[i];
-    if (!job) return { active: false, x: cranes[i].x, y: dockY - h * 0.16, tx: 0.5 };
-
-    const u = clamp((t - job.startT) / job.dur, 0, 1);
-
-    // motion: lift (vertical), traverse (horizontal), lower (vertical)
     const midY = dockY - h * 0.16;
-    let x = job.startX;
-    let y = job.startY;
-
-    if (u < 0.35){
-      const e = ease(u / 0.35);
-      x = job.startX;
-      y = lerp(job.startY, midY, e);
-    } else if (u < 0.75){
-      const e = ease((u - 0.35) / 0.40);
-      x = lerp(job.startX, job.endX, e);
-      y = midY;
-    } else {
-      const e = ease((u - 0.75) / 0.25);
-      x = job.endX;
-      y = lerp(midY, job.endY, e);
+    if (!job){
+      const x = Number.isFinite(craneTrolleyX[i]) ? craneTrolleyX[i] : cranes[i].x;
+      return { active: false, x, y: midY, tx: 0.5 };
     }
 
-    // Keep motion continuous between true source/destination positions.
-    // Clamping to a crane-local beam span caused visible snap/jump artifacts.
-    return { active: true, x, y, tx: 0.5, container: job.container };
+    const elapsed = clamp(t - job.startT, 0, job.dur);
+    const approachDur = Math.max(0, job.approachDur || 0);
+    const carryDur = Math.max(0.001, job.dur - approachDur);
+
+    let x = job.startX;
+    let y = midY;
+    let carrying = false;
+    let sourceVisible = false;
+
+    if (elapsed < approachDur){
+      const u = ease(elapsed / Math.max(0.001, approachDur));
+      const fromX = Number.isFinite(job.fromX) ? job.fromX : job.startX;
+      x = lerp(fromX, job.startX, u);
+      y = midY;
+      sourceVisible = true;
+    } else {
+      const u = clamp((elapsed - approachDur) / carryDur, 0, 1);
+      if (u < 0.22){
+        x = job.startX;
+        y = lerp(midY, job.startY, ease(u / 0.22));
+        sourceVisible = true;
+      } else if (u < 0.44){
+        x = job.startX;
+        y = lerp(job.startY, midY, ease((u - 0.22) / 0.22));
+        carrying = true;
+      } else if (u < 0.78){
+        x = lerp(job.startX, job.endX, ease((u - 0.44) / 0.34));
+        y = midY;
+        carrying = true;
+      } else {
+        x = job.endX;
+        y = lerp(midY, job.endY, ease((u - 0.78) / 0.22));
+        carrying = true;
+      }
+    }
+
+    craneTrolleyX[i] = x;
+    return {
+      active: carrying,
+      x,
+      y,
+      tx: 0.5,
+      container: carrying ? job.container : null,
+      sourceVisible,
+      sourceX: job.startX,
+      sourceY: job.startY,
+      sourceContainer: sourceVisible ? job.container : null,
+    };
   }
 
   function drawCranes(ctx){
@@ -1135,6 +1192,11 @@ export function createChannel({ seed, audio }){
         const col = mv.container.col;
         const { cw, ch } = containerDims();
         drawContainer(ctx, mv.x - cw * 0.5, mv.y - ch * 0.5, cw, ch, col, mv.container.id, dpr);
+      } else if (mv.sourceVisible && mv.sourceContainer){
+        // Keep source container visible until pickup starts to avoid pop-in/pop-out artifacts.
+        const { cw, ch } = containerDims();
+        const col = mv.sourceContainer.col;
+        drawContainer(ctx, mv.sourceX - cw * 0.5, mv.sourceY - ch * 0.5, cw, ch, col, mv.sourceContainer.id, dpr);
       }
     }
 
