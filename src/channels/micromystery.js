@@ -259,8 +259,21 @@ function roundedRect(ctx, x, y, w, h, r){
   ctx.closePath();
 }
 
+function makeCanvas(W, H){
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+  if (typeof document !== 'undefined'){
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    return c;
+  }
+  return null;
+}
+
 export function createChannel({ seed, audio }){
-  const rand = mulberry32(seed);
+  const baseSeed = (seed == null) ? 0 : (seed >>> 0);
+  const rand = mulberry32(baseSeed);
+  const grainSeed = (baseSeed ^ 0x9e3779b9) >>> 0;
 
   let w = 0, h = 0;
   let t = 0;
@@ -276,6 +289,151 @@ export function createChannel({ seed, audio }){
 
   let clickCooldown = 0;
   let bed = null;
+
+  let layout = null;
+  let bgLayer = null;
+  let folderLayer = null;
+  let grainLayer = null;
+
+  function computeLayout(){
+    const pw = Math.floor(w * 0.84);
+    const ph = Math.floor(h * 0.78);
+    const px = Math.floor((w - pw) / 2);
+    const py = Math.floor(h * 0.11);
+    const r = Math.floor(Math.min(w, h) * 0.02);
+
+    const paperPad = Math.floor(pw * 0.05);
+    const sx = px + paperPad;
+    const sy = py + paperPad;
+    const sw = pw - paperPad * 2;
+    const sh = ph - paperPad * 2;
+
+    const paperR = Math.floor(r * 0.8);
+
+    const stampW = Math.floor(sw * 0.36);
+    const stampH = Math.floor(font * 2.2);
+    const stampX = sx + Math.floor(sw * 0.58);
+    const stampY = sy + Math.floor(sh * 0.08);
+    const stampR = Math.floor(r * 0.6);
+
+    const headerH = Math.floor(font * 2.1);
+    const titleX = sx + Math.floor(sw * 0.05);
+    const headerMidY = sy + Math.floor(font * 1.05);
+    const metaX = sx + Math.floor(sw * 0.62);
+
+    const tx = sx + Math.floor(sw * 0.06);
+    const ty = sy + Math.floor(font * 2.7);
+
+    const barY = sy + sh - Math.floor(font * 1.2);
+    const barX = sx + Math.floor(sw * 0.06);
+    const barW = Math.floor(sw * 0.88);
+    const barH = Math.max(3, Math.floor(font * 0.16));
+
+    return { pw, ph, px, py, r, sx, sy, sw, sh, paperR, stampW, stampH, stampX, stampY, stampR, headerH, titleX, headerMidY, metaX, tx, ty, barY, barX, barW, barH };
+  }
+
+  function rebuildLayers(){
+    layout = computeLayout();
+
+    bgLayer = makeCanvas(w, h) || false;
+    folderLayer = makeCanvas(w, h) || false;
+    grainLayer = makeCanvas(w, h) || false;
+
+    if (bgLayer && bgLayer !== false){
+      const b = bgLayer.getContext('2d');
+      b.setTransform(1, 0, 0, 1, 0, 0);
+      b.clearRect(0, 0, w, h);
+
+      const bg = b.createLinearGradient(0, 0, 0, h);
+      bg.addColorStop(0, '#06070b');
+      bg.addColorStop(1, '#010208');
+      b.fillStyle = bg;
+      b.fillRect(0, 0, w, h);
+
+      const vg = b.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.7);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.72)');
+      b.fillStyle = vg;
+      b.fillRect(0, 0, w, h);
+    }
+
+    if (folderLayer && folderLayer !== false){
+      const f = folderLayer.getContext('2d');
+      f.setTransform(1, 0, 0, 1, 0, 0);
+      f.clearRect(0, 0, w, h);
+
+      const { pw, ph, px, py, r, sx, sy, sw, sh, paperR, stampW, stampH, stampX, stampY, stampR, headerH, titleX, headerMidY } = layout;
+
+      // shadow
+      f.save();
+      f.globalAlpha = 0.55;
+      f.fillStyle = 'rgba(0,0,0,0.85)';
+      roundedRect(f, px + 12, py + 16, pw, ph, r);
+      f.fill();
+      f.restore();
+
+      // folder body
+      f.save();
+      f.globalAlpha = 0.96;
+      f.fillStyle = 'rgba(32, 26, 18, 0.96)';
+      roundedRect(f, px, py, pw, ph, r);
+      f.fill();
+      f.restore();
+
+      // paper base
+      f.save();
+      f.globalAlpha = 0.98;
+      f.fillStyle = 'rgba(245, 238, 224, 0.98)';
+      roundedRect(f, sx, sy, sw, sh, paperR);
+      f.fill();
+      f.restore();
+
+      // stamp
+      f.save();
+      f.globalAlpha = 0.18;
+      f.strokeStyle = 'rgba(160, 40, 40, 1)';
+      f.lineWidth = Math.max(2, Math.floor(font * 0.14));
+      roundedRect(f, stampX, stampY, stampW, stampH, stampR);
+      f.stroke();
+      f.font = `bold ${Math.floor(font * 1.05)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      f.fillStyle = 'rgba(160, 40, 40, 1)';
+      f.textBaseline = 'middle';
+      f.fillText('CONFIDENTIAL', stampX + Math.floor(stampW * 0.08), stampY + stampH / 2);
+      f.restore();
+
+      // header bar base + fixed title
+      f.save();
+      f.fillStyle = 'rgba(0,0,0,0.08)';
+      f.fillRect(sx, sy, sw, headerH);
+      f.font = `bold ${Math.floor(font * 1.05)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      f.fillStyle = 'rgba(10,10,12,0.78)';
+      f.textBaseline = 'middle';
+      f.fillText('MICRO-MYSTERIES', titleX, headerMidY);
+      f.restore();
+    }
+
+    if (grainLayer && grainLayer !== false){
+      const g = grainLayer.getContext('2d');
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, w, h);
+
+      const { sx, sy, sw, sh, paperR } = layout;
+      const gr = mulberry32(grainSeed);
+
+      g.save();
+      roundedRect(g, sx, sy, sw, sh, paperR);
+      g.clip();
+      g.globalAlpha = 0.06;
+      for (let i = 0; i < 140; i++){
+        const x = sx + gr() * sw;
+        const y = sy + gr() * sh;
+        const ww = 10 + gr() * 34;
+        g.fillStyle = (gr() < 0.5) ? 'rgba(0,0,0,1)' : 'rgba(90,70,40,1)';
+        g.fillRect(x, y, ww, 1);
+      }
+      g.restore();
+    }
+  }
 
   function setBeat(i){
     beatIx = i;
@@ -293,6 +451,7 @@ export function createChannel({ seed, audio }){
     lineH = Math.floor(font * 1.35);
     story = makeStory(rand);
     setBeat(0);
+    rebuildLayers();
   }
 
   function onResize(width, height){
@@ -349,99 +508,105 @@ export function createChannel({ seed, audio }){
 
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, w, h);
 
-    // noir-ish background
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#06070b');
-    bg.addColorStop(1, '#010208');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
+    const L = layout || (layout = computeLayout());
+    const { pw, ph, px, py, r, sx, sy, sw, sh, paperR, stampW, stampH, stampX, stampY, stampR, headerH, titleX, headerMidY, metaX, tx, ty, barX, barY, barW, barH } = L;
 
-    // subtle vignette
-    const vg = ctx.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.7);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.72)');
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, w, h);
+    if (bgLayer && bgLayer !== false) {
+      ctx.drawImage(bgLayer, 0, 0);
+    } else {
+      // Fallback (no offscreen canvas support)
+      ctx.clearRect(0, 0, w, h);
 
-    // folder + paper
-    const pw = Math.floor(w * 0.84);
-    const ph = Math.floor(h * 0.78);
-    const px = Math.floor((w - pw) / 2);
-    const py = Math.floor(h * 0.11);
-    const r = Math.floor(Math.min(w, h) * 0.02);
+      const bg = ctx.createLinearGradient(0, 0, 0, h);
+      bg.addColorStop(0, '#06070b');
+      bg.addColorStop(1, '#010208');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
 
-    // shadow
-    ctx.save();
-    ctx.globalAlpha = 0.55;
-    ctx.fillStyle = 'rgba(0,0,0,0.85)';
-    roundedRect(ctx, px + 12, py + 16, pw, ph, r);
-    ctx.fill();
-    ctx.restore();
-
-    // folder body
-    ctx.save();
-    ctx.globalAlpha = 0.96;
-    ctx.fillStyle = 'rgba(32, 26, 18, 0.96)';
-    roundedRect(ctx, px, py, pw, ph, r);
-    ctx.fill();
-    ctx.restore();
-
-    // paper
-    const paperPad = Math.floor(pw * 0.05);
-    const sx = px + paperPad;
-    const sy = py + paperPad;
-    const sw = pw - paperPad * 2;
-    const sh = ph - paperPad * 2;
-
-    ctx.save();
-    ctx.globalAlpha = 0.98;
-    ctx.fillStyle = 'rgba(245, 238, 224, 0.98)';
-    roundedRect(ctx, sx, sy, sw, sh, Math.floor(r * 0.8));
-    ctx.fill();
-
-    // paper grain
-    ctx.globalAlpha = 0.06;
-    for (let i = 0; i < 140; i++){
-      const x = sx + rand() * sw;
-      const y = sy + rand() * sh;
-      const ww = 10 + rand() * 34;
-      ctx.fillStyle = (rand() < 0.5) ? 'rgba(0,0,0,1)' : 'rgba(90,70,40,1)';
-      ctx.fillRect(x, y, ww, 1);
+      const vg = ctx.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.7);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.72)');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, w, h);
     }
-    ctx.restore();
 
-    // stamp
+    if (folderLayer && folderLayer !== false) {
+      ctx.drawImage(folderLayer, 0, 0);
+    } else {
+      // shadow
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      roundedRect(ctx, px + 12, py + 16, pw, ph, r);
+      ctx.fill();
+      ctx.restore();
+
+      // folder body
+      ctx.save();
+      ctx.globalAlpha = 0.96;
+      ctx.fillStyle = 'rgba(32, 26, 18, 0.96)';
+      roundedRect(ctx, px, py, pw, ph, r);
+      ctx.fill();
+      ctx.restore();
+
+      // paper base
+      ctx.save();
+      ctx.globalAlpha = 0.98;
+      ctx.fillStyle = 'rgba(245, 238, 224, 0.98)';
+      roundedRect(ctx, sx, sy, sw, sh, paperR);
+      ctx.fill();
+      ctx.restore();
+
+      // stamp
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = 'rgba(160, 40, 40, 1)';
+      ctx.lineWidth = Math.max(2, Math.floor(font * 0.14));
+      roundedRect(ctx, stampX, stampY, stampW, stampH, stampR);
+      ctx.stroke();
+      ctx.font = `bold ${Math.floor(font * 1.05)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.fillStyle = 'rgba(160, 40, 40, 1)';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('CONFIDENTIAL', stampX + Math.floor(stampW * 0.08), stampY + stampH / 2);
+      ctx.restore();
+
+      // header bar base + fixed title
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      ctx.fillRect(sx, sy, sw, headerH);
+      ctx.font = `bold ${Math.floor(font * 1.05)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.fillStyle = 'rgba(10,10,12,0.78)';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('MICRO-MYSTERIES', titleX, headerMidY);
+      ctx.restore();
+    }
+
+    if (grainLayer && grainLayer !== false) {
+      ctx.drawImage(grainLayer, 0, 0);
+    } else {
+      const gr = mulberry32(grainSeed);
+      ctx.save();
+      roundedRect(ctx, sx, sy, sw, sh, paperR);
+      ctx.clip();
+      ctx.globalAlpha = 0.06;
+      for (let i = 0; i < 140; i++){
+        const x = sx + gr() * sw;
+        const y = sy + gr() * sh;
+        const ww = 10 + gr() * 34;
+        ctx.fillStyle = (gr() < 0.5) ? 'rgba(0,0,0,1)' : 'rgba(90,70,40,1)';
+        ctx.fillRect(x, y, ww, 1);
+      }
+      ctx.restore();
+    }
+
+    // header meta
     ctx.save();
-    ctx.globalAlpha = 0.18;
-    ctx.strokeStyle = 'rgba(160, 40, 40, 1)';
-    ctx.lineWidth = Math.max(2, Math.floor(font * 0.14));
-    const stampW = Math.floor(sw * 0.36);
-    const stampH = Math.floor(font * 2.2);
-    const stampX = sx + Math.floor(sw * 0.58);
-    const stampY = sy + Math.floor(sh * 0.08);
-    roundedRect(ctx, stampX, stampY, stampW, stampH, Math.floor(r * 0.6));
-    ctx.stroke();
-    ctx.font = `bold ${Math.floor(font * 1.05)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.fillStyle = 'rgba(160, 40, 40, 1)';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('CONFIDENTIAL', stampX + Math.floor(stampW * 0.08), stampY + stampH / 2);
-    ctx.restore();
-
-    // header bar
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.08)';
-    ctx.fillRect(sx, sy, sw, Math.floor(font * 2.1));
-    ctx.font = `bold ${Math.floor(font * 1.05)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.fillStyle = 'rgba(10,10,12,0.78)';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('MICRO-MYSTERIES', sx + Math.floor(sw * 0.05), sy + Math.floor(font * 1.05));
-
     ctx.font = `${Math.floor(font * 0.88)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.fillStyle = 'rgba(10,10,12,0.55)';
+    ctx.textBaseline = 'middle';
     const eta = Math.floor(story.totalSeconds);
-    ctx.fillText(`CASE #${story.caseNo}  •  ~${Math.floor(eta / 60)}m`, sx + Math.floor(sw * 0.62), sy + Math.floor(font * 1.05));
+    ctx.fillText(`CASE #${story.caseNo}  •  ~${Math.floor(eta / 60)}m`, metaX, headerMidY);
     ctx.restore();
 
     // body text (typed)
@@ -453,9 +618,6 @@ export function createChannel({ seed, audio }){
     ctx.save();
     ctx.font = `${font}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.textBaseline = 'top';
-
-    const tx = sx + Math.floor(sw * 0.06);
-    const ty = sy + Math.floor(font * 2.7);
 
     let y = ty;
     for (const line of lines){
@@ -492,10 +654,6 @@ export function createChannel({ seed, audio }){
 
     // progress bar
     ctx.save();
-    const barY = sy + sh - Math.floor(font * 1.2);
-    const barX = sx + Math.floor(sw * 0.06);
-    const barW = Math.floor(sw * 0.88);
-    const barH = Math.max(3, Math.floor(font * 0.16));
     ctx.globalAlpha = 0.55;
     ctx.fillStyle = 'rgba(0,0,0,0.12)';
     ctx.fillRect(barX, barY, barW, barH);
