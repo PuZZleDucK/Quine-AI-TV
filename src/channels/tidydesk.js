@@ -296,6 +296,7 @@ export function createChannel({ seed, audio }){
     w = width;
     h = height;
     t = 0;
+    simAcc = 0;
 
     font = Math.max(14, Math.floor(Math.min(w, h) / 34));
     small = Math.max(11, Math.floor(font * 0.78));
@@ -351,7 +352,11 @@ export function createChannel({ seed, audio }){
     else audio.beep({ freq: 720 + audioRand() * 120, dur: 0.028, gain: 0.018, type: 'triangle' });
   }
 
-  function update(dt){
+  // fixed-timestep sim so 30fps/60fps captures match for the same seed
+  const SIM_DT = 1 / 60;
+  let simAcc = 0;
+
+  function stepSim(dt){
     t += dt;
 
     const step = curStep();
@@ -433,6 +438,24 @@ export function createChannel({ seed, audio }){
         scheduleNextSpecial(t);
       }
     }
+  }
+
+  function update(dt){
+    // clamp to avoid spiral-of-death if tab was backgrounded / dt spikes
+    dt = clamp(dt, 0, 0.25);
+
+    simAcc += dt;
+
+    // cap sim work per frame; drop remainder if we fall behind
+    const MAX_STEPS = 30;
+    let steps = 0;
+    while (simAcc >= SIM_DT && steps < MAX_STEPS){
+      stepSim(SIM_DT);
+      simAcc -= SIM_DT;
+      steps++;
+    }
+
+    if (steps >= MAX_STEPS) simAcc = 0;
   }
 
   function itemProgress(item){
