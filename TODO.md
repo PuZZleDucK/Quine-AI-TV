@@ -112,7 +112,6 @@ if `TODO.md` has no ready items:
 ## Follow-ups queued from review: nightmarket
 
 <!-- done: moved to TODONE.md (nightmarket gradient cache) -->
-- [ ] `nightmarket` (src/channels/nightmarket.js): determinism — remove `rand()` from `update(dt)` rain wrap/reset paths (precompute per-drop wrap jitter in `regen()` or derive from a hash of {dropIndex, wrapCount}); ensure 30fps/60fps captures match at fixed offsets.
 <!-- done: moved to TODONE.md (nightmarket audio hygiene) -->
 - [ ] `nightmarket` (src/channels/nightmarket.js): long-run interest — add 1–2 *rare deterministic* “special moments” (e.g. POWER CUT / LANTERN RELEASE / FLASH SALE banner) scheduled ~2–5 minutes with a clear signature look, OSD-safe placement, and clean reset; use a separate seeded RNG so core visuals remain stable.
 - [ ] `nightmarket` (src/channels/nightmarket.js): text/dialog — expand sign/tag label pools and receipts/ledger variation so it stays fresh for 5+ minutes (prefer seeded shuffle-bags; avoid per-frame RNG).
