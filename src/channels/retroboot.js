@@ -321,8 +321,14 @@ export function createChannel({ seed, audio }){
     { key: 'linux', title: 'Linux Boot Log', dur: 11.5 },
   ];
 
+  // Fixed-timestep simulation so click/beep schedules are stable across FPS.
+  const SIM_DT = 1/60;
+  const MAX_SIM_STEPS = 12;
+  let simAcc = 0;
+
   function init({ width, height }){
     w = width; h = height; t = 0;
+    simAcc = 0;
 
     buf = document.createElement('canvas');
     buf.width = w; buf.height = h;
@@ -419,7 +425,7 @@ export function createChannel({ seed, audio }){
     stopAudio({ clearCurrent: true });
   }
 
-  function update(dt){
+  function stepSim(dt){
     t += dt;
     segT += dt;
 
@@ -441,6 +447,22 @@ export function createChannel({ seed, audio }){
         audio.beep({ freq: f, dur: 0.012 + rand()*0.016, gain: 0.018 + rand()*0.010, type: rand() < 0.6 ? 'square' : 'triangle' });
       }
     }
+  }
+
+  function update(dt){
+    // Clamp: background tab / breakpoint stalls can dump huge dt.
+    const d = Math.max(0, Math.min(0.10, dt || 0));
+    simAcc += d;
+
+    let steps = 0;
+    while (simAcc >= SIM_DT && steps < MAX_SIM_STEPS){
+      stepSim(SIM_DT);
+      simAcc -= SIM_DT;
+      steps++;
+    }
+
+    // Avoid a spiral-of-death in worst-case hitches.
+    if (steps === MAX_SIM_STEPS) simAcc = Math.min(simAcc, SIM_DT);
   }
 
   function drawHud(ctx, title){
