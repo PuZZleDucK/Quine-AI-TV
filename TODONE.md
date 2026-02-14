@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — moved HUD overlay to the top-right to avoid overlapping boot text. Commit: d3fcf1e
+
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — toned down CRT overlay (scanlines/vignette/flicker/noise) so it’s less intense. Commit: d8d3199
 
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): perf — cached CRT scanlines+vignette into an offscreen overlay layer so steady-state `renderCRT()` does 0 `createPattern()` / `createRadialGradient()` calls. Screenshots: screenshots/autopilot-2026-02-15-retroboot-crtcache-before + screenshots/autopilot-2026-02-15-retroboot-crtcache-after. Commit: 86c6343
