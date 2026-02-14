@@ -102,9 +102,8 @@ A *good channel review* must produce concrete, trackable follow-ups. Do **all** 
 Look for opportunities in these buckets:
 - Visual upgrades: depth/parallax, lighting/material cues, HUD polish.
 - Long-term interest: better time structure/phases, more variety, better pacing.
-- Efficiency: cache work, reduce allocations/state churn.
 - Text/dialog: longer, better themed, clearer intent, more dynamic, more entertaining.
-- New elements that better convey the concept.
+- New or updated elements that better convey the concept.
 - Uncommon and rare elements.
 
 ### 4) Create TODO items for every identified improvement
