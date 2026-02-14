@@ -4,5 +4,5 @@ if `TODO.md` has no ready items:
 # TODO Queue
 
 <!-- done: moved to TODONE.md -->
-- [project:quine-tv] `retroboot` add unixes - uncommon.
+<!-- done: moved retroboot unixes task to TODONE.md -->
 - [project:quine-tv] `retroboot` add alien os - rare.
