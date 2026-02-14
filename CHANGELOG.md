@@ -1,3 +1,5 @@
+- 2026-02-15 00:06 (Australia/Melbourne) [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): text/dialog — expanded sign/tag pools and added seeded per-cycle refresh for signs/tags + ledger + receipts (no per-frame RNG). Commit: 75aec8d
+
 - 2026-02-14 23:19 (Australia/Melbourne) [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): determinism — removed `rand()` from the rain wrap/reset path in `update(dt)` by deriving per-wrap x-jitter from a deterministic hash of {seed, dropId, wrapCount} (no PRNG consumption during wraps). Commit: 53258ab
 
 - 2026-02-14 23:02 (Australia/Melbourne) [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): audio hygiene — made `onAudioOn()` idempotent (no restart if already current) and ensured `onAudioOff()`/`destroy()` stop+clear and only clear AudioManager.current when owned. Commit: faad336

@@ -114,4 +114,4 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (nightmarket gradient cache) -->
 <!-- done: moved to TODONE.md (nightmarket audio hygiene) -->
 <!-- done: moved to TODONE.md (nightmarket special moments) -->
-- [ ] `nightmarket` (src/channels/nightmarket.js): text/dialog — expand sign/tag label pools and receipts/ledger variation so it stays fresh for 5+ minutes (prefer seeded shuffle-bags; avoid per-frame RNG).
+<!-- done: moved to TODONE.md (nightmarket text/dialog variety) -->
