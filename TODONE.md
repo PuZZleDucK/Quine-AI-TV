@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned (avoid stacking on repeated toggles). Commit: 0c2a86b
+
 - [x] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): special moments — added rare deterministic “network incident” events (~45–120s) (PORT SCAN / DDOS FLOOD / LINK DOWN) with an OSD-safe EVENT badge in the dial panel and clean reset. Commit: f15b00b
 
 - [x] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): perf/allocs — removed per-bin `hsla(...)` template allocations in the spectrum bar loop by precomputing lightness-bucketed `hsl(...)` styles and varying intensity via `globalAlpha`. Commit: 07e2002
