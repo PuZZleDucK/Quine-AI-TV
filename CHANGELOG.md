@@ -1,3 +1,5 @@
+- 2026-02-14 13:32 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): special moments — added rare deterministic events (~45–120s): BREAKING banner+flash + FIELD REPORT lower-third sweep (OSD-safe; clean reset). Commit: 46fd467
+
 - 2026-02-14 13:02 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned. Commit: 095530e
 
 - 2026-02-14 12:47 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): text/layout — wrapped the main headline (2 lines) and ellipsized overflow to prevent off-screen clipping at smaller resolutions. Commit: 0db3977

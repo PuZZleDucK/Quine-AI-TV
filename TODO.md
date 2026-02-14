@@ -63,7 +63,7 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (news OSD safety logo safe-rect) -->
 <!-- done: moved to TODONE.md (news ticker cache) -->
-- [ ] `news` (src/channels/news.js): special moments — add 1–2 rare deterministic events (~45–120s) with a clear “broadcast” signature (e.g. BREAKING banner + flash, FIELD REPORT lower-third sweep), clean reset, and OSD-safe placement.
+<!-- done: moved to TODONE.md (news special moments) -->
 <!-- done: moved to TODONE.md (news audio hygiene) -->
 
 ## Follow-ups queued from review: lighthouse
