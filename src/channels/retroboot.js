@@ -984,6 +984,10 @@ export function createChannel({ seed, audio }){
   let segIdx = 0;
   let segT = 0;
 
+  // Uncommon “oh no” moment: a one-time crash screen (BSOD or kernel panic)
+  // a few minutes into the loop. Deterministic per seed so it’s reviewable.
+  let crash = null; // { kind: 'bsod'|'panic', at: seconds, dur: seconds, done: boolean }
+
   // content
   let biosLines = [];
   let dosLines = [];
@@ -1078,6 +1082,17 @@ export function createChannel({ seed, audio }){
     segT = 0;
 
     nextClick = 0.18;
+
+    // Plan the crash screen so it’s deterministic and shows up during longer watches.
+    // Keep it “uncommon” (once per tune-in), but guaranteed to appear around ~3 minutes
+    // so screenshot review captures it.
+    const jitter = (hash32(seed ^ 0xC0FFEE) % 7) - 3; // -3..+3s
+    crash = {
+      kind: (hash32(seed ^ 0xB105F00D) & 1) ? 'bsod' : 'panic',
+      at: 176 + jitter,
+      dur: 14.0,
+      done: false,
+    };
 
     buildContent();
   }
@@ -1184,6 +1199,9 @@ export function createChannel({ seed, audio }){
         audio.beep({ freq: f, dur: 0.012 + rand()*0.016, gain: 0.018 + rand()*0.010, type: rand() < 0.6 ? 'square' : 'triangle' });
       }
     }
+
+    // Ensure the crash is a one-off per tune-in.
+    if (crash && !crash.done && t >= crash.at + crash.dur) crash.done = true;
   }
 
   function update(dt){
@@ -1277,6 +1295,95 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function renderCrashScreen(ctx){
+    if (!crash) return;
+
+    const dt = Math.max(0, t - crash.at);
+    const s = Math.min(w, h);
+    const pad = Math.max(18, Math.floor(s * 0.05));
+    const font = Math.max(12, Math.floor(s * 0.028));
+    const mono = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    if (crash.kind === 'bsod'){
+      // Windows 9x-ish BSOD
+      ctx.fillStyle = '#0012a8';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.96)';
+      ctx.font = `${font}px ${mono}`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+
+      const addr = hash32(seed ^ 0xDEADC0DE).toString(16).toUpperCase().padStart(8, '0');
+      const off = hash32(seed ^ 0x0FF1CE).toString(16).toUpperCase().padStart(8, '0').slice(0, 8);
+
+      const lines = [
+        'Windows',
+        '',
+        `A fatal exception 0E has occurred at 0028:${addr} in VXD VMM(01) + ${off}.`,
+        'The current application will be terminated.',
+        '',
+        '*  Press any key to terminate the current application.',
+        '*  Press CTRL+ALT+DEL again to restart your computer.',
+        '   You will lose any unsaved information in all applications.',
+        '',
+      ];
+
+      let y = pad;
+      const lh = Math.floor(font * 1.35);
+      for (const L of lines){
+        ctx.fillText(L, pad, y);
+        y += lh;
+      }
+
+      const blink = (Math.sin(dt * 6.0) > 0) ? '_' : ' ';
+      ctx.fillText(`Press any key to continue ${blink}`, pad, y + Math.floor(lh * 0.6));
+
+    } else {
+      // Unix-y kernel panic (generic)
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = 'rgba(220,255,220,0.90)';
+      ctx.font = `${font}px ${mono}`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+
+      const pc = hash32(seed ^ 0xBADC0DE).toString(16).toUpperCase().padStart(8, '0');
+      const sp = hash32(seed ^ 0x5F00F).toString(16).toUpperCase().padStart(8, '0');
+
+      const lines = [
+        'kernel panic: not syncing: Attempted to kill init!',
+        '',
+        `EIP: 0x${pc}  ESP: 0x${sp}  CR2: 0x00000000`,
+        'Process init (pid: 1, stackpage=0x00000000)',
+        '',
+        'Call Trace:',
+        '  panic+0x63/0x90',
+        '  do_exit+0x7a/0x2a0',
+        '  do_page_fault+0x5d2/0x6a0',
+        '  error_code+0x7c/0x80',
+        '',
+        'System halted.',
+      ];
+
+      let y = pad;
+      const lh = Math.floor(font * 1.35);
+      for (const L of lines){
+        ctx.fillText(L, pad, y);
+        y += lh;
+      }
+
+      const blink = (Math.sin(dt * 4.6) > 0) ? '█' : ' ';
+      ctx.fillText(blink, pad, y + Math.floor(lh * 0.6));
+    }
+
+    ctx.restore();
+  }
+
   function renderCRT(ctx){
     // subtle scanlines + vignette + flicker over whatever is already drawn
     ctx.save();
@@ -1307,6 +1414,13 @@ export function createChannel({ seed, audio }){
 
   function render(ctx){
     const seg = SEGMENTS[segIdx];
+
+    const crashActive = crash && !crash.done && t >= crash.at && t < (crash.at + crash.dur);
+    if (crashActive){
+      renderCrashScreen(ctx);
+      renderCRT(ctx);
+      return;
+    }
 
     // draw base frame into buffer
     bctx.setTransform(1, 0, 0, 1, 0, 0);
