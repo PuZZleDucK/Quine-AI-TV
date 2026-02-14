@@ -160,15 +160,21 @@ export function createChannel({ seed, audio }){
     const farN = Math.max(70, Math.floor(w * h / 18000));
     const nearN = Math.max(34, Math.floor(w * h / 34000));
 
-    const mkDrop = (near=false) => ({
-      x: rand() * w,
-      y: rand() * h,
-      len: (near ? (h * (0.03 + rand() * 0.05)) : (h * (0.02 + rand() * 0.03))),
-      spd: (near ? (h * (0.35 + rand() * 0.55)) : (h * (0.25 + rand() * 0.45))),
-      a: (near ? (0.15 + rand() * 0.28) : (0.08 + rand() * 0.18)),
-      w: near ? (1.6 + rand() * 1.8) : (1.0 + rand() * 0.8),
-      ph: rand() * 10,
-    });
+    let dropId = 0;
+    const mkDrop = (near=false) => {
+      const id = dropId++;
+      return {
+        id,
+        wraps: 0,
+        x: rand() * w,
+        y: rand() * h,
+        len: (near ? (h * (0.03 + rand() * 0.05)) : (h * (0.02 + rand() * 0.03))),
+        spd: (near ? (h * (0.35 + rand() * 0.55)) : (h * (0.25 + rand() * 0.45))),
+        a: (near ? (0.15 + rand() * 0.28) : (0.08 + rand() * 0.18)),
+        w: near ? (1.6 + rand() * 1.8) : (1.0 + rand() * 0.8),
+        ph: rand() * 10,
+      };
+    };
 
     dropsFar = Array.from({ length: farN }, () => mkDrop(false));
     dropsNear = Array.from({ length: nearN }, () => mkDrop(true));
@@ -292,14 +298,30 @@ export function createChannel({ seed, audio }){
     for (const d of dropsFar){
       d.y += d.spd * dt;
       d.x += wind * dt * 0.6;
-      if (d.y > h + d.len) { d.y = -d.len; d.x = (d.x + w * (0.12 + rand()*0.2)) % w; }
+      if (d.y > h + d.len) {
+        d.y = -d.len;
+        d.wraps++;
+        const j = hash01(seed * 0.000001 + d.id * 13.37 + d.wraps * 0.91);
+        let nx = d.x + w * (0.12 + j * 0.2);
+        nx = nx % w;
+        if (nx < 0) nx += w;
+        d.x = nx;
+      }
       if (d.x < -w*0.1) d.x += w*1.2;
       if (d.x > w*1.1) d.x -= w*1.2;
     }
     for (const d of dropsNear){
       d.y += d.spd * dt;
       d.x += wind * dt * 0.9;
-      if (d.y > h + d.len) { d.y = -d.len; d.x = (d.x + w * (0.2 + rand()*0.35)) % w; }
+      if (d.y > h + d.len) {
+        d.y = -d.len;
+        d.wraps++;
+        const j = hash01(seed * 0.000001 + d.id * 13.37 + d.wraps * 0.91);
+        let nx = d.x + w * (0.2 + j * 0.35);
+        nx = nx % w;
+        if (nx < 0) nx += w;
+        d.x = nx;
+      }
       if (d.x < -w*0.2) d.x += w*1.4;
       if (d.x > w*1.2) d.x -= w*1.4;
     }
