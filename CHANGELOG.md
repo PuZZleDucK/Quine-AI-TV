@@ -1,3 +1,5 @@
+- 2026-02-14 13:02 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned. Commit: 095530e
+
 - 2026-02-14 12:47 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): text/layout — wrapped the main headline (2 lines) and ellipsized overflow to prevent off-screen clipping at smaller resolutions. Commit: 0db3977
 
 - 2026-02-14 12:33 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): ticker perf/allocs — cached `tickerText` + stable `tickerWidth` (rebuild on headline rotate / resize) and render now uses the cached string. Commit: bd5c29d
