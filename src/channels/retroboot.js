@@ -545,6 +545,120 @@ function makeBsdLines(rand){
   return lines;
 }
 
+function makeSolarisLines(rand){
+  const host = pick(rand, ['helios', 'cobalt', 'sunbox', 'quartz', 'ultra5', 'mercury']);
+  const release = pick(rand, ['5.7', '5.8', '5.9', '5.10', '5.11']);
+  const platform = pick(rand, ['i86pc', 'sun4u']);
+  const hw = (platform === 'sun4u')
+    ? pick(rand, ['UltraSPARC-IIi', 'UltraSPARC-IIe', 'UltraSPARC-III'])
+    : pick(rand, ['Pentium II 300', 'Pentium III 450', 'K6-2 350', 'Celeron 433']);
+  const disk = pick(rand, ['c0t0d0', 'c0t1d0', 'c1t0d0']);
+  const iface = pick(rand, ['hme0', 'eri0', 'ce0', 'bge0']);
+
+  const cK = 'rgba(190,210,255,0.85)';
+  const cG = 'rgba(210,255,220,0.85)';
+  const cY = 'rgba(255,240,170,0.85)';
+  const cW = 'rgba(255,255,255,0.92)';
+
+  const patch = `${(118000 + ((rand() * 1800) | 0))}-${String(10 + ((rand() * 90) | 0)).padStart(2,'0')}`;
+  const build = `Generic_${patch}`;
+
+  const lines = [
+    { at: 0.0, text: `SunOS Release ${release} Version ${build} 64-bit`, color: cW },
+    { at: 0.8, text: 'Copyright (c) 1983, 2001, Sun Microsystems, Inc.', color: cK },
+    { at: 1.5, text: 'configuring devices.', color: cG },
+    { at: 2.1, text: `${platform}: ${hw}`, color: cG },
+    { at: 2.8, text: `sd0 at sd: target 0 lun 0`, color: cK },
+    { at: 3.4, text: `WARNING: /dev/dsk/${disk}s0: is not clean. fsck is recommended.`, color: cY },
+    { at: 4.2, text: `fsck -F ufs /dev/rdsk/${disk}s0`, color: cG },
+    { at: 5.0, text: `/dev/rdsk/${disk}s0: FILE SYSTEM WAS MODIFIED`, color: cY },
+    { at: 5.7, text: 'Mounting local file systems.', color: cK },
+    { at: 6.4, text: 'Beginning system initialization.', color: cK },
+    { at: 7.1, text: 'svc.startd: The system is coming up. Please wait.', color: cY },
+  ];
+
+  let at = 8.0;
+  const svcPool = [
+    'milestone/network:default',
+    'system/console-login:default',
+    'system/filesystem/local:default',
+    'system/identity:node',
+    'system/utmp:default',
+    'network/physical:default',
+    'network/loopback:default',
+    'network/ssh:default',
+    'system/name-service-cache:default',
+    'system/system-log:default',
+    'application/pkg/server:default',
+  ];
+
+  const svcN = 9 + ((rand() * 6) | 0);
+  for (let i = 0; i < svcN; i++){
+    const s = pick(rand, svcPool);
+    const ms = 200 + ((rand() * 800) | 0);
+    lines.push({ at, text: `svc.startd: [${ms}ms] ${s}`, color: cG });
+    at += 0.95 + rand() * 0.85;
+  }
+
+  at += 0.5;
+  lines.push({ at, text: `Configuring IPv4 interface ${iface}.`, color: cK });
+  at += 0.9;
+  lines.push({ at, text: `${iface}: link up, 100Mbps, full duplex`, color: cK });
+  at += 1.1;
+  lines.push({ at, text: `Hostname: ${host}`, color: cW });
+
+  at += 1.1;
+  lines.push({ at, text: '', color: 'rgba(0,0,0,0)' });
+  at += 0.25;
+  lines.push({ at, text: `${host} console login: `, color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'guest', color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'Password: ', color: cW });
+  at += 0.55;
+  lines.push({ at, text: '********', color: cW });
+
+  const prompt = `${host}$ `;
+  at += 0.9;
+  lines.push({ at, text: `${prompt}uname -a`, color: cG });
+  at += 0.9;
+  const arch = (platform === 'sun4u') ? 'sparc' : 'i86pc';
+  lines.push({ at, text: `SunOS ${host} ${release} ${build} ${arch} ${arch} ${arch}`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}ifconfig -a`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: `${iface}: flags=1000843<UP,BROADCAST,RUNNING,MULTICAST,IPv4> mtu 1500`, color: cK });
+  at += 0.55;
+  lines.push({ at, text: `        inet 192.168.${10 + ((rand() * 40) | 0)}.${20 + ((rand() * 200) | 0)} netmask ffffff00 broadcast 192.168.0.255`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}df -h`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: 'Filesystem             size   used  avail capacity  Mounted on', color: cK });
+  const rootSize = 2 + ((rand() * 14) | 0);
+  const rootUsed = Math.max(1, ((rand() * rootSize) | 0));
+  const rootAvail = Math.max(1, rootSize - rootUsed);
+  at += 0.55;
+  lines.push({ at, text: `/dev/dsk/${disk}s0   ${String(rootSize).padStart(2,' ')}G   ${String(rootUsed).padStart(2,' ')}G   ${String(rootAvail).padStart(2,' ')}G    ${String(Math.min(99, Math.floor((rootUsed/rootSize)*100))).padStart(2,' ')}%    /`, color: cK });
+  at += 0.55;
+  lines.push({ at, text: 'swap                  512M    24M   488M     5%    /tmp', color: cK });
+
+  at += 1.1;
+  lines.push({ at, text: `${prompt}tail -n 3 /var/adm/messages`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: `Jan  1 07:00:01 ${host} sshd[123]: Server listening on 0.0.0.0 port 22.`, color: cK });
+  at += 0.55;
+  lines.push({ at, text: `Jan  1 07:00:03 ${host} inetd[88]: Listening on /dev/tcp`, color: cK });
+  at += 0.55;
+  lines.push({ at, text: `Jan  1 07:00:05 ${host} sendmail[64]: starting daemon`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}`, color: cG });
+
+  return lines;
+}
+
 function hexByte(rand){
   return (((rand() * 256) | 0).toString(16).padStart(2, '0').toUpperCase());
 }
@@ -994,17 +1108,21 @@ export function createChannel({ seed, audio }){
   let win9xScreen = null;
   let linuxLines = [];
   let bsdLines = [];
+  let solarisLines = [];
   let macScreen = null;
   let unixIsBsd = false;
+  let unixIsSolaris = false;
 
   // audio
   let ah = null;
   let nextClick = 0.0;
 
   function buildContent(){
-    // Uncommon deterministic variant: on some days/seeds, swap the Unix segment to BSD.
+    // Uncommon deterministic variants: some days/seeds, swap the Unix segment.
     // Using the per-day channel seed keeps it stable for a day, but it can change tomorrow.
-    unixIsBsd = ((seed >>> 0) % 5) === 0;
+    const unixVariant = ((seed >>> 0) % 13); // deterministic “rarity” bucket
+    unixIsBsd = (unixVariant === 0);
+    unixIsSolaris = (unixVariant === 1);
 
     biosLines = makeBootLines(rand);
     dosLines = makeDosLines(rand);
@@ -1012,8 +1130,9 @@ export function createChannel({ seed, audio }){
 
     // Always build the Linux lines (preserves downstream PRNG consumption for macScreen, etc.).
     linuxLines = makeLinuxLines(rand);
-    // BSD lines use their own forked PRNG so they don’t perturb the main content sequence.
+    // Rare variants use forked PRNGs so they don’t perturb the main content sequence.
     bsdLines = makeBsdLines(mulberry32(hash32(seed ^ 0xBADC0DE)));
+    solarisLines = makeSolarisLines(mulberry32(hash32(seed ^ 0x501A815)));
 
     macScreen = makeMacScreen(rand);
   }
@@ -1491,7 +1610,7 @@ export function createChannel({ seed, audio }){
       const y0 = pad * 1.8;
       const lineH = Math.floor(font * 1.35);
       const maxLines = Math.floor((h - y0 - pad * 0.8) / lineH);
-      const unixLines = unixIsBsd ? bsdLines : linuxLines;
+      const unixLines = unixIsSolaris ? solarisLines : (unixIsBsd ? bsdLines : linuxLines);
       drawTyped(bctx, { x: pad, y: y0, lineH, maxLines, lines: unixLines, t: segT, cps: 58, cursor: true });
 
       // a little "progress" spinner
@@ -1512,7 +1631,11 @@ export function createChannel({ seed, audio }){
 
     ctx.drawImage(buf, 0, 0);
 
-    const hudTitle = (seg.key === 'linux' && unixIsBsd) ? 'BSD Boot Log' : seg.title;
+    const hudTitle = (seg.key === 'linux' && unixIsSolaris)
+      ? 'Solaris Boot Log'
+      : (seg.key === 'linux' && unixIsBsd)
+        ? 'BSD Boot Log'
+        : seg.title;
     drawHud(ctx, hudTitle);
     renderCRT(ctx);
   }
