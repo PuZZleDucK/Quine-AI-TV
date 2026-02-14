@@ -81,6 +81,62 @@ export function createChannel({ seed, audio }){
   let wfRowData = null;
   let wfRows = 160;
 
+  // render cache: gradients (rebuild on init/resize/ctx swap)
+  let gfxCtx = null;
+  let gfxDirty = true;
+  let bgGrad = null;
+  let vignetteGrad = null;
+  let sheenGrad = null;
+  let dialHeadGrads = null; // [stationIdx]
+  let knobGrad = null;
+
+  function rebuildGradients(ctx){
+    // background
+    bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+    bgGrad.addColorStop(0, '#030312');
+    bgGrad.addColorStop(0.55, '#06001a');
+    bgGrad.addColorStop(1, '#02020a');
+
+    // vignette
+    vignetteGrad = ctx.createRadialGradient(
+      w * 0.5, h * 0.5, Math.min(w, h) * 0.15,
+      w * 0.5, h * 0.5, Math.max(w, h) * 0.7
+    );
+    vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vignetteGrad.addColorStop(1, 'rgba(0,0,0,0.55)');
+
+    // waterfall sheen
+    sheenGrad = ctx.createLinearGradient(wfX, wfY, wfX + wfW, wfY + wfH);
+    sheenGrad.addColorStop(0, 'rgba(120,220,255,0.00)');
+    sheenGrad.addColorStop(0.45, 'rgba(120,220,255,0.06)');
+    sheenGrad.addColorStop(1, 'rgba(255,90,220,0.00)');
+
+    // dial header (per station hue)
+    dialHeadGrads = STATIONS.map(s => {
+      const g = ctx.createLinearGradient(dialX, dialY, dialX + dialW, dialY);
+      g.addColorStop(0, `hsla(${s.hue}, 90%, 60%, 0.25)`);
+      g.addColorStop(0.6, 'rgba(120,220,255,0.06)');
+      g.addColorStop(1, `hsla(${s.hue + 40}, 90%, 60%, 0.18)`);
+      return g;
+    });
+
+    // knob radial gradient (anchored in canvas coords)
+    const kx = dialX + dialW - 56;
+    const ky = dialY + dialH - 46;
+    const kr = 18;
+    knobGrad = ctx.createRadialGradient(kx, ky, 2, kx, ky, kr * 1.5);
+    knobGrad.addColorStop(0, 'rgba(255,255,255,0.12)');
+    knobGrad.addColorStop(0.55, 'rgba(110,140,190,0.10)');
+    knobGrad.addColorStop(1, 'rgba(0,0,0,0.35)');
+
+    gfxCtx = ctx;
+    gfxDirty = false;
+  }
+
+  function ensureGradients(ctx){
+    if (gfxDirty || gfxCtx !== ctx) rebuildGradients(ctx);
+  }
+
   // floating labels
   let labels = [];
 
@@ -138,6 +194,9 @@ export function createChannel({ seed, audio }){
     // clear
     wfCtx.fillStyle = 'rgba(0,0,0,1)';
     wfCtx.fillRect(0, 0, BINS, wfRows);
+
+    // gradients depend on layout size; rebuild on next render
+    gfxDirty = true;
   }
 
   function onResize(width, height){
@@ -529,11 +588,7 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBackground(ctx){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#030312');
-    g.addColorStop(0.55, '#06001a');
-    g.addColorStop(1, '#02020a');
-    ctx.fillStyle = g;
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
     // faint grid
@@ -558,10 +613,7 @@ export function createChannel({ seed, audio }){
 
     // vignette
     ctx.save();
-    const v = ctx.createRadialGradient(w * 0.5, h * 0.5, Math.min(w, h) * 0.15, w * 0.5, h * 0.5, Math.max(w, h) * 0.7);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.55)');
-    ctx.fillStyle = v;
+    ctx.fillStyle = vignetteGrad;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
@@ -615,11 +667,7 @@ export function createChannel({ seed, audio }){
     // scanline / waterfall gloss
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    const sheen = ctx.createLinearGradient(wfX, wfY, wfX + wfW, wfY + wfH);
-    sheen.addColorStop(0, 'rgba(120,220,255,0.00)');
-    sheen.addColorStop(0.45, 'rgba(120,220,255,0.06)');
-    sheen.addColorStop(1, 'rgba(255,90,220,0.00)');
-    ctx.fillStyle = sheen;
+    ctx.fillStyle = sheenGrad;
     ctx.fillRect(wfX, wfY, wfW, wfH);
     ctx.restore();
 
@@ -683,11 +731,7 @@ export function createChannel({ seed, audio }){
     // header
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    const head = ctx.createLinearGradient(dialX, dialY, dialX + dialW, dialY);
-    head.addColorStop(0, `hsla(${s.hue}, 90%, 60%, 0.25)`);
-    head.addColorStop(0.6, 'rgba(120,220,255,0.06)');
-    head.addColorStop(1, `hsla(${s.hue + 40}, 90%, 60%, 0.18)`);
-    ctx.fillStyle = head;
+    ctx.fillStyle = dialHeadGrads[stationIdx];
     ctx.fillRect(dialX + 1, dialY + 1, dialW - 2, Math.max(26, dialH * 0.26));
     ctx.restore();
 
@@ -724,12 +768,7 @@ export function createChannel({ seed, audio }){
     ctx.save();
     ctx.translate(kx, ky);
 
-    const kg = ctx.createRadialGradient(0, 0, 2, 0, 0, kr * 1.5);
-    kg.addColorStop(0, 'rgba(255,255,255,0.12)');
-    kg.addColorStop(0.55, 'rgba(110,140,190,0.10)');
-    kg.addColorStop(1, 'rgba(0,0,0,0.35)');
-
-    ctx.fillStyle = kg;
+    ctx.fillStyle = knobGrad;
     ctx.beginPath();
     ctx.arc(0, 0, kr, 0, Math.PI * 2);
     ctx.fill();
@@ -799,6 +838,8 @@ export function createChannel({ seed, audio }){
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
+
+    ensureGradients(ctx);
 
     drawBackground(ctx);
     drawWaterfall(ctx);
