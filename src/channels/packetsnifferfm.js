@@ -1,5 +1,7 @@
 import { mulberry32 } from '../util/prng.js';
 
+// REVIEWED: 2026-02-14
+
 // Packet Sniffer FM
 // Turn network packets into a neon spectrum: tune TCP/UDP/ICMP “stations” with bursts, waterfalls, and protocol IDs.
 
@@ -45,6 +47,24 @@ export function createChannel({ seed, audio }){
   const energy = new Float32Array(BINS);
   const peaks = new Float32Array(BINS);
   let pktAcc = 0;
+
+  // spectrum bar style cache (avoid per-frame `hsla(...)` template allocations)
+  const BAR_L_LEVELS = 8;
+  const barLightness = Array.from({ length: BAR_L_LEVELS }, (_, k) => 52 + (14 * k) / (BAR_L_LEVELS - 1));
+  const spectrumStyles = STATIONS.map(s => {
+    const bar = Array.from({ length: BAR_L_LEVELS }, () => new Array(BINS));
+    const peak = new Array(BINS);
+
+    for (let i = 0; i < BINS; i++){
+      const hue = Math.round(s.hue + (i / (BINS - 1) - 0.5) * 24);
+      for (let k = 0; k < BAR_L_LEVELS; k++){
+        bar[k][i] = `hsl(${hue}, 95%, ${barLightness[k]}%)`;
+      }
+      peak[i] = `hsl(${hue}, 100%, 70%)`;
+    }
+
+    return { bar, peak };
+  });
 
   let wfCanvas = null;
   let wfCtx = null;
@@ -426,24 +446,29 @@ export function createChannel({ seed, audio }){
     const sH = Math.floor(wfH * 0.45);
     const barW = wfW / BINS;
 
-    const s = STATIONS[stationIdx];
+    const styles = spectrumStyles[stationIdx];
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
+
     for (let i = 0; i < BINS; i++){
       const e = clamp01(energy[i]);
       const p = clamp01(peaks[i]);
       const hh = (e * e) * sH;
       const x0 = wfX + i * barW;
-      const hue = s.hue + (i / (BINS - 1) - 0.5) * 24;
+      const barW0 = Math.max(1, barW * 0.95);
 
-      ctx.fillStyle = `hsla(${hue}, 95%, ${52 + p * 14}%, ${0.18 + e * 0.55})`;
-      ctx.fillRect(x0, sY + (sH - hh), Math.max(1, barW * 0.95), hh);
+      const pLevel = Math.max(0, Math.min(BAR_L_LEVELS - 1, ((p * (BAR_L_LEVELS - 1)) + 0.5) | 0));
+      ctx.globalAlpha = 0.18 + e * 0.55;
+      ctx.fillStyle = styles.bar[pLevel][i];
+      ctx.fillRect(x0, sY + (sH - hh), barW0, hh);
 
       if (p > 0.02){
-        ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${0.12 + p * 0.22})`;
-        ctx.fillRect(x0, sY + (sH - (p * sH)), Math.max(1, barW * 0.95), 2);
+        ctx.globalAlpha = 0.12 + p * 0.22;
+        ctx.fillStyle = styles.peak[i];
+        ctx.fillRect(x0, sY + (sH - (p * sH)), barW0, 2);
       }
     }
+
     ctx.restore();
 
     // scanline / waterfall gloss
