@@ -31,17 +31,32 @@ export function createChannel({ seed, audio }){
   let w=0,h=0,t=0;
   let tickerX=0;
   let headlines=[];
+  let tickerText='';
+  let tickerWidth=0;
   let logo = {x:40,y:40,vx:120,vy:90};
   let murmur=null;
+
+  function rebuildTickerCache(){
+    // Update only when headlines rotate or when size changes (avoid per-frame join/width churn).
+    tickerText = headlines.join('  •  ');
+    const fontPx = Math.floor(h/26); // matches render() ticker font
+    const approxCharW = fontPx * 0.62; // monospace-ish; good enough for wrap/reset
+    tickerWidth = Math.ceil(tickerText.length * approxCharW);
+  }
 
   function init({width,height}){
     w=width; h=height; t=0;
     headlines = Array.from({length: 18}, () => headline(rand));
+    rebuildTickerCache();
     tickerX = w;
     logo = {x:w*0.2,y:h*0.25,vx: 160+rand()*100, vy: 120+rand()*80};
   }
 
-  function onResize(width,height){ w=width; h=height; }
+  function onResize(width,height){
+    w=width; h=height;
+    rebuildTickerCache();
+    tickerX = Math.min(tickerX, w);
+  }
 
   function onAudioOn(){
     if (!audio.enabled) return;
@@ -56,11 +71,12 @@ export function createChannel({ seed, audio }){
   function update(dt){
     t += dt;
     tickerX -= dt*(140 + (w/12));
-    if (tickerX < -measureTickerWidth()){
+    if (tickerX < -tickerWidth){
       tickerX = w;
       // rotate headlines
       headlines.shift();
       headlines.push(headline(rand));
+      rebuildTickerCache();
       if (audio.enabled) audio.beep({freq: 520, dur: 0.04, gain: 0.04, type:'triangle'});
     }
 
@@ -107,10 +123,7 @@ export function createChannel({ seed, audio }){
     logo.y = Math.max(topBound, Math.min(bottomBound, logo.y));
   }
 
-  function measureTickerWidth(){
-    // approximate
-    return (headlines.join('  •  ').length) * (h/40) * 10;
-  }
+  // ticker width/text are cached via rebuildTickerCache()
 
   function render(ctx){
     ctx.setTransform(1,0,0,1,0,0);
@@ -189,8 +202,7 @@ export function createChannel({ seed, audio }){
     ctx.clip();
     ctx.font = `${Math.floor(h/26)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
     ctx.fillStyle = 'rgba(231,238,246,0.92)';
-    const txt = headlines.join('  •  ');
-    ctx.fillText(txt, tickerX, h - barH/2 + 10);
+    ctx.fillText(tickerText, tickerX, h - barH/2 + 10);
     ctx.restore();
   }
 
