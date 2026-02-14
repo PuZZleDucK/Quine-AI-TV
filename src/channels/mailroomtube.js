@@ -133,7 +133,7 @@ export function createChannel({ seed, audio }){
     return arr;
   }
 
-  // Seeded rotating log line (~6 minutes before repeating).
+  // Seeded rotating log line (~16 minutes before repeating).
   const DISPATCH_MSG_DUR = 10; // seconds per line
   const DISPATCH_LOG = (() => {
     const r = mulberry32(((seed | 0) ^ 0x6d2b79f5) >>> 0);
@@ -144,7 +144,7 @@ export function createChannel({ seed, audio }){
     const quals = ['STD','AIR','SURFACE','INTL','FRAGILE','RUSH','INSURED','OVERSIZE','COLD','LITHO'];
 
     const msgs = [];
-    const n = 36;
+    const n = 96;
     for (let i = 0; i < n; i++){
       const from = stationKeys[(r() * stationKeys.length) | 0];
       let to = stationKeys[(r() * stationKeys.length) | 0];
@@ -979,7 +979,17 @@ export function createChannel({ seed, audio }){
     ctx.lineWidth = Math.max(1, h / 900);
     ctx.stroke();
 
-    const msg = DISPATCH_LOG[((t / DISPATCH_MSG_DUR) | 0) % DISPATCH_LOG.length];
+    let msg = DISPATCH_LOG[((t / DISPATCH_MSG_DUR) | 0) % DISPATCH_LOG.length];
+    if (jam){
+      const e = EDGES[jam.edgeIdx];
+      const fromN = e ? STATION_NAMES[e.from] : '???';
+      const toN = e ? STATION_NAMES[e.to] : '???';
+      const cid = cans[jam.idx]?.id || 'T-??';
+      msg = `ALERT JAM ${cid} ${fromN}->${toN} (${e?.id || 'EDGE'})`;
+    } else if (sweepT < 4.4){
+      msg = 'SYSTEM SWEEP: FLUSH VIA ROUTER';
+    }
+
     ctx.globalAlpha = 0.9;
     ctx.fillStyle = ink;
     ctx.font = `${Math.floor(mono * 0.90)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
