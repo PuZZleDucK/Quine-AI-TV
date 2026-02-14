@@ -26,11 +26,17 @@ function fmt(sec){
   return `${mm}:${ss}`;
 }
 
+function pick(rng, arr){
+  return arr[(rng() * arr.length) | 0];
+}
+
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
   const audioRand = mulberry32(((seed | 0) ^ 0x5bd1e995) >>> 0);
   // separate rng so text variety doesn’t perturb scene layout
   const textRand = mulberry32(((seed | 0) ^ 0x27d4eb2d) >>> 0);
+  // separate rng for rare “special moments” schedule/selection (stable + seed-deterministic)
+  const momentRand = mulberry32(((seed | 0) ^ 0x1b873593) >>> 0);
 
   const RESET = {
     title: 'TIDY DESK RESET',
@@ -96,6 +102,10 @@ export function createChannel({ seed, audio }){
 
   let stepIndex = 0;
   let stepT = 0;
+
+  // rare special moments (~90–300s)
+  let special = null;
+  let nextSpecialAt = 0;
 
   // scene items
   let items = []; // {kind, step, messy:{x,y,a}, tidy:{x,y,a}, size, color}
@@ -278,6 +288,10 @@ export function createChannel({ seed, audio }){
     didStepChime = false;
   }
 
+  function scheduleNextSpecial(now){
+    nextSpecialAt = now + (90 + momentRand() * 210);
+  }
+
   function init({ width, height }){
     w = width;
     h = height;
@@ -289,6 +303,9 @@ export function createChannel({ seed, audio }){
     stepIndex = 0;
     stepT = 0;
     wipeAcc = 0;
+
+    special = null;
+    scheduleNextSpecial(0);
 
     resetScene();
   }
@@ -380,6 +397,40 @@ export function createChannel({ seed, audio }){
         // hard loop: a fresh messy desk, then reset again
         stepIndex = 0;
         resetScene();
+      }
+    }
+
+    // rare special moments (~90–300s cadence; deterministic per seed)
+    if (!special && t >= nextSpecialAt){
+      const kind = pick(momentRand, ['CAT VISIT', 'PHONE BUZZ']);
+      const dur = (kind === 'CAT VISIT') ? (7.0 + momentRand() * 3.0) : (6.0 + momentRand() * 3.0);
+      const col = pick(momentRand, [RESET.palette.a, RESET.palette.b, RESET.palette.c]);
+
+      if (kind === 'CAT VISIT'){
+        const n = 7;
+        const pts = [];
+        for (let i = 0; i < n; i++){
+          pts.push({
+            jx: -0.08 + momentRand() * 0.16,
+            jy: -0.10 + momentRand() * 0.20,
+            a: -0.6 + momentRand() * 1.2,
+            s: 0.85 + momentRand() * 0.35,
+          });
+        }
+        special = { kind, t0: t, dur, col, pts };
+      } else {
+        special = { kind, t0: t, dur, col, ph: momentRand() * Math.PI * 2 };
+
+        // tiny deterministic buzz cue
+        if (audio.enabled) audio.beep({ freq: 180 + momentRand() * 40, dur: 0.06, gain: 0.010, type: 'square' });
+      }
+    }
+
+    if (special){
+      const u = (t - special.t0) / special.dur;
+      if (u >= 1){
+        special = null;
+        scheduleNextSpecial(t);
       }
     }
   }
@@ -731,6 +782,159 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function drawPaw(ctx, x, y, s, rot, alpha){
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+
+    // pad
+    ctx.beginPath();
+    ctx.ellipse(0, 6 * s, 12 * s, 9 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // toes
+    const toes = [
+      { x: -10, y: -6, r: 4.2 },
+      { x: -3, y: -11, r: 4.6 },
+      { x: 5, y: -11, r: 4.6 },
+      { x: 12, y: -6, r: 4.2 },
+    ];
+    for (const t0 of toes){
+      ctx.beginPath();
+      ctx.ellipse(t0.x * s, t0.y * s, t0.r * s, (t0.r * 0.9) * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawSpecialMoment(ctx, d){
+    if (!special) return;
+
+    const u = clamp((t - special.t0) / special.dur, 0, 1);
+    const inP = ease(u / 0.12);
+    const outP = ease((1 - u) / 0.18);
+    const a = Math.min(inP, outP);
+
+    // desk-local overlays
+    if (special.kind === 'CAT VISIT'){
+      const n = special.pts?.length || 0;
+      const x0 = d.x + d.w * 0.74;
+      const y0 = d.y + d.h * 0.24;
+      const x1 = d.x + d.w * 0.34;
+      const y1 = d.y + d.h * 0.80;
+
+      for (let i = 0; i < n; i++){
+        const s = i / Math.max(1, n - 1);
+        const appear = clamp((u - s * 0.72) * 3.2, 0, 1);
+        if (appear <= 0) continue;
+
+        const j = special.pts[i];
+        const px = lerp(x0, x1, s) + j.jx * d.w * 0.18;
+        const py = lerp(y0, y1, s) + j.jy * d.h * 0.18;
+        const sc = (0.7 + 0.35 * (1 - s)) * j.s;
+        drawPaw(ctx, px, py, sc, j.a, a * 0.22 * appear);
+      }
+
+      // subtle "desk shudder"
+      ctx.save();
+      ctx.globalAlpha = a * 0.05;
+      ctx.fillStyle = 'rgba(255,255,255,1)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    } else if (special.kind === 'PHONE BUZZ'){
+      const bx = d.x + d.w * 0.74;
+      const by = d.y + d.h * 0.70;
+      const ph = special.ph || 0;
+      const shake = (1.5 + 3.5 * a) * Math.sin(t * 44 + ph);
+      const shake2 = (1.0 + 2.8 * a) * Math.sin(t * 58 + ph * 1.7);
+
+      ctx.save();
+      ctx.translate(shake, shake2);
+
+      const ww = Math.max(36, Math.floor(Math.min(d.w, d.h) * 0.10));
+      const hh = Math.floor(ww * 1.7);
+
+      // shadow
+      ctx.globalAlpha = a * 0.25;
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      roundRect(ctx, bx - ww * 0.5 + 6, by - hh * 0.5 + 8, ww, hh, 12);
+      ctx.fill();
+
+      // body
+      ctx.globalAlpha = a * 0.65;
+      ctx.fillStyle = 'rgba(16,22,30,0.95)';
+      roundRect(ctx, bx - ww * 0.5, by - hh * 0.5, ww, hh, 12);
+      ctx.fill();
+
+      // screen sheen
+      ctx.globalAlpha = a * 0.16;
+      ctx.fillStyle = special.col;
+      roundRect(ctx, bx - ww * 0.38, by - hh * 0.34, ww * 0.76, hh * 0.58, 10);
+      ctx.fill();
+
+      // vibration lines
+      ctx.globalAlpha = a * 0.40;
+      ctx.strokeStyle = 'rgba(231,238,246,0.8)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 3; i++){
+        const ox = ww * 0.60 + i * 6;
+        ctx.beginPath();
+        ctx.moveTo(bx + ox, by - hh * 0.22);
+        ctx.lineTo(bx + ox + 8, by - hh * 0.32);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(bx + ox, by + hh * 0.22);
+        ctx.lineTo(bx + ox + 8, by + hh * 0.32);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // banner (OSD-safe top-right, clear of title)
+    const pad = Math.floor(Math.min(w, h) * 0.06);
+    const bw = Math.min(w * 0.38, 520);
+    const bh = Math.max(44, Math.floor(font * 2.0));
+    const x = Math.floor(w - pad - bw);
+    const y = Math.floor(h * 0.185);
+
+    ctx.save();
+    ctx.globalAlpha = 0.86 * a;
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    roundRect(ctx, x, y, bw, bh, 16);
+    ctx.fill();
+
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.55 * a;
+    ctx.shadowColor = special.col;
+    ctx.shadowBlur = 26;
+    ctx.strokeStyle = special.col;
+    ctx.lineWidth = Math.max(2, Math.floor(font * 0.12));
+    roundRect(ctx, x, y, bw, bh, 16);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.92 * a;
+    ctx.fillStyle = 'rgba(255,255,255,0.86)';
+    ctx.font = `${Math.floor(font * 1.02)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(special.kind, x + 18, y + bh * 0.56);
+
+    if (special.kind === 'PHONE BUZZ'){
+      ctx.globalAlpha = 0.80 * a;
+      ctx.font = `${Math.floor(small * 1.0)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.fillStyle = 'rgba(231,238,246,0.72)';
+      ctx.fillText('DO NOT DISTURB: OFF', x + 18, y + bh * 0.80);
+    }
+
+    ctx.restore();
+  }
+
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -762,6 +966,8 @@ export function createChannel({ seed, audio }){
     ctx.textBaseline = 'middle';
     ctx.fillText(pickRotating(FOOTER_POOL, footerOrder), Math.floor(w * 0.05), Math.floor(h * 0.96));
     ctx.restore();
+
+    drawSpecialMoment(ctx, d);
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };
