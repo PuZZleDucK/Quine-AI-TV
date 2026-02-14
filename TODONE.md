@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): long-run interest — added a third rare deterministic “PAPER AIRPLANE” moment (~90–300s cadence) alongside CAT VISIT + PHONE BUZZ, with OSD-safe banner + clean reset. Commit: 4345b49
+
 - [x] [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): determinism — fixed-timestep sim loop (`SIM_DT=1/60` accumulator) so 30fps/60fps captures match for the same seed. Commit: f078c95
 
 - [x] [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): variety — added seeded rotating subtitle+footer text pools (45s cadence; 8 lines; 6+ minutes before repeat). Commit: 7245244

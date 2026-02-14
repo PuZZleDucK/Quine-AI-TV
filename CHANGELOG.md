@@ -1,3 +1,5 @@
+- 2026-02-15 03:15 (Australia/Melbourne) [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): special moments — added rare deterministic “PAPER AIRPLANE” flyby (~90–300s cadence) alongside CAT VISIT + PHONE BUZZ (OSD-safe banner; clean reset). Commit: 4345b49
+
 - 2026-02-15 03:05 (Australia/Melbourne) [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): determinism — fixed-timestep sim loop (`SIM_DT=1/60` accumulator) so 30fps/60fps captures match. Commit: f078c95
 
 - 2026-02-15 02:33 (Australia/Melbourne) [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): variety — seeded rotating subtitle+footer text pools (45s cadence; 8 lines; 6+ minutes before repeat). Commit: 7245244
