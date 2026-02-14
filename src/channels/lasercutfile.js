@@ -129,6 +129,9 @@ export function createChannel({ seed, audio }){
   let bedTile = null;
   let bedPattern = null;
   let bedPatternCtx = null;
+  let bedGrad = null;
+  let bedGradCtx = null;
+  let bedGradKey = '';
   let work = { x: 0, y: 0, w: 0, h: 0 };
 
   // cutfile
@@ -356,6 +359,9 @@ export function createChannel({ seed, audio }){
     bedTile = null;
     bedPattern = null;
     bedPatternCtx = null;
+    bedGrad = null;
+    bedGradCtx = null;
+    bedGradKey = '';
 
     buildDesign();
     bakeToPixels();
@@ -621,6 +627,18 @@ export function createChannel({ seed, audio }){
     if (!bedPattern || bedPatternCtx !== ctx) rebuildBedTexture(ctx);
   }
 
+  function ensureBedGradient(ctx){
+    const key = `${work.x},${work.y},${work.w},${work.h}`;
+    if (!bedGrad || bedGradCtx !== ctx || bedGradKey !== key){
+      bedGradCtx = ctx;
+      bedGradKey = key;
+      const g = ctx.createLinearGradient(work.x, work.y, work.x, work.y + work.h);
+      g.addColorStop(0, 'rgba(255,255,255,0.03)');
+      g.addColorStop(1, 'rgba(0,0,0,0.16)');
+      bedGrad = g;
+    }
+  }
+
   function drawBed(ctx){
     const frame = 18;
     const fx = work.x - frame, fy = work.y - frame;
@@ -641,12 +659,12 @@ export function createChannel({ seed, audio }){
       ctx.restore();
     }
 
-    // inner bed gradient
-    const g = ctx.createLinearGradient(work.x, work.y, work.x, work.y + work.h);
-    g.addColorStop(0, 'rgba(255,255,255,0.03)');
-    g.addColorStop(1, 'rgba(0,0,0,0.16)');
-    ctx.fillStyle = g;
-    ctx.fillRect(work.x, work.y, work.w, work.h);
+    // inner bed gradient (cached; rebuilt on resize/ctx swap)
+    ensureBedGradient(ctx);
+    if (bedGrad){
+      ctx.fillStyle = bedGrad;
+      ctx.fillRect(work.x, work.y, work.w, work.h);
+    }
 
     // grid
     ctx.strokeStyle = pal.grid;
