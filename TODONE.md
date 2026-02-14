@@ -1,6 +1,6 @@
 # Done
 
-- [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — mac os progress bar overlaps text (progress bar now lays out below the welcome line with a fixed gap). Commit: TBD
+- [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — mac os progress bar overlaps text (progress bar now lays out below the welcome line with a fixed gap). Commit: af46980
 
 - [x] [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): long-run interest — added a third rare deterministic “PAPER AIRPLANE” moment (~90–300s cadence) alongside CAT VISIT + PHONE BUZZ, with OSD-safe banner + clean reset. Commit: 4345b49
 

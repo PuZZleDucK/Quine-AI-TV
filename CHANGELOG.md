@@ -1,4 +1,4 @@
-- 2026-02-15 03:46 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — mac os progress bar overlaps text (reflowed layout so message and bar can’t collide on small renders). Commit: TBD
+- 2026-02-15 03:46 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — mac os progress bar overlaps text (reflowed layout so message and bar can’t collide on small renders). Commit: af46980
 
 - 2026-02-15 03:15 (Australia/Melbourne) [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): special moments — added rare deterministic “PAPER AIRPLANE” flyby (~90–300s cadence) alongside CAT VISIT + PHONE BUZZ (OSD-safe banner; clean reset). Commit: 4345b49
 
