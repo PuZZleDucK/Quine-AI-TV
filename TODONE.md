@@ -1,6 +1,6 @@
 # Done
 
-- [x] [project:quine-tv] Review channel `news` (src/channels/news.js): captured screenshots (0–300s) to `screenshots/review-news-start` + completion shots to `screenshots/review-news-2026-02-14-post` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+- [x] [project:quine-tv] Review channel `news` (src/channels/news.js): captured screenshots (0–300s) to `screenshots/review-news-start` + completion shots to `screenshots/review-news-2026-02-14-post` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: 36404b7
 
 - [x] [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): special moments — added rare deterministic moments (AURORA ribbon sweep + optional BUOY blink / KEEPER silhouette) planned per cycle in a ~60–150s window, with an OSD-safe EVENT badge and clean reset. Commit: 149523f
 
