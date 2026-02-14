@@ -22,6 +22,17 @@ function dist(ax, ay, bx, by){
   return Math.sqrt(dx*dx + dy*dy);
 }
 
+function makeCanvas(W, H){
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(W, H);
+  if (typeof document !== 'undefined'){
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    return c;
+  }
+  return null;
+}
+
 function buildEdge(points){
   const cum = [0];
   let len = 0;
@@ -65,6 +76,12 @@ export function createChannel({ seed, audio }){
 
   let w = 0, h = 0, dpr = 1;
   let t = 0;
+
+  // Cached moving grid (rebuild on resize / ctx swap).
+  let gridTile = null;
+  let gridPat = null;
+  let gridPatCtx = null;
+  let gridPatKey = '';
 
   // Visual identity: a dim mailroom floor with a glowing pneumatic tube diagram.
   const hue = 165 + rand() * 40;
@@ -498,6 +515,31 @@ export function createChannel({ seed, audio }){
     }
   }
 
+  function getGridPattern(ctx){
+    const step = Math.max(18, Math.floor(Math.min(w, h) / 18));
+    const lineW = Math.max(1, h / 720);
+    const key = `${step}|${Math.round(lineW * 100) / 100}|${Math.round(dpr * 100) / 100}`;
+    if (gridPat && gridPatCtx === ctx && gridPatKey === key) return { pat: gridPat, step };
+
+    const tileH = Math.max(8, Math.floor(8 * dpr));
+    const tile = makeCanvas(step, tileH);
+    if (!tile) return { pat: null, step };
+
+    // (Re)size and repaint tile.
+    tile.width = step;
+    tile.height = tileH;
+    const g = tile.getContext('2d');
+    g.clearRect(0, 0, step, tileH);
+    g.fillStyle = `hsla(${hue}, 20%, 55%, 0.35)`;
+    g.fillRect(0, 0, lineW, tileH);
+
+    gridTile = tile;
+    gridPat = ctx.createPattern(tile, 'repeat');
+    gridPatCtx = ctx;
+    gridPatKey = key;
+    return { pat: gridPat, step };
+  }
+
   function drawBackground(ctx){
     const g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, bg0);
@@ -505,19 +547,17 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
 
-    // Faint grid/scan.
-    ctx.save();
-    ctx.globalAlpha = 0.16;
-    ctx.strokeStyle = `hsla(${hue}, 20%, 55%, 0.35)`;
-    ctx.lineWidth = Math.max(1, h / 720);
-    const step = Math.max(18, Math.floor(Math.min(w, h) / 18));
-    for (let x = 0; x <= w; x += step){
-      ctx.beginPath();
-      ctx.moveTo(x + (t * 8) % step, 0);
-      ctx.lineTo(x + (t * 8) % step, h);
-      ctx.stroke();
+    // Faint grid/scan (cached tile; translated per-frame).
+    const { pat: gridPat_, step } = getGridPattern(ctx);
+    if (gridPat_){
+      const offset = (t * 8) % step;
+      ctx.save();
+      ctx.globalAlpha = 0.16;
+      ctx.fillStyle = gridPat_;
+      ctx.translate(offset, 0);
+      ctx.fillRect(-offset, 0, w + step, h);
+      ctx.restore();
     }
-    ctx.restore();
 
     // Subtle vignette.
     ctx.save();
