@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `retroboot` add BSOD/Kernel Panic - uncommon. Commit: 8188e3a
+
 - [x] [project:quine-tv] `retroboot` add Norton/Scandisk. Commit: cd83fc0
 
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): text polish — expand DOS/Linux line pools (more believable device/probe lines + longer directory listing) so each segment runs longer without obvious repeats. Commit: 6fe4c04

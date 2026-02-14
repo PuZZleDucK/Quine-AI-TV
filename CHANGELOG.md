@@ -725,3 +725,5 @@
 - 2026-02-15 05:19 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): determinism — fixed-timestep sim loop (`SIM_DT=1/60` accumulator) so click/beep schedules are FPS-stable across 30fps/60fps captures. Commit: db76fa9
 
 - 2026-02-15 06:33 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): HUD overlay text clamped + ellipsized to prevent overflow on tiny/extreme aspect renders. Commit: 345058a
+
+- 2026-02-15 07:45 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): uncommon crash moment — added deterministic one-off BSOD/kernel panic screen (~3 min). Commit: 8188e3a
