@@ -24,6 +24,8 @@ function hash01(x){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  // separate RNG for rare “special moments” so core visuals stay stable
+  const momentRand = mulberry32((seed ^ 0x6d2b79f5) >>> 0);
 
   let w = 0;
   let h = 0;
@@ -71,6 +73,10 @@ export function createChannel({ seed, audio }){
   let dealFlash = 0;
   let dealPulse = 0;
   let nextDealAt = 0;
+
+  // rare special moments (2–5 min cadence)
+  let special = null;     // { kind, t0, dur, col }
+  let nextSpecialAt = 0;
 
   // audio
   let ambience = null;
@@ -130,6 +136,11 @@ export function createChannel({ seed, audio }){
   }
 
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
+
+  function scheduleNextSpecial(now){
+    // 2–5 minutes, deterministic per seed; uses a separate RNG
+    nextSpecialAt = now + (120 + momentRand() * 180);
+  }
 
   function regen(){
     // signs (background)
@@ -223,6 +234,9 @@ export function createChannel({ seed, audio }){
     dealFlash = 0;
     dealPulse = 0;
     flicker = 0;
+
+    special = null;
+    scheduleNextSpecial(0);
   }
 
   function init({ width, height, dpr: dprIn }){
@@ -348,6 +362,31 @@ export function createChannel({ seed, audio }){
       const dealPrice = Math.max(1, dealItem.price * (1 - off / 100));
       deal = { item: dealItem.label, off, price: dealPrice, col: pick(rand, [pal.neonA, pal.neonB, pal.neonC]) };
       nextDealAt = PHASE_DUR * 3 + 1.1 + rand() * 3.8;
+    }
+
+    // rare special moments (2–5 min cadence)
+    if (!special && t >= nextSpecialAt){
+      const kind = pick(momentRand, ['POWER CUT', 'FLASH SALE']);
+      const dur = (kind === 'POWER CUT') ? (6.0 + momentRand() * 3.0) : (7.0 + momentRand() * 4.0);
+      special = { kind, t0: t, dur, col: pick(momentRand, [pal.neonA, pal.neonB, pal.neonC]) };
+
+      if (kind === 'POWER CUT'){
+        safeBeep({ freq: 140, dur: 0.08, gain: 0.010, type: 'sawtooth' });
+        safeBeep({ freq: 90, dur: 0.10, gain: 0.012, type: 'triangle' });
+      } else {
+        // flash-sale jingle
+        safeBeep({ freq: 660, dur: 0.05, gain: 0.012, type: 'square' });
+        safeBeep({ freq: 990, dur: 0.04, gain: 0.010, type: 'square' });
+        safeBeep({ freq: 1320, dur: 0.03, gain: 0.008, type: 'sine' });
+      }
+    }
+
+    if (special){
+      const u = (t - special.t0) / special.dur;
+      if (u >= 1){
+        special = null;
+        scheduleNextSpecial(t);
+      }
     }
   }
 
@@ -739,6 +778,71 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function drawSpecialMoment(ctx){
+    if (!special) return;
+
+    const u = clamp((t - special.t0) / special.dur, 0, 1);
+    const inP = ease(u / 0.12);
+    const outP = ease((1 - u) / 0.18);
+    const a = Math.min(inP, outP);
+
+    // screen-wide effect
+    if (special.kind === 'POWER CUT'){
+      const pulse = 0.5 + 0.5 * Math.sin(t * 22);
+      ctx.save();
+      ctx.globalAlpha = a * (0.58 + 0.10 * pulse);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    } else if (special.kind === 'FLASH SALE'){
+      const pulse = 0.5 + 0.5 * Math.sin(t * 7.5);
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = a * (0.10 + 0.12 * pulse);
+      ctx.fillStyle = special.col;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+
+    // banner (OSD-safe top-left)
+    const pad = Math.floor(Math.min(w, h) * 0.06);
+    const bw = Math.min(w * 0.42, 520);
+    const bh = Math.max(44, Math.floor(font * 2.0));
+    const x = pad;
+    const y = pad;
+
+    ctx.save();
+    ctx.globalAlpha = 0.88 * a;
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    roundedRect(ctx, x, y, bw, bh, 16);
+    ctx.fill();
+
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.55 * a;
+    ctx.shadowColor = special.col;
+    ctx.shadowBlur = 26;
+    ctx.strokeStyle = special.col;
+    ctx.lineWidth = Math.max(2, Math.floor(dpr * 1.4));
+    roundedRect(ctx, x, y, bw, bh, 16);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.92 * a;
+    ctx.fillStyle = 'rgba(255,255,255,0.86)';
+    ctx.font = `${font}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(special.kind, x + 18, y + bh * 0.54);
+
+    if (special.kind === 'FLASH SALE'){
+      ctx.font = `${small}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.fillText('LIMITED TIME • STALL 07', x + 18, y + bh * 0.78);
+    }
+
+    ctx.restore();
+  }
+
   function drawHud(ctx, { phase }){
     const pad = Math.floor(Math.min(w, h) * 0.06);
 
@@ -787,6 +891,7 @@ export function createChannel({ seed, audio }){
     drawReceipts(ctx, { phaseId: phase.id, phaseP });
     drawDealCard(ctx, { phaseId: phase.id, phaseP });
     drawHud(ctx, { phase });
+    drawSpecialMoment(ctx);
 
     // vignette
     ctx.fillStyle = grads.vignette;
