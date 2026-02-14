@@ -1,6 +1,6 @@
 # Done
 
-- [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): perf — replaced spark cap from `shift()` (O(n)) to O(1) swap-remove (order-independent). Screenshots: screenshots/autopilot-2026-02-14-lasercutfile-before + screenshots/autopilot-2026-02-14-lasercutfile-after. Commit: TBD
+- [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): perf — replaced spark cap from `shift()` (O(n)) to O(1) swap-remove (order-independent). Screenshots: screenshots/autopilot-2026-02-14-lasercutfile-before + screenshots/autopilot-2026-02-14-lasercutfile-after. Commit: 8431f59
 
 - [x] [project:quine-tv] `packetsfm` (src/channels/packetsnifferfm.js): determinism — switched `update()` to a fixed-timestep simulation loop (`SIM_DT=1/60`) so `updateWaterfall()` static and packet spawning consume RNG at a stable cadence; 30fps/60fps captures now match. Commit: dd311eb
 
