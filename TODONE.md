@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): special moments — added rare deterministic “POWER CUT” + “FLASH SALE” events (~120–300s) with OSD-safe banner + clean reset; schedule uses separate seeded RNG so core visuals remain stable. Commit: fc4c097
+
 - [x] [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): determinism — removed `rand()` from the rain wrap/reset path in `update(dt)` by deriving per-wrap x-jitter from a deterministic hash of {seed, dropId, wrapCount} (no PRNG consumption during wraps). Commit: 53258ab
 
 - [x] [project:quine-tv] `nightmarket` (src/channels/nightmarket.js): audio hygiene — made `onAudioOn()` idempotent (no restart if already the active ambience) and ensured `onAudioOff()`/`destroy()` stop+clear and only clear `AudioManager.current` when owned. Commit: faad336

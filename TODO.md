@@ -113,5 +113,5 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (nightmarket gradient cache) -->
 <!-- done: moved to TODONE.md (nightmarket audio hygiene) -->
-- [ ] `nightmarket` (src/channels/nightmarket.js): long-run interest — add 1–2 *rare deterministic* “special moments” (e.g. POWER CUT / LANTERN RELEASE / FLASH SALE banner) scheduled ~2–5 minutes with a clear signature look, OSD-safe placement, and clean reset; use a separate seeded RNG so core visuals remain stable.
+<!-- done: moved to TODONE.md (nightmarket special moments) -->
 - [ ] `nightmarket` (src/channels/nightmarket.js): text/dialog — expand sign/tag label pools and receipts/ledger variation so it stays fresh for 5+ minutes (prefer seeded shuffle-bags; avoid per-frame RNG).
