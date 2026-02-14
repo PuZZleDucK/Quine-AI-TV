@@ -69,49 +69,334 @@ function makeBootLines(rand){
 }
 
 function makeDosLines(rand){
-  const label = pick(rand, ['GAMES', 'UTILS', 'WORK', 'MIDI', 'BBS']);
-  const lines = [
-    { at: 0.0, text: 'Microsoft(R) MS-DOS(R) Version 6.22', color: 'rgba(220,255,220,0.92)' },
-    { at: 0.7, text: '(C)Copyright Microsoft Corp 1981-1994.', color: 'rgba(220,255,220,0.82)' },
-    { at: 1.5, text: '', color: 'rgba(0,0,0,0)' },
-    { at: 1.6, text: 'C:\\>dir', color: 'rgba(220,255,220,0.92)' },
-    { at: 2.1, text: ` Volume in drive C is ${label}`, color: 'rgba(220,255,220,0.82)' },
-    { at: 2.6, text: ` Directory of C:\\`, color: 'rgba(220,255,220,0.82)' },
-    { at: 3.2, text: 'AUTOEXEC BAT      1,024  10-03-95  7:22p', color: 'rgba(220,255,220,0.86)' },
-    { at: 3.6, text: 'CONFIG   SYS        768  10-03-95  7:22p', color: 'rgba(220,255,220,0.86)' },
-    { at: 4.0, text: 'GAMES    <DIR>            02-18-96  1:05a', color: 'rgba(220,255,220,0.86)' },
-    { at: 4.4, text: 'DEMOS    <DIR>            02-18-96  1:05a', color: 'rgba(220,255,220,0.86)' },
-    { at: 4.8, text: 'SOUND    <DIR>            02-18-96  1:05a', color: 'rgba(220,255,220,0.86)' },
-    { at: 5.2, text: 'README   TXT      3,584  10-04-95  9:10p', color: 'rgba(220,255,220,0.86)' },
-    { at: 5.9, text: '', color: 'rgba(0,0,0,0)' },
-    { at: 6.0, text: 'C:\\>_', color: 'rgba(220,255,220,0.92)' },
+  const label = pick(rand, ['GAMES', 'UTILS', 'WORK', 'MIDI', 'BBS', 'TOOLS', 'ARCHIVE']);
+  const hex4 = () => (((rand() * 0x10000) | 0).toString(16).padStart(4, '0').toUpperCase());
+  const volSerial = `${hex4()}-${hex4()}`;
+
+  const colorH = 'rgba(220,255,220,0.92)';
+  const colorM = 'rgba(220,255,220,0.86)';
+  const colorL = 'rgba(220,255,220,0.82)';
+
+  const datePool = ['10-03-95', '10-04-95', '11-12-95', '02-18-96', '05-01-96', '09-09-96', '03-14-97'];
+  const timePool = ['7:22p', '9:10p', '1:05a', '12:44a', '3:33p', '6:18p'];
+  const pickDate = () => pick(rand, datePool);
+  const pickTime = () => pick(rand, timePool);
+
+  const rootDirs = [
+    'GAMES', 'DEMOS', 'SOUND', 'DRIVERS', 'WINDOWS', 'DOS',
+    'TEMP', 'DOCS', 'NET', 'UTILS', 'BACKUP', 'MODEM',
+    'WFW', 'INTERNET', 'FONTS', 'TOOLS'
   ];
+  const rootFiles = [
+    { n: 'AUTOEXEC', e: 'BAT', s: 1024 },
+    { n: 'CONFIG', e: 'SYS', s: 768 },
+    { n: 'COMMAND', e: 'COM', s: 54645 },
+    { n: 'MSCDEX', e: 'EXE', s: 23840 },
+    { n: 'SMARTDRV', e: 'EXE', s: 46656 },
+    { n: 'HIMEM', e: 'SYS', s: 11392 },
+    { n: 'EMM386', e: 'EXE', s: 62912 },
+    { n: 'DOSKEY', e: 'COM', s: 5416 },
+    { n: 'MOUSE', e: 'COM', s: 15062 },
+    { n: 'KEYB', e: 'COM', s: 15433 },
+    { n: 'EDIT', e: 'COM', s: 413 },
+    { n: 'ANSI', e: 'SYS', s: 9466 },
+    { n: 'ATTRIB', e: 'EXE', s: 11264 },
+    { n: 'XCOPY', e: 'EXE', s: 28416 },
+    { n: 'DEFRAG', e: 'EXE', s: 77632 },
+    { n: 'FDISK', e: 'EXE', s: 45712 },
+    { n: 'FORMAT', e: 'COM', s: 40512 },
+    { n: 'README', e: 'TXT', s: 3584 },
+    { n: 'PKUNZIP', e: 'EXE', s: 24276 },
+    { n: 'PKZIP', e: 'EXE', s: 29012 },
+    { n: 'NWCACHE', e: 'EXE', s: 18432 },
+    { n: 'WATTCP', e: 'CFG', s: 382 },
+    { n: 'DIAL', e: 'CFG', s: 918 },
+  ];
+
+  const formatFile = (n, e, s) => `${n.padEnd(8, ' ')} ${e.padEnd(3, ' ')}  ${s.toLocaleString('en-US').padStart(9, ' ')}  ${pickDate()}  ${pickTime()}`;
+  const formatDir = (d) => `${d.padEnd(8, ' ')} <DIR>            ${pickDate()}  ${pickTime()}`;
+
+  const lines = [
+    { at: 0.0, text: 'Microsoft(R) MS-DOS(R) Version 6.22', color: colorH },
+    { at: 0.7, text: '(C)Copyright Microsoft Corp 1981-1994.', color: colorL },
+    { at: 1.35, text: '', color: 'rgba(0,0,0,0)' },
+    { at: 1.45, text: 'C:\\>dir', color: colorH },
+    { at: 1.95, text: ` Volume in drive C is ${label}`, color: colorL },
+    { at: 2.35, text: ` Volume Serial Number is ${volSerial}`, color: colorL },
+    { at: 2.75, text: ' Directory of C:\\', color: colorL },
+  ];
+
+  let at = 3.15;
+
+  // Root listing (longer; more believable utils/driver clutter)
+  for (let i = 0; i < 4; i++){
+    lines.push({ at, text: formatDir(rootDirs[i]), color: colorM });
+    at += 0.75 + rand() * 0.55;
+  }
+
+  // a handful of files
+  const fileCount = 12 + ((rand() * 8) | 0);
+  for (let i = 0; i < fileCount; i++){
+    const f = rootFiles[(rand() * rootFiles.length) | 0];
+    lines.push({ at, text: formatFile(f.n, f.e, f.s + ((rand() * 2048) | 0)), color: colorM });
+    at += 0.70 + rand() * 0.60;
+  }
+
+  // more dirs toward the end
+  for (let i = 4; i < rootDirs.length; i++){
+    if (rand() < 0.25) continue;
+    lines.push({ at, text: formatDir(rootDirs[i]), color: colorM });
+    at += 0.75 + rand() * 0.55;
+  }
+
+  const filesShown = fileCount + 2; // + AUTOEXEC/CONFIG-ish feel; approximate
+  const dirsShown = rootDirs.length;
+  const bytes = (120000 + ((rand() * 800000) | 0)).toLocaleString('en-US');
+  const free = (250000000 + ((rand() * 1800000000) | 0)).toLocaleString('en-US');
+
+  at += 0.7;
+  lines.push({ at, text: `              ${filesShown} File(s)     ${bytes} bytes`, color: colorL });
+  at += 0.45;
+  lines.push({ at, text: `              ${dirsShown} Dir(s)  ${free} bytes free`, color: colorL });
+
+  // A second mini-beat: cd into a directory and peek around
+  const cdDir = pick(rand, ['GAMES', 'UTILS', 'DRIVERS', 'DOS']);
+  at += 1.2;
+  lines.push({ at, text: `C:\\>cd ${cdDir}`, color: colorH });
+  at += 0.7;
+  lines.push({ at, text: `C:\\${cdDir}>dir`, color: colorH });
+  at += 0.55;
+  lines.push({ at, text: ` Directory of C:\\${cdDir}`, color: colorL });
+
+  const subFiles = [
+    { n: 'SETUP', e: 'EXE', s: 192512 },
+    { n: 'INSTALL', e: 'BAT', s: 2842 },
+    { n: 'README', e: 'TXT', s: 7421 },
+    { n: 'HISTORY', e: 'TXT', s: 6310 },
+    { n: 'PATCH', e: 'ZIP', s: 88123 },
+    { n: 'UPDATE', e: 'EXE', s: 118272 },
+    { n: 'VESA', e: 'DRV', s: 21456 },
+    { n: 'SOUND', e: 'CFG', s: 902 },
+    { n: 'NET', e: 'CFG', s: 1142 },
+    { n: 'DOS4GW', e: 'EXE', s: 265396 },
+    { n: 'CWSDPMI', e: 'EXE', s: 20104 },
+    { n: 'SVGA', e: 'CFG', s: 621 },
+  ];
+  const subN = 6 + ((rand() * 6) | 0);
+  for (let i = 0; i < subN; i++){
+    const f = subFiles[(rand() * subFiles.length) | 0];
+    lines.push({ at, text: formatFile(f.n, f.e, f.s + ((rand() * 4096) | 0)), color: colorM });
+    at += 0.70 + rand() * 0.60;
+  }
+
+  at += 1.0;
+  lines.push({ at, text: `C:\\${cdDir}>type README.TXT`, color: colorH });
+  at += 0.75;
+  lines.push({ at, text: '*** README ***', color: colorL });
+  at += 1.15;
+  lines.push({ at, text: 'If this breaks, it was probably SMARTDRV.', color: colorM });
+  at += 1.15;
+  lines.push({ at, text: 'Try again with:  SET BLASTER=A220 I5 D1', color: colorM });
+  at += 1.15;
+  lines.push({ at, text: 'And remember: never trust a diskette you found.', color: colorM });
+
+  at += 0.9;
+  lines.push({ at, text: `C:\\${cdDir}>`, color: colorH });
+
+  // keep the DOS segment alive a bit longer (less idle time on long segment durations)
+  at += 1.1;
+  lines.push({ at, text: `C:\\${cdDir}>mem /c`, color: colorH });
+  at += 0.8;
+  lines.push({ at, text: 'Memory Type        Total       Used       Free', color: colorL });
+  at += 0.55;
+  lines.push({ at, text: '----------------  --------   --------   --------', color: colorL });
+  at += 0.55;
+  lines.push({ at, text: 'Conventional        640K       112K       528K', color: colorM });
+  at += 0.55;
+  lines.push({ at, text: 'Upper               128K        32K        96K', color: colorM });
+  at += 0.55;
+  lines.push({ at, text: 'Extended          31,744K     1,024K    30,720K', color: colorM });
+  at += 0.85;
+  lines.push({ at, text: 'Largest executable program size         517,232 (505K)', color: colorL });
+
+  at += 1.05;
+  lines.push({ at, text: `C:\\${cdDir}>dir *.exe`, color: colorH });
+  const exePool = [
+    { n: 'SETUP', s: 192512 },
+    { n: 'UPDATE', s: 118272 },
+    { n: 'DOS4GW', s: 265396 },
+    { n: 'CWSDPMI', s: 20104 },
+  ];
+  const exeN = 2 + ((rand() * 3) | 0);
+  for (let i = 0; i < exeN; i++){
+    const f = exePool[(rand() * exePool.length) | 0];
+    at += 0.70 + rand() * 0.55;
+    lines.push({ at, text: formatFile(f.n, 'EXE', f.s + ((rand() * 4096) | 0)), color: colorM });
+  }
+
+  at += 0.95;
+  lines.push({ at, text: `C:\\${cdDir}>`, color: colorH });
+
   return lines;
 }
 
 function makeLinuxLines(rand){
   const host = pick(rand, ['quartz', 'saturn', 'beige-box', 'tiger', 'nebula', 'hermes']);
   const kernel = pick(rand, ['2.4.37', '2.6.32', '3.2.0', '4.4.0']);
+  const iface = pick(rand, ['eth0', 'eth1', 'wlan0', 'ens33']);
+  const disk = pick(rand, ['hda', 'hdb', 'sda', 'sdb']);
+
+  const cK = 'rgba(190,210,255,0.85)';
+  const cG = 'rgba(210,255,220,0.85)';
+  const cY = 'rgba(255,240,170,0.85)';
+  const cW = 'rgba(255,255,255,0.92)';
+
   const lines = [
     { at: 0.0, text: `Booting Linux ${kernel}...`, color: 'rgba(230,230,230,0.9)' },
-    { at: 0.6, text: '[    0.000000] BIOS-provided physical RAM map:', color: 'rgba(190,210,255,0.85)' },
-    { at: 1.1, text: '[    0.000000]  0000000000000000 - 000000000009f000 (usable)', color: 'rgba(190,210,255,0.85)' },
-    { at: 1.7, text: '[    0.000000]  0000000000100000 - 000000001ff00000 (usable)', color: 'rgba(190,210,255,0.85)' },
-    { at: 2.4, text: '[    0.420000] usbcore: registered new interface driver hub', color: 'rgba(210,255,220,0.85)' },
-    { at: 3.0, text: '[    0.510000] EXT3-fs: mounted filesystem with ordered data mode.', color: 'rgba(210,255,220,0.85)' },
-    { at: 3.6, text: '[    0.980000] Starting syslogd: [  OK  ]', color: 'rgba(255,240,170,0.85)' },
-    { at: 4.2, text: '[    1.100000] Starting network: [  OK  ]', color: 'rgba(255,240,170,0.85)' },
-    { at: 5.0, text: '', color: 'rgba(0,0,0,0)' },
-    { at: 5.1, text: `${host} login: `, color: 'rgba(255,255,255,0.92)' },
-    { at: 5.6, text: 'guest', color: 'rgba(255,255,255,0.92)' },
-    { at: 6.1, text: 'Password: ', color: 'rgba(255,255,255,0.92)' },
-    { at: 6.6, text: '********', color: 'rgba(255,255,255,0.92)' },
-    { at: 7.2, text: 'Last login: Sat Feb  7 07:00:00 on tty1', color: 'rgba(190,210,255,0.85)' },
-    { at: 7.7, text: `${host}:~$ _`, color: 'rgba(210,255,220,0.9)' },
+    { at: 0.6, text: '[    0.000000] BIOS-provided physical RAM map:', color: cK },
+    { at: 1.1, text: '[    0.000000]  0000000000000000 - 000000000009f000 (usable)', color: cK },
+    { at: 1.7, text: '[    0.000000]  0000000000100000 - 000000001ff00000 (usable)', color: cK },
   ];
-  // tiny random module line
-  lines.splice(4, 0, { at: 2.7, text: `[    0.${(200+((rand()*600)|0)).toString().padStart(6,'0')}] ${pick(rand, ['i8042: No controller found', 'PCI: Probing PCI hardware', 'hda: dma_intr: status=0x51', 'eth0: link up, 100Mbps'])}`, color: 'rgba(210,255,220,0.85)' });
+
+  // extra boot/probe chatter so the segment doesn’t go idle after ~8s
+  let at = 2.2;
+  const probePool = [
+    () => `[    0.${(180 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] PCI: Probing PCI hardware`,
+    () => `[    0.${(190 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] ACPI: Subsystem revision ${(20040000 + ((rand() * 3000000) | 0)).toString()}`, 
+    () => `[    0.${(200 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] ${disk}: ST${50000 + ((rand() * 50000) | 0)} (${(2 + ((rand() * 30) | 0))} GB)`,
+    () => `[    0.${(210 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] Uniform Multi-Platform E-IDE driver Revision: 7.00alpha2`,
+    () => `[    0.${(220 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] ${disk}: dma_intr: status=0x51 { DriveReady SeekComplete Error }`,
+    () => `[    0.${(230 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] Floppy drive(s): fd0 is 1.44M`,
+    () => `[    0.${(240 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] ide0: reset: success`,
+    () => `[    0.${(250 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] scsi0 : Adaptec AIC7XXX EISA/VLB SCSI driver`,
+    () => `[    0.${(260 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] usbcore: registered new interface driver hub`,
+    () => `[    0.${(270 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] PCI: Sharing IRQ 11 with 00:0f.0`,
+    () => `[    0.${(280 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] input: AT Translated Set 2 keyboard as /class/input/input0`,
+    () => `[    0.${(290 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] NET: Registered protocol family 2`,
+    () => `[    0.${(300 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] ${iface}: link up, 100Mbps, full duplex`,
+    () => `[    0.${(310 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] Adding ${(256 + ((rand() * 1536) | 0))}k swap on /dev/${disk}2.  Priority:-1 extents:1 across:${(256 + ((rand() * 1536) | 0))}k`,
+    () => `[    0.${(320 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] VFS: Mounted root (ext3 filesystem) readonly`,
+    () => `[    0.${(330 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] EXT3-fs: mounted filesystem with ordered data mode.`,
+    () => `[    0.${(340 + ((rand() * 700) | 0)).toString().padStart(6, '0')}] ALSA device list:`,
+    () => `[    0.${(350 + ((rand() * 700) | 0)).toString().padStart(6, '0')}]   #0: Intel 82801AA-ICH at 0xd000, irq ${(5 + ((rand() * 9) | 0))}`,
+  ];
+
+  const probeN = 7 + ((rand() * 6) | 0);
+  for (let i = 0; i < probeN; i++){
+    lines.push({ at, text: probePool[(rand() * probePool.length) | 0](), color: cG });
+    at += 0.95 + rand() * 0.85;
+  }
+
+  at += 0.4;
+  lines.push({ at, text: '[    1.020000] Freeing unused kernel memory: 196k freed', color: cK });
+  at += 0.8;
+
+  const servicePool = [
+    'Starting syslogd: [  OK  ]',
+    'Starting klogd: [  OK  ]',
+    'Checking root filesystem: [  OK  ]',
+    'Remounting root filesystem in read-write mode: [  OK  ]',
+    'Mounting local filesystems: [  OK  ]',
+    'Starting udev: [  OK  ]',
+    'Starting hotplug: [  OK  ]',
+    'Starting network: [  OK  ]',
+    'Bringing up interface lo: [  OK  ]',
+    'Bringing up interface eth0: [  OK  ]',
+    'Starting inetd: [  OK  ]',
+    'Starting portmap: [  OK  ]',
+    'Starting nfslock: [  OK  ]',
+    'Starting crond: [  OK  ]',
+    'Starting atd: [  OK  ]',
+    'Starting sshd: [  OK  ]',
+    'Starting lpd: [  OK  ]',
+    'Starting cups: [  OK  ]',
+  ];
+
+  const svcN = 5 + ((rand() * 4) | 0);
+  for (let i = 0; i < svcN; i++){
+    lines.push({ at, text: `[    1.${(100 + ((rand() * 800) | 0)).toString().padStart(6, '0')}] ${pick(rand, servicePool)}`, color: cY });
+    at += 1.25 + rand() * 0.85;
+  }
+
+  at += 0.8;
+  lines.push({ at, text: '', color: 'rgba(0,0,0,0)' });
+  at += 0.2;
+  lines.push({ at, text: `${host} login: `, color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'guest', color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'Password: ', color: cW });
+  at += 0.55;
+  lines.push({ at, text: '********', color: cW });
+  at += 0.7;
+  lines.push({ at, text: 'Last login: Sat Feb  7 07:00:00 on tty1', color: cK });
+
+  // a little interactive session
+  const prompt = `${host}:~$ `;
+  at += 0.8;
+  lines.push({ at, text: `${prompt}uname -a`, color: cG });
+  at += 0.8;
+  lines.push({ at, text: `Linux ${host} ${kernel} #1 SMP Tue Feb 7 07:00:00 UTC i686 GNU/Linux`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}ifconfig ${iface}`, color: cG });
+  at += 0.9;
+  lines.push({ at, text: `${iface}      Link encap:Ethernet  HWaddr 00:0C:29:${hexByte(rand)}:${hexByte(rand)}:${hexByte(rand)}`, color: cK });
+  at += 0.6;
+  lines.push({ at, text: `          inet addr:192.168.${10 + ((rand() * 40) | 0)}.${20 + ((rand() * 200) | 0)}  Bcast:192.168.0.255  Mask:255.255.255.0`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}ls -la`, color: cG });
+  at += 0.8;
+  lines.push({ at, text: 'total 64', color: cK });
+  lines.push({ at: at + 0.4, text: 'drwxr-xr-x  5 guest users  4096 Feb  7 07:00 .', color: cK });
+  lines.push({ at: at + 0.8, text: 'drwxr-xr-x 12 root  root   4096 Feb  7 06:58 ..', color: cK });
+  lines.push({ at: at + 1.2, text: '-rw-r--r--  1 guest users   220 Jan  1  1998 .bash_logout', color: cK });
+  lines.push({ at: at + 1.6, text: '-rw-r--r--  1 guest users  3526 Jan  1  1998 .bashrc', color: cK });
+  lines.push({ at: at + 2.0, text: '-rw-r--r--  1 guest users   675 Jan  1  1998 .profile', color: cK });
+  at += 2.6;
+
+  at += 1.1;
+  lines.push({ at, text: `${prompt}dmesg | tail -n 4`, color: cG });
+  at += 0.8;
+  lines.push({ at, text: `[   12.${(100 + ((rand() * 800) | 0)).toString().padStart(6, '0')}] ${iface}: link up, 100Mbps`, color: cK });
+  lines.push({ at: at + 0.5, text: `[   12.${(200 + ((rand() * 800) | 0)).toString().padStart(6, '0')}] ${disk}: cache flush complete`, color: cK });
+  lines.push({ at: at + 1.0, text: `[   12.${(300 + ((rand() * 800) | 0)).toString().padStart(6, '0')}] EXT3-fs: recovery complete`, color: cK });
+  lines.push({ at: at + 1.5, text: `[   12.${(400 + ((rand() * 800) | 0)).toString().padStart(6, '0')}] audit: enabled`, color: cK });
+  at += 2.1;
+
+  // a few more commands to avoid the segment going idle on long durations
+  const upDays = 1 + ((rand() * 12) | 0);
+  const upH = ((rand() * 23) | 0);
+  const upM = ((rand() * 59) | 0);
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}uptime`, color: cG });
+  at += 0.8;
+  lines.push({ at, text: ` ${String(7 + ((rand() * 2) | 0)).padStart(2,'0')}:${String(((rand() * 59) | 0)).padStart(2,'0')}:${String(((rand() * 59) | 0)).padStart(2,'0')} up ${upDays} days,  ${upH}:${String(upM).padStart(2,'0')},  1 user,  load average: 0.0${(rand()*9)|0}, 0.0${(rand()*9)|0}, 0.0${(rand()*9)|0}`, color: cK });
+
+  at += 1.1;
+  lines.push({ at, text: `${prompt}df -h`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: 'Filesystem            Size  Used Avail Use% Mounted on', color: cK });
+  const rootSize = 2 + ((rand() * 14) | 0);
+  const rootUsed = Math.max(1, ((rand() * rootSize) | 0));
+  const rootAvail = Math.max(1, rootSize - rootUsed);
+  at += 0.55;
+  lines.push({ at, text: `/dev/${disk}1              ${String(rootSize).padStart(2,' ')}G  ${String(rootUsed).padStart(2,' ')}G  ${String(rootAvail).padStart(2,' ')}G ${String(Math.min(99, Math.floor((rootUsed/rootSize)*100))).padStart(3,' ')}% /`, color: cK });
+  at += 0.55;
+  lines.push({ at, text: 'tmpfs                 128M     0  128M   0% /dev/shm', color: cK });
+  at += 0.55;
+  lines.push({ at, text: `/dev/${disk}2              512M   24M  488M   5% /boot`, color: cK });
+
+  at += 1.15;
+  lines.push({ at, text: `${prompt}`, color: cG });
+
   return lines;
+}
+
+function hexByte(rand){
+  return (((rand() * 256) | 0).toString(16).padStart(2, '0').toUpperCase());
 }
 
 function makeMacScreen(rand){
@@ -213,14 +498,15 @@ function makeMacScreen(rand){
   };
 }
 
-function drawTyped(ctx, {x, y, lineH, lines, t, cps=34, cursor=true}){
-  let yy = y;
+function drawTyped(ctx, {x, y, lineH, lines, t, cps=34, cursor=true, maxLines=null}){
   let last = null; // {x,y,w,text}
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
-  for (let i=0; i<lines.length; i++){
+  const rendered = [];
+
+  for (let i = 0; i < lines.length; i++){
     const L = lines[i];
     if (t < L.at) continue;
 
@@ -230,20 +516,32 @@ function drawTyped(ctx, {x, y, lineH, lines, t, cps=34, cursor=true}){
 
     if (s.length === 0 && L.text.length !== 0) continue;
 
-    ctx.fillStyle = L.color || 'rgba(220,255,220,0.92)';
-    ctx.fillText(s, x, yy);
-    last = { x, y: yy, w: ctx.measureText(s).width, text: s };
+    rendered.push({
+      text: s,
+      color: L.color || 'rgba(220,255,220,0.92)'
+    });
+  }
+
+  const maxN = (typeof maxLines === 'number' && isFinite(maxLines)) ? Math.max(1, Math.floor(maxLines)) : null;
+  const start = (maxN && rendered.length > maxN) ? (rendered.length - maxN) : 0;
+
+  let yy = y;
+  for (let i = start; i < rendered.length; i++){
+    const R = rendered[i];
+    ctx.fillStyle = R.color;
+    ctx.fillText(R.text, x, yy);
+    last = { x, y: yy, w: ctx.measureText(R.text).width, text: R.text };
     yy += lineH;
   }
 
   // cursor blink at end of last visible line
   if (cursor && last && !last.text.endsWith('_')){
-    const blink = (Math.sin(t*4.2) > 0);
+    const blink = (Math.sin(t * 4.2) > 0);
     if (blink){
       const cx = last.x + last.w;
       const cy = last.y;
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.fillRect(cx, cy + Math.floor(lineH*0.10), Math.floor(lineH*0.62), Math.floor(lineH*0.78));
+      ctx.fillRect(cx, cy + Math.floor(lineH * 0.10), Math.floor(lineH * 0.62), Math.floor(lineH * 0.78));
     }
   }
 }
@@ -587,7 +885,10 @@ export function createChannel({ seed, audio }){
       bctx.save();
       bctx.shadowColor = 'rgba(120,255,160,0.35)';
       bctx.shadowBlur = Math.floor(font * 0.35);
-      drawTyped(bctx, { x: pad, y: pad*1.6, lineH: Math.floor(font*1.30), lines: dosLines, t: segT, cps: 48, cursor: true });
+      const y0 = pad * 1.6;
+      const lineH = Math.floor(font * 1.30);
+      const maxLines = Math.floor((h - y0 - pad * 0.7) / lineH);
+      drawTyped(bctx, { x: pad, y: y0, lineH, maxLines, lines: dosLines, t: segT, cps: 48, cursor: true });
       bctx.restore();
 
     } else if (seg.key === 'mac'){
@@ -602,7 +903,10 @@ export function createChannel({ seed, audio }){
       const font = Math.floor(s * 0.030);
       bctx.font = `${font}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
 
-      drawTyped(bctx, { x: pad, y: pad*1.8, lineH: Math.floor(font*1.35), lines: linuxLines, t: segT, cps: 58, cursor: true });
+      const y0 = pad * 1.8;
+      const lineH = Math.floor(font * 1.35);
+      const maxLines = Math.floor((h - y0 - pad * 0.8) / lineH);
+      drawTyped(bctx, { x: pad, y: y0, lineH, maxLines, lines: linuxLines, t: segT, cps: 58, cursor: true });
 
       // a little "progress" spinner
       const sp = ['|','/','-','\\'][(Math.floor(segT*8))%4];
