@@ -84,7 +84,7 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: lasercutfile
 
-- [ ] `lasercutfile` (src/channels/lasercutfile.js): audio hygiene — make `onAudioOn()` idempotent and ensure `onAudioOff()`/`destroy()` only clear AudioManager.current when owned (avoid stacking / clobbering other channel audio).
+<!-- done: moved to TODONE.md (lasercutfile audio hygiene) -->
 <!-- done: moved to TODONE.md (lasercutfile bed gradient cache) -->
 - [ ] `lasercutfile` (src/channels/lasercutfile.js): UI — clamp/ellipsize HUD badge text (e.g. `MATERIAL CHANGE: …`) so it never overflows its rounded-rect container at small resolutions.
 

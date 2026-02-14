@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned (prevents stacking/clobbering). Commit: 15db0c8
+
 - [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): perf — cached the inner bed gradient created in `drawBed()` (rebuild on resize/ctx swap) so steady-state render avoids per-frame `createLinearGradient()`. Commit: c952b51
 
 - [x] [project:quine-tv] Cleanup: moved stale TODO entry for `lasercutfile` special moments (implementation already present in src/channels/lasercutfile.js). Commit: d1b3184
