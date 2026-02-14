@@ -348,9 +348,7 @@ export function createChannel({ seed, audio }){
     return ease(p);
   }
 
-  function drawDesk(ctx){
-    const d = deskRect();
-
+  function drawDesk(ctx, d){
     ensureDeskGradients(ctx, d);
 
     // background
@@ -422,12 +420,11 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
-  function drawItem(ctx, it){
+  function drawItem(ctx, it, d){
     const p = itemProgress(it);
     const x = lerp(it.messy.x, it.tidy.x, p);
     const y = lerp(it.messy.y, it.tidy.y, p);
     const a = lerp(it.messy.a, it.tidy.a, p);
-    const d = deskRect();
 
     ctx.save();
     ctx.translate(x, y);
@@ -694,7 +691,9 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    drawDesk(ctx);
+    const d = deskRect();
+
+    drawDesk(ctx, d);
 
     // papers first (they sit under most objects)
     for (const s of papers){
@@ -703,7 +702,7 @@ export function createChannel({ seed, audio }){
     }
 
     // other items
-    for (const it of items) drawItem(ctx, it);
+    for (const it of items) drawItem(ctx, it, d);
 
     drawHeader(ctx);
     drawChecklist(ctx);
