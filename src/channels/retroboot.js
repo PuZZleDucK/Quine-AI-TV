@@ -2057,13 +2057,15 @@ export function createChannel({ seed, audio }){
       const maxLines = Math.floor((h - y0 - pad * 0.8) / lineH);
       const unixLines = unixIsBeos
         ? beosLines
-        : (unixIsSolaris
-          ? solarisLines
-          : (unixIsBsd
-            ? bsdLines
-            : (unixIsOther
-              ? (unixOtherKind === 'irix' ? irixLines : (unixOtherKind === 'hpux' ? hpuxLines : aixLines))
-              : linuxLines)));
+        : (unixIsAlien
+          ? alienLines
+          : (unixIsSolaris
+            ? solarisLines
+            : (unixIsBsd
+              ? bsdLines
+              : (unixIsOther
+                ? (unixOtherKind === 'irix' ? irixLines : (unixOtherKind === 'hpux' ? hpuxLines : aixLines))
+                : linuxLines))));
       drawTyped(bctx, { x: pad, y: y0, lineH, maxLines, lines: unixLines, t: segT, cps: 58, cursor: true });
 
       // a little "progress" spinner
@@ -2086,17 +2088,19 @@ export function createChannel({ seed, audio }){
 
     const hudTitle = (seg.key === 'linux' && unixIsBeos)
       ? 'BeOS Boot Log'
-      : (seg.key === 'linux' && unixIsSolaris)
-        ? 'Solaris Boot Log'
-        : (seg.key === 'linux' && unixIsBsd)
-          ? 'BSD Boot Log'
-          : (seg.key === 'linux' && unixIsOther && unixOtherKind === 'irix')
-            ? 'IRIX Boot Log'
-            : (seg.key === 'linux' && unixIsOther && unixOtherKind === 'hpux')
-              ? 'HP-UX Boot Log'
-              : (seg.key === 'linux' && unixIsOther && unixOtherKind === 'aix')
-                ? 'AIX Boot Log'
-                : seg.title;
+      : (seg.key === 'linux' && unixIsAlien)
+        ? 'Alien OS Boot Log'
+        : (seg.key === 'linux' && unixIsSolaris)
+          ? 'Solaris Boot Log'
+          : (seg.key === 'linux' && unixIsBsd)
+            ? 'BSD Boot Log'
+            : (seg.key === 'linux' && unixIsOther && unixOtherKind === 'irix')
+              ? 'IRIX Boot Log'
+              : (seg.key === 'linux' && unixIsOther && unixOtherKind === 'hpux')
+                ? 'HP-UX Boot Log'
+                : (seg.key === 'linux' && unixIsOther && unixOtherKind === 'aix')
+                  ? 'AIX Boot Log'
+                  : seg.title;
     drawHud(ctx, hudTitle);
     renderCRT(ctx);
   }
