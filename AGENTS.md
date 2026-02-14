@@ -72,7 +72,7 @@ OUT_DIR=screenshots/review-aquarium-frames \
   npm run screenshots
 ```
 
-## Channel Review Standard (definition of “reviewed”)
+## detailed review
 
 A *good channel review* must produce concrete, trackable follow-ups. Do **all** of the following.
 
