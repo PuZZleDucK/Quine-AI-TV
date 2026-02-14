@@ -1,3 +1,5 @@
+- 2026-02-15 01:05 (Australia/Melbourne) [project:quine-tv] `micromyst` (src/channels/micromystery.js): special moments/text — added 1–2 rare deterministic “ALERT” moments (~2–5 min) (CASE REOPENED / REDACTION SWEEP / INK BLOT) and expanded text pools to reduce repetition. Commit: 4bd0587
+
 - 2026-02-15 00:48 (Australia/Melbourne) [project:quine-tv] `micromyst` (src/channels/micromystery.js): audio hygiene/determinism — made `onAudioOn()` idempotent and split an `audioRand` PRNG so type-click beeps don’t consume the story/visual RNG sequence. Commit: TBD
 
 - 2026-02-15 00:38 (Australia/Melbourne) [project:quine-tv] `micromyst` (src/channels/micromystery.js): perf — cached background gradients/vignette + paper grain into offscreen layers (rebuild on init/resize) so steady-state `render()` blits layers (no per-frame gradients / grain loop). Commit: 66c06a9

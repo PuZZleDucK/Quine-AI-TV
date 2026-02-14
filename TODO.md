@@ -126,4 +126,4 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (micromyst audio hygiene/determinism: audioRand split + onAudioOn idempotent) -->
 
-- [ ] `micromyst` (src/channels/micromystery.js): special moments/text — add 1–2 rare deterministic events (e.g. REDACTION bar sweep / INK BLOT / “CASE REOPENED”) on a ~2–5 min cadence with an OSD-safe label, and expand the text pools to reduce repetition.
+<!-- done: moved to TODONE.md (micromyst special moments/text). Commit: 4bd0587 -->
