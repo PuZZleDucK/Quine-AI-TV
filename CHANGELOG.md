@@ -1,3 +1,5 @@
+- 2026-02-15 04:17 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — toned down CRT overlay (scanlines/vignette/flicker/noise) so it’s less intense. Commit: d8d3199
+
 - 2026-02-15 04:03 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): perf — cached CRT scanlines+vignette into an offscreen overlay layer so steady-state `renderCRT()` does 0 `createPattern()` / `createRadialGradient()` calls. Commit: 86c6343
 
 - 2026-02-15 03:46 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — mac os progress bar overlaps text (reflowed layout so message and bar can’t collide on small renders). Commit: af46980

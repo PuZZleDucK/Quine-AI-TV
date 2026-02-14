@@ -13,5 +13,4 @@ if `TODO.md` has no ready items:
 - [project:quine-tv] `retroboot` add beos - rare.
 - [project:quine-tv] `retroboot` add alien os - rare.
 - [project:quine-tv] `retroboot` (src/channels/retroboot.js): text polish — expand DOS/Linux line pools (more believable device/probe lines + longer directory listing) so each segment runs longer without obvious repeats.
-- [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — CRT effect is too intense
 - [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — top left overlay often overlaps with text move overlay to the top right side of the chanel
