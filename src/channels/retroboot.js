@@ -423,6 +423,128 @@ function makeLinuxLines(rand){
   return lines;
 }
 
+function makeBsdLines(rand){
+  const host = pick(rand, ['halcyon', 'puffer', 'serenity', 'marlin', 'orion', 'tin']);
+  const flavor = pick(rand, ['FreeBSD', 'OpenBSD', 'NetBSD']);
+  const release = (flavor === 'FreeBSD')
+    ? pick(rand, ['12.4-RELEASE', '13.2-RELEASE', '14.0-CURRENT'])
+    : (flavor === 'OpenBSD')
+      ? pick(rand, ['6.9', '7.1', '7.3'])
+      : pick(rand, ['9.3', '9.4', '10.0']);
+
+  const arch = pick(rand, ['i386', 'i686', 'amd64']);
+  const cpu = pick(rand, ['Pentium 90', 'Pentium II 300', 'K6-2 350', 'Celeron 433']);
+  const disk = pick(rand, ['wd0', 'sd0', 'ad0']);
+  const iface = pick(rand, ['fxp0', 'xl0', 'rl0', 'em0']);
+
+  const cK = 'rgba(190,210,255,0.85)';
+  const cG = 'rgba(210,255,220,0.85)';
+  const cY = 'rgba(255,240,170,0.85)';
+  const cW = 'rgba(255,255,255,0.92)';
+
+  const lines = [
+    { at: 0.0, text: `>> ${flavor} ${release} (${arch}) booting...`, color: 'rgba(230,230,230,0.9)' },
+    { at: 0.7, text: `${flavor}/${arch} bootstrap loader`, color: cK },
+    { at: 1.3, text: `CPU: ${cpu} (686-class CPU)`, color: cG },
+  ];
+
+  let at = 2.0;
+  const probePool = [
+    () => `${disk}: ${pick(rand, ['WDC AC21000', 'QUANTUM FIREBALL', 'IBM-DTTA', 'ST38410A'])}, ${(540 + ((rand() * 6200) | 0))}MB`,
+    () => `${disk}: ${(12000 + ((rand() * 180000) | 0))} sectors, ${(512)} bytes/sector`,
+    () => `${disk}: UDMA${(2 + ((rand() * 4) | 0))} mode`,
+    () => `${iface}: Ethernet address 00:0c:29:${hexByte(rand)}:${hexByte(rand)}:${hexByte(rand)}`,
+    () => `${iface}: link state changed to UP`,
+    () => `vfs.root.mountfrom=${disk}a`,
+    () => `Timecounter "i8254" frequency 1193182 Hz quality 0`,
+    () => `real memory  = ${((64 + ((rand() * 448) | 0)) * 1024 * 1024).toLocaleString('en-US')} bytes`,
+    () => `avail memory = ${((48 + ((rand() * 400) | 0)) * 1024 * 1024).toLocaleString('en-US')} bytes`,
+    () => `kbd0 at kbdmux0`,
+    () => `psm0: <PS/2 Mouse> irq 12 on atkbdc0`,
+    () => `ata0: <ATA channel 0> at ioport 0x1f0-0x1f7,0x3f6 irq 14`,
+    () => `acd0: <${pick(rand, ['Mitsumi CD-ROM', 'SONY CDU', 'TEAC CD-532E'])}> at ata0-master UDMA33`,
+    () => `lo0: link state changed to UP`,
+  ];
+
+  const probeN = 8 + ((rand() * 7) | 0);
+  for (let i = 0; i < probeN; i++){
+    lines.push({ at, text: probePool[(rand() * probePool.length) | 0](), color: cG });
+    at += 0.95 + rand() * 0.85;
+  }
+
+  at += 0.6;
+  lines.push({ at, text: 'Mounting root filesystem... done.', color: cK });
+  at += 1.0;
+
+  const svcPool = [
+    'Starting devd.',
+    'Configuring network interfaces: lo0',
+    `Configuring network interfaces: ${iface}`,
+    'Starting syslogd.',
+    'Starting rpcbind.',
+    'Starting cron.',
+    'Starting sshd.',
+    'Starting sendmail.',
+    'Starting inetd.',
+  ];
+  const svcN = 5 + ((rand() * 4) | 0);
+  for (let i = 0; i < svcN; i++){
+    lines.push({ at, text: pick(rand, svcPool), color: cY });
+    at += 1.20 + rand() * 0.90;
+  }
+
+  at += 0.9;
+  lines.push({ at, text: '', color: 'rgba(0,0,0,0)' });
+  at += 0.25;
+  lines.push({ at, text: `${host} login: `, color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'guest', color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'Password: ', color: cW });
+  at += 0.55;
+  lines.push({ at, text: '********', color: cW });
+  at += 0.75;
+  lines.push({ at, text: `Last login: Sun Feb ${String(1 + ((rand() * 27) | 0)).padStart(2,' ')} 07:00:00`, color: cK });
+
+  const prompt = `${host}$ `;
+  at += 0.9;
+  lines.push({ at, text: `${prompt}uname -a`, color: cG });
+  at += 0.85;
+  const uname = (flavor === 'FreeBSD')
+    ? `FreeBSD ${host} ${release} FreeBSD ${release} #0: GENERIC ${arch}`
+    : (flavor === 'OpenBSD')
+      ? `OpenBSD ${host} ${release} GENERIC.MP#${1 + ((rand() * 7) | 0)} ${arch}`
+      : `NetBSD ${host} ${release} GENERIC#${1 + ((rand() * 7) | 0)} ${arch}`;
+  lines.push({ at, text: uname, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}ifconfig ${iface}`, color: cG });
+  at += 0.9;
+  lines.push({ at, text: `${iface}: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> mtu 1500`, color: cK });
+  at += 0.55;
+  lines.push({ at, text: `        inet 192.168.${10 + ((rand() * 40) | 0)}.${20 + ((rand() * 200) | 0)} netmask 0xffffff00 broadcast 192.168.0.255`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}dmesg | tail -n 4`, color: cG });
+  at += 0.9;
+  const dm = [
+    `${disk}: ${pick(rand, ['DMA', 'PIO'])} mode`,
+    `${iface}: link up`,
+    'random: unblocking device.',
+    'pf: enabled',
+    'nfs: nfsiod started',
+  ];
+  for (let i = 0; i < 4; i++){
+    lines.push({ at: at + i * 0.5, text: dm[(rand() * dm.length) | 0], color: cK });
+  }
+  at += 2.4;
+
+  at += 1.0;
+  lines.push({ at, text: `${prompt}`, color: cG });
+
+  return lines;
+}
+
 function hexByte(rand){
   return (((rand() * 256) | 0).toString(16).padStart(2, '0').toUpperCase());
 }
@@ -526,6 +648,278 @@ function makeMacScreen(rand){
   };
 }
 
+function makeWin9xScreen(rand){
+  const variant = pick(rand, ['Windows 95', 'Windows 98', 'Windows 98 Second Edition', 'Windows Me']);
+  const tagline = pick(rand, [
+    'Starting Windows...',
+    'Please wait while Windows starts…',
+    'Preparing your desktop…',
+    'Loading VxDs…',
+  ]);
+
+  const copyPool = [
+    'KERNEL32.DLL','USER32.DLL','GDI32.DLL','SHELL32.DLL','COMCTL32.DLL','COMDLG32.DLL',
+    'MSVCRT.DLL','OLE32.DLL','OLEAUT32.DLL','WININET.DLL','WSOCK32.DLL','MPR.DLL',
+    'VMM32.VXD','IFSMGR.VXD','VCACHE.VXD','VFBACKUP.VXD','NDIS.VXD','NETBEUI.386',
+    'TCPIP.386','VTCP.386','VIP.386','VNETBIOS.VXD','DISKTSD.VXD','SMARTDRV.EXE',
+    'MSCDEX.EXE','HIMEM.SYS','EMM386.EXE','SCANREG.EXE','DELTEMP.EXE','RUNDLL32.EXE',
+    'EXPLORER.EXE','SYSTRAY.EXE','WIN.COM','SYSTEM.INI','WIN.INI','CONTROL.EXE',
+    'SNDREC32.EXE','CALC.EXE','NOTEPAD.EXE','PBRUSH.EXE','MSCONFIG.EXE','DXDIAG.EXE',
+    'SETUPX.DLL','SETUPAPI.DLL','CABINET.DLL','ADVAPI32.DLL','MSNP32.DLL','RASAPI32.DLL',
+  ];
+
+  // preselect a deterministic “copy list” so render() doesn’t consume PRNG
+  const files = Array.from({ length: 28 }, (_, i) => copyPool[(i + ((rand() * copyPool.length) | 0)) % copyPool.length]);
+
+  const specks = Array.from({ length: 70 }, () => ({ x: rand(), y: rand(), a: 0.20 + 0.80 * rand() }));
+
+  function drawWindowsLogo(ctx, cx, cy, s){
+    // Simple 4-pane “wavy flag” approximation.
+    const paneW = s * 0.62;
+    const paneH = s * 0.38;
+    const gap = s * 0.06;
+
+    const panes = [
+      { x: -paneW - gap/2, y: -paneH - gap/2, c: '#ff3b30' }, // red
+      { x: gap/2,          y: -paneH - gap/2, c: '#34c759' }, // green
+      { x: -paneW - gap/2, y: gap/2,          c: '#0a84ff' }, // blue
+      { x: gap/2,          y: gap/2,          c: '#ffcc00' }, // yellow
+    ];
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-0.10);
+
+    // subtle drop shadow
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = '#000';
+    for (const p of panes){
+      ctx.beginPath();
+      ctx.moveTo(p.x + 6, p.y + 6);
+      ctx.lineTo(p.x + paneW + 16, p.y + 2 + 6);
+      ctx.lineTo(p.x + paneW + 2 + 16, p.y + paneH + 10 + 6);
+      ctx.lineTo(p.x + 2, p.y + paneH + 14 + 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // panes
+    ctx.globalAlpha = 1;
+    for (const p of panes){
+      ctx.fillStyle = p.c;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x + paneW + 16, p.y + 2);
+      ctx.lineTo(p.x + paneW + 2 + 16, p.y + paneH + 10);
+      ctx.lineTo(p.x + 2, p.y + paneH + 14);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawSplash(ctx, w, h, t){
+    // black background with a faint “cloudy” vignette
+    ctx.save();
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+
+    const vg = ctx.createRadialGradient(w*0.5, h*0.5, Math.min(w,h)*0.12, w*0.5, h*0.52, Math.max(w,h)*0.85);
+    vg.addColorStop(0, 'rgba(90,110,140,0.18)');
+    vg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, w, h);
+
+    // logo + text
+    const s = Math.min(w, h);
+    const logoS = Math.floor(s * 0.16);
+    const cx = Math.floor(w * 0.42);
+    const cy = Math.floor(h * 0.46);
+
+    drawWindowsLogo(ctx, cx - logoS * 0.85, cy, logoS);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    const titlePx = Math.max(16, Math.floor(s * 0.065));
+    const subPx = Math.max(12, Math.floor(s * 0.028));
+
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx.font = `${subPx}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.fillText('Microsoft', cx, cy - titlePx * 0.55);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.96)';
+    ctx.font = `700 ${titlePx}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.fillText(variant, cx, cy + titlePx * 0.20);
+
+    // bottom status + progress blocks
+    const barW = Math.floor(w * 0.34);
+    const barH = Math.max(10, Math.floor(h * 0.014));
+    const bx = Math.floor((w - barW) / 2);
+    const by = Math.floor(h * 0.78);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    ctx.font = `${subPx}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.textAlign = 'center';
+    ctx.fillText(tagline, w * 0.5, by - Math.max(10, Math.floor(subPx * 0.9)));
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+    ctx.lineWidth = 2;
+    roundRect(ctx, bx, by, barW, barH, Math.floor(barH / 2));
+    ctx.stroke();
+
+    const blocks = 18;
+    const gap = Math.max(2, Math.floor(barW * 0.006));
+    const bw = Math.floor((barW - (blocks + 1) * gap) / blocks);
+    const u = (t * 0.85) % 1;
+    const head = Math.floor(u * (blocks + 6));
+
+    for (let i = 0; i < blocks; i++){
+      const on = (i >= head - 4 && i <= head);
+      ctx.fillStyle = on ? 'rgba(120,190,255,0.92)' : 'rgba(255,255,255,0.10)';
+      const x = bx + gap + i * (bw + gap);
+      ctx.fillRect(x, by + 3, bw, barH - 6);
+    }
+
+    // tiny dust/noise
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = '#fff';
+    for (const sp of specks){
+      const x = (sp.x * w) | 0;
+      const y = (sp.y * h) | 0;
+      if (((x + y + ((t * 16) | 0)) % 37) === 0) ctx.fillRect(x, y, 1, 1);
+    }
+
+    ctx.restore();
+  }
+
+  function drawSetup(ctx, w, h, t){
+    const s = Math.min(w, h);
+
+    // desktop-ish muted teal background
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#0e5462');
+    bg.addColorStop(1, '#08363f');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const ww = Math.floor(w * 0.70);
+    const wh = Math.floor(h * 0.52);
+    const x = Math.floor((w - ww) / 2);
+    const y = Math.floor((h - wh) / 2);
+
+    // window frame
+    ctx.save();
+    ctx.fillStyle = 'rgba(214,214,214,0.96)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, ww, wh, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // title bar
+    const tbH = Math.max(18, Math.floor(wh * 0.12));
+    ctx.fillStyle = '#0b3b8a';
+    roundRect(ctx, x + 2, y + 2, ww - 4, tbH, 8);
+    ctx.fill();
+
+    const titlePx = Math.max(14, Math.floor(tbH * 0.48));
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.font = `600 ${titlePx}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${variant} Setup`, x + 14, y + 2 + tbH / 2);
+
+    const bodyPad = Math.max(14, Math.floor(s * 0.03));
+    const by = y + tbH + bodyPad;
+
+    const p = clamp01(t / 20);
+    const idx = Math.min(files.length - 1, Math.floor(p * (files.length - 1)));
+
+    const labelPx = Math.max(12, Math.floor(s * 0.030));
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
+    ctx.font = `${labelPx}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.textBaseline = 'top';
+    ctx.fillText('Setup is copying files…', x + bodyPad, by);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.62)';
+    ctx.fillText(`Copying: ${files[idx]}`, x + bodyPad, by + Math.floor(labelPx * 1.55));
+
+    // progress bar
+    const barW = Math.floor(ww * 0.62);
+    const barH = Math.max(10, Math.floor(wh * 0.08));
+    const pbx = x + bodyPad;
+    const pby = y + wh - bodyPad - barH;
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 2;
+    roundRect(ctx, pbx, pby, barW, barH, 7);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(40,140,245,0.75)';
+    roundRect(ctx, pbx + 3, pby + 3, Math.floor((barW - 6) * p), barH - 6, 6);
+    ctx.fill();
+
+    // file list (a few lines) for “installer feel”
+    const listX = x + bodyPad;
+    const listY = by + Math.floor(labelPx * 3.4);
+    const lineH = Math.floor(labelPx * 1.25);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.56)';
+    ctx.font = `${Math.max(11, Math.floor(labelPx * 0.95))}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+
+    const start = Math.max(0, idx - 2);
+    const end = Math.min(files.length, start + 6);
+    for (let i = start; i < end; i++){
+      const prefix = (i === idx) ? '> ' : '  ';
+      const a = (i === idx) ? 0.90 : 0.55;
+      ctx.fillStyle = `rgba(0,0,0,${a})`;
+      ctx.fillText(`${prefix}${files[i]}`, listX, listY + (i - start) * lineH);
+    }
+
+    ctx.restore();
+  }
+
+  function drawRestart(ctx, w, h, t){
+    ctx.save();
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+
+    const s = Math.min(w, h);
+    const px = Math.max(14, Math.floor(s * 0.04));
+    const txtPx = Math.max(14, Math.floor(s * 0.040));
+    const subPx = Math.max(12, Math.floor(s * 0.030));
+
+    const count = Math.max(0, 9 - Math.floor(t));
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.font = `700 ${txtPx}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.fillText('Setup will now restart your computer.', px, Math.floor(h * 0.42));
+
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    ctx.font = `${subPx}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.fillText(`Restarting in ${count}… (Press Esc to pretend you have a choice)`, px, Math.floor(h * 0.42) + Math.floor(txtPx * 1.35));
+
+    ctx.restore();
+  }
+
+  return {
+    title: `${variant} Splash/Setup`,
+    draw(ctx, w, h, t){
+      // Loop a little micro-sequence inside the segment so long durations stay interesting.
+      const cycle = 44;
+      const tt = ((t % cycle) + cycle) % cycle;
+
+      if (tt < 14) drawSplash(ctx, w, h, tt);
+      else if (tt < 34) drawSetup(ctx, w, h, tt - 14);
+      else drawRestart(ctx, w, h, tt - 34);
+    }
+  };
+}
+
 function drawTyped(ctx, {x, y, lineH, lines, t, cps=34, cursor=true, maxLines=null}){
   let last = null; // {x,y,w,text}
 
@@ -593,17 +987,30 @@ export function createChannel({ seed, audio }){
   // content
   let biosLines = [];
   let dosLines = [];
+  let win9xScreen = null;
   let linuxLines = [];
+  let bsdLines = [];
   let macScreen = null;
+  let unixIsBsd = false;
 
   // audio
   let ah = null;
   let nextClick = 0.0;
 
   function buildContent(){
+    // Uncommon deterministic variant: on some days/seeds, swap the Unix segment to BSD.
+    // Using the per-day channel seed keeps it stable for a day, but it can change tomorrow.
+    unixIsBsd = ((seed >>> 0) % 5) === 0;
+
     biosLines = makeBootLines(rand);
     dosLines = makeDosLines(rand);
+    win9xScreen = makeWin9xScreen(rand);
+
+    // Always build the Linux lines (preserves downstream PRNG consumption for macScreen, etc.).
     linuxLines = makeLinuxLines(rand);
+    // BSD lines use their own forked PRNG so they don’t perturb the main content sequence.
+    bsdLines = makeBsdLines(mulberry32(hash32(seed ^ 0xBADC0DE)));
+
     macScreen = makeMacScreen(rand);
   }
 
@@ -646,6 +1053,7 @@ export function createChannel({ seed, audio }){
   const SEGMENTS = [
     { key: 'bios', title: 'POST / BIOS', dur: 9.5 * SEG_DUR_SCALE },
     { key: 'dos', title: 'MS-DOS Prompt', dur: 10.5 * SEG_DUR_SCALE },
+    { key: 'win9x', title: 'Windows 9x Splash/Setup', dur: 10.0 * SEG_DUR_SCALE },
     { key: 'mac', title: 'Classic Desktop', dur: 9.5 * SEG_DUR_SCALE },
     { key: 'linux', title: 'Linux Boot Log', dur: 11.5 * SEG_DUR_SCALE },
   ];
@@ -951,6 +1359,9 @@ export function createChannel({ seed, audio }){
       drawTyped(bctx, { x: pad, y: y0, lineH, maxLines, lines: dosLines, t: segT, cps: 48, cursor: true });
       bctx.restore();
 
+    } else if (seg.key === 'win9x'){
+      win9xScreen.draw(bctx, w, h, segT);
+
     } else if (seg.key === 'mac'){
       macScreen.draw(bctx, w, h, segT);
 
@@ -966,7 +1377,8 @@ export function createChannel({ seed, audio }){
       const y0 = pad * 1.8;
       const lineH = Math.floor(font * 1.35);
       const maxLines = Math.floor((h - y0 - pad * 0.8) / lineH);
-      drawTyped(bctx, { x: pad, y: y0, lineH, maxLines, lines: linuxLines, t: segT, cps: 58, cursor: true });
+      const unixLines = unixIsBsd ? bsdLines : linuxLines;
+      drawTyped(bctx, { x: pad, y: y0, lineH, maxLines, lines: unixLines, t: segT, cps: 58, cursor: true });
 
       // a little "progress" spinner
       const sp = ['|','/','-','\\'][(Math.floor(segT*8))%4];
@@ -986,7 +1398,8 @@ export function createChannel({ seed, audio }){
 
     ctx.drawImage(buf, 0, 0);
 
-    drawHud(ctx, seg.title);
+    const hudTitle = (seg.key === 'linux' && unixIsBsd) ? 'BSD Boot Log' : seg.title;
+    drawHud(ctx, hudTitle);
     renderCRT(ctx);
   }
 
