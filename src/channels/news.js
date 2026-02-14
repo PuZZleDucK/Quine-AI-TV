@@ -10,6 +10,53 @@ const WORDS = [
 const LOGO_W = 150;
 const LOGO_H = 54;
 
+function fitEllipsis(ctx, text, maxW){
+  if (!text) return '';
+  if (ctx.measureText(text).width <= maxW) return text;
+  const ell = '…';
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi){
+    const mid = ((lo + hi) / 2) | 0;
+    const s = text.slice(0, mid) + ell;
+    if (ctx.measureText(s).width <= maxW) lo = mid + 1;
+    else hi = mid;
+  }
+  const cut = Math.max(0, lo - 1);
+  return text.slice(0, cut) + ell;
+}
+
+function wrapLines(ctx, text, maxW, maxLines=2){
+  const words = String(text ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return [''];
+
+  const lines = [];
+  let cur = '';
+
+  for (const word of words){
+    // On the last line, keep accumulating and ellipsize at the end.
+    if (lines.length === maxLines - 1){
+      cur = cur ? `${cur} ${word}` : word;
+      continue;
+    }
+
+    const test = cur ? `${cur} ${word}` : word;
+    if (ctx.measureText(test).width <= maxW || !cur) cur = test;
+    else {
+      lines.push(cur);
+      cur = word;
+    }
+  }
+
+  lines.push(cur);
+
+  for (let i = 0; i < lines.length; i++){
+    if (ctx.measureText(lines[i]).width > maxW) lines[i] = fitEllipsis(ctx, lines[i], maxW);
+  }
+
+  return lines.slice(0, maxLines);
+}
+
 function headline(rand){
   const w = (n)=>WORDS[(rand()*WORDS.length)|0];
   const caps=(s)=>s.charAt(0).toUpperCase()+s.slice(1);
@@ -181,12 +228,29 @@ export function createChannel({ seed, audio }){
 
     // anchor text
     ctx.save();
+    const headlineX = w*0.05;
+    const headlineY = h*0.48;
+    const headlineMaxW = w*0.90;
+    const headlinePx = Math.floor(h/16);
+
     ctx.fillStyle = 'rgba(231,238,246,0.9)';
-    ctx.font = `${Math.floor(h/16)}px ui-serif, Georgia, serif`;
-    ctx.fillText(headlines[0], w*0.05, h*0.48);
+    ctx.font = `${headlinePx}px ui-serif, Georgia, serif`;
+
+    // Wrap (2 lines) + ellipsize so long strings don't clip off-screen at smaller resolutions.
+    const headLines = wrapLines(ctx, headlines[0], headlineMaxW, 2);
+    const lineH = Math.floor(headlinePx * 1.12);
+    for (let i = 0; i < headLines.length; i++){
+      ctx.fillText(headLines[i], headlineX, headlineY + i*lineH);
+    }
+
+    const subPx = Math.floor(h/24);
     ctx.fillStyle = 'rgba(231,238,246,0.65)';
-    ctx.font = `${Math.floor(h/24)}px ui-sans-serif, system-ui`;
-    ctx.fillText('More on this story as the situation becomes increasingly narratable.', w*0.05, h*0.54);
+    ctx.font = `${subPx}px ui-sans-serif, system-ui`;
+    ctx.fillText(
+      'More on this story as the situation becomes increasingly narratable.',
+      headlineX,
+      headlineY + headLines.length*lineH + Math.floor(subPx*0.9)
+    );
     ctx.restore();
 
     // ticker bar
