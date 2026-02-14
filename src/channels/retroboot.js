@@ -448,7 +448,8 @@ export function createChannel({ seed, audio }){
     const pad = Math.max(10, Math.floor(s * 0.02));
     const boxW = Math.floor(s * 0.52);
     const boxH = Math.floor(s * 0.10);
-    const x = pad;
+    // Top-right overlay to avoid colliding with the boot text.
+    const x = Math.max(pad, w - pad - boxW);
     const y = pad;
 
     ctx.save();
