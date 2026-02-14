@@ -120,7 +120,7 @@ if `TODO.md` has no ready items:
 
 ## Follow-ups queued from review: micromyst
 
-- [ ] `micromyst` (src/channels/micromystery.js): perf — cache background gradients + paper grain into offscreen layers (rebuild on init/resize) so `render()` avoids per-frame `create*Gradient()` and the 140-rect grain loop.
+<!-- done: moved to TODONE.md (micromyst bg+grain cache) -->
 
 - [ ] `micromyst` (src/channels/micromystery.js): determinism — remove `rand()` usage from `render()` (grain + per-line jitter) by precomputing deterministic jitter/grain (seeded) and indexing by line + time bucket.
 
