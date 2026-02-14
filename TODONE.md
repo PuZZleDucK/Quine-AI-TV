@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): UI — station status lamps now reflect local state (jam/pink, congestion/amber based on nearby canisters, ok/green) with subtle screen-blend glow. Commit: c71a9c9
+
 - [x] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): perf — cached the moving grid/scan background as a repeating pattern tile (rebuild on resize / ctx swap) so steady-state render avoids per-frame stroking ~N vertical lines. Commit: 7b00e7d
 
 - [x] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): audio hygiene — made `onAudioOn()` idempotent (no stacked sources) and added a tiny noise fade-out on stop to reduce clicks. Commit: bb9d616
