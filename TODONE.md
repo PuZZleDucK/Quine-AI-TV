@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): variety — added seeded rotating subtitle+footer text pools (45s cadence; 8 lines; 6+ minutes before repeat). Commit: 7245244
+
 - [x] [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): perf — compute `deskRect()` once per render (pass `d` into draw helpers) instead of recomputing per item. Commit: c649d51
 
 - [x] [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): perf — cached desk background gradients (bg/wood/vignette) (rebuild on resize/ctx swap) so steady-state `render()` allocates 0 gradients/frame. Commit: d3e98a9
