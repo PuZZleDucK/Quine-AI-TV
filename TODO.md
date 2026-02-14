@@ -136,4 +136,4 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (tidydesk deskRect cached once per render). Commit: c649d51 -->
 - [ ] `tidydesk` (src/channels/tidydesk.js): long-run interest — add 1–2 rare deterministic “special moments” (e.g. CAT VISIT / PHONE BUZZ / PAPER AIRPLANE) scheduled ~90–300s with OSD-safe banner + clean reset.
 <!-- done: moved to TODONE.md (tidydesk subtitle/footer rotating text pool) -->
-- [ ] `tidydesk` (src/channels/tidydesk.js): determinism — consider a fixed-timestep sim loop (`SIM_DT=1/60`) so 30fps/60fps captures match for the same seed.
+<!-- done: moved to TODONE.md (tidydesk fixed-timestep sim loop / determinism). Commit: f078c95 -->
