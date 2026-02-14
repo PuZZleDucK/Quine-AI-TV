@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-14
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
@@ -73,6 +74,60 @@ export function createChannel({ seed, audio }){
 
   // audio
   let ambience = null;
+
+  // perf: cache per-frame gradients (rebuild on resize or ctx swap)
+  let gradCtx = null;
+  let grads = null;
+
+  function invalidateGradients(){
+    gradCtx = null;
+    grads = null;
+  }
+
+  function buildGradients(ctx){
+    const roadY = h * 0.63;
+    const stallY = h * 0.56;
+    const counterH = h * 0.16;
+
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, pal.sky0);
+    sky.addColorStop(0.55, pal.sky1);
+    sky.addColorStop(1, '#020208');
+
+    const road = ctx.createLinearGradient(0, roadY, 0, h);
+    road.addColorStop(0, 'rgba(5,6,14,0.0)');
+    road.addColorStop(0.12, 'rgba(3,4,10,0.65)');
+    road.addColorStop(1, 'rgba(0,0,0,0.92)');
+
+    // reused for all sign reflections; scale alpha via globalAlpha in draw
+    const roadReflect = ctx.createLinearGradient(0, roadY, 0, h);
+    roadReflect.addColorStop(0, 'rgba(255,255,255,0)');
+    roadReflect.addColorStop(0.08, 'rgba(255,255,255,0.10)');
+    roadReflect.addColorStop(0.55, 'rgba(255,255,255,0.02)');
+    roadReflect.addColorStop(1, 'rgba(255,255,255,0)');
+
+    const counter = ctx.createLinearGradient(0, stallY, 0, stallY + counterH);
+    counter.addColorStop(0, 'rgba(10,8,18,0.75)');
+    counter.addColorStop(1, 'rgba(0,0,0,0.92)');
+
+    const vignette = ctx.createRadialGradient(
+      w * 0.5,
+      h * 0.5,
+      Math.min(w, h) * 0.18,
+      w * 0.5,
+      h * 0.5,
+      Math.max(w, h) * 0.86
+    );
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.48)');
+
+    grads = { roadY, stallY, counterH, sky, road, roadReflect, counter, vignette };
+    gradCtx = ctx;
+  }
+
+  function ensureGradients(ctx){
+    if (!grads || gradCtx !== ctx) buildGradients(ctx);
+  }
 
   function safeBeep(opts){ if (audio.enabled) audio.beep(opts); }
 
@@ -173,6 +228,7 @@ export function createChannel({ seed, audio }){
     small = Math.max(11, Math.floor(font * 0.78));
     mono = Math.max(12, Math.floor(font * 0.86));
 
+    invalidateGradients();
     regen();
     reset();
   }
@@ -268,11 +324,7 @@ export function createChannel({ seed, audio }){
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,w,h);
 
-    const sky = ctx.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, pal.sky0);
-    sky.addColorStop(0.55, pal.sky1);
-    sky.addColorStop(1, '#020208');
-    ctx.fillStyle = sky;
+    ctx.fillStyle = grads.sky;
     ctx.fillRect(0,0,w,h);
 
     // distant silhouettes
@@ -294,12 +346,8 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // wet pavement / reflections base
-    const roadY = h * 0.63;
-    const road = ctx.createLinearGradient(0, roadY, 0, h);
-    road.addColorStop(0, 'rgba(5,6,14,0.0)');
-    road.addColorStop(0.12, 'rgba(3,4,10,0.65)');
-    road.addColorStop(1, 'rgba(0,0,0,0.92)');
-    ctx.fillStyle = road;
+    const roadY = grads.roadY;
+    ctx.fillStyle = grads.road;
     ctx.fillRect(0, roadY, w, h - roadY);
   }
 
@@ -339,16 +387,13 @@ export function createChannel({ seed, audio }){
       ctx.restore();
 
       // reflection streak on road
-      const roadY = h * 0.63;
+      const roadY = grads.roadY;
       const cx = s.x + s.w * 0.5;
       const rw = s.w * (0.55 + on * 0.35);
-      const rr = ctx.createLinearGradient(0, roadY, 0, h);
-      rr.addColorStop(0, `rgba(255,255,255,${0.0})`);
-      rr.addColorStop(0.08, `rgba(255,255,255,${0.10 * on})`);
-      rr.addColorStop(0.55, `rgba(255,255,255,${0.02 * on})`);
-      rr.addColorStop(1, `rgba(255,255,255,0)`);
+      const rr = grads.roadReflect;
       ctx.save();
-      ctx.globalAlpha = 0.35 * on;
+      // original used (stop alpha * on) + (globalAlpha * on) → ~on^2 scaling
+      ctx.globalAlpha = 0.35 * on * on;
       ctx.fillStyle = rr;
       ctx.fillRect(cx - rw*0.5, roadY, rw, h - roadY);
       ctx.restore();
@@ -373,11 +418,8 @@ export function createChannel({ seed, audio }){
     }
 
     // counter
-    const counterH = h * 0.16;
-    const cg = ctx.createLinearGradient(0, stallY, 0, stallY + counterH);
-    cg.addColorStop(0, 'rgba(10,8,18,0.75)');
-    cg.addColorStop(1, 'rgba(0,0,0,0.92)');
-    ctx.fillStyle = cg;
+    const counterH = grads.counterH;
+    ctx.fillStyle = grads.counter;
     ctx.fillRect(0, stallY, w, counterH);
 
     // neon edge
@@ -687,6 +729,8 @@ export function createChannel({ seed, audio }){
   }
 
   function render(ctx){
+    ensureGradients(ctx);
+
     const cycT = t % CYCLE_DUR;
     const phaseIdx = Math.floor(cycT / PHASE_DUR);
     const phase = PHASES[phaseIdx];
@@ -714,10 +758,7 @@ export function createChannel({ seed, audio }){
     drawHud(ctx, { phase });
 
     // vignette
-    const vg = ctx.createRadialGradient(w*0.5, h*0.5, Math.min(w,h)*0.18, w*0.5, h*0.5, Math.max(w,h)*0.86);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.48)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = grads.vignette;
     ctx.fillRect(0,0,w,h);
   }
 
