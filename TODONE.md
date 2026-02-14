@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): UI — clamp/ellipsize HUD badge text so it can’t overflow its rounded-rect container at small resolutions (also clips to badge shape). Screenshots: screenshots/autopilot-2026-02-14-lasercutfile-badge-before + screenshots/autopilot-2026-02-14-lasercutfile-badge-after. Commit: 0efa511
+
 - [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned (prevents stacking/clobbering). Commit: 15db0c8
 
 - [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): perf — cached the inner bed gradient created in `drawBed()` (rebuild on resize/ctx swap) so steady-state render avoids per-frame `createLinearGradient()`. Commit: c952b51

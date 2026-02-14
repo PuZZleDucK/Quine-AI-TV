@@ -86,7 +86,7 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (lasercutfile audio hygiene) -->
 <!-- done: moved to TODONE.md (lasercutfile bed gradient cache) -->
-- [ ] `lasercutfile` (src/channels/lasercutfile.js): UI — clamp/ellipsize HUD badge text (e.g. `MATERIAL CHANGE: …`) so it never overflows its rounded-rect container at small resolutions.
+<!-- done: moved to TODONE.md (lasercutfile HUD badge ellipsize) -->
 
 <!-- done: moved to TODONE.md (lasercutfile sparks determinism / FPS-stable) -->
 <!-- done: moved to TODONE.md (lasercutfile sparks cap perf) -->
