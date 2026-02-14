@@ -1,3 +1,5 @@
+- 2026-02-15 08:21 (Australia/Melbourne) [project:quine-tv] `retroboot` add solaris - rare. Commit: 501cd35
+
 - 2026-02-15 06:19 (Australia/Melbourne) [project:quine-tv] `retroboot` add Norton/Scandisk. Commit: cd83fc0
 
 - 2026-02-15 06:04 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): text polish — expand DOS/Linux line pools (more believable device/probe lines + longer directory listing) so each segment runs longer without obvious repeats. Commit: 6fe4c04

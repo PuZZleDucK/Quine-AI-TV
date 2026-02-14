@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `retroboot` add solaris - rare. Commit: 501cd35
+
 - [x] [project:quine-tv] `retroboot` add BSOD/Kernel Panic - uncommon. Commit: 8188e3a
 
 - [x] [project:quine-tv] `retroboot` add Norton/Scandisk. Commit: cd83fc0
