@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — overlay text overflows out of overlay. Commit: d430929
+
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — moved HUD overlay to the top-right to avoid overlapping boot text. Commit: d3fcf1e
 
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — toned down CRT overlay (scanlines/vignette/flicker/noise) so it’s less intense. Commit: d8d3199
