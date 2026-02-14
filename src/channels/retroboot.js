@@ -258,6 +258,7 @@ export function createChannel({ seed, audio }){
   let buf = null;
   let bctx = null;
   let scanPat = null;
+  let crtOverlay = null; // cached scanlines + vignette (rebuilt on init/resize)
 
   // sequence state
   let segIdx = 0;
@@ -280,6 +281,39 @@ export function createChannel({ seed, audio }){
     macScreen = makeMacScreen(rand);
   }
 
+  function rebuildCrtOverlay(){
+    // Cache scanlines + vignette into an offscreen layer so steady-state renderCRT()
+    // does 0 createPattern()/createRadialGradient() calls.
+    if (!w || !h || !scanPat){
+      crtOverlay = null;
+      return;
+    }
+
+    const o = document.createElement('canvas');
+    o.width = w; o.height = h;
+    const octx = o.getContext('2d');
+
+    // scanlines
+    octx.save();
+    octx.globalAlpha = 0.14;
+    const pat = octx.createPattern(scanPat, 'repeat');
+    if (pat){
+      octx.fillStyle = pat;
+      octx.fillRect(0, 0, w, h);
+    }
+
+    // vignette
+    octx.globalAlpha = 1;
+    const vg = octx.createRadialGradient(w*0.5, h*0.5, Math.min(w,h)*0.2, w*0.5, h*0.5, Math.max(w,h)*0.75);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.55)');
+    octx.fillStyle = vg;
+    octx.fillRect(0, 0, w, h);
+
+    octx.restore();
+    crtOverlay = o;
+  }
+
   const SEGMENTS = [
     { key: 'bios', title: 'POST / BIOS', dur: 9.5 },
     { key: 'dos', title: 'MS-DOS Prompt', dur: 10.5 },
@@ -295,6 +329,7 @@ export function createChannel({ seed, audio }){
     bctx = buf.getContext('2d');
 
     scanPat = makeScanPattern();
+    rebuildCrtOverlay();
 
     segIdx = (seed >>> 0) % SEGMENTS.length;
     segT = 0;
@@ -448,18 +483,9 @@ export function createChannel({ seed, audio }){
     // subtle scanlines + vignette + flicker over whatever is already drawn
     ctx.save();
 
-    // scanlines
-    ctx.globalAlpha = 0.14;
-    ctx.fillStyle = ctx.createPattern(scanPat, 'repeat');
-    ctx.fillRect(0, 0, w, h);
-
-    // vignette
-    const vg = ctx.createRadialGradient(w*0.5, h*0.5, Math.min(w,h)*0.2, w*0.5, h*0.5, Math.max(w,h)*0.75);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.55)');
+    // scanlines + vignette (cached)
     ctx.globalAlpha = 1;
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, w, h);
+    if (crtOverlay) ctx.drawImage(crtOverlay, 0, 0);
 
     // flicker
     const flickerBucket = Math.floor(t * 24);
