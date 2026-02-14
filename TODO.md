@@ -3,7 +3,7 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [project:quine-tv] `retroboot` (src/channels/retroboot.js): long-run interest — extend the segment cycle to ~3–5 minutes 
+<!-- done: moved to TODONE.md -->
 - [project:quine-tv] `retroboot` add Win9x splash/installer.
 - [project:quine-tv] `retroboot` add Norton/Scandisk.
 - [project:quine-tv] `retroboot` add BSOD/Kernel Panic - uncommon.

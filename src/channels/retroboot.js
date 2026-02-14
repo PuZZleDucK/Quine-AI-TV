@@ -314,11 +314,14 @@ export function createChannel({ seed, audio }){
     crtOverlay = o;
   }
 
+  // Stretch the loop to ~3–5 minutes total (default was ~41s).
+  const SEG_DUR_SCALE = 5.5;
+
   const SEGMENTS = [
-    { key: 'bios', title: 'POST / BIOS', dur: 9.5 },
-    { key: 'dos', title: 'MS-DOS Prompt', dur: 10.5 },
-    { key: 'mac', title: 'Classic Desktop', dur: 9.5 },
-    { key: 'linux', title: 'Linux Boot Log', dur: 11.5 },
+    { key: 'bios', title: 'POST / BIOS', dur: 9.5 * SEG_DUR_SCALE },
+    { key: 'dos', title: 'MS-DOS Prompt', dur: 10.5 * SEG_DUR_SCALE },
+    { key: 'mac', title: 'Classic Desktop', dur: 9.5 * SEG_DUR_SCALE },
+    { key: 'linux', title: 'Linux Boot Log', dur: 11.5 * SEG_DUR_SCALE },
   ];
 
   // Fixed-timestep simulation so click/beep schedules are stable across FPS.

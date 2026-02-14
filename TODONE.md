@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): long-run interest — extend the segment cycle to ~3–5 minutes (dur scale 5.5×; ~3.8 min loop). Commit: 805ef37
+
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — tone down CRT flashing intensity (reduced flicker alpha + clamp). Commit: c35b4e7
 
 - [x] [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — overlay text overflows out of overlay. Commit: d430929
