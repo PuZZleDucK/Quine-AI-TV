@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-15
 import { mulberry32, clamp } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
@@ -18,6 +19,7 @@ function roundedRect(ctx, x, y, w, h, r){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  let audioRand = mulberry32((seed ^ 0x6e0f1f2b) >>> 0);
 
   let w = 0;
   let h = 0;
@@ -284,6 +286,8 @@ export function createChannel({ seed, audio }){
     phaseIndex = -1;
     beatPulse = 0;
 
+    audioRand = mulberry32((seed ^ 0x6e0f1f2b) >>> 0);
+
     neonFlicker = 0;
     nextFlickerAt = 1.2 + rand() * 3.4;
 
@@ -323,7 +327,7 @@ export function createChannel({ seed, audio }){
     // soft room hum + a little sudsy noise
     humOsc = ctx.createOscillator();
     humOsc.type = 'triangle';
-    humOsc.frequency.value = 58 + rand() * 8;
+    humOsc.frequency.value = 58 + audioRand() * 8;
 
     humGain = ctx.createGain();
     humGain.gain.value = 0.0;
@@ -335,7 +339,7 @@ export function createChannel({ seed, audio }){
     humOsc.start();
     noise.start();
 
-    drone = simpleDrone(audio, { root: 46 + rand() * 10, detune: 0.6, gain: 0.010 });
+    drone = simpleDrone(audio, { root: 46 + audioRand() * 10, detune: 0.6, gain: 0.010 });
 
     ambience = {
       stop(){
@@ -424,7 +428,7 @@ export function createChannel({ seed, audio }){
     if (t >= nextFlickerAt){
       neonFlicker = 1;
       nextFlickerAt = t + 2.2 + rand() * 6.5;
-      if (audio.enabled && rand() < 0.25) safeBeep({ freq: 780 + rand() * 120, dur: 0.03, gain: 0.006, type: 'square' });
+      if (audio.enabled && audioRand() < 0.25) safeBeep({ freq: 780 + audioRand() * 120, dur: 0.03, gain: 0.006, type: 'square' });
     }
 
     // lost sock alert card
