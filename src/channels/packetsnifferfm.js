@@ -241,15 +241,37 @@ export function createChannel({ seed, audio }){
     };
   }
 
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = ah;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      try { audio.stopCurrent(); } catch {}
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ah = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Idempotent: avoid stacking/overlapping our own ambience if called repeatedly.
+    if (ah){
+      if (audio.current !== ah) audio.setCurrent(ah);
+      return;
+    }
+
     ah = makeAudioHandle();
     audio.setCurrent(ah);
   }
 
   function onAudioOff(){
-    try { ah?.stop?.(); } catch {}
-    ah = null;
+    // Only clears AudioManager.current when we own it.
+    stopAmbience({ clearCurrent: true });
   }
 
   function destroy(){ onAudioOff(); }
