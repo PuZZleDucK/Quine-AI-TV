@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-15
 import { mulberry32, clamp } from '../util/prng.js';
 
 function lerp(a, b, t){ return a + (b - a) * t; }
@@ -27,6 +28,7 @@ function fmt(sec){
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
+  const audioRand = mulberry32(((seed | 0) ^ 0x5bd1e995) >>> 0);
 
   const RESET = {
     title: 'TIDY DESK RESET',
@@ -59,6 +61,35 @@ export function createChannel({ seed, audio }){
   let ambience = null;
   let wipeAcc = 0;
   let didStepChime = false;
+
+  // perf: cache background gradients (rebuild on resize / ctx swap)
+  let bgGrad = null;
+  let woodGrad = null;
+  let vignetteGrad = null;
+  let gradCacheW = 0;
+  let gradCacheH = 0;
+  let gradCacheCtx = null;
+
+  function ensureDeskGradients(ctx, d){
+    if (!bgGrad || !woodGrad || !vignetteGrad || gradCacheW !== w || gradCacheH !== h || gradCacheCtx !== ctx){
+      gradCacheW = w;
+      gradCacheH = h;
+      gradCacheCtx = ctx;
+
+      bgGrad = ctx.createRadialGradient(w * 0.52, h * 0.18, 10, w * 0.52, h * 0.18, Math.max(w, h) * 0.9);
+      bgGrad.addColorStop(0, '#1c2632');
+      bgGrad.addColorStop(0.55, '#0b1119');
+      bgGrad.addColorStop(1, '#05070c');
+
+      woodGrad = ctx.createLinearGradient(d.x, d.y, d.x + d.w, d.y + d.h);
+      woodGrad.addColorStop(0, 'rgba(92, 60, 38, 0.94)');
+      woodGrad.addColorStop(1, 'rgba(32, 20, 12, 1)');
+
+      vignetteGrad = ctx.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.45, Math.max(w, h) * 0.75);
+      vignetteGrad.addColorStop(0, 'rgba(255,255,255,0.06)');
+      vignetteGrad.addColorStop(1, 'rgba(0,0,0,0.62)');
+    }
+  }
 
   function curStep(){ return RESET.steps[stepIndex] || null; }
 
@@ -224,14 +255,28 @@ export function createChannel({ seed, audio }){
 
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // idempotent: stop any existing handles we own first
+    onAudioOff();
+
     const n = audio.noiseSource({ type: 'pink', gain: 0.0016 });
     n.start();
-    ambience = { stop(){ n.stop(); } };
+
+    ambience = {
+      stop(){
+        try { n.stop(); } catch {}
+      }
+    };
+
     audio.setCurrent(ambience);
   }
 
   function onAudioOff(){
     try { ambience?.stop?.(); } catch {}
+
+    // only clear AudioManager.current if we own it
+    if (audio.current === ambience) audio.current = null;
+
     ambience = null;
   }
 
@@ -241,8 +286,8 @@ export function createChannel({ seed, audio }){
 
   function chime(kind='check'){
     if (!audio.enabled) return;
-    if (kind === 'wipe') audio.beep({ freq: 2200 + rand() * 300, dur: 0.01, gain: 0.004, type: 'triangle' });
-    else audio.beep({ freq: 720 + rand() * 120, dur: 0.028, gain: 0.018, type: 'triangle' });
+    if (kind === 'wipe') audio.beep({ freq: 2200 + audioRand() * 300, dur: 0.01, gain: 0.004, type: 'triangle' });
+    else audio.beep({ freq: 720 + audioRand() * 120, dur: 0.028, gain: 0.018, type: 'triangle' });
   }
 
   function update(dt){
@@ -306,20 +351,15 @@ export function createChannel({ seed, audio }){
   function drawDesk(ctx){
     const d = deskRect();
 
+    ensureDeskGradients(ctx, d);
+
     // background
-    const bg = ctx.createRadialGradient(w * 0.52, h * 0.18, 10, w * 0.52, h * 0.18, Math.max(w, h) * 0.9);
-    bg.addColorStop(0, '#1c2632');
-    bg.addColorStop(0.55, '#0b1119');
-    bg.addColorStop(1, '#05070c');
-    ctx.fillStyle = bg;
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
     // desk surface
     ctx.save();
-    const wood = ctx.createLinearGradient(d.x, d.y, d.x + d.w, d.y + d.h);
-    wood.addColorStop(0, 'rgba(92, 60, 38, 0.94)');
-    wood.addColorStop(1, 'rgba(32, 20, 12, 1)');
-    ctx.fillStyle = wood;
+    ctx.fillStyle = woodGrad;
     roundRect(ctx, d.x, d.y, d.w, d.h, Math.max(18, Math.floor(font * 1.2)));
     ctx.fill();
 
@@ -338,10 +378,7 @@ export function createChannel({ seed, audio }){
 
     // vignette
     ctx.save();
-    const vg = ctx.createRadialGradient(w * 0.5, h * 0.45, 0, w * 0.5, h * 0.45, Math.max(w, h) * 0.75);
-    vg.addColorStop(0, 'rgba(255,255,255,0.06)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.62)');
-    ctx.fillStyle = vg;
+    ctx.fillStyle = vignetteGrad;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
