@@ -797,11 +797,34 @@ export function createChannel({ seed, audio }){
   function drawHud(ctx, title){
     const s = Math.min(w, h);
     const pad = Math.max(10, Math.floor(s * 0.02));
-    const boxW = Math.floor(s * 0.52);
-    const boxH = Math.floor(s * 0.10);
+
+    // Fit within canvas on extreme aspect ratios / tiny renders.
+    const maxBoxW = Math.max(80, w - pad * 2);
+    const maxBoxH = Math.max(28, h - pad * 2);
+    const boxW = Math.min(Math.floor(s * 0.52), maxBoxW);
+    const boxH = Math.min(Math.floor(s * 0.10), maxBoxH);
+
     // Top-right overlay to avoid colliding with the boot text.
     const x = Math.max(pad, w - pad - boxW);
     const y = pad;
+
+    const ellipsize = (text, maxW) => {
+      if (!text) return '';
+      if (ctx.measureText(text).width <= maxW) return text;
+      const ell = '…';
+      const ellW = ctx.measureText(ell).width;
+      if (ellW > maxW) return '';
+
+      let lo = 0, hi = text.length;
+      while (lo < hi){
+        const mid = Math.floor((lo + hi) / 2);
+        const s = text.slice(0, mid) + ell;
+        if (ctx.measureText(s).width <= maxW) lo = mid + 1;
+        else hi = mid;
+      }
+      const n = Math.max(0, lo - 1);
+      return text.slice(0, n) + ell;
+    };
 
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -811,18 +834,27 @@ export function createChannel({ seed, audio }){
     ctx.fill();
     ctx.stroke();
 
-    // Clip contents so text can’t overflow the rounded HUD container (small renders / long titles).
+    // Clip contents so text can’t overflow the rounded HUD container.
     ctx.save();
     roundRect(ctx, x+1, y+1, boxW-2, boxH-2, 11);
     ctx.clip();
 
-    ctx.fillStyle = 'rgba(255,255,255,0.86)';
-    ctx.font = `${Math.floor(boxH*0.34)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.fillText('RETRO BOOT SEQUENCE', x + 14, y + Math.floor(boxH*0.24));
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
 
+    // Leave room for the disk LED.
+    const textX = x + 14;
+    const textMaxW = Math.max(10, boxW - 14 - 34);
+
+    const l1Px = Math.max(10, Math.floor(boxH * 0.34));
+    ctx.fillStyle = 'rgba(255,255,255,0.86)';
+    ctx.font = `${l1Px}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.fillText(ellipsize('RETRO BOOT SEQUENCE', textMaxW), textX, y + Math.floor(boxH * 0.16));
+
+    const l2Px = Math.max(10, Math.floor(boxH * 0.30));
     ctx.fillStyle = 'rgba(255,210,140,0.90)';
-    ctx.font = `${Math.floor(boxH*0.30)}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-    ctx.fillText(title, x + 14, y + Math.floor(boxH*0.66));
+    ctx.font = `${l2Px}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.fillText(ellipsize(title, textMaxW), textX, y + Math.floor(boxH * 0.56));
 
     // disk LED
     const ledX = x + boxW - 18;
