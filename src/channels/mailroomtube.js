@@ -95,6 +95,11 @@ export function createChannel({ seed, audio }){
   const warn = `hsla(${(hue + 330) % 360}, 92%, 60%, 0.95)`;
   const ok = `hsla(${(hue + 30) % 360}, 92%, 58%, 0.95)`;
 
+  // Station status lamp colors (UI state indicator).
+  const lampOk = `hsla(${(hue + 30) % 360}, 92%, 58%, 1)`;
+  const lampCong = `hsla(45, 95%, 60%, 1)`;
+  const lampJam = `hsla(335, 95%, 62%, 1)`;
+
   let font = 16;
   let mono = 14;
 
@@ -649,14 +654,67 @@ export function createChannel({ seed, audio }){
       ctx.font = `${Math.floor(font * 0.9)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
       ctx.fillText(STATION_NAMES[key], x + pad, y + sh * 0.5);
 
-      // status lamp
+      // status lamp (local station state)
       const lampX = x + sw - pad * 1.1;
       const lampY = y + sh * 0.5;
+      const lampR = Math.max(3, sh * 0.12);
+
+      const jamHere = !!(jam && (EDGES[jam.edgeIdx]?.from === key || EDGES[jam.edgeIdx]?.to === key));
+
+      const sx = p[0], sy = p[1];
+      const nearR = sh * 0.72;
+      const nearR2 = nearR * nearR;
+      let near = 0;
+      for (const c of cans){
+        if (!c.active) continue;
+        let px, py;
+        if (c.edgeIdx >= 0){
+          const e = EDGES[c.edgeIdx].edge;
+          pointAt(e, c.s, tmpP);
+          px = tmpP[0]; py = tmpP[1];
+        } else {
+          const sp = stationPx[c.from];
+          px = sp[0]; py = sp[1];
+        }
+        const dx = px - sx;
+        const dy = py - sy;
+        if (dx*dx + dy*dy <= nearR2) near++;
+      }
+
+      const congested = !jamHere && near >= 3;
+
+      const lampCol = jamHere ? lampJam : (congested ? lampCong : lampOk);
+      const pulse = jamHere ? (0.65 + 0.35 * Math.sin(t * 9)) : (congested ? (0.85 + 0.15 * Math.sin(t * 4)) : 1);
+
+      // bezel
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.arc(lampX, lampY, lampR * 1.25, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      // glow + core
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
-      ctx.fillStyle = ok;
+      ctx.fillStyle = lampCol;
+
+      ctx.globalAlpha = 0.20 * pulse;
       ctx.beginPath();
-      ctx.arc(lampX, lampY, Math.max(3, sh * 0.12), 0, Math.PI*2);
+      ctx.arc(lampX, lampY, lampR * 3.2, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.globalAlpha = 0.55 * pulse;
+      ctx.beginPath();
+      ctx.arc(lampX, lampY, lampR * 1.35, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = 0.88;
+      ctx.fillStyle = lampCol;
+      ctx.beginPath();
+      ctx.arc(lampX, lampY, lampR, 0, Math.PI*2);
       ctx.fill();
       ctx.restore();
     }
