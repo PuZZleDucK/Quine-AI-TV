@@ -1,4 +1,4 @@
-- 2026-02-15 05:33 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): long-run interest — extend the segment cycle to ~3–5 minutes (dur scale 5.5×; ~3.8 min loop). Commit: 805ef37
+- 2026-02-15 05:33 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): long-run interest — extend the segment cycle to ~3–5 minutes (dur scale 5.5×; ~3.8 min loop). Commit: f49216d
 
 - 2026-02-15 05:01 (Australia/Melbourne) [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — tone down CRT flashing intensity (reduced flicker alpha + clamp). Commit: c35b4e7
 
