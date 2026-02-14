@@ -407,8 +407,11 @@ export function createChannel({ seed, audio }){
 
     // rare special moments (~90–300s cadence; deterministic per seed)
     if (!special && t >= nextSpecialAt){
-      const kind = pick(momentRand, ['CAT VISIT', 'PHONE BUZZ']);
-      const dur = (kind === 'CAT VISIT') ? (7.0 + momentRand() * 3.0) : (6.0 + momentRand() * 3.0);
+      const kind = pick(momentRand, ['CAT VISIT', 'PHONE BUZZ', 'PAPER AIRPLANE']);
+      const dur =
+        (kind === 'CAT VISIT') ? (7.0 + momentRand() * 3.0) :
+        (kind === 'PHONE BUZZ') ? (6.0 + momentRand() * 3.0) :
+        (6.5 + momentRand() * 3.5);
       const col = pick(momentRand, [RESET.palette.a, RESET.palette.b, RESET.palette.c]);
 
       if (kind === 'CAT VISIT'){
@@ -423,11 +426,29 @@ export function createChannel({ seed, audio }){
           });
         }
         special = { kind, t0: t, dur, col, pts };
-      } else {
+      } else if (kind === 'PHONE BUZZ'){
         special = { kind, t0: t, dur, col, ph: momentRand() * Math.PI * 2 };
 
         // tiny deterministic buzz cue
         if (audio.enabled) audio.beep({ freq: 180 + momentRand() * 40, dur: 0.06, gain: 0.010, type: 'square' });
+      } else {
+        // PAPER AIRPLANE
+        special = {
+          kind,
+          t0: t,
+          dur,
+          col,
+          sx: 0.18 + momentRand() * 0.10,
+          sy: 0.28 + momentRand() * 0.14,
+          ex: 0.86 + momentRand() * 0.10,
+          ey: 0.54 + momentRand() * 0.18,
+          wob: 0.012 + momentRand() * 0.020,
+          ph: momentRand() * Math.PI * 2,
+          s: 0.85 + momentRand() * 0.35,
+        };
+
+        // tiny deterministic whoosh cue
+        if (audio.enabled) audio.beep({ freq: 540 + momentRand() * 120, dur: 0.05, gain: 0.006, type: 'triangle' });
       }
     }
 
@@ -914,6 +935,72 @@ export function createChannel({ seed, audio }){
         ctx.lineTo(bx + ox + 8, by + hh * 0.32);
         ctx.stroke();
       }
+
+      ctx.restore();
+    } else if (special.kind === 'PAPER AIRPLANE'){
+      const sx = special.sx ?? 0.2;
+      const sy = special.sy ?? 0.3;
+      const ex = special.ex ?? 0.9;
+      const ey = special.ey ?? 0.6;
+      const ph = special.ph || 0;
+      const wob = special.wob || 0;
+
+      const tt = ease(u);
+      const x0 = d.x + d.w * sx;
+      const y0 = d.y + d.h * sy;
+      const x1 = d.x + d.w * ex;
+      const y1 = d.y + d.h * ey;
+
+      const px = lerp(x0, x1, tt) + Math.sin(tt * Math.PI * 2 * 2.0 + ph) * d.w * wob;
+      const py = lerp(y0, y1, tt) + Math.sin(tt * Math.PI * 2 * 1.3 + ph * 1.7) * d.h * wob * 0.7;
+      const ang = Math.atan2(y1 - y0, x1 - x0) + Math.sin(tt * Math.PI * 2 + ph) * 0.18;
+
+      const sc = (special.s || 1) * (0.92 + 0.08 * Math.sin(tt * Math.PI));
+      const base = Math.max(0.6, Math.min(d.w, d.h) / 700) * sc;
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(ang);
+
+      // faint trail
+      ctx.globalAlpha = a * 0.16;
+      ctx.strokeStyle = special.col;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-78 * base, 0);
+      ctx.quadraticCurveTo(-44 * base, -10 * base, -10 * base, 0);
+      ctx.stroke();
+
+      // shadow
+      ctx.globalAlpha = a * 0.22;
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.beginPath();
+      ctx.moveTo(-44 * base + 6, 0 + 5);
+      ctx.lineTo(44 * base + 6, -14 * base + 5);
+      ctx.lineTo(12 * base + 6, 0 + 5);
+      ctx.lineTo(44 * base + 6, 14 * base + 5);
+      ctx.closePath();
+      ctx.fill();
+
+      // plane
+      ctx.globalAlpha = a * 0.72;
+      ctx.fillStyle = 'rgba(231,238,246,0.82)';
+      ctx.beginPath();
+      ctx.moveTo(-44 * base, 0);
+      ctx.lineTo(44 * base, -14 * base);
+      ctx.lineTo(12 * base, 0);
+      ctx.lineTo(44 * base, 14 * base);
+      ctx.closePath();
+      ctx.fill();
+
+      // fold line
+      ctx.globalAlpha = a * 0.22;
+      ctx.strokeStyle = special.col;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-26 * base, 0);
+      ctx.lineTo(18 * base, 0);
+      ctx.stroke();
 
       ctx.restore();
     }
