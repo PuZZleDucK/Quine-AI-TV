@@ -16,7 +16,7 @@ if `TODO.md` has no ready items:
 - [ ] `mailroomtube` (src/channels/mailroomtube.js): determinism — convert `update(dt)` to a fixed-timestep sim loop (e.g. `SIM_DT=1/60` accumulator) so 30fps/60fps captures match and rand() consumption is cadence-stable.
 <!-- done: moved to TODONE.md (mailroomtube grid cache) -->
 <!-- done: moved to TODONE.md (mailroomtube status lamp) -->
-- [ ] `mailroomtube` (src/channels/mailroomtube.js): text — add a seeded rotating “dispatch log” strip in the HUD (OSD-safe; ~5–8 minutes before repeating).
+<!-- done: moved to TODONE.md (mailroomtube dispatch log strip) -->
 - [ ] `mailroomtube` (src/channels/mailroomtube.js): special moment — add rare deterministic “PRIORITY EXPRESS” event (~60–180s) (distinct canister + HUD badge + short audio sting) with clean reset.
 
 ## Follow-ups queued from review: tugdispatch

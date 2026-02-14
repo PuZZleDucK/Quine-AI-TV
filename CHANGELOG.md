@@ -1,3 +1,5 @@
+- 2026-02-14 20:35 (Australia/Melbourne) [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): text — added a seeded rotating “dispatch log” strip in the HUD (OSD-safe; ~6 minutes before repeating). Commit: f70f68d
+
 - 2026-02-14 20:15 (Australia/Melbourne) [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): UI — station status lamps now reflect local state (jam/pink, congestion/amber based on nearby canisters, ok/green) with subtle screen-blend glow. Commit: c71a9c9
 
 - 2026-02-14 20:03 (Australia/Melbourne) [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): perf — cached the moving grid/scan background as a repeating pattern tile (rebuild on resize / ctx swap) so steady-state render avoids per-frame stroking ~N vertical lines. Commit: 7b00e7d
