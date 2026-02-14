@@ -63,7 +63,6 @@ if `TODO.md` has no ready items:
 
 <!-- done: moved to TODONE.md (news OSD safety logo safe-rect) -->
 <!-- done: moved to TODONE.md (news ticker cache) -->
-- [ ] `news` (src/channels/news.js): text/layout — wrap or ellipsize the main headline so long strings don’t clip off-screen at smaller resolutions.
 - [ ] `news` (src/channels/news.js): special moments — add 1–2 rare deterministic events (~45–120s) with a clear “broadcast” signature (e.g. BREAKING banner + flash, FIELD REPORT lower-third sweep), clean reset, and OSD-safe placement.
 - [ ] `news` (src/channels/news.js): audio hygiene — make `onAudioOn()` idempotent and ensure `onAudioOff()`/`destroy()` clear AudioManager.current only when owned (match other channels).
 

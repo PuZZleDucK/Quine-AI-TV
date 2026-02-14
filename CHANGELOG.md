@@ -1,3 +1,5 @@
+- 2026-02-14 12:47 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): text/layout — wrapped the main headline (2 lines) and ellipsized overflow to prevent off-screen clipping at smaller resolutions. Commit: 0db3977
+
 - 2026-02-14 12:33 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): ticker perf/allocs — cached `tickerText` + stable `tickerWidth` (rebuild on headline rotate / resize) and render now uses the cached string. Commit: bd5c29d
 
 - 2026-02-14 12:17 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): OSD safety — constrained the bouncing ODD NEWS logo so it won’t overlap the top-left LIVE/time bug (safe rectangle + push-out). Screenshots: screenshots/autopilot-news-osd-before + screenshots/autopilot-news-osd-after. Commit: da5aa95
