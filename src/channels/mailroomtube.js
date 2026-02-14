@@ -525,7 +525,11 @@ export function createChannel({ seed, audio }){
     stopMusic({ clearCurrent: true });
   }
 
-  function update(dt){
+  const SIM_DT = 1 / 60;
+  let simAcc = 0;
+  const MAX_SIM_STEPS = 20;
+
+  function simStep(dt){
     t += dt;
     phaseT += dt;
 
@@ -635,6 +639,23 @@ export function createChannel({ seed, audio }){
       if (!c.express && phase().id === 'close' && rand() < 0.0025){
         c.active = false;
       }
+    }
+  }
+
+  function update(dt){
+    // Fixed-timestep sim loop for FPS-stable captures (deterministic RNG consumption).
+    const clamped = clamp(dt || 0, 0, 0.25);
+    simAcc += clamped;
+
+    // Avoid spiral-of-death after tab-switch stalls.
+    const maxAcc = SIM_DT * MAX_SIM_STEPS;
+    if (simAcc > maxAcc) simAcc = maxAcc;
+
+    let steps = 0;
+    while (simAcc >= SIM_DT && steps < MAX_SIM_STEPS){
+      simStep(SIM_DT);
+      simAcc -= SIM_DT;
+      steps++;
     }
   }
 
