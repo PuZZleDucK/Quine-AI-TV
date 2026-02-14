@@ -5,6 +5,8 @@ if `TODO.md` has no ready items:
 
 ## Channel review queue
 
+<!-- done: reviewed `tidydesk` (2026-02-15) → TODONE.md -->
+
 <!-- done: reviewed `nightmarket` (2026-02-14) → TODONE.md -->
 
 <!-- done: reviewed `mailroomtube` (2026-02-14) → TODONE.md -->
@@ -127,3 +129,11 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (micromyst audio hygiene/determinism: audioRand split + onAudioOn idempotent) -->
 
 <!-- done: moved to TODONE.md (micromyst special moments/text). Commit: 4bd0587 -->
+
+## Follow-ups queued from review: tidydesk
+
+<!-- done: moved to TODONE.md (tidydesk desk gradients cache). Commit: d3e98a9 -->
+<!-- done: moved to TODONE.md (tidydesk deskRect cached once per render). Commit: c649d51 -->
+- [ ] `tidydesk` (src/channels/tidydesk.js): long-run interest — add 1–2 rare deterministic “special moments” (e.g. CAT VISIT / PHONE BUZZ / PAPER AIRPLANE) scheduled ~90–300s with OSD-safe banner + clean reset.
+- [ ] `tidydesk` (src/channels/tidydesk.js): variety — expand subtitle/footer text via a seeded rotating line pool (5+ minutes, no repeats) and/or alternate step label variants.
+- [ ] `tidydesk` (src/channels/tidydesk.js): determinism — consider a fixed-timestep sim loop (`SIM_DT=1/60`) so 30fps/60fps captures match for the same seed.

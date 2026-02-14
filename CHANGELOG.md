@@ -1,3 +1,9 @@
+- 2026-02-15 02:17 (Australia/Melbourne) [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): perf — compute `deskRect()` once per render (pass `d` into draw helpers) instead of recomputing per item. Commit: c649d51
+
+- 2026-02-15 02:00 (Australia/Melbourne) [project:quine-tv] `tidydesk` (src/channels/tidydesk.js): perf — cached desk background gradients (bg/wood/vignette) (rebuild on resize/ctx swap) so steady-state `render()` allocates 0 gradients/frame. Commit: d3e98a9
+
+- 2026-02-15 01:54 (Australia/Melbourne) [project:quine-tv] Review channel `tidydesk` (src/channels/tidydesk.js): captured screenshots (0–300s) to `screenshots/review-tidydesk` + completion shots to `screenshots/review-tidydesk-2026-02-15-post` (errors/warnings: 0), added `// REVIEWED: 2026-02-15`, and fixed audio determinism/hygiene by splitting an `audioRand` PRNG and making `onAudioOn()` idempotent (audio no longer consumes the visual RNG sequence). Commit: TBD
+
 - 2026-02-15 01:21 (Australia/Melbourne) [project:quine-tv] `micromyst` (src/channels/micromystery.js): determinism — removed `rand()` usage from `render()` via deterministic (seeded) time-bucketed grain variants + per-line jitter hash (FPS-stable render). Commit: 018201a
 
 - 2026-02-15 01:05 (Australia/Melbourne) [project:quine-tv] `micromyst` (src/channels/micromystery.js): special moments/text — added 1–2 rare deterministic “ALERT” moments (~2–5 min) (CASE REOPENED / REDACTION SWEEP / INK BLOT) and expanded text pools to reduce repetition. Commit: 4bd0587
