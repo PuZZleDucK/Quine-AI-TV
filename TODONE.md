@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): special moments — added rare deterministic moments (AURORA ribbon sweep + optional BUOY blink / KEEPER silhouette) planned per cycle in a ~60–150s window, with an OSD-safe EVENT badge and clean reset. Commit: 149523f
+
 - [x] [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): visuals — added a subtle cached cliff/rock texture + ridge rim-light so the left foreground reads less like a flat black wedge. Screenshots: screenshots/autopilot-lighthouse-cliff-texture-before + screenshots/autopilot-lighthouse-cliff-texture-after. Commit: 34f77c9
 
 - [x] [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): audio hygiene — made `onAudioOn()` idempotent (no stacking) and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned. Commit: TBD

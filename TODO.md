@@ -64,4 +64,4 @@ if `TODO.md` has no ready items:
 <!-- done: moved to TODONE.md (lighthouse rain determinism) -->
 <!-- done: moved to TODONE.md (lighthouse gradient cache) -->
 <!-- done: moved to TODONE.md (lighthouse cliff texture) -->
-- [ ] `lighthouse` (src/channels/lighthousewatch.js): special moments — add 1–2 rare deterministic events beyond storm/ship (e.g. AURORA ribbon sweep / BUOY BLINK / KEEPER SILHOUETTE) scheduled ~60–150s, with an OSD-safe label and clean reset.
+<!-- done: moved to TODONE.md (lighthouse special moments) -->
