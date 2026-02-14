@@ -1,3 +1,5 @@
+- 2026-02-14 19:49 (Australia/Melbourne) [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): audio hygiene — made `onAudioOn()` idempotent (no stacked sources) and added a tiny noise fade-out on stop to reduce clicks. Commit: bb9d616
+
 - 2026-02-14 19:21 (Australia/Melbourne) [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): UI — clamp/ellipsize HUD badge text so it can’t overflow its rounded-rect container at small resolutions. Commit: 0efa511
 
 - 2026-02-14 19:02 (Australia/Melbourne) [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear AudioManager.current when owned (prevents stacking/clobbering). Commit: 15db0c8

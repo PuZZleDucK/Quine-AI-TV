@@ -5,10 +5,19 @@ if `TODO.md` has no ready items:
 
 ## Channel review queue
 
-<!-- (empty) -->
+- [ ] Review channel `mailroomtube` (src/channels/mailroomtube.js): capture screenshots (0–300s), do code+audio/perf review, add `// REVIEWED: 2026-02-14`, and queue concrete follow-ups in TODO.md.
+
 <!-- done: reviewed `news` (2026-02-14) → TODONE.md -->
 
 <!-- done: moved to TODONE.md -->
+
+## Follow-ups queued from review: mailroomtube
+
+- [ ] `mailroomtube` (src/channels/mailroomtube.js): determinism — convert `update(dt)` to a fixed-timestep sim loop (e.g. `SIM_DT=1/60` accumulator) so 30fps/60fps captures match and rand() consumption is cadence-stable.
+- [ ] `mailroomtube` (src/channels/mailroomtube.js): perf — cache the moving grid/scan background into an offscreen layer (rebuild on resize); render via blit/translate instead of per-frame stroking ~N vertical lines.
+- [ ] `mailroomtube` (src/channels/mailroomtube.js): UI — make station “status lamp” reflect local state (jam/red, congestion/amber based on nearby canisters, ok/green) with subtle screen blend glow.
+- [ ] `mailroomtube` (src/channels/mailroomtube.js): text — add a seeded rotating “dispatch log” strip in the HUD (OSD-safe; ~5–8 minutes before repeating).
+- [ ] `mailroomtube` (src/channels/mailroomtube.js): special moment — add rare deterministic “PRIORITY EXPRESS” event (~60–180s) (distinct canister + HUD badge + short audio sting) with clean reset.
 
 ## Follow-ups queued from review: tugdispatch
 
