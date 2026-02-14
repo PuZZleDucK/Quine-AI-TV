@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): perf — cached the moving grid/scan background as a repeating pattern tile (rebuild on resize / ctx swap) so steady-state render avoids per-frame stroking ~N vertical lines. Commit: 7b00e7d
+
 - [x] [project:quine-tv] `mailroomtube` (src/channels/mailroomtube.js): audio hygiene — made `onAudioOn()` idempotent (no stacked sources) and added a tiny noise fade-out on stop to reduce clicks. Commit: bb9d616
 
 - [x] [project:quine-tv] `lasercutfile` (src/channels/lasercutfile.js): UI — clamp/ellipsize HUD badge text so it can’t overflow its rounded-rect container at small resolutions (also clips to badge shape). Screenshots: screenshots/autopilot-2026-02-14-lasercutfile-badge-before + screenshots/autopilot-2026-02-14-lasercutfile-badge-after. Commit: 0efa511
