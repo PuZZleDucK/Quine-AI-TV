@@ -38,10 +38,27 @@ function roundRect(ctx, x, y, w, h, r){
   ctx.closePath();
 }
 
+function cliffHillPath(ctx, w, h, horizon){
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  ctx.lineTo(0, horizon + h * 0.12);
+  ctx.quadraticCurveTo(w * 0.18, horizon + h * 0.02, w * 0.35, horizon + h * 0.10);
+  ctx.quadraticCurveTo(w * 0.48, horizon + h * 0.18, w * 0.6, h);
+  ctx.closePath();
+}
+
+function cliffRidgePath(ctx, w, h, horizon){
+  ctx.beginPath();
+  ctx.moveTo(0, horizon + h * 0.12);
+  ctx.quadraticCurveTo(w * 0.18, horizon + h * 0.02, w * 0.35, horizon + h * 0.10);
+  ctx.quadraticCurveTo(w * 0.48, horizon + h * 0.18, w * 0.6, h);
+}
+
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
-  // Derive a stable salt without consuming the channel PRNG (keeps existing seeds/visuals stable).
+  // Derive stable salts without consuming the channel PRNG (keeps existing seeds/visuals stable).
   const rainSalt = hashU32((seed | 0) ^ 0x4a39b70d);
+  const cliffSalt = hashU32((seed | 0) ^ 0x73c1fe21);
 
   let w = 0, h = 0, t = 0;
 
@@ -63,6 +80,8 @@ export function createChannel({ seed, audio }){
     beam: [],
     beamLen: 0,
     core: null,
+    cliffPattern: null,
+    cliffShade: null,
   };
 
   function bucket01(x, steps){
@@ -115,6 +134,58 @@ export function createChannel({ seed, audio }){
       g.addColorStop(1, 'rgba(2, 4, 8, 1)');
       return g;
     });
+
+    // Cliff texture (cached pattern + shade)
+    try {
+      const sz = 96;
+      const tile = (typeof OffscreenCanvas !== 'undefined')
+        ? new OffscreenCanvas(sz, sz)
+        : (typeof document !== 'undefined' ? Object.assign(document.createElement('canvas'), { width: sz, height: sz }) : null);
+
+      if (tile){
+        const tctx = tile.getContext('2d');
+        if (tctx){
+          tctx.fillStyle = 'rgb(6,7,10)';
+          tctx.fillRect(0, 0, sz, sz);
+
+          // Speckle + chips (deterministic).
+          for (let i = 0; i < 260; i++){
+            const r0 = hash01(cliffSalt + i * 1013);
+            const r1 = hash01(cliffSalt + i * 2029);
+            const r2 = hash01(cliffSalt + i * 3049);
+            const x = (r0 * sz) | 0;
+            const y = (r1 * sz) | 0;
+            const s = 1 + ((r2 * 3) | 0);
+            const a = 0.10 + r2 * 0.22;
+            tctx.fillStyle = `rgba(110,130,160,${a})`;
+            tctx.fillRect(x, y, s, s);
+          }
+
+          // Faint strata lines.
+          tctx.globalAlpha = 0.22;
+          tctx.strokeStyle = 'rgba(60,70,90,1)';
+          tctx.lineWidth = 1;
+          for (let j = 0; j < 10; j++){
+            const rr = hash01(cliffSalt + 9000 + j * 17);
+            const yy = rr * sz;
+            tctx.beginPath();
+            tctx.moveTo(-10, yy);
+            tctx.lineTo(sz + 10, yy + (rr * 18 - 9));
+            tctx.stroke();
+          }
+          tctx.globalAlpha = 1;
+
+          gradCache.cliffPattern = ctx.createPattern(tile, 'repeat');
+        }
+      }
+    } catch {
+      gradCache.cliffPattern = null;
+    }
+
+    gradCache.cliffShade = ctx.createLinearGradient(0, horizon, 0, h);
+    gradCache.cliffShade.addColorStop(0, 'rgba(150,170,210,0.22)');
+    gradCache.cliffShade.addColorStop(0.65, 'rgba(20,25,35,0)');
+    gradCache.cliffShade.addColorStop(1, 'rgba(0,0,0,0)');
 
     // Horizon glow (alpha is scaled at draw time)
     const hx = w * 0.6;
@@ -611,16 +682,46 @@ export function createChannel({ seed, audio }){
   }
 
   function drawLighthouse(ctx, beamAmt, stormAmt, dawnAmt){
-    // rocky foreground hill
+    // rocky foreground hill (add subtle cached texture so it reads as rock, not a flat wedge)
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.85)';
-    ctx.beginPath();
-    ctx.moveTo(0, h);
-    ctx.lineTo(0, horizon + h * 0.12);
-    ctx.quadraticCurveTo(w * 0.18, horizon + h * 0.02, w * 0.35, horizon + h * 0.10);
-    ctx.quadraticCurveTo(w * 0.48, horizon + h * 0.18, w * 0.6, h);
-    ctx.closePath();
+    cliffHillPath(ctx, w, h, horizon);
     ctx.fill();
+
+    if (gradCache.cliffPattern){
+      ctx.save();
+      cliffHillPath(ctx, w, h, horizon);
+      ctx.clip();
+
+      // texture speckle (static + deterministic)
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = gradCache.cliffPattern;
+      ctx.translate(cliffSalt & 31, (cliffSalt >>> 5) & 31);
+      ctx.fillRect(-96, horizon - 96, w + 192, (h - horizon) + 192);
+
+      // slight ridge lift (keeps it readable in the left foreground)
+      if (gradCache.cliffShade){
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = (0.14 * (1 - stormAmt * 0.6)) + (0.07 * dawnAmt);
+        ctx.fillStyle = gradCache.cliffShade;
+        ctx.fillRect(0, horizon - h * 0.08, w, h * 0.26);
+      }
+
+      ctx.restore();
+    }
+
+    // rim-light along the ridge
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = (0.10 + 0.18 * dawnAmt) * (1 - stormAmt * 0.55);
+    ctx.strokeStyle = 'rgba(160,190,220,0.9)';
+    ctx.lineWidth = Math.max(1, h / 520);
+    ctx.lineJoin = 'round';
+    cliffRidgePath(ctx, w, h, horizon);
+    ctx.stroke();
+    ctx.restore();
+
     ctx.restore();
 
     // tower
