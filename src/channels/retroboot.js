@@ -659,6 +659,255 @@ function makeSolarisLines(rand){
   return lines;
 }
 
+function makeIrixLines(rand){
+  const host = pick(rand, ['indigo', 'octane', 'onyx', 'o2', 'fuel', 'origin']);
+  const release = pick(rand, ['6.2', '6.5', '6.5.22', '6.5.30']);
+  const platform = pick(rand, ['IP22', 'IP30', 'IP32', 'IP35']);
+  const cpu = pick(rand, ['R4000', 'R4400', 'R5000', 'R10000']);
+  const disk = pick(rand, ['dks0d1s0', 'dks0d2s0', 'dks1d1s0']);
+  const iface = pick(rand, ['ec0', 'ef0', 'xpi0']);
+
+  const cK = 'rgba(190,210,255,0.85)';
+  const cG = 'rgba(210,255,220,0.85)';
+  const cY = 'rgba(255,240,170,0.85)';
+  const cW = 'rgba(255,255,255,0.92)';
+
+  const lines = [
+    { at: 0.0, text: `IRIX Release ${release} ${platform}`, color: cW },
+    { at: 0.8, text: 'Copyright 1987-2003 Silicon Graphics, Inc.', color: cK },
+    { at: 1.6, text: `System: ${host} (${cpu})`, color: cG },
+    { at: 2.3, text: 'Checking file systems: done.', color: cK },
+  ];
+
+  let at = 3.1;
+  const svcPool = [
+    'Starting network interfaces... done.',
+    `Configuring ${iface}...`,
+    'Starting inetd... done.',
+    'Starting routed... done.',
+    'Starting cron... done.',
+    'Starting syslogd... done.',
+    'Starting rshd... done.',
+    'Starting nis... skipped.',
+    'Starting nfsd... done.',
+    'Starting mediad... done.',
+    'Starting desktop services... done.',
+  ];
+
+  const svcN = 9 + ((rand() * 6) | 0);
+  for (let i = 0; i < svcN; i++){
+    const s = pick(rand, svcPool);
+    lines.push({ at, text: s, color: (i % 3 === 2) ? cY : cG });
+    at += 0.95 + rand() * 0.85;
+  }
+
+  at += 0.6;
+  lines.push({ at, text: `Root disk: /dev/${disk}`, color: cK });
+
+  at += 1.1;
+  lines.push({ at, text: '', color: 'rgba(0,0,0,0)' });
+  at += 0.25;
+  lines.push({ at, text: `${host} console login: `, color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'guest', color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'Password: ', color: cW });
+  at += 0.55;
+  lines.push({ at, text: '********', color: cW });
+
+  const prompt = `${host}% `;
+  at += 0.9;
+  lines.push({ at, text: `${prompt}uname -R`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: release, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}hinv | head -n 5`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: `1 ${cpu} Processor`, color: cK });
+  lines.push({ at: at + 0.5, text: `Main memory size: ${(32 + ((rand() * 224) | 0))} Mbytes`, color: cK });
+  lines.push({ at: at + 1.0, text: `Integral SCSI controller 0: Version 1`, color: cK });
+  lines.push({ at: at + 1.5, text: `Disk drive: unit 1 on SCSI controller 0`, color: cK });
+  at += 2.2;
+
+  at += 1.1;
+  lines.push({ at, text: `${prompt}ifconfig ${iface}`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: `${iface}: flags=63<UP,BROADCAST,NOTRAILERS,RUNNING,MULTICAST>`, color: cK });
+  at += 0.55;
+  lines.push({ at, text: `        inet 192.168.${10 + ((rand() * 40) | 0)}.${20 + ((rand() * 200) | 0)} netmask 0xffffff00 broadcast 192.168.0.255`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}df -k | head -n 4`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: 'Filesystem           kbytes    used   avail use% Mounted on', color: cK });
+  const rootSize = 900000 + ((rand() * 2200000) | 0);
+  const rootUsed = Math.max(42000, ((rand() * rootSize) | 0));
+  const rootAvail = Math.max(1000, rootSize - rootUsed);
+  at += 0.55;
+  lines.push({ at, text: `/dev/root             ${String(rootSize).padStart(7,' ')} ${String(rootUsed).padStart(7,' ')} ${String(rootAvail).padStart(7,' ')} ${String(Math.min(99, Math.floor((rootUsed/rootSize)*100))).padStart(3,' ')}% /`, color: cK });
+
+  at += 1.1;
+  lines.push({ at, text: `${prompt}`, color: cG });
+
+  return lines;
+}
+
+function makeHpuxLines(rand){
+  const host = pick(rand, ['hp9000', 'apollo', 'vectra', 'sprocket', 'helium', 'rack1']);
+  const release = pick(rand, ['B.10.20', 'B.11.00', 'B.11.11']);
+  const model = pick(rand, ['9000/715', '9000/785', '9000/800', '9000/712']);
+  const disk = pick(rand, ['c0t0d0', 'c1t0d0', 'c0t1d0']);
+  const iface = pick(rand, ['lan0', 'lan1']);
+
+  const cK = 'rgba(190,210,255,0.85)';
+  const cG = 'rgba(210,255,220,0.85)';
+  const cY = 'rgba(255,240,170,0.85)';
+  const cW = 'rgba(255,255,255,0.92)';
+
+  const lines = [
+    { at: 0.0, text: `HP-UX ${host} ${release} U ${model}`, color: cW },
+    { at: 0.8, text: 'Copyright 1983-2003 Hewlett-Packard Company', color: cK },
+    { at: 1.6, text: 'System initialization in progress...', color: cG },
+  ];
+
+  let at = 2.4;
+  const svcPool = [
+    'fsck: checking /dev/vg00/lvol3 ... OK',
+    'Mounting local file systems... done',
+    'Starting BIND name server... skipped',
+    'Starting NFS services... done',
+    'Starting sendmail... done',
+    'Starting cron daemon... done',
+    'Starting inetd... done',
+    `Configuring ${iface}...`,
+    'Starting syslogd... done',
+    'Starting audit daemon... done',
+    'Starting swapper... done',
+  ];
+
+  const svcN = 10 + ((rand() * 6) | 0);
+  for (let i = 0; i < svcN; i++){
+    lines.push({ at, text: pick(rand, svcPool), color: (i % 4 === 3) ? cY : cG });
+    at += 0.95 + rand() * 0.85;
+  }
+
+  at += 0.6;
+  lines.push({ at, text: `Root device: /dev/dsk/${disk}`, color: cK });
+
+  at += 1.1;
+  lines.push({ at, text: '', color: 'rgba(0,0,0,0)' });
+  at += 0.25;
+  lines.push({ at, text: `${host} login: `, color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'guest', color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'Password: ', color: cW });
+  at += 0.55;
+  lines.push({ at, text: '********', color: cW });
+
+  const prompt = `${host}$ `;
+  at += 0.9;
+  lines.push({ at, text: `${prompt}uname -a`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: `HP-UX ${host} ${release} ${model} unlimited-user license`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}ioscan -fnC disk | head -n 4`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: 'Class     I  H/W Path   Driver   S/W State   H/W Type   Description', color: cK });
+  at += 0.55;
+  lines.push({ at, text: `disk      0  0/0/1/0.0  sdisk    CLAIMED    DEVICE     ${disk}`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}bdf | head -n 4`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: 'Filesystem          kbytes    used   avail %used Mounted on', color: cK });
+  const rootSize = 600000 + ((rand() * 2400000) | 0);
+  const rootUsed = Math.max(12000, ((rand() * rootSize) | 0));
+  const rootAvail = Math.max(1000, rootSize - rootUsed);
+  at += 0.55;
+  lines.push({ at, text: `/dev/vg00/lvol3      ${String(rootSize).padStart(7,' ')} ${String(rootUsed).padStart(7,' ')} ${String(rootAvail).padStart(7,' ')} ${String(Math.min(99, Math.floor((rootUsed/rootSize)*100))).padStart(4,' ')} /`, color: cK });
+
+  at += 1.1;
+  lines.push({ at, text: `${prompt}`, color: cG });
+
+  return lines;
+}
+
+function makeAixLines(rand){
+  const host = pick(rand, ['rs6000', 'pseries', 'ibmhost', 'aixbox', 'blue', 'jade']);
+  const release = pick(rand, ['4.3.3', '5.1', '5.3', '6.1']);
+  const model = pick(rand, ['IBM,7025-F50', 'IBM,7043-140', 'IBM,9111-520', 'IBM,9113-550']);
+  const disk = pick(rand, ['hdisk0', 'hdisk1']);
+  const iface = pick(rand, ['en0', 'en1']);
+
+  const cK = 'rgba(190,210,255,0.85)';
+  const cG = 'rgba(210,255,220,0.85)';
+  const cY = 'rgba(255,240,170,0.85)';
+  const cW = 'rgba(255,255,255,0.92)';
+
+  const lines = [
+    { at: 0.0, text: `IBM AIX Version ${release}`, color: cW },
+    { at: 0.8, text: `${model}`, color: cK },
+    { at: 1.6, text: 'Starting system initialization...', color: cG },
+  ];
+
+  let at = 2.4;
+  const svcPool = [
+    'Checking root volume group... OK',
+    `Varyonvg: rootvg`,
+    'Mounting / (jfs2)... done',
+    'Starting SRC subsystem... done',
+    'Starting errdemon... done',
+    'Starting inetd... done',
+    'Starting syslogd... done',
+    'Starting cron... done',
+    'Starting sshd... done',
+    `Configuring TCP/IP on ${iface}... done`,
+  ];
+
+  const svcN = 10 + ((rand() * 6) | 0);
+  for (let i = 0; i < svcN; i++){
+    lines.push({ at, text: pick(rand, svcPool), color: (i % 4 === 2) ? cY : cG });
+    at += 0.95 + rand() * 0.85;
+  }
+
+  at += 0.9;
+  lines.push({ at, text: '', color: 'rgba(0,0,0,0)' });
+  at += 0.25;
+  lines.push({ at, text: `${host} login: `, color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'guest', color: cW });
+  at += 0.6;
+  lines.push({ at, text: 'Password: ', color: cW });
+  at += 0.55;
+  lines.push({ at, text: '********', color: cW });
+
+  const prompt = `${host}$ `;
+  at += 0.9;
+  lines.push({ at, text: `${prompt}oslevel -s`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: `${release}.0.0`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}lsdev -Cc disk | head -n 3`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: `${disk} Available 00-00-00-0,0 16 Bit LVD SCSI Disk Drive`, color: cK });
+
+  at += 1.2;
+  lines.push({ at, text: `${prompt}netstat -in`, color: cG });
+  at += 0.85;
+  lines.push({ at, text: 'Name  Mtu   Network     Address            Ipkts Ierrs    Opkts Oerrs  Coll', color: cK });
+  at += 0.55;
+  lines.push({ at, text: `${iface}  1500  192.168.${10 + ((rand() * 40) | 0)}   192.168.${10 + ((rand() * 40) | 0)}.${20 + ((rand() * 200) | 0)}  ${(100 + ((rand() * 9000) | 0))}     0     ${(120 + ((rand() * 9000) | 0))}     0     0`, color: cK });
+
+  at += 1.1;
+  lines.push({ at, text: `${prompt}`, color: cG });
+
+  return lines;
+}
+
 function makeBeosLines(rand){
   const host = pick(rand, ['be-box', 'beige-beast', 'media-station', 'beos']);
   const release = pick(rand, ['R5.0.3', 'R5.0.2', 'R5.0.1']);
@@ -1269,11 +1518,16 @@ export function createChannel({ seed, audio }){
   let linuxLines = [];
   let bsdLines = [];
   let solarisLines = [];
+  let irixLines = [];
+  let hpuxLines = [];
+  let aixLines = [];
   let beosLines = [];
   let alienLines = [];
   let macScreen = null;
   let unixIsBsd = false;
   let unixIsSolaris = false;
+  let unixIsOther = false; // IRIX / HP-UX / AIX
+  let unixOtherKind = null; // 'irix'|'hpux'|'aix'
   let unixIsBeos = false;
   let unixIsAlien = false;
 
@@ -1288,6 +1542,13 @@ export function createChannel({ seed, audio }){
     unixIsBsd = (unixVariant === 0);
     unixIsSolaris = (unixVariant === 1);
 
+    // Uncommon: other vintage Unixes (but not quite as rare as BeOS/"alien").
+    // Keep the overall cadence stable by mapping only one bucket.
+    unixIsOther = (unixVariant === 2);
+    unixOtherKind = unixIsOther
+      ? (['irix', 'hpux', 'aix'][hash32(seed ^ 0x0BADB055) % 3])
+      : null;
+
     // “Rare rare” cameo: BeOS.
     // Independent of unixVariant so it doesn’t perturb the existing BSD/Solaris mapping.
     unixIsBeos = ((hash32(seed ^ 0xBE05) % 29) === 0);
@@ -1296,7 +1557,12 @@ export function createChannel({ seed, audio }){
     // (BeOS remains the highest-priority cameo.)
     unixIsAlien = (!unixIsBeos && (hash32(seed ^ 0xA11E0BB9) % 97) === 0);
 
-    if (unixIsBeos || unixIsAlien){ unixIsBsd = false; unixIsSolaris = false; }
+    if (unixIsBeos || unixIsAlien){
+      unixIsBsd = false;
+      unixIsSolaris = false;
+      unixIsOther = false;
+      unixOtherKind = null;
+    }
 
     biosLines = makeBootLines(rand);
     dosLines = makeDosLines(rand);
@@ -1307,6 +1573,9 @@ export function createChannel({ seed, audio }){
     // Rare variants use forked PRNGs so they don’t perturb the main content sequence.
     bsdLines = makeBsdLines(mulberry32(hash32(seed ^ 0xBADC0DE)));
     solarisLines = makeSolarisLines(mulberry32(hash32(seed ^ 0x501A815)));
+    irixLines = makeIrixLines(mulberry32(hash32(seed ^ 0x1BBA5EED)));
+    hpuxLines = makeHpuxLines(mulberry32(hash32(seed ^ 0x48F0E0C1)));
+    aixLines = makeAixLines(mulberry32(hash32(seed ^ 0xA1A1A1A1)));
     beosLines = makeBeosLines(mulberry32(hash32(seed ^ 0xBE05)));
     alienLines = makeAlienLines(mulberry32(hash32(seed ^ 0xA11E0BB9)));
 
@@ -1786,7 +2055,15 @@ export function createChannel({ seed, audio }){
       const y0 = pad * 1.8;
       const lineH = Math.floor(font * 1.35);
       const maxLines = Math.floor((h - y0 - pad * 0.8) / lineH);
-      const unixLines = unixIsBeos ? beosLines : (unixIsSolaris ? solarisLines : (unixIsBsd ? bsdLines : linuxLines));
+      const unixLines = unixIsBeos
+        ? beosLines
+        : (unixIsSolaris
+          ? solarisLines
+          : (unixIsBsd
+            ? bsdLines
+            : (unixIsOther
+              ? (unixOtherKind === 'irix' ? irixLines : (unixOtherKind === 'hpux' ? hpuxLines : aixLines))
+              : linuxLines)));
       drawTyped(bctx, { x: pad, y: y0, lineH, maxLines, lines: unixLines, t: segT, cps: 58, cursor: true });
 
       // a little "progress" spinner
@@ -1813,7 +2090,13 @@ export function createChannel({ seed, audio }){
         ? 'Solaris Boot Log'
         : (seg.key === 'linux' && unixIsBsd)
           ? 'BSD Boot Log'
-          : seg.title;
+          : (seg.key === 'linux' && unixIsOther && unixOtherKind === 'irix')
+            ? 'IRIX Boot Log'
+            : (seg.key === 'linux' && unixIsOther && unixOtherKind === 'hpux')
+              ? 'HP-UX Boot Log'
+              : (seg.key === 'linux' && unixIsOther && unixOtherKind === 'aix')
+                ? 'AIX Boot Log'
+                : seg.title;
     drawHud(ctx, hudTitle);
     renderCRT(ctx);
   }
