@@ -71,6 +71,29 @@ function pointAt(edge, s, out){
   return out;
 }
 
+function angleAt(edge, s){
+  const pts = edge.points;
+  const cum = edge.cum;
+  const len = edge.len;
+  let d = s;
+  let a, b;
+  if (d <= 0){
+    a = pts[0];
+    b = pts[1];
+  } else if (d >= len){
+    a = pts[pts.length - 2];
+    b = pts[pts.length - 1];
+  } else {
+    let si = 0;
+    for (let i = 1; i < cum.length; i++){
+      if (d <= cum[i]){ si = i - 1; break; }
+    }
+    a = pts[si];
+    b = pts[si + 1];
+  }
+  return Math.atan2(b[1] - a[1], b[0] - a[0]);
+}
+
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
 
@@ -197,7 +220,18 @@ export function createChannel({ seed, audio }){
       const b = stationPx[e.to];
       const m = [e.mid[0] * w, e.mid[1] * h];
       const pts = [a, m, b];
-      return { ...e, edge: buildEdge(pts) };
+      const edge = buildEdge(pts);
+
+      // Precompute direction tick chevrons (no per-frame pointAt/atan2).
+      const tickN = 3;
+      const dirTicks = [];
+      for (let ti = 1; ti <= tickN; ti++){
+        const ss = (edge.len * ti) / (tickN + 1);
+        pointAt(edge, ss, tmpP);
+        dirTicks.push([tmpP[0], tmpP[1], angleAt(edge, ss)]);
+      }
+
+      return { ...e, edge, dirTicks };
     });
 
     outgoing = {};
@@ -748,15 +782,30 @@ export function createChannel({ seed, audio }){
       // direction ticks
       ctx.save();
       ctx.globalAlpha = isJam ? 0.55 : 0.30;
-      ctx.fillStyle = isJam ? warn : ink;
-      const edge = e.edge;
-      const tickN = 3;
-      for (let ti = 1; ti <= tickN; ti++){
-        const ss = (edge.len * ti) / (tickN + 1);
-        pointAt(edge, ss, tmpP);
+      ctx.strokeStyle = isJam ? warn : ink;
+      ctx.lineWidth = lw * 0.9;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      const ticks = e.dirTicks || [];
+      const L = lw * 3.0;
+      const W = lw * 1.4;
+      for (let ti = 0; ti < ticks.length; ti++){
+        const tk = ticks[ti];
+        const x = tk[0], y = tk[1], ang = tk[2];
+        const ca = Math.cos(ang), sa = Math.sin(ang);
+        const px = -sa, py = ca;
+
+        const tipX = x + ca * (L * 0.45);
+        const tipY = y + sa * (L * 0.45);
+        const baseX = x - ca * (L * 0.45);
+        const baseY = y - sa * (L * 0.45);
+
         ctx.beginPath();
-        ctx.arc(tmpP[0], tmpP[1], lw * 0.9, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(baseX + px * W, baseY + py * W);
+        ctx.lineTo(tipX, tipY);
+        ctx.lineTo(baseX - px * W, baseY - py * W);
+        ctx.stroke();
       }
       ctx.restore();
     }
