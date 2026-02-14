@@ -32,6 +32,10 @@ export function createChannel({ seed, audio }){
 
   let w = 0, h = 0, t = 0;
 
+  // Determinism: drive PRNG-consuming simulation from a fixed timestep so 30fps/60fps captures match.
+  const SIM_DT = 1 / 60;
+  let simAcc = 0;
+
   // layout
   let wfX = 0, wfY = 0, wfW = 0, wfH = 0;
   let dialX = 0, dialY = 0, dialW = 0, dialH = 0;
@@ -240,6 +244,7 @@ export function createChannel({ seed, audio }){
 
   function init({ width, height }){
     w = width; h = height; t = 0;
+    simAcc = 0;
 
     // layout: waterfall left, dial bottom-right
     const pad = Math.max(14, Math.floor(Math.min(w, h) * 0.02));
@@ -546,7 +551,7 @@ export function createChannel({ seed, audio }){
       wfRowData[k + 3] = (a * 255) | 0;
 
       // decay for next frame
-      energy[i] = Math.max(0, energy[i] - 0.75 * (0.016 + 0.008 * (i / BINS)));
+      energy[i] = Math.max(0, energy[i] - 0.75 * (SIM_DT + 0.008 * (i / BINS)));
       peaks[i] = Math.max(0, peaks[i] - 0.085);
 
       // subtle “breathing” for movement
@@ -572,7 +577,7 @@ export function createChannel({ seed, audio }){
     wfCtx.globalCompositeOperation = 'source-over';
   }
 
-  function update(dt){
+  function stepSim(dt){
     t += dt;
 
     if (tuneFx > 0) tuneFx = Math.max(0, tuneFx - dt);
@@ -679,8 +684,28 @@ export function createChannel({ seed, audio }){
     }
     labels = labels.filter(L => L.life > 0 && L.a > 0.02);
 
-    // waterfall line update roughly at ~60fps; stable even if dt spikes
+    // Waterfall line update at the simulation cadence (FPS-stable).
     updateWaterfall();
+  }
+
+  function update(dt){
+    dt = Math.max(0, dt || 0);
+
+    // Clamp to avoid spiral-of-death on stalls/background tabs.
+    simAcc += Math.min(dt, 0.25);
+
+    let steps = 0;
+    const MAX_STEPS = 20;
+    while (simAcc >= SIM_DT && steps < MAX_STEPS){
+      stepSim(SIM_DT);
+      simAcc -= SIM_DT;
+      steps++;
+    }
+
+    if (steps >= MAX_STEPS){
+      // Drop remainder rather than spending unbounded time catching up.
+      simAcc = 0;
+    }
   }
 
   function drawBackground(ctx){
