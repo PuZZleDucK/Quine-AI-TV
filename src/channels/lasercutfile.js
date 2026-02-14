@@ -840,9 +840,35 @@ export function createChannel({ seed, audio }){
       roundRect(ctx, bx2, by2, bw2, Math.floor(small + padY * 2), 9);
       ctx.stroke();
 
+      // clamp/ellipsize badge text so it never overflows the rounded rect at small resolutions
+      const innerW = Math.max(0, bw2 - padX * 2);
+      const ellipsize = (s, maxW) => {
+        const str = String(s ?? '');
+        if (ctx.measureText(str).width <= maxW) return str;
+        const ell = '…';
+        const ellW = ctx.measureText(ell).width;
+        if (ellW > maxW) return '';
+
+        let lo = 0;
+        let hi = str.length;
+        while (lo < hi){
+          const mid = ((lo + hi) / 2) | 0;
+          const cand = str.slice(0, mid) + ell;
+          if (ctx.measureText(cand).width <= maxW) lo = mid + 1;
+          else hi = mid;
+        }
+        const n = Math.max(0, lo - 1);
+        return str.slice(0, n) + ell;
+      };
+
+      const clipped = ellipsize(text, innerW);
       ctx.globalAlpha = 1;
       ctx.fillStyle = 'rgba(255,255,255,0.88)';
-      ctx.fillText(text, Math.floor(bx2 + padX), Math.floor(by2 + padY));
+      ctx.save();
+      roundRect(ctx, bx2, by2, bw2, Math.floor(small + padY * 2), 9);
+      ctx.clip();
+      ctx.fillText(clipped, Math.floor(bx2 + padX), Math.floor(by2 + padY));
+      ctx.restore();
       ctx.restore();
     }
 
