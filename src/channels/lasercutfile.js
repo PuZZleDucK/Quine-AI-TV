@@ -143,6 +143,17 @@ export function createChannel({ seed, audio }){
   let popFlash = 0;
   let nextCornerBeepAt = 0;
 
+  // rare deterministic special moments (~1–3 min)
+  const materialAccents = [
+    { name: 'ACRYLIC', neon: '#ffd26a', hot: '#68ffb6', tint: 'rgba(255,210,120,0.08)' },
+    { name: 'ANODIZED AL', neon: '#ff78d2', hot: '#59f6ff', tint: 'rgba(255,120,210,0.08)' },
+    { name: 'BIRCH PLY', neon: '#7dff67', hot: '#ff5d7d', tint: 'rgba(120,255,190,0.08)' },
+  ];
+  let special = null;       // { kind, t0, dur, variant }
+  let specialArmed = null;  // { kind, startAt, dur, variant }
+  let specialCount = 0;
+  let nextSpecialAt = 0;
+
   // particles (sparks)
   const MAX_SPARKS = 90;
   let sparks = [];
@@ -357,6 +368,13 @@ export function createChannel({ seed, audio }){
     glowPulse = 0;
     popFlash = 0;
     nextCornerBeepAt = 0;
+
+    special = null;
+    specialArmed = null;
+    specialCount = 0;
+    // keep it “rare”: first moment appears after ~1–3 minutes (absolute-time, seeded)
+    const s0 = mulberry32((seed ^ 0x94d049bb) >>> 0);
+    nextSpecialAt = t + 60 + s0() * 120; // 60–180s
   }
 
   function onAudioOn(){
@@ -386,10 +404,57 @@ export function createChannel({ seed, audio }){
 
   function phaseInfo(tt){
     const m = ((tt % CYCLE) + CYCLE) % CYCLE;
-    if (m < DUR_PREVIEW) return { id: 'preview', t: m, dur: DUR_PREVIEW, label: 'PREVIEW' };
-    if (m < DUR_PREVIEW + DUR_CUT) return { id: 'cut', t: m - DUR_PREVIEW, dur: DUR_CUT, label: 'CUT' };
-    if (m < DUR_PREVIEW + DUR_CUT + DUR_PEEL) return { id: 'peel', t: m - DUR_PREVIEW - DUR_CUT, dur: DUR_PEEL, label: 'PEEL' };
-    return { id: 'show', t: m - DUR_PREVIEW - DUR_CUT - DUR_PEEL, dur: DUR_SHOW, label: 'REVEAL' };
+    if (m < DUR_PREVIEW) return { id: 'preview', t: m, dur: DUR_PREVIEW, label: 'PREVIEW', m };
+    if (m < DUR_PREVIEW + DUR_CUT) return { id: 'cut', t: m - DUR_PREVIEW, dur: DUR_CUT, label: 'CUT', m };
+    if (m < DUR_PREVIEW + DUR_CUT + DUR_PEEL) return { id: 'peel', t: m - DUR_PREVIEW - DUR_CUT, dur: DUR_PEEL, label: 'PEEL', m };
+    return { id: 'show', t: m - DUR_PREVIEW - DUR_CUT - DUR_PEEL, dur: DUR_SHOW, label: 'REVEAL', m };
+  }
+
+  function armSpecial(atT, idx){
+    const sr = mulberry32(((seed ^ 0x4c1c9ddf) + (idx * 0x85ebca6b)) >>> 0);
+    const kind = (sr() < 0.55) ? 'air' : 'material';
+    const variant = (sr() * materialAccents.length) | 0;
+
+    const cycleM = (((atT % CYCLE) + CYCLE) % CYCLE);
+    let cycleStart = atT - cycleM;
+
+    // default: early in PREVIEW
+    let startAt = cycleStart + 0.35;
+
+    if (kind === 'material'){
+      // keep it a short, clearly "moment"-style palette shift that resets before CUT.
+      const maxStart = Math.max(0.8, DUR_PREVIEW - 3.4);
+      startAt = cycleStart + (0.8 + sr() * maxStart);
+    }
+
+    if (kind === 'air'){
+      // into CUT (don’t let it spill into PEEL)
+      const maxOff = Math.max(0.8, DUR_CUT - 3.6);
+      const off = 0.8 + sr() * maxOff;
+      startAt = cycleStart + DUR_PREVIEW + off;
+    }
+
+    // Ensure it’s always scheduled in the future.
+    if (startAt <= atT){
+      startAt += CYCLE;
+      cycleStart += CYCLE;
+    }
+
+    let dur = (kind === 'air') ? (2.8 + sr() * 2.6) : (6 + sr() * 5);
+
+    // Clamp duration to stay within the intended phase window.
+    const endLimit = (kind === 'air')
+      ? (cycleStart + DUR_PREVIEW + DUR_CUT - 0.4)
+      : (cycleStart + DUR_PREVIEW - 0.2);
+    dur = Math.max(1.6, Math.min(dur, Math.max(1.6, endLimit - startAt)));
+
+    specialArmed = { kind, startAt, dur, variant };
+  }
+
+  function scheduleNextSpecial(fromT, idx){
+    const sr = mulberry32(((seed ^ 0x94d049bb) + (idx * 0x9e3779b9)) >>> 0);
+    const gap = 60 + sr() * 120; // 60–180s
+    nextSpecialAt = fromT + gap;
   }
 
   function update(dt){
@@ -411,6 +476,28 @@ export function createChannel({ seed, audio }){
     }
 
     const ph = phaseInfo(t);
+
+    // schedule special moments using absolute time (FPS-stable)
+    while (t >= nextSpecialAt){
+      const idx = specialCount;
+      if (!special && !specialArmed) armSpecial(nextSpecialAt, idx);
+      specialCount++;
+      scheduleNextSpecial(nextSpecialAt, specialCount);
+    }
+
+    if (specialArmed && t >= specialArmed.startAt){
+      special = { kind: specialArmed.kind, t0: specialArmed.startAt, dur: specialArmed.dur, variant: specialArmed.variant };
+      specialArmed = null;
+      if (special.kind === 'air'){
+        safeBeep({ freq: 1320, dur: 0.06, gain: 0.020, type: 'triangle' });
+        safeBeep({ freq: 660, dur: 0.08, gain: 0.014, type: 'sine' });
+      }
+      if (special.kind === 'material'){
+        safeBeep({ freq: 980, dur: 0.05, gain: 0.016, type: 'sine' });
+      }
+    }
+
+    if (special && t >= special.t0 + special.dur) special = null;
 
     if (ph.id !== 'cut') wasCutPhase = false;
 
@@ -655,7 +742,11 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
-  function drawHud(ctx, ph){
+  function drawHud(ctx, ph, opts = null){
+    const o = opts || {};
+    const neon = o.neon || pal.neon;
+    const badge = o.badge || null; // { text, color } | string
+
     ctx.save();
     ctx.fillStyle = pal.hud;
     ctx.font = `${font}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`;
@@ -682,8 +773,37 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(bx, by, bw, bh);
 
     const p = clamp(ph.t / ph.dur, 0, 1);
-    ctx.fillStyle = pal.neon;
+    ctx.fillStyle = neon;
     ctx.fillRect(bx, by, Math.floor(bw * p), bh);
+
+    if (badge){
+      const b = (typeof badge === 'string') ? { text: badge, color: neon } : badge;
+      const text = String(b.text || '');
+      const color = b.color || neon;
+      const padX = 10 * dpr;
+      const padY = 6 * dpr;
+      const bw2 = Math.floor(w * 0.30);
+      const bx2 = x;
+      const by2 = by + bh + 10 * dpr;
+
+      ctx.save();
+      ctx.font = `${small}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      roundRect(ctx, bx2, by2, bw2, Math.floor(small + padY * 2), 9);
+      ctx.fill();
+
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.85;
+      ctx.lineWidth = Math.max(1, Math.floor(1.2 * dpr));
+      roundRect(ctx, bx2, by2, bw2, Math.floor(small + padY * 2), 9);
+      ctx.stroke();
+
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.fillText(text, Math.floor(bx2 + padX), Math.floor(by2 + padY));
+      ctx.restore();
+    }
 
     ctx.restore();
   }
@@ -691,8 +811,42 @@ export function createChannel({ seed, audio }){
   function draw(ctx){
     const ph = phaseInfo(t);
 
+    // special moments (rare, deterministic): visual + HUD treatment
+    let neon = pal.neon;
+    let hot = pal.hot;
+    let badge = null;       // { text, color }
+    let tint = null;        // rgba()
+    let tintA = 0;
+    let airBurst = 0;       // 0..1
+
+    if (special){
+      const u = clamp((t - special.t0) / special.dur, 0, 1);
+      if (special.kind === 'material'){
+        const acc = materialAccents[special.variant % materialAccents.length];
+        neon = acc.neon;
+        hot = acc.hot;
+        tint = acc.tint;
+        tintA = 0.75 * Math.sin(u * Math.PI);
+        badge = { text: `MATERIAL CHANGE: ${acc.name}`, color: neon };
+      }
+      if (special.kind === 'air'){
+        // bursty at the start, then settles
+        airBurst = Math.pow(1 - u, 2);
+        badge = { text: 'AIR ASSIST BURST', color: pal.neon };
+      }
+    }
+
     drawBackground(ctx);
     drawBed(ctx);
+
+    if (tint && tintA > 0.001){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = tintA;
+      ctx.fillStyle = tint;
+      ctx.fillRect(work.x, work.y, work.w, work.h);
+      ctx.restore();
+    }
 
     // engrave/fold lines (faint)
     ctx.save();
@@ -719,9 +873,10 @@ export function createChannel({ seed, audio }){
       // kerf glow
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
-      ctx.shadowColor = pal.neon;
+      ctx.shadowColor = neon;
       ctx.shadowBlur = 18 * dpr;
-      ctx.strokeStyle = `rgba(90, 240, 255, ${0.22 + heat * 0.22})`;
+      ctx.globalAlpha = 0.22 + heat * 0.22;
+      ctx.strokeStyle = neon;
       ctx.lineWidth = Math.max(2, Math.floor(2.4 * dpr));
       ctx.setLineDash([]);
       cutterPt = strokeProgress(ctx, p);
@@ -730,9 +885,10 @@ export function createChannel({ seed, audio }){
       // hot core
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
-      ctx.shadowColor = pal.hot;
+      ctx.shadowColor = hot;
       ctx.shadowBlur = 8 * dpr;
-      ctx.strokeStyle = `rgba(255, 90, 125, ${0.10 + heat * 0.20})`;
+      ctx.globalAlpha = 0.10 + heat * 0.20;
+      ctx.strokeStyle = hot;
       ctx.lineWidth = Math.max(1, Math.floor(1.2 * dpr));
       strokeProgress(ctx, p);
       ctx.restore();
@@ -745,9 +901,10 @@ export function createChannel({ seed, audio }){
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
       const g = 0.10 + 0.06 * (0.5 + 0.5 * Math.sin(t * 1.7));
-      ctx.shadowColor = pal.neon;
+      ctx.shadowColor = neon;
       ctx.shadowBlur = 14 * dpr;
-      ctx.strokeStyle = `rgba(90, 240, 255, ${g})`;
+      ctx.globalAlpha = g;
+      ctx.strokeStyle = neon;
       ctx.lineWidth = Math.max(2, Math.floor(2.0 * dpr));
       strokePaths(ctx, cutPaths);
       ctx.restore();
@@ -785,6 +942,29 @@ export function createChannel({ seed, audio }){
         ctx.fill();
       }
       ctx.restore();
+
+      // special: air assist burst (extra smoke plume near the cutter head)
+      if (airBurst > 0.001 && cutterPt){
+        const sr = mulberry32(((seed ^ 0x1f3d5b79) + (special?.variant || 0) * 0x9e3779b9) >>> 0);
+        const puffN = 10;
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.65 * airBurst;
+        ctx.fillStyle = 'rgba(255,255,255,0.14)';
+
+        for (let i = 0; i < puffN; i++){
+          const a = (i / puffN) * Math.PI * 2 + (sr() * 0.35);
+          const rr = (10 + sr() * 18) * dpr * (1 + (1 - airBurst) * 1.2);
+          const x = cutterPt.x + Math.cos(a) * rr;
+          const y = cutterPt.y + Math.sin(a) * rr;
+          const r = (10 + sr() * 16) * dpr * (0.5 + 0.7 * (1 - airBurst));
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
     }
 
     // peel overlay
@@ -821,12 +1001,13 @@ export function createChannel({ seed, audio }){
       const bob = Math.sin(t * 0.8) * 2 * dpr;
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
-      ctx.fillStyle = `rgba(90,240,255,${0.03 + 0.02 * (0.5 + 0.5 * Math.sin(t * 1.1))})`;
+      ctx.globalAlpha = 0.03 + 0.02 * (0.5 + 0.5 * Math.sin(t * 1.1));
+      ctx.fillStyle = neon;
       ctx.fillRect(work.x, work.y + work.h + 10 * dpr + bob, work.w, 2 * dpr);
       ctx.restore();
     }
 
-    drawHud(ctx, ph);
+    drawHud(ctx, ph, { neon, badge });
 
     // tiny footer
     ctx.save();
