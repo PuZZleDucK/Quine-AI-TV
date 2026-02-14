@@ -7,6 +7,9 @@ const WORDS = [
   'unicorn','traffic','anomaly','banana','pancake','spacetime','librarian','wizard','sock','chimera',
 ];
 
+const LOGO_W = 150;
+const LOGO_H = 54;
+
 function headline(rand){
   const w = (n)=>WORDS[(rand()*WORDS.length)|0];
   const caps=(s)=>s.charAt(0).toUpperCase()+s.slice(1);
@@ -61,12 +64,47 @@ export function createChannel({ seed, audio }){
       if (audio.enabled) audio.beep({freq: 520, dur: 0.04, gain: 0.04, type:'triangle'});
     }
 
-    // logo bounce
+    // logo bounce (OSD-safe: don't collide with the top-left LIVE/time bug)
     logo.x += logo.vx*dt;
     logo.y += logo.vy*dt;
+
     const pad = 18;
-    if (logo.x < pad || logo.x > w - pad - 140) logo.vx *= -1;
-    if (logo.y < pad || logo.y > h*0.65) logo.vy *= -1;
+    const leftBound = pad;
+    const rightBound = w - pad - LOGO_W;
+    const topBound = pad;
+    const bottomBound = h*0.65 - LOGO_H;
+
+    if (logo.x < leftBound || logo.x > rightBound) logo.vx *= -1;
+    if (logo.y < topBound || logo.y > bottomBound) logo.vy *= -1;
+
+    // Reserve a safe rectangle around the LIVE bug.
+    const bugFont = Math.floor(h/32);
+    const safeX = w*0.05 - 12;
+    const safeY = h*0.12 - bugFont - 14;
+    const safeW = Math.max(220, w*0.28);
+    const safeH = bugFont + 22;
+
+    const overlapsBug = (
+      logo.x < safeX + safeW && logo.x + LOGO_W > safeX &&
+      logo.y < safeY + safeH && logo.y + LOGO_H > safeY
+    );
+
+    if (overlapsBug){
+      const overlapX = Math.min(logo.x + LOGO_W - safeX, safeX + safeW - logo.x);
+      const overlapY = Math.min(logo.y + LOGO_H - safeY, safeY + safeH - logo.y);
+
+      if (overlapX < overlapY){
+        logo.x += (logo.x + LOGO_W/2 < safeX + safeW/2) ? -(overlapX + 1) : (overlapX + 1);
+        logo.vx *= -1;
+      } else {
+        logo.y += (logo.y + LOGO_H/2 < safeY + safeH/2) ? -(overlapY + 1) : (overlapY + 1);
+        logo.vy *= -1;
+      }
+    }
+
+    // Final clamp (after possible bug-avoidance nudge).
+    logo.x = Math.max(leftBound, Math.min(rightBound, logo.x));
+    logo.y = Math.max(topBound, Math.min(bottomBound, logo.y));
   }
 
   function measureTickerWidth(){

@@ -1,3 +1,5 @@
+- 2026-02-14 12:17 (Australia/Melbourne) [project:quine-tv] `news` (src/channels/news.js): OSD safety — constrained the bouncing ODD NEWS logo so it won’t overlap the top-left LIVE/time bug (safe rectangle + push-out). Screenshots: screenshots/autopilot-news-osd-before + screenshots/autopilot-news-osd-after. Commit: TBD
+
 - 2026-02-14 12:08 (Australia/Melbourne) [project:quine-tv] Review channel `news` (src/channels/news.js): captured screenshots (0–300s) to `screenshots/review-news-start` + completion shots to `screenshots/review-news-2026-02-14-post` (errors/warnings: 0), did code+audio/perf review, added `// REVIEWED: 2026-02-14`, and queued concrete follow-ups in `TODO.md`. Commit: 36404b7
 
 - 2026-02-14 11:35 (Australia/Melbourne) [project:quine-tv] `lighthouse` (src/channels/lighthousewatch.js): special moments — added rare deterministic moments (AURORA ribbon sweep + optional BUOY blink / KEEPER silhouette) in a ~60–150s window (night+fog), with an OSD-safe EVENT badge and clean reset. Commit: 149523f
