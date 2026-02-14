@@ -171,17 +171,22 @@ function makeMacScreen(rand){
       ctx.arc(cx, cy + r*0.05, r*0.55, 0.1*Math.PI, 0.9*Math.PI);
       ctx.stroke();
 
-      // message
-      ctx.fillStyle = 'rgba(0,0,0,0.78)';
-      ctx.font = `${Math.floor(wh*0.10)}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-      ctx.textAlign = 'center';
-      ctx.fillText('Welcome to Macintosh.', cx, y + wh*0.82);
-
-      // progress bar
+      // message + progress bar (layout avoids overlap on small renders)
+      const fontPx = Math.floor(wh*0.10);
       const pbw = Math.floor(ww*0.62);
       const pbh = Math.floor(wh*0.08);
+      const gap = Math.max(6, Math.floor(wh*0.05));
+      const marginB = Math.max(8, Math.floor(wh*0.06));
       const px = Math.floor(cx - pbw/2);
-      const py = Math.floor(y + wh*0.88);
+      const py = Math.floor(y + wh - marginB - pbh);
+
+      ctx.fillStyle = 'rgba(0,0,0,0.78)';
+      ctx.font = `${fontPx}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('Welcome to Macintosh.', cx, py - gap);
+
+      // progress bar
       ctx.strokeStyle = 'rgba(0,0,0,0.35)';
       ctx.lineWidth = 2;
       roundRect(ctx, px, py, pbw, pbh, 8);

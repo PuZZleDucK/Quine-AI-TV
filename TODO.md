@@ -8,5 +8,3 @@ if `TODO.md` has no ready items:
 - [project:quine-tv] `retroboot` (src/channels/retroboot.js): perf — cache CRT overlay assets (scanline pattern + vignette gradient / offscreen layer) so steady-state `renderCRT()` does 0 `createPattern()` / `createRadialGradient()` calls.
 - [project:quine-tv] `retroboot` (src/channels/retroboot.js): text polish — expand DOS/Linux line pools (more believable device/probe lines + longer directory listing) so each segment runs longer without obvious repeats.
 - [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals — CRT effect is too intense
-- [project:quine-tv] `retroboot` (src/channels/retroboot.js): visuals bug — mac os progres bar overlaps text
-
