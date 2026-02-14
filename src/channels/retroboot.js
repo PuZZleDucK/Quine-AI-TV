@@ -721,6 +721,104 @@ function makeBeosLines(rand){
   return lines;
 }
 
+function makeAlienLines(rand){
+  const host = pick(rand, ['glyph', 'oddity', 'visitor', 'monolith', 'xeno', 'unknown']);
+  const flavor = pick(rand, ['TempleOS', 'Plan 9', 'OS/2 Warp']);
+
+  const cK = 'rgba(190,210,255,0.85)';
+  const cG = 'rgba(210,255,220,0.85)';
+  const cY = 'rgba(255,240,170,0.85)';
+  const cW = 'rgba(255,255,255,0.92)';
+
+  const lines = [];
+  let at = 0;
+
+  if (flavor === 'TempleOS'){
+    lines.push({ at: 0.0, text: 'TempleOS V5.03 (x86)', color: cW });
+    lines.push({ at: 0.8, text: '(c) 2013-2019 Terry A. Davis', color: cK });
+    lines.push({ at: 1.6, text: 'Booting in 640x480 16-color mode...', color: cG });
+    lines.push({ at: 2.4, text: 'Mounting /TOS from ATA0...', color: cG });
+    lines.push({ at: 3.2, text: 'Loading DolDoc help pages...', color: cK });
+    lines.push({ at: 4.0, text: 'Starting window manager...', color: cY });
+    lines.push({ at: 4.8, text: '', color: 'rgba(0,0,0,0)' });
+
+    at = 5.4;
+    const prompt = ':';
+    lines.push({ at, text: `${prompt}Help`, color: cG });
+    at += 0.9;
+    lines.push({ at, text: 'Commands: Help, Dir, BlkDev, MemStats, Reboot', color: cK });
+
+    at += 1.2;
+    lines.push({ at, text: `${prompt}Dir /TOS/Bin`, color: cG });
+    at += 0.9;
+    lines.push({ at, text: 'Adam  Dbg  Gr  Hs  Net  Pop  Sound  Win', color: cK });
+
+    at += 1.2;
+    lines.push({ at, text: `${prompt}MemStats`, color: cG });
+    at += 0.9;
+    lines.push({ at, text: 'Conventional:  640K  |  Extended:  63,360K', color: cK });
+
+  } else if (flavor === 'Plan 9'){
+    lines.push({ at: 0.0, text: 'Plan 9 from Bell Labs', color: cW });
+    lines.push({ at: 0.8, text: 'cpu0: 486DX2 66MHz', color: cK });
+    lines.push({ at: 1.6, text: 'mem: 64MB', color: cK });
+    lines.push({ at: 2.4, text: 'ether0: 00:0c:29:??:??:??', color: cG });
+    lines.push({ at: 3.2, text: 'ip: 192.168.12.34/24', color: cG });
+    lines.push({ at: 4.0, text: 'init: starting /bin/rc', color: cY });
+
+    at = 5.0;
+    const prompt = '; ';
+    lines.push({ at, text: `${prompt}ls`, color: cG });
+    at += 0.9;
+    lines.push({ at, text: 'bin  dev  env  lib  net  proc  srv  tmp  usr', color: cK });
+
+    at += 1.2;
+    lines.push({ at, text: `${prompt}cat /env/user`, color: cG });
+    at += 0.9;
+    lines.push({ at, text: 'glenda', color: cK });
+
+  } else {
+    lines.push({ at: 0.0, text: 'OS/2 Warp 4', color: cW });
+    lines.push({ at: 0.8, text: 'Loading, please wait...', color: cK });
+    lines.push({ at: 1.6, text: 'OS2KRNL  ... OK', color: cG });
+    lines.push({ at: 2.4, text: 'DOSCALL1 ... OK', color: cG });
+    lines.push({ at: 3.2, text: 'Launching Workplace Shell...', color: cY });
+
+    at = 4.8;
+    const prompt = 'C:\\] ';
+    lines.push({ at, text: `${prompt}ver`, color: cG });
+    at += 0.9;
+    lines.push({ at, text: 'The Operating System/2 Version is 4.00', color: cK });
+
+    at += 1.2;
+    lines.push({ at, text: `${prompt}dir`, color: cG });
+    at += 0.9;
+    lines.push({ at, text: 'CONFIG.SYS  STARTUP.CMD  OS2\\  DESKTOP\\  TCPIP\\', color: cK });
+  }
+
+  // keep it chatty so the segment stays alive for longer durations
+  at += 1.4;
+  const prompt = (flavor === 'Plan 9') ? '; ' : (flavor === 'OS/2 Warp' ? 'C:\\] ' : ':');
+  const noise = [
+    'decoding glyph stream... OK',
+    'calibrating phosphor persistence...',
+    'synchronizing cursor phase...',
+    `contacting ${host}... timeout (expected)`,
+    'restoring interrupt vectors...',
+    'checking reality tables... PASS',
+  ];
+  const n = 7 + ((rand() * 6) | 0);
+  for (let i = 0; i < n; i++){
+    at += 0.95 + rand() * 0.85;
+    lines.push({ at, text: `${prompt}${pick(rand, noise)}`, color: (i % 3 === 2) ? cY : cK });
+  }
+
+  at += 1.1;
+  lines.push({ at, text: `${prompt}`, color: cG });
+
+  return lines;
+}
+
 function hexByte(rand){
   return (((rand() * 256) | 0).toString(16).padStart(2, '0').toUpperCase());
 }
@@ -1172,10 +1270,12 @@ export function createChannel({ seed, audio }){
   let bsdLines = [];
   let solarisLines = [];
   let beosLines = [];
+  let alienLines = [];
   let macScreen = null;
   let unixIsBsd = false;
   let unixIsSolaris = false;
   let unixIsBeos = false;
+  let unixIsAlien = false;
 
   // audio
   let ah = null;
@@ -1191,7 +1291,12 @@ export function createChannel({ seed, audio }){
     // “Rare rare” cameo: BeOS.
     // Independent of unixVariant so it doesn’t perturb the existing BSD/Solaris mapping.
     unixIsBeos = ((hash32(seed ^ 0xBE05) % 29) === 0);
-    if (unixIsBeos){ unixIsBsd = false; unixIsSolaris = false; }
+
+    // Rare: “alien OS” cameo (even rarer than BSD/Solaris). Keep it stable per-day seed.
+    // (BeOS remains the highest-priority cameo.)
+    unixIsAlien = (!unixIsBeos && (hash32(seed ^ 0xA11E0BB9) % 97) === 0);
+
+    if (unixIsBeos || unixIsAlien){ unixIsBsd = false; unixIsSolaris = false; }
 
     biosLines = makeBootLines(rand);
     dosLines = makeDosLines(rand);
@@ -1203,6 +1308,7 @@ export function createChannel({ seed, audio }){
     bsdLines = makeBsdLines(mulberry32(hash32(seed ^ 0xBADC0DE)));
     solarisLines = makeSolarisLines(mulberry32(hash32(seed ^ 0x501A815)));
     beosLines = makeBeosLines(mulberry32(hash32(seed ^ 0xBE05)));
+    alienLines = makeAlienLines(mulberry32(hash32(seed ^ 0xA11E0BB9)));
 
     macScreen = makeMacScreen(rand);
   }
