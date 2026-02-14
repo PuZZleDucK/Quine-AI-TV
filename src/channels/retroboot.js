@@ -1,5 +1,7 @@
 import { mulberry32 } from '../util/prng.js';
 
+// REVIEWED: 2026-02-15
+
 // Retro Boot Sequence
 // Vintage computer boot-ups, UI tours, and “software archaeology” with CRT-ish overlays.
 
@@ -28,6 +30,20 @@ function makeScanPattern(){
 }
 
 function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+
+function hash32(x){
+  x |= 0;
+  x = (x ^ 61) ^ (x >>> 16);
+  x = x + (x << 3);
+  x = x ^ (x >>> 4);
+  x = Math.imul(x, 0x27d4eb2d);
+  x = x ^ (x >>> 15);
+  return x >>> 0;
+}
+
+function hash01(x){
+  return hash32(x) / 4294967296;
+}
 
 function pick(rand, arr){ return arr[(rand() * arr.length) | 0]; }
 
@@ -100,6 +116,7 @@ function makeLinuxLines(rand){
 
 function makeMacScreen(rand){
   const sys = pick(rand, ['System 6', 'System 7', 'Mac OS 8']);
+  const specks = Array.from({ length: 42 }, () => ({ x: rand(), y: rand() }));
   return {
     title: `${sys} — Welcome`,
     draw(ctx, w, h, t){
@@ -181,9 +198,9 @@ function makeMacScreen(rand){
       ctx.save();
       ctx.globalAlpha = 0.08;
       ctx.fillStyle = '#ffffff';
-      for (let i=0;i<42;i++){
-        const bx = (rand()*w)|0;
-        const by = (rand()*h)|0;
+      for (let i=0;i<specks.length;i++){
+        const bx = (specks[i].x*w)|0;
+        const by = (specks[i].y*h)|0;
         ctx.fillRect(bx, by, 1, 1);
       }
       ctx.restore();
@@ -326,19 +343,40 @@ export function createChannel({ seed, audio }){
     };
   }
 
+  function stopAudio({ clearCurrent = false } = {}){
+    const handle = ah;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // clears audio.current and stops via handle.stop()
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
+    ah = null;
+  }
+
   function onAudioOn(){
     if (!audio.enabled) return;
+
+    // Defensive: if onAudioOn is called repeatedly while audio is enabled,
+    // ensure we don't stack/overlap our own ambience.
+    if (ah && audio.current === ah) return;
+
+    stopAudio({ clearCurrent: true });
     ah = makeAudioHandle();
     audio.setCurrent(ah);
   }
 
   function onAudioOff(){
-    ah?.stop?.();
-    ah = null;
+    stopAudio({ clearCurrent: true });
   }
 
   function destroy(){
-    onAudioOff();
+    // Only clears AudioManager.current when we own it.
+    stopAudio({ clearCurrent: true });
   }
 
   function update(dt){
@@ -419,16 +457,19 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(0, 0, w, h);
 
     // flicker
-    const f = 0.02 + 0.02 * Math.sin(t * 23.0) + 0.01 * (rand() - 0.5);
+    const flickerBucket = Math.floor(t * 24);
+    const flickerN = hash01((seed ^ 0x9e3779b9) + flickerBucket * 0x85ebca6b);
+    const f = 0.02 + 0.02 * Math.sin(t * 23.0) + 0.01 * (flickerN - 0.5);
     ctx.fillStyle = `rgba(255,255,255,${Math.max(0, f)})`;
     ctx.fillRect(0, 0, w, h);
 
     // tiny noise specks (cheap)
     ctx.globalAlpha = 0.10;
     ctx.fillStyle = 'rgba(255,255,255,1)';
+    const speckBucket = Math.floor(t * 12);
     for (let i=0; i<28; i++){
-      const x = (rand() * w) | 0;
-      const y = (rand() * h) | 0;
+      const x = Math.floor(hash01((seed + 0x1b873593) ^ (speckBucket * 0x9e3779b9) ^ (i * 0x85ebca6b)) * w);
+      const y = Math.floor(hash01((seed + 0x85ebca6b) ^ (speckBucket * 0xc2b2ae35) ^ (i * 0x27d4eb2d)) * h);
       ctx.fillRect(x, y, 1, 1);
     }
 
