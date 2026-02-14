@@ -285,6 +285,24 @@ export function createChannel({ seed, audio }){
     const r = mulberry32(((seed | 0) ^ 0x9e3779b9) >>> 0);
     return { at: 60 + r() * 120, fired: false };
   })();
+
+  // Rare deterministic special moment: BULK DROP surge (~90–210s).
+  // Temporarily increases spawn cadence + thickens tube glow, then cleanly resets.
+  const bulkPlan = (() => {
+    const r = mulberry32(((seed | 0) ^ 0x85ebca6b) >>> 0);
+    const dur = 6 + r() * 4; // 6–10s
+    return {
+      at: 90 + r() * 120,
+      dur,
+      spawnMul: 0.32 + r() * 0.12, // <1 => faster
+      burstN: 2 + ((r() * 3) | 0), // 2–4 immediate spawns
+      fired: false,
+    };
+  })();
+  let bulkBadgeT = 0;
+  let bulkBadgeDur = 0;
+  let bulkSpawnMul = 1;
+
   let expressBadgeT = 0; // seconds remaining
   let expressCanIdx = -1;
   let expressSeq = 0;
@@ -571,11 +589,41 @@ export function createChannel({ seed, audio }){
     if (jam) jam.pulse = Math.max(0, jam.pulse - dt * 1.6);
 
     if (expressBadgeT > 0) expressBadgeT = Math.max(0, expressBadgeT - dt);
+
+    if (bulkBadgeT > 0){
+      bulkBadgeT -= dt;
+      if (bulkBadgeT <= 0){
+        bulkBadgeT = 0;
+        bulkSpawnMul = 1;
+      }
+    }
+
     if (expressCanIdx >= 0 && !cans[expressCanIdx]?.active) expressCanIdx = -1;
 
     // PRIORITY EXPRESS (rare deterministic special moment)
     if (!expressPlan.fired && t >= expressPlan.at){
       if (spawnExpressCanister()) expressPlan.fired = true;
+    }
+
+    // BULK DROP (rare deterministic special moment)
+    if (!bulkPlan.fired && t >= bulkPlan.at){
+      bulkPlan.fired = true;
+      bulkBadgeDur = bulkPlan.dur;
+      bulkBadgeT = bulkPlan.dur;
+      bulkSpawnMul = bulkPlan.spawnMul;
+
+      // Immediate burst so the moment reads even if spawn cadence is mid-gap.
+      for (let k = 0; k < bulkPlan.burstN; k++){
+        if (countActive() >= MAX_CANS - 1) break;
+        spawnCanister();
+      }
+
+      if (audio.enabled){
+        // Short deterministic stinger.
+        safeBeep({ freq: 210, dur: 0.06, gain: 0.018, type: 'square' });
+        safeBeep({ freq: 280, dur: 0.06, gain: 0.016, type: 'square' });
+        safeBeep({ freq: 360, dur: 0.07, gain: 0.014, type: 'triangle' });
+      }
     }
 
     // phase loop
@@ -591,7 +639,7 @@ export function createChannel({ seed, audio }){
     // spawn cadence
     if (t >= nextSpawnAt && countActive() < MAX_CANS - 1){
       spawnCanister();
-      nextSpawnAt = t + phaseSpawnPeriod();
+      nextSpawnAt = t + phaseSpawnPeriod() * bulkSpawnMul;
     }
 
     // jam events are more likely in maintenance.
@@ -750,6 +798,15 @@ export function createChannel({ seed, audio }){
   function drawTubes(ctx){
     const lw = Math.max(1.5, Math.min(w, h) / 210);
 
+    // BULK DROP glow boost (triangular fade in/out across the burst duration).
+    let bulkK = 0;
+    if (bulkBadgeT > 0 && bulkBadgeDur > 0){
+      const p = 1 - bulkBadgeT / Math.max(0.0001, bulkBadgeDur); // 0..1
+      bulkK = ease(1 - Math.abs(p * 2 - 1));
+    }
+    const bulkGlowW = 1 + 0.75 * bulkK;
+    const bulkGlowA = 1 + 1.6 * bulkK;
+
     // glow pass
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
@@ -758,8 +815,9 @@ export function createChannel({ seed, audio }){
       const pts = e.edge.points;
       const isJam = jam && jam.edgeIdx === i;
 
-      ctx.strokeStyle = isJam ? `hsla(${(hue + 330) % 360}, 95%, 62%, ${0.22 + 0.18 * (0.5 + 0.5*Math.sin(t*9))})` : glow;
-      ctx.lineWidth = lw * 6;
+      const baseGlow = bulkK > 0 ? `hsla(${hue}, 85%, 62%, ${0.18 * bulkGlowA})` : glow;
+      ctx.strokeStyle = isJam ? `hsla(${(hue + 330) % 360}, 95%, 62%, ${0.22 + 0.18 * (0.5 + 0.5*Math.sin(t*9))})` : baseGlow;
+      ctx.lineWidth = lw * 6 * bulkGlowW;
       ctx.beginPath();
       ctx.moveTo(pts[0][0], pts[0][1]);
       for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]);
@@ -1010,6 +1068,10 @@ export function createChannel({ seed, audio }){
       ctx.fillStyle = warn;
       ctx.globalAlpha = Math.min(1, expressBadgeT / 1.2) * (0.70 + 0.30 * Math.sin(t * 8));
       ctx.fillText('PRIORITY EXPRESS', x + pad, y + pad * 4.4);
+    } else if (bulkBadgeT > 0){
+      ctx.fillStyle = lampCong;
+      ctx.globalAlpha = Math.min(1, bulkBadgeT / 1.2) * (0.70 + 0.30 * Math.sin(t * 8));
+      ctx.fillText('BULK DROP — SURGE', x + pad, y + pad * 4.4);
     }
 
     // Dispatch log strip (OSD-safe; deterministic rotation).
