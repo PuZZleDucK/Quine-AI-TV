@@ -87,9 +87,7 @@ A *good channel review* must produce concrete, trackable follow-ups. Do **all** 
 ### 2) Code + audio review
 - Review the channel code for:
   - correctness and obvious bugs,
-  - lifecycle hygiene (`onResize`, `update(dt)`, `draw(ctx)`, `destroy()`),
   - deterministic variety (seeded PRNG use, stable pacing),
-  - performance (hot-path allocations, expensive gradients/paths per frame, too-many draw calls).
 - Review dialog and text:
   - long enough to last 5 minutes
   - humorous or entertaining
