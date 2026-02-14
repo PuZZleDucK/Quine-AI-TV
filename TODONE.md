@@ -1,6 +1,8 @@
 # Done
 
 
+- [x] [project:quine-tv] `retroboot` add alien os - rare. Screenshots: screenshots/autopilot-retroboot-alien-before + screenshots/autopilot-retroboot-alien-after. Commit: 2844e15
+
 - [x] [project:quine-tv] `retroboot` add unixes - uncommon. Commit: bc845aa
 
 - [x] [project:quine-tv] `retroboot` add bsd - uncommon. Commit: 0fd5631

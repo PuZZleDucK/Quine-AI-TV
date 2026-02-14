@@ -1,3 +1,5 @@
+- 2026-02-15 10:21 (Australia/Melbourne) [project:quine-tv] `retroboot` add alien os - rare. Screenshots: screenshots/autopilot-retroboot-alien-before + screenshots/autopilot-retroboot-alien-after. Commit: 2844e15
+
 - 2026-02-15 10:06 (Australia/Melbourne) [project:quine-tv] `retroboot` add unixes - uncommon. Commit: bc845aa
 
 - 2026-02-15 08:48 (Australia/Melbourne) [project:quine-tv] `retroboot` add beos - rare. Commit: 24fbe6d
