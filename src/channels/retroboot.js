@@ -295,7 +295,7 @@ export function createChannel({ seed, audio }){
 
     // scanlines
     octx.save();
-    octx.globalAlpha = 0.14;
+    octx.globalAlpha = 0.10;
     const pat = octx.createPattern(scanPat, 'repeat');
     if (pat){
       octx.fillStyle = pat;
@@ -306,7 +306,7 @@ export function createChannel({ seed, audio }){
     octx.globalAlpha = 1;
     const vg = octx.createRadialGradient(w*0.5, h*0.5, Math.min(w,h)*0.2, w*0.5, h*0.5, Math.max(w,h)*0.75);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(0,0,0,0.55)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.38)');
     octx.fillStyle = vg;
     octx.fillRect(0, 0, w, h);
 
@@ -490,12 +490,12 @@ export function createChannel({ seed, audio }){
     // flicker
     const flickerBucket = Math.floor(t * 24);
     const flickerN = hash01((seed ^ 0x9e3779b9) + flickerBucket * 0x85ebca6b);
-    const f = 0.02 + 0.02 * Math.sin(t * 23.0) + 0.01 * (flickerN - 0.5);
+    const f = 0.012 + 0.012 * Math.sin(t * 23.0) + 0.006 * (flickerN - 0.5);
     ctx.fillStyle = `rgba(255,255,255,${Math.max(0, f)})`;
     ctx.fillRect(0, 0, w, h);
 
     // tiny noise specks (cheap)
-    ctx.globalAlpha = 0.10;
+    ctx.globalAlpha = 0.06;
     ctx.fillStyle = 'rgba(255,255,255,1)';
     const speckBucket = Math.floor(t * 12);
     for (let i=0; i<28; i++){
