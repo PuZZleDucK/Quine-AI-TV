@@ -29,6 +29,8 @@ function fmt(sec){
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
   const audioRand = mulberry32(((seed | 0) ^ 0x5bd1e995) >>> 0);
+  // separate rng so text variety doesn’t perturb scene layout
+  const textRand = mulberry32(((seed | 0) ^ 0x27d4eb2d) >>> 0);
 
   const RESET = {
     title: 'TIDY DESK RESET',
@@ -45,6 +47,48 @@ export function createChannel({ seed, audio }){
   };
 
   const TOTAL = RESET.steps.reduce((a, s) => a + s.dur, 0);
+
+  // deterministic rotating text pools (no repeats for 5+ minutes)
+  const TEXT_PERIOD = 45; // seconds per line
+  const SUBTITLE_POOL = [
+    '10-minute loop • checklist overlay • gentle ASMR (optional)',
+    '10-minute reset • checklist overlay • soft desk ambience (optional)',
+    '10-minute loop • checklist overlay • tidy-with-me',
+    '10-minute loop • checklist overlay • lo-fi desk calm',
+    '10-minute reset • checklist overlay • no rush, just order',
+    '10-minute loop • checklist overlay • satisfying clicks (optional)',
+    '10-minute loop • checklist overlay • quiet focus',
+    '10-minute reset • checklist overlay • small wins, one step at a time',
+  ];
+  const FOOTER_POOL = [
+    'clean → stack → file → coil → wipe → align',
+    'cups → papers → notes → cables → wipe → essentials',
+    'reset loop: clear → stack → file → coil → wipe → align',
+    'tidy pass: cups → papers → notes → cables → wipe → align',
+    'checklist: cups • papers • notes • cables • wipe • align',
+    'clear cups → stack papers → file notes → coil cables → wipe → align',
+    'desk reset: clear → stack → file → coil → wipe → align',
+    'slow tidy: clear → stack → file → coil → wipe → align',
+  ];
+
+  function shuffledOrder(n){
+    const a = Array.from({ length: n }, (_, i) => i);
+    for (let i = n - 1; i > 0; i--){
+      const j = (textRand() * (i + 1)) | 0;
+      const tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+    }
+    return a;
+  }
+
+  const subtitleOrder = shuffledOrder(SUBTITLE_POOL.length);
+  const footerOrder = shuffledOrder(FOOTER_POOL.length);
+
+  function pickRotating(pool, order){
+    const idx = Math.floor(t / TEXT_PERIOD) % order.length;
+    return pool[order[idx]];
+  }
 
   let w = 0, h = 0, t = 0;
   let font = 16;
@@ -683,7 +727,7 @@ export function createChannel({ seed, audio }){
     ctx.globalAlpha = 0.75;
     ctx.font = `${Math.floor(font * 0.82)}px ui-sans-serif, system-ui`;
     ctx.fillStyle = 'rgba(231,238,246,0.72)';
-    ctx.fillText(RESET.subtitle, Math.floor(w * 0.05), Math.floor(h * 0.145));
+    ctx.fillText(pickRotating(SUBTITLE_POOL, subtitleOrder), Math.floor(w * 0.05), Math.floor(h * 0.145));
     ctx.restore();
   }
 
@@ -716,7 +760,7 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = 'rgba(231,238,246,0.7)';
     ctx.font = `${Math.floor(h / 40)}px ui-sans-serif, system-ui`;
     ctx.textBaseline = 'middle';
-    ctx.fillText('clean → stack → file → coil → wipe → align', Math.floor(w * 0.05), Math.floor(h * 0.96));
+    ctx.fillText(pickRotating(FOOTER_POOL, footerOrder), Math.floor(w * 0.05), Math.floor(h * 0.96));
     ctx.restore();
   }
 
