@@ -22,6 +22,85 @@ function hash01(x){
   return s - Math.floor(s);
 }
 
+function makeShuffleBag(rand, items){
+  const bag = items.slice();
+  let idx = 0;
+
+  function shuffle(){
+    for (let i = bag.length - 1; i > 0; i--){
+      const j = (rand() * (i + 1)) | 0;
+      const t = bag[i];
+      bag[i] = bag[j];
+      bag[j] = t;
+    }
+    idx = 0;
+  }
+
+  shuffle();
+
+  return {
+    next(){
+      if (!bag.length) return '';
+      if (idx >= bag.length) shuffle();
+      return bag[idx++];
+    }
+  };
+}
+
+const SIGN_WORDS = [
+  'NOODLES','GYOZA','TEA','BAO','BUNS','UDON','RAMEN','DUMPLING','SKEWERS','SPICES',
+  'MOCHI','TOFU','RICE','NORI','MANGO','PEAR','CHILI','SWEET','SOUR','HOT','COLD',
+  'FRESH','CRISP','SMOKE','BROTH','SOUP','GRILL','BBQ','SIZZLE','GLOW','NEON',
+  'NIGHT','MARKET','OPEN','LATE','CASH','TAP','LUCKY','SECRET','MYSTERY','LIMITED',
+  'SPECIAL','SAMPLE','TRY ME','STALL 07','BARGAIN','HAGGLE','SPICY','UMAMI',
+
+  // extras (keep mostly short so they fit the glass signs)
+  'MILK TEA','OOLONG','BLACK TEA','MATCHA','YUZU','TARO','SESAME','RED BEAN',
+  'SWEET BEAN','HONEY','PLUM','GINGER','GARLIC','MISO','SOY','PEPPER',
+  'CRUNCH','STEAM','SIZZLING','FIRE','COOL','ICED','WARM','EXTRA HOT',
+  'CANDY','SUGAR','SALTY','SAVORY','STICKY','CHEWY','CRISPY','MELTY',
+  'ONIGIRI','TAKOYAKI','TEMPURA','KATSU','YAKITORI','FISHBALL',
+  'TANGHULU','BINGSU','MOONCAKE','LOTUS','KIMCHI','BOK CHOY',
+  'NEON MIX','MYST BOX','SECRET MENU','MIDNIGHT','AFTER HOURS','RAIN SALE',
+  '2 FOR 1','FLASH','QUEUE LEFT','QUEUE RIGHT','NO REFUNDS','TINY TAX'
+];
+
+const TAG_WORDS = [
+  'BUN','BAO','MOCHI','MANGO','PEAR','RICE','TEA','SKEWER','TOFU','RAMEN',
+  'UDON','GYOZA','DUMPLING','NORI','CHILI','SODA','CUSTARD','JELLY','PUDDING',
+  'BOKCHOY','MUSHROOM','TANGHULU','BINGSU','KIMCHI','LOTUS','MOONCAKE','SUSPECT',
+  'MYST BOX','NEON MIX','HOT BAG',
+
+  'ONIGIRI','TAKOYAKI','TEMPURA','KATSU','YAKITORI','FISHBALL',
+  'MATCHA','OOLONG','YUZU','TARO','SESAME','RED BEAN','HONEY','PLUM',
+  'GARLIC','MISO','SOY','GINGER','PEPPER','SWEET BEAN',
+  'ICE CUP','WARM CUP','EXTRA HOT','XL BOWL','MINI BAG','LUCKY DIP'
+];
+
+const LEDGER_GOODS = [
+  'NOODLES','GYOZA','MILK TEA','SPICE MIX','MANGO','BUNS','SKEWERS','MOCHI','TOFU',
+  'RICE CAKE','PEAR','CHILI OIL','SWEET SOUP','DUMPLINGS','UDON','RAMEN','BAO',
+  'FISH CAKE','NORI','BOK CHOY','BLACK SESAME','LOTUS BUN','MOONCAKE','TANGHULU',
+  'BINGSU','KIMCHI','MUSHROOMS','SWEET BEAN','CUSTARD BUN','JELLY TEA','SODA POP',
+  'CRISPY TOFU','SPICY GYOZA','GARLIC NOODS','MYSTERY SKEWER','NEON DUMPLING',
+  'GHOST BROTH','LUCKY BAO','SECRET SOUP','MIDNIGHT TEA','HOT PEPPER','COLD NOODS',
+  'SESAME BALL','RICE BOWL','CHILI BUN','SOY PUDDING','SWEET RICE','PEAR TEA'
+];
+
+const LEDGER_ADJ = [
+  'NEON','SPICY','SWEET','CRISPY','HOT','COLD','FRESH','SECRET','LUCKY','MIDNIGHT','GHOST','GLOW'
+];
+
+const RECEIPT_STAMPS = [
+  'STAMP: OK','STAMP: PAID','STAMP: ???','STAMP: HOT','STAMP: LUCKY','STAMP: FAST','STAMP: LATE'
+];
+
+const RECEIPT_FOOTERS = [
+  'THANK YOU','COME AGAIN','NO REFUNDS','CASH WELCOME','NIGHT TAX INCL','BAG FEE $0.10',
+  'DONT TELL HQ','KEEP MOVING','HAVE A NICE NIGHT','TRY THE TEA','TIP JAR: GLOW',
+  'QUEUE LEFT','QUEUE RIGHT','MIND THE RAIN','STALL 07 FOREVER'
+];
+
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
   // separate RNG for rare “special moments” so core visuals stay stable
@@ -31,6 +110,7 @@ export function createChannel({ seed, audio }){
   let h = 0;
   let dpr = 1;
   let t = 0;
+  let cycleN = 0;
 
   // typography
   let font = 16;
@@ -142,6 +222,142 @@ export function createChannel({ seed, audio }){
     nextSpecialAt = now + (120 + momentRand() * 180);
   }
 
+  function cycleTextRand(cycle){
+    // separate stream: text/ledger/receipts refresh once per cycle (~60s)
+    const s = (seed ^ 0x9e3779b9 ^ ((cycle + 1) * 0x85ebca6b)) >>> 0;
+    return mulberry32(s);
+  }
+
+  function cycleDealRand(cycle){
+    // separate stream: deal selection/schedule (stable across dt/fps)
+    const s = (seed ^ 0x51ed270b ^ ((cycle + 1) * 0x27d4eb2d)) >>> 0;
+    return mulberry32(s);
+  }
+
+  function setDealForCycle(cycle){
+    if (!ledger.length){
+      deal = { item: 'NOODLES', off: 20, price: 4.0, col: pal.neonB };
+      nextDealAt = PHASE_DUR * 3 + 1.2;
+      return;
+    }
+
+    const dr = cycleDealRand(cycle);
+    const dealItem = pick(dr, ledger);
+    const off = pick(dr, [10, 15, 20, 25, 30]);
+    const dealPrice = Math.max(1, dealItem.price * (1 - off / 100));
+    deal = { item: dealItem.label, off, price: dealPrice, col: pick(dr, [pal.neonA, pal.neonB, pal.neonC]) };
+    nextDealAt = PHASE_DUR * 3 + 1.1 + dr() * 3.8;
+  }
+
+  function refreshText(cycle){
+    const tr = cycleTextRand(cycle);
+
+    const signBag = makeShuffleBag(tr, SIGN_WORDS);
+    const tagBag = makeShuffleBag(tr, TAG_WORDS);
+    const goodsBag = makeShuffleBag(tr, LEDGER_GOODS);
+    const stampBag = makeShuffleBag(tr, RECEIPT_STAMPS);
+    const footerBag = makeShuffleBag(tr, RECEIPT_FOOTERS);
+
+    const toReceiptName = (s) => {
+      const u = String(s)
+        .toUpperCase()
+        .replace(/[^A-Z0-9 ]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return u.slice(0, 10);
+    };
+
+    // signs/tags: update all on init, then a few per cycle to keep it lively
+    const updateAll = (cycle === 0);
+
+    const signUpdates = updateAll ? signs.length : Math.min(4, signs.length);
+    for (let i=0;i<signUpdates;i++){
+      const k = updateAll ? i : ((cycle * 3 + i) % signs.length);
+      if (signs[k]) signs[k].text = signBag.next();
+    }
+
+    const tagUpdates = updateAll ? tags.length : Math.min(3, tags.length);
+    for (let i=0;i<tagUpdates;i++){
+      const k = updateAll ? i : ((cycle * 2 + i) % tags.length);
+      const tg = tags[k];
+      if (!tg) continue;
+      tg.lab = tagBag.next();
+      const base = 2 + ((tr() * 17) | 0);
+      const half = tr() < 0.22 ? 0.5 : 0;
+      tg.price = base + half + (tr() < 0.06 ? 1 : 0);
+    }
+
+    // ledger entries
+    ledger = [];
+    const LEDGER_N = 18;
+    for (let i=0;i<LEDGER_N;i++){
+      let label = goodsBag.next();
+      if (tr() < 0.22) label = `${pick(tr, LEDGER_ADJ)} ${label}`;
+      const qty = 1 + ((tr() * 6) | 0);
+      const price = (2 + ((tr() * 17) | 0)) + (tr() < 0.24 ? 0.5 : 0);
+      ledger.push({ label, qty, price, tt: (i * 7 + ((tr() * 14) | 0)) % 60 });
+    }
+
+    // receipts: regenerate a small stack each cycle (keeps text fresh over 5+ mins)
+    receipts = [];
+    const receiptCount = 18;
+    for (let r=0;r<receiptCount;r++){
+      const lines = [];
+      let total = 0;
+
+      // keep the stack readable: cap printed lines and trade item-lines for “misc” lines
+      const MAX_LINES = 7;
+
+      let n = 3 + ((tr() * 4) | 0);
+
+      const wantStamp = tr() < 0.55;
+      const wantFooter = tr() < 0.65;
+      const wantBagFee = tr() < 0.22;
+      const wantDiscount = tr() < 0.18;
+      const wantRounding = tr() < 0.14;
+
+      const miscCount = (wantBagFee ? 1 : 0) + (wantDiscount ? 1 : 0) + (wantRounding ? 1 : 0) + (wantStamp ? 1 : 0) + (wantFooter ? 1 : 0);
+      n = Math.max(1, Math.min(n, MAX_LINES - miscCount));
+
+      const itemBag = makeShuffleBag(tr, ledger);
+      for (let i=0;i<n;i++){
+        const it = itemBag.next();
+        const q = 1 + ((tr() * 3) | 0);
+        const p = it.price;
+        total += q * p;
+        const name = toReceiptName(it.label).padEnd(10, ' ');
+        lines.push(`${String(q).padStart(2,' ')}  ${name}  $${(q*p).toFixed(2)}`);
+      }
+
+      if (wantBagFee){
+        total += 0.10;
+        lines.push('    BAG FEE       $0.10');
+      }
+
+      if (wantDiscount){
+        const off = pick(tr, [0.5, 1.0, 1.5, 2.0]);
+        total = Math.max(0, total - off);
+        lines.push(`    DISC          -$${off.toFixed(2)}`);
+      }
+
+      if (wantRounding){
+        const step = pick(tr, [0.05, 0.10]);
+        const rounded = Math.round(total / step) * step;
+        const diff = rounded - total;
+        if (Math.abs(diff) >= 0.01){
+          total = rounded;
+          const sign = diff < 0 ? '-' : '+';
+          lines.push(`    ROUNDING      ${sign}$${Math.abs(diff).toFixed(2)}`);
+        }
+      }
+
+      if (wantStamp) lines.push(stampBag.next());
+      if (wantFooter) lines.push(footerBag.next());
+
+      receipts.push({ id: cycle * 100 + r, lines, total: `$${total.toFixed(2)}` });
+    }
+  }
+
   function regen(){
     // signs (background)
     const baseY = h * 0.16;
@@ -231,12 +447,17 @@ export function createChannel({ seed, audio }){
 
   function reset(){
     t = 0;
+    cycleN = 0;
     dealFlash = 0;
     dealPulse = 0;
     flicker = 0;
 
     special = null;
     scheduleNextSpecial(0);
+
+    // text/ledger/receipt variation (seeded; no per-frame RNG)
+    refreshText(0);
+    setDealForCycle(0);
   }
 
   function init({ width, height, dpr: dprIn }){
@@ -355,13 +576,12 @@ export function createChannel({ seed, audio }){
       triggerDeal();
     }
 
-    // new cycle: rotate deal item + schedule
-    if (cycT < dt){
-      const dealItem = pick(rand, ledger);
-      const off = pick(rand, [10, 15, 20, 25, 30]);
-      const dealPrice = Math.max(1, dealItem.price * (1 - off / 100));
-      deal = { item: dealItem.label, off, price: dealPrice, col: pick(rand, [pal.neonA, pal.neonB, pal.neonC]) };
-      nextDealAt = PHASE_DUR * 3 + 1.1 + rand() * 3.8;
+    // cycle boundary: refresh the “paperwork” + deal (seeded; no per-frame RNG)
+    const curCycle = Math.floor(t / CYCLE_DUR);
+    if (curCycle !== cycleN){
+      cycleN = curCycle;
+      refreshText(cycleN);
+      setDealForCycle(cycleN);
     }
 
     // rare special moments (2–5 min cadence)
