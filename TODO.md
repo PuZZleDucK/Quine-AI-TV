@@ -7,5 +7,4 @@ if `TODO.md` has no ready items:
 - [project:quine-tv] `retroboot` add Win9x splash/installer.
 - [project:quine-tv] `retroboot` add bsd - uncommon.
 - [project:quine-tv] `retroboot` add unixes - uncommon.
-- [project:quine-tv] `retroboot` add beos - rare.
 - [project:quine-tv] `retroboot` add alien os - rare.

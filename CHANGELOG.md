@@ -1,3 +1,5 @@
+- 2026-02-15 08:48 (Australia/Melbourne) [project:quine-tv] `retroboot` add beos - rare. Commit: 24fbe6d
+
 - 2026-02-15 08:21 (Australia/Melbourne) [project:quine-tv] `retroboot` add solaris - rare. Commit: 501cd35
 
 - 2026-02-15 06:19 (Australia/Melbourne) [project:quine-tv] `retroboot` add Norton/Scandisk. Commit: cd83fc0
