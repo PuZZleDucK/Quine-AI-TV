@@ -11,6 +11,7 @@ export function createChannel({ seed, audio }){
   let sand = [];
   let seaweed = [];
   let coral = [];
+  let midground = null;
   let noiseHandle=null;
   let audioHandle=null; // handle registered with AudioManager.setCurrent
 
@@ -538,6 +539,7 @@ export function createChannel({ seed, audio }){
     sand = makeSand();
     seaweed = makeSeaweed();
     coral = makeCoral();
+    midground = makeMidground();
 
     // Occasional special moments (deterministic per seed).
     specialEvent = null;
@@ -576,19 +578,27 @@ export function createChannel({ seed, audio }){
     const baseYMax = h*0.88 - amp;
     const baseY = baseYMin < baseYMax ? clamp(baseYRaw, baseYMin, baseYMax) : h*0.5;
 
+    const x = spawnOnscreen
+      ? (randSim()*w)
+      : (dir>0 ? -randSim()*w*0.6 : w + randSim()*w*0.6);
+    const sp = (0.25+randSim()*0.9) * (w/800);
+    // Per-fish style variation (patterns/fins) without needing more RNG during render.
+    const variant = randSim();
+    const plane = variant < 0.50 ? 'back' : 'front';
+
     return {
-      x: spawnOnscreen ? (randSim()*w) : (dir>0 ? -randSim()*w*0.6 : w + randSim()*w*0.6),
+      x,
       y: baseY + Math.sin(ph) * amp,
       baseY,
       dir,
-      sp: (0.25+randSim()*0.9) * (w/800),
+      sp,
       amp,
       ph,
       hue,
       size: kindSize,
       kind,
-      // Per-fish style variation (patterns/fins) without needing more RNG during render.
-      variant: randSim(),
+      variant,
+      plane,
     };
   }
 
@@ -703,6 +713,61 @@ export function createChannel({ seed, audio }){
     return items;
   }
 
+  function makeMidground(){
+    const randStatic = mulberry32((staticSeed ^ 0x1b873593) >>> 0);
+    // A soft mid-water haze band + a few dark, blurry silhouettes to break the “flat plane”.
+    const bandY = h * (0.56 + randStatic()*0.10);
+    const bandH = h * (0.16 + randStatic()*0.10);
+
+    const rockCount = 5 + ((randStatic() * 6) | 0);
+    const rocks = [];
+    for (let i = 0; i < rockCount; i++){
+      const x = w * (0.06 + randStatic()*0.88);
+      const y = h * (0.72 + randStatic()*0.11);
+      const rw = h * (0.05 + randStatic()*0.14);
+      const rh = rw * (0.40 + randStatic()*0.55);
+      const rot = (randStatic()*0.70 - 0.35);
+      const a = 0.10 + randStatic()*0.16;
+      rocks.push({ x, y, rw, rh, rot, a });
+    }
+
+    return { bandY, bandH, rocks };
+  }
+
+  function drawMidground(ctx){
+    const mg = midground;
+    if (!mg) return;
+
+    // Haze band (kept subtle; should read as depth, not "fog overlay").
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.10;
+    const g = ctx.createLinearGradient(0, mg.bandY, 0, mg.bandY + mg.bandH);
+    g.addColorStop(0, 'rgba(40, 120, 135, 0.0)');
+    g.addColorStop(0.45, 'rgba(110, 255, 240, 0.10)');
+    g.addColorStop(1, 'rgba(10, 30, 35, 0.0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, mg.bandY, w, mg.bandH);
+    ctx.restore();
+
+    // Dark silhouettes (very soft) to create a midground layer.
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.filter = `blur(${Math.max(0.6, h*0.004)}px)`;
+    ctx.fillStyle = 'rgb(0,0,0)';
+    for (const r of mg.rocks){
+      ctx.globalAlpha = r.a;
+      ctx.save();
+      ctx.translate(r.x, r.y);
+      ctx.rotate(r.rot);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r.rw, r.rh, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   function onResize(width,height){
     w=width; h=height;
     resetGradCache();
@@ -711,6 +776,7 @@ export function createChannel({ seed, audio }){
     sand = makeSand();
     seaweed = makeSeaweed();
     coral = makeCoral();
+    midground = makeMidground();
 
     // Keep event visuals in-bounds after resize.
     specialEvent = null;
@@ -776,7 +842,8 @@ export function createChannel({ seed, audio }){
     for (let i=0;i<fish.length;i++){
       const f = fish[i];
       const dirEff = (1 - schoolW) * f.dir + schoolW * schoolPlan.dir;
-      f.x += dirEff * (80*f.sp*fishMul) * dt;
+      const depthMul = (f.plane === 'back') ? 0.78 : 1.05;
+      f.x += dirEff * (80*f.sp*fishMul*depthMul) * dt;
 
       const baseY = f.baseY + Math.sin(t*0.8 + f.ph) * f.amp * ampMul;
       let yy = baseY;
@@ -909,9 +976,16 @@ export function createChannel({ seed, audio }){
     // occasional special moments (kept subtle, behind fish)
     drawSpecialMoments(ctx);
 
-    // fish
+    // fish (two depth planes)
     for (const f of fish){
-      drawFish(ctx, f);
+      if (f.plane === 'back') drawFish(ctx, f);
+    }
+
+    // subtle midground layer between fish planes
+    drawMidground(ctx);
+
+    for (const f of fish){
+      if (f.plane !== 'back') drawFish(ctx, f);
     }
 
     // bubbles
@@ -969,8 +1043,20 @@ export function createChannel({ seed, audio }){
 
   function drawFish(ctx, f){
     const sway = Math.sin(t*4 + f.ph) * 0.25;
+    const isBack = (f.plane === 'back');
+
     ctx.save();
     ctx.translate(f.x, f.y);
+
+    const depthA = isBack ? 0.72 : 1;
+
+    // Back plane: slightly smaller + softer + dimmer (cheap depth cue).
+    if (isBack){
+      ctx.filter = `blur(${Math.max(0.35, f.size*0.05)}px)`;
+      ctx.scale(0.86, 0.86);
+    }
+    ctx.globalAlpha = depthA;
+
     ctx.scale(f.dir, 1);
     ctx.rotate(sway*0.08);
 
@@ -1007,7 +1093,7 @@ export function createChannel({ seed, audio }){
     // uncommon: add a soft vertical stripe pattern (stable via f.variant)
     if (kind === 'uncommon'){
       ctx.save();
-      ctx.globalAlpha = 0.25;
+      ctx.globalAlpha = depthA * 0.25;
       ctx.fillStyle = `hsla(${(f.hue+160)%360}, 70%, 70%, 0.7)`;
       const stripes = 3 + ((f.variant * 3)|0);
       for (let i = 0; i < stripes; i++){
@@ -1036,7 +1122,7 @@ export function createChannel({ seed, audio }){
     ctx.fill();
 
     // dorsal fin / wing fin
-    ctx.globalAlpha = 0.65;
+    ctx.globalAlpha = depthA * 0.65;
     ctx.fillStyle = `hsla(${(f.hue+80)%360},80%,60%,0.6)`;
     ctx.beginPath();
     if (kind === 'uncommon'){
@@ -1053,7 +1139,7 @@ export function createChannel({ seed, audio }){
 
     // rare: tiny lure dot near the head
     if (kind === 'rare'){
-      ctx.globalAlpha = 0.9;
+      ctx.globalAlpha = depthA * 0.9;
       ctx.fillStyle = `hsla(${(f.hue+30)%360}, 95%, 72%, 0.85)`;
       ctx.beginPath();
       ctx.arc(f.size*0.95, -f.size*0.55, f.size*0.09, 0, Math.PI*2);
@@ -1061,7 +1147,7 @@ export function createChannel({ seed, audio }){
     }
 
     // eye
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = depthA;
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.beginPath(); ctx.arc(f.size*0.55, -f.size*0.1, f.size*0.12,0,Math.PI*2); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,0.75)';
