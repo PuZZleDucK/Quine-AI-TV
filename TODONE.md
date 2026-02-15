@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): composition — increased creature prominence in the postcard window (larger silhouette + subtle backlight/rim glow for readability). Commit: 1a24130
+
 - [x] [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): text legibility — improved UI label readability (title/name/zone/“CREATURE FACT”/“NEXT CARD”) with subtle shadows/outlines + slightly darker ink palette. Commit: 8088cd0
 
 - [x] [project:quine-tv] Review channel `oceanpostcards` (src/channels/archive/oceanpostcards.js): captured screenshots (0–300s) to `screenshots/review-oceanpostcards` (errors/warnings: 0), confirmed `// REVIEWED: 2026-02-15`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
