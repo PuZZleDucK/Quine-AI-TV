@@ -27,7 +27,14 @@ export function createChannel({ seed, audio }){
   function spawnSpecialEvent(now){
     if (w <= 0 || h <= 0) return;
 
-    const kind = randEvents() < 0.62 ? 'bloom' : 'silhouette';
+    // Keep a distinct “special moment” signature, but don't fire too often.
+    // (scheduled via randEvents cadence below)
+    const rKind = randEvents();
+    const kind =
+      rKind < 0.60 ? 'bloom' :
+      rKind < 0.92 ? 'silhouette' :
+      'flashlight';
+
     if (kind === 'bloom'){
       const dur = 10 + randEvents()*10;
       const hue = (165 + randEvents()*90) % 360;
@@ -46,6 +53,38 @@ export function createChannel({ seed, audio }){
         parts.push({ x, y, sp, r, ph, drift, color: `hsla(${hh}, 95%, ${light}%, 0.9)` });
       }
       specialEvent = { kind, t0: now, dur, hue, parts };
+      return;
+    }
+
+    if (kind === 'flashlight'){
+      // A warm cone of light sweeps across the tank with drifting dust/sparkles.
+      const dur = 7 + randEvents()*8;
+      const dir = randEvents() < 0.5 ? 1 : -1;
+      const tilt = (randEvents()*0.44 - 0.22);
+      const angle = Math.PI/2 + tilt; // mostly downward
+      const y0 = h*(0.08 + randEvents()*0.10);
+      const x0 = dir > 0 ? (-w*0.25) : (w*1.25);
+      const x1 = dir > 0 ? (w*1.25) : (-w*0.25);
+      const len = h*(0.92 + randEvents()*0.18);
+      const width = w*(0.26 + randEvents()*0.20);
+      const hue = 35 + randEvents()*55;
+
+      const sparkleCount = 22 + ((randEvents()*30) | 0);
+      const sparkles = [];
+      const sizeMul = (h/540);
+      for (let i = 0; i < sparkleCount; i++){
+        const x = randEvents()*w;
+        const y = h*(0.12 + randEvents()*0.58);
+        const sp = (10 + randEvents()*28) * sizeMul;
+        const r = (0.6 + randEvents()*1.7) * sizeMul;
+        const ph = randEvents()*Math.PI*2;
+        const drift = (4 + randEvents()*18) * sizeMul;
+        const hh = (hue + (randEvents()*22 - 11) + 360) % 360;
+        const light = 70 + randEvents()*16;
+        sparkles.push({ x, y, sp, r, ph, drift, color: `hsla(${hh}, 95%, ${light}%, 0.9)` });
+      }
+
+      specialEvent = { kind, t0: now, dur, x0, x1, y0, angle, len, width, hue, sparkles };
       return;
     }
 
@@ -84,6 +123,58 @@ export function createChannel({ seed, audio }){
         ctx.arc(xx, yy, p.r, 0, Math.PI*2);
         ctx.fill();
       }
+      ctx.restore();
+      return;
+    }
+
+    if (e.kind === 'flashlight'){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.22 * fade;
+
+      const x = e.x0 + (e.x1 - e.x0) * clamp(u, 0, 1);
+      const y0 = e.y0;
+      const dx = Math.cos(e.angle);
+      const dy = Math.sin(e.angle);
+      const px = -dy;
+      const py = dx;
+
+      const bx = x + dx * e.len;
+      const by = y0 + dy * e.len;
+      const hw = e.width;
+
+      const x1 = bx + px * hw;
+      const y1 = by + py * hw;
+      const x2 = bx - px * hw;
+      const y2 = by - py * hw;
+
+      const g = ctx.createLinearGradient(x, y0, bx, by);
+      g.addColorStop(0, `hsla(${e.hue}, 95%, 78%, 0.0)`);
+      g.addColorStop(0.18, `hsla(${e.hue}, 95%, 76%, 0.34)`);
+      g.addColorStop(1, `hsla(${e.hue}, 95%, 70%, 0.0)`);
+
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x, y0);
+      ctx.lineTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Floating sparkles/dust to make the sweep unmistakable, kept behind fish.
+      ctx.globalAlpha = 0.14 * fade;
+      ctx.shadowColor = `hsla(${e.hue}, 95%, 78%, 0.9)`;
+      ctx.shadowBlur = 10 * fade;
+      for (const p of e.sparkles){
+        const yy = p.y + tt * p.sp;
+        if (yy > h + 40) continue;
+        const xx = p.x + Math.sin(tt*1.1 + p.ph) * p.drift;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(xx, yy, p.r, 0, Math.PI*2);
+        ctx.fill();
+      }
+
       ctx.restore();
       return;
     }
