@@ -8,7 +8,7 @@ if `TODO.md` has no ready items:
 - [project:quine-tv] Review channel `city` (src/channels/city.js): capture screenshots (0–300s) pre/post; do visual+code review; update REVIEWED date; queue concrete follow-ups.
 
 - [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — the front text of the postcard needs to be mirrored so it finishes the correct way around
-
+- [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — flip starts half way, takes the same time and stays on image - previous attempt failed
 - [project:quine-tv] `nightmarket`  - looks terrible - start from scratch and re-imagine the channel
 - [project:quine-tv] `microfilm`  - looks terrible - start from scratch and re-imagine the channel - should show microfilm and enlargemnet
 - [project:quine-tv] `lighthouse`  - looks terrible - light not coming from the right place
