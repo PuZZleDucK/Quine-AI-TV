@@ -681,7 +681,23 @@ function makeStreet(rand, ww, hh){
     return { depth, buildings: b, stripStart, stripWidth };
   });
 
-  return { horizon, layers, rand };
+  // occasional foreground passes to keep the inset feed from feeling static over long runs
+  const fgWrap = ww * (2.6 + rand() * 1.2);
+  const fgCount = 2 + ((rand() * 4) | 0); // 2..5
+  const fgItems = [];
+  for (let i = 0; i < fgCount; i++){
+    const roll = rand();
+    const kind = roll < 0.40 ? 'pole' : (roll < 0.65 ? 'bus' : (roll < 0.90 ? 'sign' : 'moon'));
+    fgItems.push({
+      kind,
+      x: rand() * fgWrap,
+      s: 0.8 + rand() * 0.6,
+      y: rand(),
+    });
+  }
+  fgItems.sort((a, b) => a.x - b.x);
+
+  return { horizon, layers, rand, fg: { wrap: fgWrap, items: fgItems } };
 }
 
 export function createChannel({ seed, audio }){
@@ -1150,6 +1166,7 @@ export function createChannel({ seed, audio }){
     const win = style.window || { r: 255, g: 210, b: 140 };
     const ground = style.ground || { r: 12, g: 17, b: 29 };
     const edge = style.edge || { r: 52, g: 86, b: 158 };
+    const accent = hexToRgb(dest?.palette?.accent);
 
     const groundY = Math.floor(iy + street.horizon);
     for (const layer of street.layers){
@@ -1194,6 +1211,119 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(ix, groundY - 1, iw, groundH);
     ctx.fillStyle = `rgba(${edge.r}, ${edge.g}, ${edge.b}, 0.85)`;
     ctx.fillRect(ix, groundY - 1, iw, 1);
+
+    // foreground passes (fast parallax silhouettes / neon bits)
+    const fg = street.fg;
+    if (fg?.items?.length){
+      const wrap = Math.max(1, fg.wrap || (iw * 3));
+      const fgShift = -((baseShift * 1.55) % wrap);
+      const baseAlpha = 0.55;
+
+      for (const it of fg.items){
+        for (let rep = -1; rep <= 1; rep++){
+          const xx = ix + it.x + fgShift + rep * wrap;
+          if (xx < ix - iw * 0.8 || xx > ix + iw * 1.8) continue;
+
+          if (it.kind === 'pole'){
+            const poleW = Math.max(2, Math.floor(iw * (0.012 * it.s)));
+            const poleH = Math.floor(ih * (0.78 + 0.16 * it.s));
+            const px = Math.floor(xx - poleW * 0.5);
+            const py = Math.floor(groundY - poleH);
+            ctx.save();
+            ctx.globalAlpha = baseAlpha;
+            ctx.fillStyle = 'rgba(0,0,0,0.92)';
+            ctx.fillRect(px, py, poleW, poleH);
+
+            // lamp head + tiny glow
+            const arm = Math.max(6, Math.floor(poleW * 2.6));
+            ctx.fillRect(px, py + Math.floor(poleW * 1.3), arm, Math.max(2, Math.floor(poleW * 0.55)));
+            ctx.globalAlpha = baseAlpha * 0.35;
+            ctx.fillStyle = `rgba(${win.r}, ${win.g}, ${win.b}, 1)`;
+            ctx.fillRect(
+              px + arm - Math.floor(poleW * 0.35),
+              py + Math.floor(poleW * 1.0),
+              Math.max(2, Math.floor(poleW * 0.7)),
+              Math.max(2, Math.floor(poleW * 0.7))
+            );
+            ctx.restore();
+          } else if (it.kind === 'bus'){
+            const bw = Math.floor(iw * (0.26 + 0.10 * it.s));
+            const bh = Math.floor(ih * (0.10 + 0.05 * it.s));
+            const bx = Math.floor(xx - bw * 0.5);
+            const by = Math.floor(groundY - bh + groundH * 0.10);
+            ctx.save();
+            ctx.globalAlpha = baseAlpha * 0.95;
+            ctx.fillStyle = 'rgba(0,0,0,0.88)';
+            roundedRect(ctx, bx, by, bw, bh, Math.floor(bh * 0.18));
+            ctx.fill();
+
+            // windows
+            ctx.globalAlpha = baseAlpha * 0.22;
+            ctx.fillStyle = `rgba(${win.r}, ${win.g}, ${win.b}, 1)`;
+            const wx = bx + Math.floor(bw * 0.12);
+            const wy = by + Math.floor(bh * 0.22);
+            ctx.fillRect(wx, wy, Math.floor(bw * 0.70), Math.floor(bh * 0.32));
+
+            // wheels
+            ctx.globalAlpha = baseAlpha * 0.75;
+            ctx.fillStyle = 'rgba(0,0,0,0.92)';
+            const wr = Math.max(2, Math.floor(bh * 0.20));
+            ctx.beginPath();
+            ctx.arc(bx + Math.floor(bw * 0.25), by + bh, wr, 0, Math.PI * 2);
+            ctx.arc(bx + Math.floor(bw * 0.75), by + bh, wr, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          } else if (it.kind === 'sign'){
+            const poleW = Math.max(2, Math.floor(iw * (0.010 * it.s)));
+            const poleH = Math.floor(ih * (0.35 + 0.25 * it.y));
+            const boardW = Math.floor(iw * (0.16 + 0.10 * it.s));
+            const boardH = Math.floor(ih * (0.06 + 0.05 * it.s));
+            const px = Math.floor(xx - poleW * 0.5);
+            const py = Math.floor(groundY - poleH);
+            const bx = Math.floor(xx - boardW * 0.5);
+            const by = Math.floor(py - boardH * 0.15);
+
+            ctx.save();
+            ctx.globalAlpha = baseAlpha;
+            ctx.fillStyle = 'rgba(0,0,0,0.92)';
+            ctx.fillRect(px, py, poleW, poleH + Math.floor(groundH * 0.15));
+
+            // neon-ish board
+            ctx.globalAlpha = 0.92;
+            ctx.fillStyle = 'rgba(0,0,0,0.70)';
+            roundedRect(ctx, bx, by, boardW, boardH, Math.floor(boardH * 0.28));
+            ctx.fill();
+            ctx.save();
+            ctx.globalAlpha = 0.80;
+            ctx.shadowColor = `rgba(${accent.r}, ${accent.g}, ${accent.b}, 0.65)`;
+            ctx.shadowBlur = Math.max(6, Math.floor(boardH * 0.9));
+            ctx.strokeStyle = `rgba(${accent.r}, ${accent.g}, ${accent.b}, 0.85)`;
+            ctx.lineWidth = Math.max(2, Math.floor(boardH * 0.18));
+            roundedRect(ctx, bx, by, boardW, boardH, Math.floor(boardH * 0.28));
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.restore();
+          } else if (it.kind === 'moon'){
+            const mr = ih * (0.05 + 0.05 * it.s);
+            const mx = xx;
+            const my = iy + ih * (0.18 + 0.26 * it.y);
+            ctx.save();
+            ctx.globalAlpha = 0.16;
+            ctx.fillStyle = 'rgba(245, 246, 255, 1)';
+            ctx.beginPath();
+            ctx.arc(mx, my, mr, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.08;
+            ctx.fillStyle = 'rgba(245, 246, 255, 1)';
+            ctx.beginPath();
+            ctx.arc(mx - mr * 0.22, my - mr * 0.10, mr * 0.58, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+      }
+    }
 
     // scanlines
     ctx.save();
