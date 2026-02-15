@@ -5,8 +5,6 @@ if `TODO.md` has no ready items:
 
 # ready
 
-- [ ] [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): text legibility — make pink UI labels/buttons readable (title/creature name/zone/“CREATURE FACT”/“NEXT CARD”) via subtle shadow or stroke + slightly higher contrast.
-
 - [ ] [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): composition — increase creature prominence inside the postcard window (bigger + clearer silhouette/highlight) so it reads at a glance (esp. in screenshots).
 
 - [ ] [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): special moment — add a rare deterministic “SUBMERSIBLE LIGHT SWEEP” (or bioluminescent bloom) across the window (~2–5 min cadence), with a clear signature look and clean reset (OSD-safe).

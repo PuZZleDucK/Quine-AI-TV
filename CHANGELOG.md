@@ -1,3 +1,5 @@
+- 2026-02-15 21:20 (Australia/Melbourne) [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): text legibility — improved UI label readability (header/title, creature name/zone, “CREATURE FACT”, “NEXT CARD”) with subtle shadow/outline + slightly darker ink palette. Commit: 8088cd0
+
 - 2026-02-15 21:07 (Australia/Melbourne) [project:quine-tv] Review channel `oceanpostcards` (src/channels/archive/oceanpostcards.js): screenshots 0–300s `screenshots/review-oceanpostcards` (errors/warnings: 0); confirmed `// REVIEWED: 2026-02-15`; queued concrete follow-ups in TODO. Commit: TBD
 
 - 2026-02-15 20:16 (Australia/Melbourne) [project:quine-tv] `aquarium` (src/channels/aquarium.js): depth — added a subtle midground haze+silhouette layer and split fish into back/front planes (back plane: slower + blur/alpha/scale) to reduce the “flat plane” feel. Commit: eb5c3df
