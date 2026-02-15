@@ -1775,10 +1775,7 @@ export function createChannel({ seed, audio }){
     ctx.translate(-cx, -cy);
 
     if (c < 0){
-      // counter-mirror so text reads correctly on the "front"
-      ctx.translate(cx, cy);
-      ctx.scale(-1, 1);
-      ctx.translate(-cx, -cy);
+      // Front face: scaleX already uses abs(c), so no extra mirroring needed.
       drawPostcardFront(ctx, layout);
     } else {
       drawPostcardBack(ctx, layout);
