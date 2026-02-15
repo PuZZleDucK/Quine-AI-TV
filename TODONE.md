@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment bug — popup does not stay on screen long enough (now uses fade-in + hold + fade-out timing). Commit: 5e2f4ea
+
 
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): perf — cached static background/window/placard gradients into offscreen layers (rebuilt on init/resize) so steady-state `drawBackground()` blits layers (no per-frame gradients for those elements). Commit: a8e03b7
 
