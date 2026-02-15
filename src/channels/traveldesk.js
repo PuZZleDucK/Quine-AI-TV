@@ -5,6 +5,75 @@ import { COUNTRY_SHAPES } from '../data/countryShapes.js';
 
 const pick = (rand, a) => a[(rand() * a.length) | 0];
 
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const clamp255 = (v) => clamp(v | 0, 0, 255);
+
+function hashStr(s){
+  // FNV-1a
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++){
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function hexToRgb(hex){
+  const h = String(hex || '').trim().replace(/^#/, '');
+  if (h.length === 3){
+    const r = parseInt(h[0] + h[0], 16);
+    const g = parseInt(h[1] + h[1], 16);
+    const b = parseInt(h[2] + h[2], 16);
+    return { r, g, b };
+  }
+  if (h.length === 6){
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16),
+    };
+  }
+  return { r: 255, g: 255, b: 255 };
+}
+
+function mixRgb(a, b, k){
+  const kk = clamp(k, 0, 1);
+  return {
+    r: clamp255(a.r + (b.r - a.r) * kk),
+    g: clamp255(a.g + (b.g - a.g) * kk),
+    b: clamp255(a.b + (b.b - a.b) * kk),
+  };
+}
+
+function streetStyleForDestination(d){
+  const accent = hexToRgb(d?.palette?.accent);
+  const sky0 = hexToRgb(d?.palette?.sky0);
+  const sky1 = hexToRgb(d?.palette?.sky1);
+
+  // stable per-destination accent shifts (so each city has its own “street feed” signature)
+  const rr = mulberry32(hashStr(destinationKey(d)));
+  const wob = () => (rr() * 2 - 1);
+
+  const baseShift = {
+    dr: clamp((accent.r - 128) / 24, -7, 7),
+    dg: clamp((accent.g - 128) / 24, -7, 7),
+    db: clamp((accent.b - 128) / 24, -7, 7),
+  };
+
+  const dr = clamp((baseShift.dr + wob() * 4) | 0, -12, 12);
+  const dg = clamp((baseShift.dg + wob() * 4) | 0, -12, 12);
+  const db = clamp((baseShift.db + wob() * 4) | 0, -12, 12);
+
+  const warmWindow = { r: 255, g: 210, b: 140 };
+  const windowMix = 0.22 + rr() * 0.50;
+  const window = mixRgb(warmWindow, accent, windowMix);
+
+  const ground = mixRgb({ r: 12, g: 17, b: 29 }, sky0, 0.18 + rr() * 0.22);
+  const edge = mixRgb({ r: 52, g: 86, b: 158 }, sky1, 0.12 + rr() * 0.18);
+
+  return { dr, dg, db, window, ground, edge };
+}
+
 const DESTINATIONS = [
   {
     city: 'Lisbon',
@@ -628,6 +697,7 @@ export function createChannel({ seed, audio }){
   let borders = [];
   let route = { stops: [], pausePerStop: SEG_DUR, legDurations: [], cycleSeconds: SEG_DUR };
   let street = null;
+  let streetStyle = null;
 
   // special desk moments (rare, deterministic; separate RNG so core visuals stay stable)
   let momentRand = null;
@@ -703,6 +773,7 @@ export function createChannel({ seed, audio }){
 
     // street footage in a small "screen"
     street = makeStreet(r, w * 0.36, h * 0.26);
+    streetStyle = streetStyleForDestination(dest);
   }
 
   function startMoment(){
@@ -1072,6 +1143,14 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(ix, iy, iw, ih);
     ctx.restore();
 
+    const style = streetStyle || {};
+    const dr = style.dr || 0;
+    const dg = style.dg || 0;
+    const db = style.db || 0;
+    const win = style.window || { r: 255, g: 210, b: 140 };
+    const ground = style.ground || { r: 12, g: 17, b: 29 };
+    const edge = style.edge || { r: 52, g: 86, b: 158 };
+
     const groundY = Math.floor(iy + street.horizon);
     for (const layer of street.layers){
       const tone = Math.floor(12 + (1 - layer.depth) * 24);
@@ -1085,7 +1164,7 @@ export function createChannel({ seed, audio }){
           const bw = Math.ceil(b.w);
           const bh = Math.ceil(b.h) + 1;
           if (bx + bw < ix || bx > ix + iw) continue;
-          ctx.fillStyle = `rgb(${tone}, ${tone + 3}, ${tone + 7})`;
+          ctx.fillStyle = `rgb(${clamp255(tone + dr)}, ${clamp255(tone + 3 + dg)}, ${clamp255(tone + 7 + db)})`;
           ctx.fillRect(bx, by, bw, bh);
 
           // rare-event windows: mostly stable with occasional on/off changes
@@ -1096,7 +1175,7 @@ export function createChannel({ seed, audio }){
               const wi = (r0 - 1) * b.cols + (c0 - 1);
               if (!b.lights[wi]) continue;
               const twinkle = 0.82 + 0.18 * Math.sin(t * 0.35 + b.seed + wi * 0.17);
-              ctx.fillStyle = `rgba(255, 210, 140, ${(0.06 + 0.08 * layer.depth) * twinkle})`;
+              ctx.fillStyle = `rgba(${win.r}, ${win.g}, ${win.b}, ${(0.06 + 0.08 * layer.depth) * twinkle})`;
               ctx.fillRect(
                 Math.floor(bx + c0 * ww),
                 Math.floor(by + r0 * wh),
@@ -1111,9 +1190,9 @@ export function createChannel({ seed, audio }){
 
     // anchor silhouettes to a ground strip so skylines never appear to float
     const groundH = Math.max(4, Math.floor(ih * 0.07));
-    ctx.fillStyle = 'rgba(12, 17, 29, 1)';
+    ctx.fillStyle = `rgb(${ground.r}, ${ground.g}, ${ground.b})`;
     ctx.fillRect(ix, groundY - 1, iw, groundH);
-    ctx.fillStyle = 'rgba(52, 86, 158, 0.85)';
+    ctx.fillStyle = `rgba(${edge.r}, ${edge.g}, ${edge.b}, 0.85)`;
     ctx.fillRect(ix, groundY - 1, iw, 1);
 
     // scanlines
