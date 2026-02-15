@@ -1,3 +1,5 @@
+- 2026-02-15 23:36 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — flip to front in the last 15s and show a parody location “photo” on the other side. Commit: 64f98bb
+
 - 2026-02-15 22:15 (Australia/Melbourne) [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): special moment — rare deterministic “SUBMERSIBLE LIGHT SWEEP” marked done; cleaned up TODO. Commit: 63600ad
 
 - 2026-02-15 21:33 (Australia/Melbourne) [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): composition — increased creature prominence in the postcard window (larger silhouette + subtle backlight/rim glow for readability). Commit: 1a24130
