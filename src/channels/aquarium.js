@@ -1,4 +1,4 @@
-// REVIEWED: 2026-02-09
+// REVIEWED: 2026-02-15
 import { mulberry32, clamp } from '../util/prng.js';
 
 export function createChannel({ seed, audio }){
@@ -647,11 +647,41 @@ export function createChannel({ seed, audio }){
 
     // label (kept subtle and away from the OSD area)
     ctx.save();
-    ctx.font = `${Math.floor(h/34)}px ui-serif, Georgia, serif`;
-    ctx.fillStyle = 'rgba(210,255,250,0.35)';
-    ctx.shadowColor = 'rgba(0,0,0,0.45)';
-    ctx.shadowBlur = 6;
-    ctx.fillText('Midnight Aquarium', w*0.05, h*0.83);
+    const label = 'Midnight Aquarium';
+    const fontSize = Math.floor(h/34);
+    ctx.font = `${fontSize}px ui-serif, Georgia, serif`;
+
+    const x = w*0.05;
+    const y = h*0.83;
+    const m = ctx.measureText(label);
+    const asc = m.actualBoundingBoxAscent ?? (fontSize*0.8);
+    const desc = m.actualBoundingBoxDescent ?? (fontSize*0.25);
+    const padX = fontSize*0.55;
+    const padY = fontSize*0.35;
+    const bx = x - padX;
+    const by = y - asc - padY;
+    const bw = m.width + padX*2;
+    const bh = asc + desc + padY*2;
+
+    // Soft plate behind the text so it stays readable over bright fish/bubbles.
+    ctx.fillStyle = 'rgba(0,0,0,0.26)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = Math.max(1, fontSize*0.06);
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, fontSize*0.35);
+    else ctx.rect(bx, by, bw, bh);
+    ctx.fill();
+    ctx.stroke();
+
+    // Slightly brighter title with a gentle shadow.
+    ctx.fillStyle = 'rgba(220,255,252,0.62)';
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = 8;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = Math.max(2, fontSize*0.10);
+    ctx.strokeText(label, x, y);
+    ctx.fillText(label, x, y);
     ctx.restore();
   }
 
