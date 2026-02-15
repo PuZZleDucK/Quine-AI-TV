@@ -1,6 +1,8 @@
 import { mulberry32 } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 
+// REVIEWED: 2026-02-15
+
 export function createChannel({ seed, audio }) {
   const rand = mulberry32(seed);
   const seedInt = seed | 0;
@@ -29,6 +31,13 @@ export function createChannel({ seed, audio }) {
 
   let titleGlitch = 0;
   let nextTitleGlitchAt = 0;
+
+  // Rare deterministic “special moment”
+  let policeActive = false;
+  let policeT = 0;
+  let policeDur = 0;
+  let nextPoliceAt = 0;
+  let policeRepeat = 0;
 
   // Offscreen cached gradient layers/textures (rebuilt on init/resize/ctx swap)
   const layerCache = {
@@ -182,6 +191,10 @@ export function createChannel({ seed, audio }) {
     return (x >>> 0) / 4294967296;
   }
 
+  function clamp01(x) {
+    return Math.max(0, Math.min(1, x));
+  }
+
   function sceneInit(width, height) {
     w = width;
     h = height;
@@ -231,6 +244,15 @@ export function createChannel({ seed, audio }) {
     nextFlashAt = 7 + rand() * 8;
     nextTitleGlitchAt = 2 + rand() * 4;
     titleGlitch = 0;
+
+    policeActive = false;
+    policeT = 0;
+    policeDur = 0;
+
+    // First “POLICE LIGHTS” moment somewhere between 2–5 minutes, deterministic per seed.
+    const firstAt = 120 + hashUnit32(seedInt ^ 0x2b992ddf) * 180;
+    policeRepeat = 420 + hashUnit32(seedInt ^ 0x7f4a7c15) * 240; // rare: ~7–11 min between moments
+    nextPoliceAt = firstAt;
   }
 
   function onResize(width, height) {
@@ -331,6 +353,36 @@ export function createChannel({ seed, audio }) {
       titleGlitch = 1;
       nextTitleGlitchAt = t + 2 + rand() * 6;
     }
+
+    if (!policeActive && t >= nextPoliceAt) {
+      policeActive = true;
+      policeT = 0;
+      policeDur = 9 + hashUnit32((seedInt ^ 0x6c078965) + (beatIndex | 0)) * 3.5;
+      nextPoliceAt = t + policeRepeat;
+    }
+
+    if (policeActive) {
+      policeT += dt;
+      if (policeT >= policeDur) {
+        policeActive = false;
+        policeT = 0;
+      }
+    }
+  }
+
+  function getPoliceState() {
+    if (!policeActive || policeDur <= 0) return null;
+
+    const p = clamp01(policeT / policeDur);
+    const easeIn = clamp01(p / 0.12);
+    const easeOut = clamp01((1 - p) / 0.18);
+    const amt = Math.min(1, easeIn, easeOut);
+
+    const flip = ((policeT * 4) | 0) & 1; // 4Hz red/blue
+    const strobe = 0.55 + 0.45 * Math.sin(policeT * Math.PI * 2 * 9);
+    const sweep = p;
+
+    return { amt, flip, strobe, sweep };
   }
 
   function drawSky(ctx, horizon, beatAmt) {
@@ -444,9 +496,46 @@ export function createChannel({ seed, audio }) {
     ctx.restore();
   }
 
-  function drawGrid(ctx, horizon, beatAmt) {
+  function drawPoliceSweep(ctx, horizon, police) {
+    if (!police || police.amt <= 0) return;
+
+    const amt = police.amt;
+    const sweepX = w * (0.1 + police.sweep * 0.8);
+    const band = w * 0.18;
+
+    const red = `rgba(255,70,120,${(0.55 * amt).toFixed(3)})`;
+    const blue = `rgba(90,170,255,${(0.55 * amt).toFixed(3)})`;
+
+    const g = ctx.createLinearGradient(sweepX - band, 0, sweepX + band, 0);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.3, red);
+    g.addColorStop(0.5, blue);
+    g.addColorStop(0.7, red);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = g;
+    ctx.globalAlpha = 0.85 * (0.65 + 0.35 * police.strobe);
+
+    const y0 = horizon - h * 0.03;
+    ctx.fillRect(0, y0, w, h - y0);
+    ctx.restore();
+  }
+
+  function drawGrid(ctx, horizon, beatAmt, police) {
     const camDriftX = Math.sin(t * 0.16) * w * 0.012 + Math.sin(t * 0.42) * w * 0.004;
     const camDriftY = Math.sin(t * 0.18) * h * 0.006;
+
+    const pAmt = police?.amt || 0;
+    const flip = police?.flip || 0;
+
+    const base = { r: 108, g: 242, b: 255 };
+    const alt = flip ? { r: 90, g: 170, b: 255 } : { r: 255, g: 70, b: 120 };
+    const mix = pAmt * 0.65;
+    const r = Math.round(base.r * (1 - mix) + alt.r * mix);
+    const g = Math.round(base.g * (1 - mix) + alt.g * mix);
+    const b = Math.round(base.b * (1 - mix) + alt.b * mix);
 
     ctx.save();
     ctx.translate(w * 0.5 + camDriftX, horizon + camDriftY);
@@ -457,7 +546,16 @@ export function createChannel({ seed, audio }) {
     ctx.drawImage(layerCache.gridGlow, -w, -6, w * 2, h * 1.1);
     ctx.restore();
 
-    ctx.strokeStyle = `rgba(108,242,255,${0.4 + beatAmt * 0.25})`;
+    if (pAmt > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = pAmt * (0.12 + 0.25 * (0.65 + 0.35 * (police?.strobe || 0)));
+      ctx.fillStyle = flip ? 'rgba(90,170,255,1)' : 'rgba(255,70,120,1)';
+      ctx.fillRect(-w, -10, w * 2, h * 1.25);
+      ctx.restore();
+    }
+
+    ctx.strokeStyle = `rgba(${r},${g},${b},${0.4 + beatAmt * 0.25 + pAmt * 0.18})`;
     ctx.lineWidth = Math.max(1, Math.floor(h / 560));
 
     const cols = 28;
@@ -485,15 +583,28 @@ export function createChannel({ seed, audio }) {
     ctx.restore();
   }
 
-  function drawCar(ctx, horizon, beatAmt) {
+  function drawCar(ctx, horizon, beatAmt, police) {
     const roadY = horizon + h * 0.33;
     const sway = Math.sin(t * 0.42) * w * 0.024;
     const x = w * 0.5 + sway;
     const bodyW = w * 0.12;
     const bodyH = h * 0.038;
 
+    const pAmt = police?.amt || 0;
+    const flip = police?.flip || 0;
+
     ctx.save();
     ctx.translate(x, roadY);
+
+    if (pAmt > 0) {
+      const c = flip ? 'rgba(90,170,255,1)' : 'rgba(255,70,120,1)';
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = pAmt * (0.35 + 0.25 * (police?.strobe || 0));
+      ctx.fillStyle = c;
+      ctx.fillRect(-bodyW * 0.62, -bodyH * 1.35, bodyW * 1.24, bodyH * 1.15);
+      ctx.restore();
+    }
 
     ctx.fillStyle = 'rgba(15,20,38,0.85)';
     ctx.beginPath();
@@ -507,12 +618,28 @@ export function createChannel({ seed, audio }) {
     ctx.fillStyle = 'rgba(255,255,255,0.12)';
     ctx.fillRect(-bodyW * 0.22, -bodyH * 0.8, bodyW * 0.34, bodyH * 0.28);
 
-    const tailGlow = 0.35 + beatAmt * 0.6;
+    const tailGlow = 0.35 + beatAmt * 0.6 + pAmt * 0.25;
     ctx.shadowColor = `rgba(255,62,162,${tailGlow})`;
-    ctx.shadowBlur = 18 + beatAmt * 10;
+    ctx.shadowBlur = 18 + beatAmt * 10 + pAmt * 10;
     ctx.fillStyle = 'rgba(255,62,162,0.9)';
     ctx.fillRect(-bodyW * 0.36, -bodyH * 0.25, bodyW * 0.12, bodyH * 0.15);
     ctx.fillRect(bodyW * 0.24, -bodyH * 0.25, bodyW * 0.12, bodyH * 0.15);
+
+    // Lightbar (special moment)
+    if (pAmt > 0) {
+      const cA = flip ? 'rgba(90,170,255,1)' : 'rgba(255,70,120,1)';
+      const cB = flip ? 'rgba(255,70,120,1)' : 'rgba(90,170,255,1)';
+      const a = pAmt * (0.55 + 0.35 * (police?.strobe || 0));
+
+      ctx.shadowBlur = 14 + 10 * pAmt;
+      ctx.shadowColor = cA;
+      ctx.fillStyle = cA.replace(',1)', `,${a.toFixed(3)})`);
+      ctx.fillRect(-bodyW * 0.1, -bodyH * 1.05, bodyW * 0.095, bodyH * 0.15);
+
+      ctx.shadowColor = cB;
+      ctx.fillStyle = cB.replace(',1)', `,${a.toFixed(3)})`);
+      ctx.fillRect(bodyW * 0.005, -bodyH * 1.05, bodyW * 0.095, bodyH * 0.15);
+    }
 
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(108,242,255,0.15)';
@@ -625,6 +752,43 @@ export function createChannel({ seed, audio }) {
     ctx.restore();
   }
 
+  function drawEventLabel(ctx, police) {
+    if (!police || police.amt <= 0) return;
+
+    const amt = police.amt;
+    const flip = police.flip;
+    const label = 'EVENT: POLICE LIGHTS';
+
+    const size = Math.max(10, Math.floor(h / 34));
+    const pad = Math.floor(size * 0.8);
+    const y = h * 0.11;
+
+    ctx.save();
+    ctx.font = `${size}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    const tw = ctx.measureText(label).width;
+    const boxW = tw + pad * 2;
+    const boxH = Math.floor(size * 1.5);
+    const x = w - boxW - w * 0.055;
+
+    const border = flip ? 'rgba(90,170,255,0.9)' : 'rgba(255,70,120,0.9)';
+
+    ctx.globalAlpha = 0.85 + 0.15 * amt;
+    ctx.fillStyle = 'rgba(5, 6, 18, 0.55)';
+    ctx.strokeStyle = border;
+    ctx.lineWidth = Math.max(1, Math.floor(h / 720));
+
+    ctx.fillRect(x, y, boxW, boxH);
+    ctx.strokeRect(x + 0.5, y + 0.5, boxW - 1, boxH - 1);
+
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = flip ? 'rgba(120,210,255,0.95)' : 'rgba(255,120,210,0.95)';
+    ctx.shadowColor = border;
+    ctx.shadowBlur = 10 + 10 * amt;
+    ctx.fillText(label, x + pad, y + boxH * 0.52);
+
+    ctx.restore();
+  }
+
   function render(ctx) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -633,6 +797,7 @@ export function createChannel({ seed, audio }) {
 
     const beatAmt = Math.max(0, Math.min(1, beatPulse));
     const horizon = h * 0.53;
+    const police = getPoliceState();
 
     drawSky(ctx, horizon, beatAmt);
     drawSun(ctx, horizon, beatAmt);
@@ -642,10 +807,15 @@ export function createChannel({ seed, audio }) {
     drawSkylineLayer(ctx, skylineFar, horizon, farDrift, 'rgba(16,20,42,0.95)', 'rgba(130,235,255,ALPHA)', beatAmt * 0.7);
     drawSkylineLayer(ctx, skylineNear, horizon + h * 0.01, nearDrift, 'rgba(10,13,30,0.98)', 'rgba(255,70,210,ALPHA)', beatAmt);
 
-    drawGrid(ctx, horizon, beatAmt);
-    drawCar(ctx, horizon, beatAmt);
+    drawGrid(ctx, horizon, beatAmt, police);
+    drawCar(ctx, horizon, beatAmt, police);
+
+    // Keep HUD readable: apply police sweep before UI text.
+    drawPoliceSweep(ctx, horizon, police);
+
     drawHUD(ctx, beatAmt);
     drawTitle(ctx, beatAmt);
+    drawEventLabel(ctx, police);
 
     if (flash > 0) {
       ctx.fillStyle = `rgba(255, 170, 230, ${flash * 0.15})`;
