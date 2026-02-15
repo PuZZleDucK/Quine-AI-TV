@@ -343,8 +343,14 @@ export function createChannel({ seed, audio }){
     ctx.save();
     ctx.translate(cx, cy);
 
-    const ink = 'rgba(5,10,14,0.62)';
-    const ink2 = 'rgba(230,250,255,0.10)';
+    const ink = 'rgba(5,10,14,0.76)';
+    const ink2 = 'rgba(235,255,255,0.12)';
+
+    // Subtle rim glow so the silhouette separates from the deep window gradient.
+    ctx.shadowColor = 'rgba(220,250,255,0.18)';
+    ctx.shadowBlur = Math.max(2, s*0.10);
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
 
     ctx.fillStyle = ink;
     ctx.strokeStyle = 'rgba(0,0,0,0.35)';
@@ -767,9 +773,23 @@ export function createChannel({ seed, audio }){
 
     // creature silhouette
     const c = creature();
-    const cs = Math.min(imgW,imgH) * 0.22;
+    const cs = Math.min(imgW,imgH) * 0.28;
     const cx = imgX + imgW * (0.58 + 0.06*Math.sin(t*0.12 + drift));
     const cy = imgY + imgH * (0.52 + 0.06*Math.cos(t*0.10 + drift));
+
+    // Backlight so the creature reads at-a-glance (esp. in screenshots) without blowing out the window.
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.14;
+    const hl = ctx.createRadialGradient(cx, cy, 0, cx, cy, cs*1.35);
+    hl.addColorStop(0, 'rgba(220,250,255,0.85)');
+    hl.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = hl;
+    ctx.beginPath();
+    ctx.arc(cx, cy, cs*1.35, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
     drawCreature(ctx, c, cx, cy, cs);
 
     // silt overlay
