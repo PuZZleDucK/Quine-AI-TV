@@ -6,6 +6,25 @@ function pick(rand, arr){ return arr[(rand() * arr.length) | 0]; }
 function lerp(a, b, t){ return a + (b - a) * t; }
 function ease(t){ t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
 
+function ellipsize(ctx, text, maxW){
+  if (maxW <= 0) return '';
+  if (ctx.measureText(text).width <= maxW) return text;
+
+  const ell = '…';
+  const ellW = ctx.measureText(ell).width;
+  if (ellW > maxW) return '';
+
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi){
+    const mid = ((lo + hi + 1) / 2) | 0;
+    const s = text.slice(0, mid) + ell;
+    if (ctx.measureText(s).width <= maxW) lo = mid;
+    else hi = mid - 1;
+  }
+  return text.slice(0, lo) + ell;
+}
+
 function roundedRect(ctx, x, y, w, h, r){
   r = Math.min(r, w * 0.5, h * 0.5);
   ctx.beginPath();
@@ -1722,7 +1741,7 @@ export function createChannel({ seed, audio }){
     if (alert.a > 0){
       const a = ease(alert.a);
       const cw = Math.min(w * 0.44, 460);
-      const ch = Math.min(h * 0.18, 150);
+      const ch = clamp(h * 0.18, 140, 150);
       const cx0 = w - cw - w * 0.05;
       const cy0 = h - ch - h * 0.10;
 
@@ -1742,22 +1761,40 @@ export function createChannel({ seed, audio }){
       roundedRect(ctx, cx0, cy0 + yoff, cw, ch, 14);
       ctx.stroke();
 
+      const padX = 18;
+      const maxW = cw - padX * 2;
+
+      // Clip text to the rounded card to prevent overflow artifacts.
+      ctx.save();
+      ctx.beginPath();
+      roundedRect(ctx, cx0 + 2, cy0 + yoff + 2, cw - 4, ch - 4, 12);
+      ctx.clip();
+
       ctx.font = `${Math.floor(small * 0.95)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
       ctx.fillStyle = `rgba(255,78,82,${0.95 * blink})`;
       ctx.textBaseline = 'middle';
-      ctx.fillText('LOST SOCK ALERT', cx0 + 18, cy0 + yoff + 22);
+      ctx.fillText(ellipsize(ctx, 'LOST SOCK ALERT', maxW), cx0 + padX, cy0 + yoff + 22);
 
       ctx.font = `${font}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
       ctx.fillStyle = pal.text;
-      ctx.fillText(`MACHINE ${alert.machine}`, cx0 + 18, cy0 + yoff + 56);
+      ctx.fillText(ellipsize(ctx, `MACHINE ${alert.machine}`, maxW), cx0 + padX, cy0 + yoff + 56);
 
       ctx.font = `${Math.floor(font * 0.95)}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
       ctx.fillStyle = pal.subtext;
-      ctx.fillText(`${alert.msg}  •  CHECK LINT TRAP`, cx0 + 18, cy0 + yoff + 86);
+      const suffix = '  •  CHECK LINT TRAP';
+      const suffixW = ctx.measureText(suffix).width;
+      if (suffixW < maxW){
+        const prefix = ellipsize(ctx, alert.msg, maxW - suffixW);
+        ctx.fillText(prefix + suffix, cx0 + padX, cy0 + yoff + 86);
+      } else {
+        ctx.fillText(ellipsize(ctx, alert.msg + suffix, maxW), cx0 + padX, cy0 + yoff + 86);
+      }
 
       ctx.font = `${Math.floor(small * 0.95)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
       ctx.fillStyle = `rgba(255,207,106,0.82)`;
-      ctx.fillText('PLEASE REMAIN CALM', cx0 + 18, cy0 + yoff + 116);
+      ctx.fillText(ellipsize(ctx, 'PLEASE REMAIN CALM', maxW), cx0 + padX, cy0 + yoff + 116);
+
+      ctx.restore(); // clip
 
       ctx.restore();
     }
