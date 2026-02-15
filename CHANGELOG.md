@@ -1,4 +1,4 @@
-- 2026-02-15 11:04 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear `AudioManager.current` when owned (prevents stacked hum/noise/drone on audio toggles). Commit: 1635171
+- 2026-02-15 11:04 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): audio hygiene — made `onAudioOn()` idempotent and ensured `onAudioOff()`/`destroy()` only clear `AudioManager.current` when owned (prevents stacked hum/noise/drone on audio toggles). Commit: 2b38844
 
 - 2026-02-15 10:54 (Australia/Melbourne) [project:quine-tv] Review channel `neonlaundromat` (src/channels/neonlaundromat.js): screenshots 0–300s `screenshots/review-neonlaundromat-2026-02-15-pre` + completion `screenshots/review-neonlaundromat-2026-02-15-post` (errors/warnings: 0); queued follow-ups in TODO; split audio RNG from visual PRNG and marked file reviewed. Commit: ddb13d8
 
