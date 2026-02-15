@@ -1,5 +1,7 @@
-// REVIEWED: 2026-02-10
+// REVIEWED: 2026-02-15
 import { mulberry32 } from '../util/prng.js';
+
+const TITLE = 'PIXEL CITY NIGHTS';
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);
@@ -65,6 +67,16 @@ export function createChannel({ seed, audio }){
     mr: 0,
     streetY: 0,
     streetH: 0,
+
+    // title metrics (rebuild on resize / ctx swap)
+    titleFont: '',
+    titleFontPx: 0,
+    titleX: 0,
+    titleY: 0,
+    titleW: 0,
+    titleH: 0,
+    titlePadX: 0,
+    titlePadY: 0,
   };
 
   function ensureGradients(ctx){
@@ -99,6 +111,26 @@ export function createChannel({ seed, audio }){
     gcache.street = sg;
     gcache.streetY = h*0.78;
     gcache.streetH = h*0.22;
+
+    // title metrics
+    const titleFontPx = Math.floor(h/18);
+    const titleFont = `${titleFontPx}px ui-sans-serif, system-ui`;
+    const titleX = w*0.05;
+    const titleY = h*0.12;
+
+    ctx.save();
+    ctx.font = titleFont;
+    const titleW = Math.ceil(ctx.measureText(TITLE).width);
+    ctx.restore();
+
+    gcache.titleFontPx = titleFontPx;
+    gcache.titleFont = titleFont;
+    gcache.titleX = titleX;
+    gcache.titleY = titleY;
+    gcache.titleW = titleW;
+    gcache.titleH = Math.ceil(titleFontPx*1.15);
+    gcache.titlePadX = Math.max(10, Math.floor(titleFontPx*0.60));
+    gcache.titlePadY = Math.max(6, Math.floor(titleFontPx*0.45));
   }
 
   function clamp(x, lo, hi){ return x < lo ? lo : (x > hi ? hi : x); }
@@ -528,14 +560,42 @@ export function createChannel({ seed, audio }){
       ctx.restore();
     }
 
-    // title
+    // title (OSD-safe plate + slight neon stroke)
     ctx.save();
     ctx.globalAlpha = (p.titleAlpha ?? 1) * neonMul;
-    ctx.font = `${Math.floor(h/18)}px ui-sans-serif, system-ui`;
-    ctx.fillStyle = 'rgba(231,238,246,0.75)';
-    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+
+    const tx = gcache.titleX;
+    const ty = gcache.titleY;
+    const tw = gcache.titleW;
+    const th = gcache.titleH;
+    const px = gcache.titlePadX;
+    const py = gcache.titlePadY;
+
+    // plate
+    ctx.save();
+    ctx.globalAlpha *= 0.85;
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(tx - px, ty - py, tw + px*2, th + py*2);
+    ctx.globalAlpha *= 0.85;
+    ctx.strokeStyle = 'rgba(108,242,255,0.16)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(tx - px + 0.5, ty - py + 0.5, tw + px*2 - 1, th + py*2 - 1);
+    ctx.restore();
+
+    // text
+    ctx.font = gcache.titleFont;
+    ctx.textBaseline = 'top';
+
+    ctx.shadowColor = 'rgba(0,0,0,0.72)';
     ctx.shadowBlur = 10;
-    ctx.fillText('PIXEL CITY NIGHTS', w*0.05, h*0.12);
+
+    ctx.lineWidth = Math.max(2, Math.floor(gcache.titleFontPx*0.12));
+    ctx.strokeStyle = 'rgba(108,242,255,0.16)';
+    ctx.strokeText(TITLE, tx, ty);
+
+    ctx.fillStyle = 'rgba(231,238,246,0.80)';
+    ctx.fillText(TITLE, tx, ty);
+
     ctx.restore();
   }
 
