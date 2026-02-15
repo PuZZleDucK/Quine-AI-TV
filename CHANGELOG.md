@@ -1,3 +1,5 @@
+- 2026-02-15 18:30 (Australia/Melbourne) [project:quine-tv] `synthwave` (src/channels/synthwave.js): POLICE LIGHTS moment — tuned repeat cadence to ~2.5–5 min and added a subtle one-shot siren sting on activation. Commit: 091cc37
+
 - 2026-02-15 18:19 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — redesigned postcard to feel like a real parody postcard (message + address side, stamp cancellation, airmail stripe). Screenshots: screenshots/autopilot-traveldesk-postcard-pre + screenshots/autopilot-traveldesk-postcard-post. Commit: 8a822e5
 
 - 2026-02-15 18:00 (Australia/Melbourne) [project:quine-tv] `synthwave` (src/channels/synthwave.js): determinism — replaced per-frame `rand()` title glitch jitter with deterministic `hashUnit32(seed ^ timeBucket)` jitter for FPS-stable captures. Commit: aadcd88

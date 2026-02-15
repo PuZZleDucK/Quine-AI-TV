@@ -3,8 +3,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [ ] [project:quine-tv] `synthwave` (src/channels/synthwave.js): long-run interest — POLICE LIGHTS moment appears implemented; verify it reliably triggers ~2–5 min, is unmistakable in motion, and consider a subtle one-shot siren sting (OSD-safe label, clean reset).
-
 - [ ] [project:quine-tv] `synthwave` (src/channels/synthwave.js): visuals — add an occasional deterministic foreground silhouette pass (road sign / billboard / bridge segment) to break up the large empty grid over minutes (keep OSD clear).
 
 # pending - do not do

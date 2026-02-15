@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `synthwave` (src/channels/synthwave.js): long-run interest — POLICE LIGHTS moment now repeats on a ~2.5–5 min seeded cadence and triggers a subtle one-shot siren sting (OSD-safe label; clean reset). Commit: 091cc37
+
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — redesigned postcard layout + parody message/address/cancellation mark; screenshots: screenshots/autopilot-traveldesk-postcard-pre + screenshots/autopilot-traveldesk-postcard-post. Commit: 8a822e5
 
 - [x] [project:quine-tv] `synthwave` (src/channels/synthwave.js): determinism — removed per-frame `rand()` usage from `drawTitle()` glitch jitter; now derives jitter from `hashUnit32(seed ^ timeBucket)` (FPS-stable captures). Commit: aadcd88
