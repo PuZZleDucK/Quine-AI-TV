@@ -1,3 +1,4 @@
+// REVIEWED: 2026-02-15
 import { mulberry32 } from '../util/prng.js';
 import { simpleDrone } from '../util/audio.js';
 import { COUNTRY_SHAPES } from '../data/countryShapes.js';
