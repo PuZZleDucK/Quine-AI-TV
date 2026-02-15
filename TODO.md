@@ -11,8 +11,8 @@ if `TODO.md` has no ready items:
 
 - [ ] [project:quine-tv] `nightmarket`  - looks terrible - start from scratch and re-imagine the channel
 - [ ] [project:quine-tv] `microfilm`  - looks terrible - start from scratch and re-imagine the channel - should show microfilm and enlargemnet
-- [ ] [project:quine-tv] `microfilm`  - looks terrible - light not coming from the right place
-- [ ] [project:quine-tv] `microfilm`  - kitchen science - good start but visually boring
+- [ ] [project:quine-tv] `lighthouse`  - looks terrible - light not coming from the right place
+- [ ] [project:quine-tv] `kitchenscience` - good start but visually boring
 - [ ] [project:quine-tv] `futurearcheology`  - great concept but visually incoherant and boring
 - [ ] [project:quine-tv] `foleylab`  - visually boring
 - [ ] [project:quine-tv] `cargomanifest`  - visually boring - show xrays of shipping containers and associated manifest docs
