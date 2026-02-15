@@ -1,3 +1,5 @@
+- 2026-02-15 14:03 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed bug — confined the CRT scan bar to the top third so it can’t sweep through the skyline. Commit: 6202ba6
+
 - 2026-02-15 13:32 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard layout — add ellipsis when postcard bullet values overflow the 2-line limit (no mid-word truncation). Commit: 2d40a89
 
 - 2026-02-15 13:17 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard text — allow up to 2 wrapped lines for the value text (not just 1) for STREET/FOOD/HISTORY/HUMOR; adjust y-step so the block can’t overlap the coffee steam / divider. Commit: 774675d
