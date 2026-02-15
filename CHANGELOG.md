@@ -1,5 +1,3 @@
-- 2026-02-15 13:49 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed bug — CRT scanlines were only obvious in the sky; now alternate dark+light scanlines so the effect reads across the whole inset. Commit: 6cef3ac
-
 - 2026-02-15 13:32 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard layout — add ellipsis when postcard bullet values overflow the 2-line limit (no mid-word truncation). Commit: 2d40a89
 
 - 2026-02-15 13:17 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard text — allow up to 2 wrapped lines for the value text (not just 1) for STREET/FOOD/HISTORY/HUMOR; adjust y-step so the block can’t overlap the coffee steam / divider. Commit: 774675d
