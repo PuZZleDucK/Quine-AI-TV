@@ -3,6 +3,11 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
+- [ ] [project:quine-tv] Review channel `synthwave` (src/channels/synthwave.js): capture screenshots (0–300s), do code+audio review, add `// REVIEWED: 2026-02-15`, and queue concrete follow-ups.
+
+- [ ] [project:quine-tv] `synthwave` (src/channels/synthwave.js): long-run interest — add a rare deterministic “POLICE LIGHTS” special moment (~2–5 min) with unmistakable color sweep on grid + car + skyline, OSD-safe EVENT label, and clean reset.
+
+- [ ] [project:quine-tv] `synthwave` (src/channels/synthwave.js): HUD polish — add a small OSD-safe bottom-left HUD (SPEED / GEAR / RPM) with seeded rotating flavor text (no per-frame RNG).
 
 # pending - do not do
 

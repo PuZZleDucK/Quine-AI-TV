@@ -29,6 +29,143 @@ export function createChannel({ seed, audio }) {
   let titleGlitch = 0;
   let nextTitleGlitchAt = 0;
 
+  // Offscreen cached gradient layers/textures (rebuilt on init/resize/ctx swap)
+  const layerCache = {
+    ctxRef: null,
+    w: 0,
+    h: 0,
+    sky: null,
+    sunDisk: null,
+    sunHaloOuter: null,
+    sunHaloCore: null,
+    sunRefl: null,
+    gridGlow: null,
+  };
+
+  function makeCanvas(width, height) {
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
+    const c = document.createElement('canvas');
+    c.width = width;
+    c.height = height;
+    return c;
+  }
+
+  function invalidateLayers() {
+    layerCache.ctxRef = null;
+    layerCache.w = 0;
+    layerCache.h = 0;
+    layerCache.sky = null;
+    layerCache.sunDisk = null;
+    layerCache.sunHaloOuter = null;
+    layerCache.sunHaloCore = null;
+    layerCache.sunRefl = null;
+    layerCache.gridGlow = null;
+  }
+
+  function rebuildLayers(ctx) {
+    layerCache.ctxRef = ctx;
+    layerCache.w = w;
+    layerCache.h = h;
+
+    // Sky gradient
+    {
+      const c = makeCanvas(w, h);
+      const g = c.getContext('2d');
+      if (g) {
+        const sky = g.createLinearGradient(0, 0, 0, h);
+        sky.addColorStop(0, '#050016');
+        sky.addColorStop(0.42, '#15002f');
+        sky.addColorStop(0.82, '#08091e');
+        sky.addColorStop(1, '#03050b');
+        g.fillStyle = sky;
+        g.fillRect(0, 0, w, h);
+      }
+      layerCache.sky = c;
+    }
+
+    const TEX = 256;
+
+    // Sun disk vertical gradient (drawn into clipped circle in main ctx)
+    {
+      const c = makeCanvas(TEX, TEX);
+      const g = c.getContext('2d');
+      if (g) {
+        const disk = g.createLinearGradient(0, 0, 0, TEX);
+        disk.addColorStop(0, '#ffd486');
+        disk.addColorStop(0.44, '#ff6bcf');
+        disk.addColorStop(1, '#d83be8');
+        g.fillStyle = disk;
+        g.fillRect(0, 0, TEX, TEX);
+      }
+      layerCache.sunDisk = c;
+    }
+
+    // Sun halo: decompose into a magenta outer and a warm core so we can animate alphas
+    {
+      const c = makeCanvas(TEX, TEX);
+      const g = c.getContext('2d');
+      if (g) {
+        const r = TEX * 0.5;
+        const halo = g.createRadialGradient(r, r, 1, r, r, r);
+        halo.addColorStop(0, 'rgba(255,80,215,0.05)');
+        halo.addColorStop(0.35, 'rgba(255,80,215,0.25)');
+        halo.addColorStop(0.52, 'rgba(255,80,215,1)');
+        halo.addColorStop(1, 'rgba(255,80,215,0)');
+        g.fillStyle = halo;
+        g.fillRect(0, 0, TEX, TEX);
+      }
+      layerCache.sunHaloOuter = c;
+    }
+
+    {
+      const c = makeCanvas(TEX, TEX);
+      const g = c.getContext('2d');
+      if (g) {
+        const r = TEX * 0.5;
+        const core = g.createRadialGradient(r, r, 1, r, r, r * 0.52);
+        core.addColorStop(0, 'rgba(255,210,120,1)');
+        core.addColorStop(1, 'rgba(255,210,120,0)');
+        g.fillStyle = core;
+        g.fillRect(0, 0, TEX, TEX);
+      }
+      layerCache.sunHaloCore = c;
+    }
+
+    // Sun reflection gradient (stretched)
+    {
+      const c = makeCanvas(1, TEX);
+      const g = c.getContext('2d');
+      if (g) {
+        const refl = g.createLinearGradient(0, 0, 0, TEX);
+        refl.addColorStop(0, 'rgba(255,95,220,1)');
+        refl.addColorStop(1, 'rgba(255,95,220,0)');
+        g.fillStyle = refl;
+        g.fillRect(0, 0, 1, TEX);
+      }
+      layerCache.sunRefl = c;
+    }
+
+    // Grid glow gradient (stretched)
+    {
+      const c = makeCanvas(1, TEX);
+      const g = c.getContext('2d');
+      if (g) {
+        const glow = g.createLinearGradient(0, 0, 0, TEX);
+        glow.addColorStop(0, 'rgba(108,242,255,1)');
+        glow.addColorStop(1, 'rgba(108,242,255,0)');
+        g.fillStyle = glow;
+        g.fillRect(0, 0, 1, TEX);
+      }
+      layerCache.gridGlow = c;
+    }
+  }
+
+  function ensureLayers(ctx) {
+    if (!layerCache.sky || layerCache.w !== w || layerCache.h !== h || layerCache.ctxRef !== ctx) {
+      rebuildLayers(ctx);
+    }
+  }
+
   function pick(arr) {
     return arr[(rand() * arr.length) | 0];
   }
@@ -37,6 +174,7 @@ export function createChannel({ seed, audio }) {
     w = width;
     h = height;
     t = 0;
+    invalidateLayers();
     beatPulse = 0;
     beatIndex = -1;
     flash = 0;
@@ -184,13 +322,7 @@ export function createChannel({ seed, audio }) {
   }
 
   function drawSky(ctx, horizon, beatAmt) {
-    const sky = ctx.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, '#050016');
-    sky.addColorStop(0.42, '#15002f');
-    sky.addColorStop(0.82, '#08091e');
-    sky.addColorStop(1, '#03050b');
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(layerCache.sky, 0, 0);
 
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
@@ -225,26 +357,29 @@ export function createChannel({ seed, audio }) {
     const sunR = Math.min(w, h) * (0.145 + beatAmt * 0.012);
 
     const shimmer = Math.sin(t * 3.8) * 0.5 + 0.5;
-    const halo = ctx.createRadialGradient(sunX, sunY, 1, sunX, sunY, sunR * 1.4);
-    halo.addColorStop(0, `rgba(255,210,120,${0.9 + beatAmt * 0.08})`);
-    halo.addColorStop(0.52, `rgba(255,80,215,${0.5 + shimmer * 0.15})`);
-    halo.addColorStop(1, 'rgba(255,80,215,0)');
-    ctx.fillStyle = halo;
-    ctx.beginPath();
-    ctx.arc(sunX, sunY, sunR * 1.4, 0, Math.PI * 2);
-    ctx.fill();
+    const haloR = sunR * 1.4;
+    const aCenter = 0.9 + beatAmt * 0.08;
+    const aMid = 0.5 + shimmer * 0.15;
+
+    ctx.save();
+    ctx.globalAlpha = aMid;
+    ctx.drawImage(layerCache.sunHaloOuter, sunX - haloR, sunY - haloR, haloR * 2, haloR * 2);
+    ctx.restore();
+
+    const coreBoost = Math.max(0, aCenter - aMid);
+    if (coreBoost > 0.001) {
+      ctx.save();
+      ctx.globalAlpha = coreBoost;
+      ctx.drawImage(layerCache.sunHaloCore, sunX - haloR, sunY - haloR, haloR * 2, haloR * 2);
+      ctx.restore();
+    }
 
     ctx.save();
     ctx.beginPath();
     ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
     ctx.clip();
 
-    const disk = ctx.createLinearGradient(0, sunY - sunR, 0, sunY + sunR);
-    disk.addColorStop(0, '#ffd486');
-    disk.addColorStop(0.44, '#ff6bcf');
-    disk.addColorStop(1, '#d83be8');
-    ctx.fillStyle = disk;
-    ctx.fillRect(sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
+    ctx.drawImage(layerCache.sunDisk, sunX - sunR, sunY - sunR, sunR * 2, sunR * 2);
 
     const scanGap = Math.max(3, Math.floor(sunR / 11));
     const drift = Math.sin(t * 1.4) * 1.2;
@@ -260,11 +395,11 @@ export function createChannel({ seed, audio }) {
 
     ctx.restore();
 
-    const refl = ctx.createLinearGradient(0, horizon * 0.9, 0, h);
-    refl.addColorStop(0, `rgba(255,95,220,${0.12 + beatAmt * 0.12})`);
-    refl.addColorStop(1, 'rgba(255,95,220,0)');
-    ctx.fillStyle = refl;
-    ctx.fillRect(sunX - sunR * 0.9, horizon * 0.9, sunR * 1.8, h - horizon * 0.9);
+    const reflA = 0.12 + beatAmt * 0.12;
+    ctx.save();
+    ctx.globalAlpha = reflA;
+    ctx.drawImage(layerCache.sunRefl, sunX - sunR * 0.9, horizon * 0.9, sunR * 1.8, h - horizon * 0.9);
+    ctx.restore();
   }
 
   function drawSkylineLayer(ctx, layer, horizon, offset, color, lightColor, amp) {
@@ -304,11 +439,11 @@ export function createChannel({ seed, audio }) {
     ctx.save();
     ctx.translate(w * 0.5 + camDriftX, horizon + camDriftY);
 
-    const glow = ctx.createLinearGradient(0, 0, 0, h * 0.7);
-    glow.addColorStop(0, `rgba(108,242,255,${0.12 + beatAmt * 0.15})`);
-    glow.addColorStop(1, 'rgba(108,242,255,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(-w, -6, w * 2, h * 1.1);
+    const glowA = 0.12 + beatAmt * 0.15;
+    ctx.save();
+    ctx.globalAlpha = glowA;
+    ctx.drawImage(layerCache.gridGlow, -w, -6, w * 2, h * 1.1);
+    ctx.restore();
 
     ctx.strokeStyle = `rgba(108,242,255,${0.4 + beatAmt * 0.25})`;
     ctx.lineWidth = Math.max(1, Math.floor(h / 560));
@@ -419,6 +554,8 @@ export function createChannel({ seed, audio }) {
   function render(ctx) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
+
+    ensureLayers(ctx);
 
     const beatAmt = Math.max(0, Math.min(1, beatPulse));
     const horizon = h * 0.53;
