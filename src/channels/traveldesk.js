@@ -1039,9 +1039,11 @@ export function createChannel({ seed, audio }){
 
       ctx.font = `${Math.floor(layout.font * 0.84)}px ui-sans-serif, system-ui`;
       const tx = x + pw * 0.16;
-      // wrap-ish: split long values for postcard width
+      // wrap-ish: split long values for postcard width (stay left of divider)
       const text = String(it.v);
-      const maxW = pw * 0.44;
+      const dividerX = px + pw * 0.55;
+      const pad = pw * 0.03;
+      const maxW = Math.max(24, dividerX - pad - tx);
       const words = text.split(' ');
       let line = '';
       const lines = [];
@@ -1055,11 +1057,14 @@ export function createChannel({ seed, audio }){
         }
       }
       if (line) lines.push(line);
-      const maxLines = 1;
-      for (let li = 0; li < Math.min(maxLines, lines.length); li++){
-        ctx.fillText(lines[li], tx, y + li * Math.floor(layout.font * 0.98));
+
+      const lineH = Math.floor(layout.font * 0.98);
+      const maxLines = 2;
+      const usedLines = Math.max(1, Math.min(maxLines, lines.length));
+      for (let li = 0; li < usedLines; li++){
+        ctx.fillText(lines[li], tx, y + li * lineH);
       }
-      y += Math.floor(layout.font * 0.98);
+      y += usedLines * lineH;
     }
 
     // tiny coffee steam (desk ambience)
