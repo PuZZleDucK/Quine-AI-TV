@@ -1359,12 +1359,32 @@ export function createChannel({ seed, audio }){
     return { sx, sy, sw, sh };
   }
 
+
   function drawPostcard(ctx, layout){
     const pw = Math.floor(w * 0.40);
     const ph = Math.floor(h * 0.32);
     const px = Math.floor(w * 0.57);
     const py = Math.floor(h * 0.50);
     const r = Math.floor(Math.min(w, h) * 0.02);
+
+    const dividerX = px + pw * 0.55;
+
+    const wrapLines = (text, maxW) => {
+      const words = String(text || '').split(/\s+/).filter(Boolean);
+      const lines = [];
+      let line = '';
+      for (const wd of words){
+        const next = line ? (line + ' ' + wd) : wd;
+        if (line && ctx.measureText(next).width > maxW){
+          lines.push(line);
+          line = wd;
+        } else {
+          line = next;
+        }
+      }
+      if (line) lines.push(line);
+      return lines.length ? lines : [''];
+    };
 
     // shadow
     ctx.save();
@@ -1374,142 +1394,188 @@ export function createChannel({ seed, audio }){
     ctx.fill();
     ctx.restore();
 
-    // card
+    // card base
     ctx.save();
+    ctx.globalAlpha = 0.98;
     ctx.fillStyle = 'rgba(248, 244, 234, 0.98)';
     roundedRect(ctx, px, py, pw, ph, r);
     ctx.fill();
 
-    // divider line
-    ctx.globalAlpha = 0.18;
+    // subtle paper speckle
+    ctx.save();
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    for (let i = 0; i < 72; i++){
+      const xx = px + (i * 997) % Math.max(1, pw - 10);
+      const yy = py + (i * 613) % Math.max(1, ph - 10);
+      ctx.fillRect(xx, yy, 1, 1);
+    }
+    ctx.restore();
+
+    // airmail stripe (top edge)
+    ctx.save();
+    const stripeH = Math.max(6, Math.floor(ph * 0.08));
+    ctx.globalAlpha = 0.12;
+    for (let x = px - pw; x < px + pw * 2; x += Math.max(16, Math.floor(pw * 0.06))){
+      ctx.fillStyle = 'rgba(220, 60, 70, 1)';
+      ctx.fillRect(x, py + Math.floor(stripeH * 0.25), Math.floor(pw * 0.03), Math.floor(stripeH * 0.55));
+      ctx.fillStyle = 'rgba(30, 90, 200, 1)';
+      ctx.fillRect(x + Math.floor(pw * 0.03), py + Math.floor(stripeH * 0.25), Math.floor(pw * 0.03), Math.floor(stripeH * 0.55));
+    }
+    ctx.restore();
+
+    // divider (slightly wobbly)
+    ctx.save();
+    ctx.globalAlpha = 0.22;
     ctx.strokeStyle = 'rgba(0,0,0,1)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(px + pw * 0.55, py + ph * 0.10);
-    ctx.lineTo(px + pw * 0.55, py + ph * 0.92);
+    for (let i = 0; i <= 12; i++){
+      const p = i / 12;
+      const yy = py + ph * (0.10 + p * 0.82);
+      const wob = Math.sin((p * 7.2) + 0.6) * (pw * 0.0025);
+      const xx = dividerX + wob;
+      if (i == 0) ctx.moveTo(xx, yy);
+      else ctx.lineTo(xx, yy);
+    }
     ctx.stroke();
+    ctx.restore();
 
     // stamp box
-    ctx.globalAlpha = 0.22;
-    ctx.strokeStyle = 'rgba(140, 50, 40, 1)';
-    ctx.lineWidth = 2;
     const sx = px + pw * 0.72;
     const sy = py + ph * 0.12;
     const sw = pw * 0.20;
     const sh = ph * 0.22;
+
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = 'rgba(140, 50, 40, 1)';
+    ctx.lineWidth = 2;
     roundedRect(ctx, sx, sy, sw, sh, Math.floor(r * 0.7));
     ctx.stroke();
 
-    // stamp "ink"
+    // perforation ticks
     ctx.globalAlpha = 0.16;
-    ctx.fillStyle = 'rgba(140, 50, 40, 1)';
-    ctx.font = `bold ${Math.floor(layout.font * 0.9)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.textBaseline = 'top';
-    ctx.fillText('AIR', sx + sw * 0.18, sy + sh * 0.18);
-    ctx.fillText('MAIL', sx + sw * 0.12, sy + sh * 0.55);
-
-    // left note
-    ctx.globalAlpha = 0.92;
-    ctx.fillStyle = 'rgba(10,10,10,0.85)';
-    ctx.font = `bold ${Math.floor(layout.font * 1.05)}px ui-sans-serif, system-ui`;
-    ctx.fillText(`${dest.city}, ${dest.country}`, px + pw * 0.08, py + ph * 0.16);
-
-    ctx.font = `${Math.floor(layout.font * 0.92)}px ui-sans-serif, system-ui`;
-    ctx.globalAlpha = 0.78;
-    ctx.fillText(`Region: ${dest.region}`, px + pw * 0.08, py + ph * 0.30);
-
-    // info bullets (highlighted by phase)
-    const phase = (segT / SEG_DUR);
-    const hi = Math.min(3, Math.floor(phase * 4));
-    const items = [
-      { k: 'STREET', v: dest.vibe },
-      { k: 'FOOD', v: dest.food },
-      { k: 'HISTORY', v: dest.fact },
-      { k: 'HUMOR', v: humorForDestination(dest) },
-    ];
-
-    let y = py + ph * 0.40;
-    const x = px + pw * 0.08;
-    for (let i = 0; i < items.length; i++){
-      const it = items[i];
-      const a = i === hi ? 0.94 : 0.68;
-      ctx.globalAlpha = a;
-      ctx.fillStyle = i === hi ? `rgba(0,0,0,0.82)` : `rgba(0,0,0,0.72)`;
-      ctx.font = `${Math.floor(layout.font * 0.84)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-      ctx.fillText(`${it.k}:`, x, y);
-
-      ctx.font = `${Math.floor(layout.font * 0.84)}px ui-sans-serif, system-ui`;
-      const tx = x + pw * 0.16;
-      // wrap-ish: split long values for postcard width (stay left of divider)
-      const text = String(it.v);
-      const dividerX = px + pw * 0.55;
-      const pad = pw * 0.03;
-      const maxW = Math.max(24, dividerX - pad - tx);
-      const words = text.split(' ');
-      let line = '';
-      const lines = [];
-      for (const wd of words){
-        const next = line ? (line + ' ' + wd) : wd;
-        if (ctx.measureText(next).width > maxW && line){
-          lines.push(line);
-          line = wd;
-        } else {
-          line = next;
-        }
-      }
-      if (line) lines.push(line);
-      if (!lines.length) lines.push('');
-
-      const lineH = Math.floor(layout.font * 0.98);
-      const maxLines = 2;
-      const hasOverflow = lines.length > maxLines;
-      const renderLines = lines.slice(0, maxLines);
-
-      if (hasOverflow){
-        const ell = '…';
-        const base = renderLines[maxLines - 1] || '';
-
-        if (ctx.measureText(base + ell).width <= maxW){
-          renderLines[maxLines - 1] = base + ell;
-        } else {
-          const wds = base.split(' ');
-          while (wds.length && ctx.measureText(wds.join(' ') + ell).width > maxW){
-            wds.pop();
-          }
-          renderLines[maxLines - 1] = wds.length ? (wds.join(' ') + ell) : ell;
-        }
-      }
-
-      const usedLines = Math.max(1, renderLines.length);
-      for (let li = 0; li < usedLines; li++){
-        ctx.fillText(renderLines[li], tx, y + li * lineH);
-      }
-      y += usedLines * lineH;
-    }
-
-    // tiny coffee steam (desk ambience)
-    ctx.save();
-    const cx = px + pw * 0.90;
-    const cy = py + ph * 0.78;
-    ctx.globalAlpha = 0.18;
-    ctx.strokeStyle = 'rgba(0,0,0,1)';
-    ctx.lineWidth = Math.max(2, Math.floor(layout.font * 0.12));
-    for (let i = 0; i < 3; i++){
-      const ox = (i - 1) * layout.font * 0.22;
+    ctx.strokeStyle = 'rgba(140, 50, 40, 1)';
+    ctx.lineWidth = 1;
+    const tick = Math.max(3, Math.floor(sw * 0.08));
+    for (let i = 0; i < 10; i++){
+      const px0 = sx + (i / 10) * sw;
       ctx.beginPath();
-      for (let k = 0; k < 22; k++){
-        const p = k / 21;
-        const xx = cx + ox + Math.sin(t * 1.2 + p * 6 + i) * layout.font * 0.10;
-        const yy = cy - p * layout.font * (1.6 + 0.3 * i);
-        if (k === 0) ctx.moveTo(xx, yy);
-        else ctx.lineTo(xx, yy);
+      ctx.moveTo(px0, sy);
+      ctx.lineTo(px0 + tick * 0.35, sy);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(px0, sy + sh);
+      ctx.lineTo(px0 + tick * 0.35, sy + sh);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // cancellation mark over stamp
+    ctx.save();
+    ctx.globalAlpha = 0.20;
+    ctx.strokeStyle = 'rgba(140, 50, 40, 1)';
+    ctx.lineWidth = Math.max(2, Math.floor(layout.font * 0.10));
+    const cx = sx + sw * 0.45;
+    const cy = sy + sh * 0.55;
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.min(sw, sh) * 0.40, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.18;
+    for (let i = 0; i < 4; i++){
+      const yy = sy + sh * (0.30 + i * 0.14);
+      ctx.beginPath();
+      for (let k = 0; k <= 16; k++){
+        const p = k / 16;
+        const xx = sx - sw * 0.12 + p * (sw * 1.45);
+        const wob = Math.sin(p * Math.PI * 6 + i) * (sh * 0.06);
+        if (k == 0) ctx.moveTo(xx, yy + wob);
+        else ctx.lineTo(xx, yy + wob);
       }
       ctx.stroke();
     }
     ctx.restore();
 
+    // left side: parody message
+    const pr = mulberry32((seed ^ hashStr(destinationKey(dest)) ^ (segIx * 0x27d4eb2d)) >>> 0);
+    const opener = pick(pr, ['DEAR MUM,', 'DEAR FRIEND,', 'GREETINGS,', 'DEAR SOMEONE IMPORTANT,']);
+    const closer = pick(pr, ['WISH YOU WERE HERE.', 'SEND SNACKS.', 'PLEASE FORWARD ALL MAIL TO THE MOON.', 'I HAVE BECOME A LOCAL ATTRACTION.']);
+    const msg = [
+      `${opener}`,
+      `I’M IN ${String(dest.city || '').toUpperCase()} (${String(dest.country || '').toUpperCase()}).`,
+      `CURRENT VIBE: ${dest.vibe}.`,
+      `I TRIED ${dest.food}. WOULD RECOMMEND TO A BRAVE ADULT.`,
+      humorForDestination(dest),
+      `${closer}`,
+    ].join(' ');
+
+    const mx = px + pw * 0.08;
+    const my = py + ph * 0.18;
+    const maxW = Math.max(24, dividerX - mx - pw * 0.04);
+    const maxH = Math.max(24, ph * 0.50);
+
+    ctx.save();
+    ctx.globalAlpha = 0.82;
+    ctx.fillStyle = 'rgba(10,10,10,0.82)';
+    const f = Math.max(10, Math.floor(layout.font * 0.74));
+    ctx.font = `italic ${f}px ui-serif, Georgia, Times, serif`;
+    ctx.textBaseline = 'top';
+
+    const lines = wrapLines(msg, maxW);
+    const lineH = Math.floor(f * 1.15);
+    const maxLines = Math.max(4, Math.floor(maxH / Math.max(1, lineH)));
+    const drawLines = lines.slice(0, maxLines);
+    for (let i = 0; i < drawLines.length; i++){
+      ctx.fillText(drawLines[i], mx, my + i * lineH);
+    }
+
+    // greetings header (bottom-left)
+    ctx.globalAlpha = 0.70;
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
+    ctx.font = `bold ${Math.floor(layout.font * 0.72)}px ui-sans-serif, system-ui`;
+    ctx.fillText('GREETINGS FROM', mx, py + ph * 0.78);
+    ctx.globalAlpha = 0.86;
+    ctx.font = `900 ${Math.floor(layout.font * 1.05)}px ui-sans-serif, system-ui`;
+    ctx.fillText(String(dest.city || '').toUpperCase(), mx, py + ph * 0.84);
+    ctx.restore();
+
+    // right side: address lines
+    const ax = dividerX + pw * 0.06;
+    let ay = py + ph * 0.20;
+    const aw = px + pw - ax - pw * 0.06;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.80)';
+    ctx.globalAlpha = 0.78;
+    ctx.font = `bold ${Math.floor(layout.font * 0.82)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.textBaseline = 'top';
+    ctx.fillText('TO:', ax, ay);
+
+    ctx.globalAlpha = 0.42;
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+    ctx.lineWidth = 1;
+    const lh = Math.floor(layout.font * 0.95);
+    ay += lh * 1.2;
+
+    const addrLines = 4;
+    for (let i = 0; i < addrLines; i++){
+      const yy = ay + i * lh;
+      ctx.beginPath();
+      ctx.moveTo(ax, yy + lh * 0.70);
+      ctx.lineTo(ax + aw, yy + lh * 0.70);
+      ctx.stroke();
+    }
+
+    // tiny parody routing code
+    ctx.globalAlpha = 0.35;
+    ctx.font = `${Math.floor(layout.font * 0.70)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.fillText(`POSTCODE ${String(10000 + ((segIx * 7919) % 89999))}`, ax, py + ph * 0.82);
+    ctx.restore();
+
     ctx.restore();
   }
+
 
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
