@@ -20,4 +20,4 @@ if `TODO.md` has no ready items:
 - [ ] [project:quine-tv] `foleylab`  - visually boring
 - [ ] [project:quine-tv] `cargomanifest`  - visually boring - show xrays of shipping containers and associated manifest docs
 - [ ] [project:quine-tv] `subwaymapstories`  - visually boring - add train cams that follow story
-- [ ] [project:quine-tv] `subwaymapstories`  - just a fucking visual mess
+- [ ] [project:quine-tv] `circuit safarri`  - just a fucking visual mess
