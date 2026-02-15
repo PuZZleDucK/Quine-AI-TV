@@ -106,6 +106,86 @@ const DESTINATIONS = [
     palette: { sky0: '#061018', sky1: '#184a5a', accent: '#ffd60a', ink: '#0d1216' },
     speed: 32,
   },
+  {
+    city: 'Prague',
+    country: 'Czechia',
+    region: 'River & Spires',
+    vibe: 'cobbles, bridges, late-night jazz',
+    food: 'Svíčková',
+    fact: 'The skyline reads like a catalogue of towers, domes, and stubborn stone.',
+    palette: { sky0: '#090c16', sky1: '#253a70', accent: '#f6bd60', ink: '#101018' },
+    speed: 33,
+  },
+  {
+    city: 'Seoul',
+    country: 'South Korea',
+    region: 'Night Markets',
+    vibe: 'neon, cafés, subway chimes',
+    food: 'Tteokbokki',
+    fact: 'A city that reinvents itself quickly — but keeps its alleys like secrets.',
+    palette: { sky0: '#040913', sky1: '#1b2d57', accent: '#00f5d4', ink: '#0b0d12' },
+    speed: 52,
+  },
+  {
+    city: 'Cape Town',
+    country: 'South Africa',
+    region: 'Cape Peninsula',
+    vibe: 'ocean wind, cliffs, mountain shadows',
+    food: 'Bobotie',
+    fact: 'Two oceans meet nearby, still debating which one gets to be “chilly.”',
+    palette: { sky0: '#031622', sky1: '#0b4f6c', accent: '#ffb703', ink: '#051018' },
+    speed: 41,
+  },
+  {
+    city: 'Buenos Aires',
+    country: 'Argentina',
+    region: 'River Plains',
+    vibe: 'tangos, bookstores, late dinners',
+    food: 'Asado',
+    fact: 'Café culture here is a gentle negotiation with time — not a schedule.',
+    palette: { sky0: '#0a0a13', sky1: '#3b1d4a', accent: '#e63946', ink: '#100a12' },
+    speed: 39,
+  },
+  {
+    city: 'Mumbai',
+    country: 'India',
+    region: 'Monsoon Coast',
+    vibe: 'markets, sea breeze, honking poetry',
+    food: 'Vada pav',
+    fact: 'When the rains arrive, the whole city learns a new choreography overnight.',
+    palette: { sky0: '#0b0b11', sky1: '#23395b', accent: '#f77f00', ink: '#110d0f' },
+    speed: 49,
+  },
+  {
+    city: 'Auckland',
+    country: 'New Zealand',
+    region: 'Volcanic Harbors',
+    vibe: 'sails, clean air, black-sand daydreams',
+    food: 'Hāngī',
+    fact: 'A city built across old lava fields, now mostly occupied by good views.',
+    palette: { sky0: '#061018', sky1: '#1b4965', accent: '#a7c957', ink: '#0d1216' },
+    speed: 35,
+  },
+  {
+    city: 'Cairo',
+    country: 'Egypt',
+    region: 'Nile Cities',
+    vibe: 'river lights, old stone, late tea',
+    food: 'Koshari',
+    fact: 'The city keeps time with a river older than calendars and louder than clocks.',
+    palette: { sky0: '#0f0b05', sky1: '#3d2a1a', accent: '#ffd166', ink: '#140d07' },
+    speed: 44,
+  },
+  {
+    city: 'Vancouver',
+    country: 'Canada',
+    region: 'Pacific Rain',
+    vibe: 'glass towers, cedar air, mountain silhouettes',
+    food: 'Salmon + cedar',
+    fact: 'Forest and city share a border here; both seem determined to win.',
+    palette: { sky0: '#061018', sky1: '#1b4965', accent: '#7ae582', ink: '#0d1216' },
+    speed: 31,
+  },
 ];
 
 const FANTASY_DESTINATIONS = [
@@ -155,6 +235,14 @@ const HUMOR_BY_CITY = {
   Edinburgh: 'Wind speed measured in lost umbrellas per hour.',
   'New Orleans': 'Powdered sugar may reach critical mass.',
   Copenhagen: 'Bikes outnumber excuses by a wide margin.',
+  Prague: 'Every bridge insists it’s the main character.',
+  Seoul: 'Neon signs compete for your attention like polite billboards.',
+  'Cape Town': 'The mountain watches you pack the wrong jacket.',
+  'Buenos Aires': 'Dinner starts when other cities are already asleep.',
+  Mumbai: 'Traffic horns form a symphony with strong opinions.',
+  Auckland: 'Seagulls run a robust freelance tax policy.',
+  Cairo: 'Cats patrol ruins like tiny archaeologists.',
+  Vancouver: 'Rain arrives on schedule; your plans do not.',
 };
 
 function destinationKey(d){
@@ -932,11 +1020,9 @@ export function createChannel({ seed, audio }){
     for (let y = 0; y < ih; y += sl){
       if ((y / sl) % 2 === 0) ctx.fillRect(ix, iy + y, iw, 1);
     }
-    // moving tape-glitch bar: keep it in the top third so it never intersects the skyline
-    const scanAreaH = Math.max(18, Math.floor(ih * 0.33));
+    // moving tape-glitch bar: sweep the full feed height
     const bandH = 14;
-    const maxBandTop = iy + scanAreaH - bandH;
-    const gy = iy + ((t * 22) % Math.max(1, (maxBandTop - iy) + 1));
+    const gy = iy - bandH + ((t * 48) % (ih + bandH));
     ctx.globalAlpha = 0.08;
     ctx.fillStyle = 'rgba(255,255,255,1)';
     ctx.fillRect(ix, gy, iw, bandH);
