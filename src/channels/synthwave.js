@@ -251,7 +251,7 @@ export function createChannel({ seed, audio }) {
 
     // First “POLICE LIGHTS” moment somewhere between 2–5 minutes, deterministic per seed.
     const firstAt = 120 + hashUnit32(seedInt ^ 0x2b992ddf) * 180;
-    policeRepeat = 420 + hashUnit32(seedInt ^ 0x7f4a7c15) * 240; // rare: ~7–11 min between moments
+    policeRepeat = 150 + hashUnit32(seedInt ^ 0x7f4a7c15) * 150; // ~2.5–5 min between moments
     nextPoliceAt = firstAt;
   }
 
@@ -310,6 +310,45 @@ export function createChannel({ seed, audio }) {
     musicHandle = null;
   }
 
+  function playPoliceSting() {
+    // Subtle one-shot siren-ish sting when the POLICE LIGHTS moment begins.
+    if (!audio.enabled) return;
+
+    const ctx = audio.ensure();
+    const t0 = ctx.currentTime;
+
+    const o = ctx.createOscillator();
+    const f = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+
+    o.type = 'triangle';
+    f.type = 'lowpass';
+    f.frequency.value = 1600;
+    f.Q.value = 0.6;
+
+    g.gain.value = 0;
+
+    o.connect(f);
+    f.connect(g);
+    g.connect(audio.master);
+
+    // Amplitude envelope (keep it quiet vs the beat beeps + drone).
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.014, t0 + 0.03);
+    g.gain.linearRampToValueAtTime(0.010, t0 + 0.25);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.9);
+
+    // Quick up/down siren motion (two short cycles).
+    o.frequency.setValueAtTime(620, t0);
+    o.frequency.linearRampToValueAtTime(920, t0 + 0.22);
+    o.frequency.linearRampToValueAtTime(620, t0 + 0.44);
+    o.frequency.linearRampToValueAtTime(920, t0 + 0.66);
+    o.frequency.linearRampToValueAtTime(620, t0 + 0.88);
+
+    o.start(t0);
+    o.stop(t0 + 0.92);
+  }
+
   function destroy() {
     onAudioOff();
   }
@@ -359,6 +398,7 @@ export function createChannel({ seed, audio }) {
       policeT = 0;
       policeDur = 9 + hashUnit32((seedInt ^ 0x6c078965) + (beatIndex | 0)) * 3.5;
       nextPoliceAt = t + policeRepeat;
+      playPoliceSting();
     }
 
     if (policeActive) {
