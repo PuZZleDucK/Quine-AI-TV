@@ -80,19 +80,11 @@ A *good channel review* must produce concrete, trackable follow-ups. Do **all** 
 - Capture several screenshots across time (different phases / special moments).
 - Ask:
   - Does it look good? (composition, palette, legibility, typography)
-  - Does it convey the intended effect/intent?
+  - Do elements look like they should and convey the intended effect/intent?
   - Is it visually pleasing/interesting over time (not just the first 10 seconds)?
   - Is the dialog or text funny or entertaining?
 
-### 2) Code + audio review
-- Review the channel code for:
-  - correctness and obvious bugs,
-  - deterministic variety (seeded PRNG use, stable pacing),
-- Review dialog and text:
-  - long enough to last 5 minutes
-  - humorous or entertaining
-
-### 3) Identify improvements (be specific)
+### 2) Identify improvements (be specific)
 Look for opportunities in these buckets:
 - Visual upgrades: depth/parallax, lighting/material cues, HUD polish.
 - Long-term interest: better time structure/phases, more variety, better pacing.
@@ -100,14 +92,14 @@ Look for opportunities in these buckets:
 - New or updated elements that better convey the concept.
 - Uncommon and rare elements.
 
-### 4) Create TODO items for every identified improvement
+### 3) Create TODO items for every identified improvement
 - For each improvement, add a bullet point task (in `/home/puzzleduck/x/quine-tv/TODO.md`).
 - Every TODO must include:
   - channel id and file path (`src/channels/<id>.js`),
   - exactly what to change and where,
 - Prefer several small bounded tasks over one huge “improve graphics” blob.
 
-### 5) Mark the channel file as reviewed
+### 4) Mark the channel file as reviewed
 Add a short comment near the top of `src/channels/<id>.js`:
 
 ```js
