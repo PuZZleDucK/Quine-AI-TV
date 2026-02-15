@@ -5,8 +5,6 @@ if `TODO.md` has no ready items:
 
 # ready
 
-- [ ] [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): special moment — add a rare deterministic “SUBMERSIBLE LIGHT SWEEP” (or bioluminescent bloom) across the window (~2–5 min cadence), with a clear signature look and clean reset (OSD-safe).
-
 # pending - do not do
 
 - [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — flip the postcard for the last 15 seconds showing parody postcard image for location on the other side

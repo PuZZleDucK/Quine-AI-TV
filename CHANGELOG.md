@@ -1,3 +1,5 @@
+- 2026-02-15 22:15 (Australia/Melbourne) [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): special moment — rare deterministic “SUBMERSIBLE LIGHT SWEEP” marked done (implementation already present); cleaned up TODO. Commit: TBD
+
 - 2026-02-15 21:33 (Australia/Melbourne) [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): composition — increased creature prominence in the postcard window (larger silhouette + subtle backlight/rim glow for readability). Commit: 1a24130
 
 - 2026-02-15 21:20 (Australia/Melbourne) [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): text legibility — improved UI label readability (header/title, creature name/zone, “CREATURE FACT”, “NEXT CARD”) with subtle shadow/outline + slightly darker ink palette. Commit: 8088cd0

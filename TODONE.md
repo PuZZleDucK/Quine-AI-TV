@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): special moment — rare deterministic “SUBMERSIBLE LIGHT SWEEP” / bioluminescent bloom across the window (~2–5 min cadence), signature look + clean reset (OSD-safe). Commit: TBD
+
 - [x] [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): composition — increased creature prominence in the postcard window (larger silhouette + subtle backlight/rim glow for readability). Commit: 1a24130
 
 - [x] [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): text legibility — improved UI label readability (title/name/zone/“CREATURE FACT”/“NEXT CARD”) with subtle shadows/outlines + slightly darker ink palette. Commit: 8088cd0

@@ -60,6 +60,11 @@ export function createChannel({ seed, audio }){
   // audio handle
   let ah = null;
 
+  // rare special moment: submersible light sweep (deterministic cadence)
+  const sweepRand = mulberry32((((seed ?? 0) ^ 0x5bd1e995) >>> 0));
+  let sweep = null; // { t0, dur, dir, band, hue, glints: [{ x, y, r }] }
+  let sweepNext = 0;
+
   function shuffled(arr){
     const a = [...arr];
     for (let i=a.length-1;i>0;i--){
@@ -150,6 +155,9 @@ export function createChannel({ seed, audio }){
     idx = 0;
     pal = null;
     reseedScene();
+
+    sweep = null;
+    sweepNext = 120 + sweepRand()*180; // ~2–5 min
   }
 
   function onResize(width, height){
@@ -216,6 +224,30 @@ export function createChannel({ seed, audio }){
     t += dt;
     segT += dt;
     if (segT >= SEG_DUR) nextSegment();
+
+    // special moment timer: rare deterministic sweep (safe reset)
+    if (sweep){
+      if ((t - sweep.t0) >= sweep.dur) sweep = null;
+    } else if (t >= sweepNext){
+      const dur = 7.5 + sweepRand()*4.5;
+      const dir = (sweepRand() < 0.5) ? 1 : -1;
+      const hue = 188 + sweepRand()*36;
+      const band = 0.16 + sweepRand()*0.06;
+      const glints = Array.from({ length: 14 + ((sweepRand()*10)|0) }, ()=>({
+        x: (sweepRand()*2 - 1) * 0.95,
+        y: sweepRand(),
+        r: 0.7 + sweepRand()*1.0,
+      }));
+
+      sweep = { t0: t, dur, dir, hue, band, glints };
+      sweepNext = t + (120 + sweepRand()*180); // ~2–5 min cadence
+
+      if (audio.enabled){
+        // soft “scanner” signature
+        audio.beep({ freq: 820 + sweepRand()*160, dur: 0.040, gain: 0.010, type: 'sine' });
+        audio.beep({ freq: 1280 + sweepRand()*260, dur: 0.030, gain: 0.007, type: 'triangle' });
+      }
+    }
 
     // marine snow drift
     const dxA = 5.0 * dt;
@@ -585,6 +617,81 @@ export function createChannel({ seed, audio }){
     ctx.restore();
   }
 
+  function easeInOutQuad(x){
+    return (x < 0.5) ? (2*x*x) : (1 - Math.pow(-2*x + 2, 2) / 2);
+  }
+
+  function drawSubmersibleSweep(ctx, x, y, ww, hh){
+    if (!sweep) return;
+    const tt = (t - sweep.t0) / sweep.dur;
+    if (tt <= 0 || tt >= 1) return;
+
+    const e = easeInOutQuad(tt);
+    const u = (sweep.dir > 0) ? lerp(-0.25, 1.25, e) : lerp(1.25, -0.25, e);
+    const cx = x + u*ww;
+    const bandPx = ww * (sweep.band ?? 0.18);
+    const fade = Math.sin(Math.PI * tt);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    // wide soft bloom (clean reset via save/restore, window-clipped by caller)
+    ctx.globalAlpha = 0.52 * fade;
+    const g = ctx.createLinearGradient(x, y, x + ww, y + hh*0.12);
+    const uu = (cx - x) / ww;
+    const bw = bandPx / ww;
+
+    const stops = [];
+    const stop = (p, c) => {
+      const pp = Math.max(0, Math.min(1, p));
+      stops.push({ p: pp, c });
+    };
+
+    stop(0, 'rgba(0,0,0,0)');
+    stop(uu - bw*1.55, 'rgba(0,0,0,0)');
+    stop(uu - bw*0.75, `hsla(${sweep.hue}, 95%, 78%, 0.05)`);
+    stop(uu - bw*0.28, `hsla(${sweep.hue + 6}, 95%, 84%, 0.18)`);
+    stop(uu,             `hsla(${sweep.hue + 10}, 95%, 90%, 0.42)`);
+    stop(uu + bw*0.28, `hsla(${sweep.hue + 28}, 92%, 78%, 0.16)`);
+    stop(uu + bw*0.78, `hsla(${sweep.hue + 42}, 88%, 70%, 0.05)`);
+    stop(uu + bw*1.65, 'rgba(0,0,0,0)');
+    stop(1, 'rgba(0,0,0,0)');
+
+    stops.sort((a,b)=>a.p-b.p);
+    for (const s of stops) g.addColorStop(s.p, s.c);
+
+    ctx.fillStyle = g;
+    ctx.fillRect(x, y, ww, hh);
+
+    // tighter beam core
+    ctx.globalAlpha = 0.28 * fade;
+    const core = ctx.createRadialGradient(cx, y + hh*0.42, 0, cx, y + hh*0.42, bandPx*1.15);
+    core.addColorStop(0, `hsla(${sweep.hue + 12}, 98%, 88%, 0.45)`);
+    core.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.ellipse(cx, y + hh*0.42, bandPx*1.10, hh*0.48, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // bioluminescent glints (rare signature)
+    ctx.globalAlpha = 0.24 * fade;
+    for (const p of (sweep.glints || [])){
+      const gx = cx + p.x * bandPx * 1.20;
+      if (gx < x - 8 || gx > x + ww + 8) continue;
+      const gy = y + hh*(0.12 + p.y*0.78) + Math.sin(t*1.1 + p.y*9.3)*hh*0.006;
+      const rr = (p.r || 1) * Math.min(ww, hh) * 0.009;
+      const gg = ctx.createRadialGradient(gx, gy, 0, gx, gy, rr*3.2);
+      gg.addColorStop(0, `hsla(${sweep.hue + 22}, 98%, 90%, 0.55)`);
+      gg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath();
+      ctx.arc(gx, gy, rr*3.2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -791,6 +898,9 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     drawCreature(ctx, c, cx, cy, cs);
+
+    // special moment: submersible light sweep (rare; signature look; OSD-safe)
+    drawSubmersibleSweep(ctx, imgX, imgY, imgW, imgH);
 
     // silt overlay
     ctx.save();
