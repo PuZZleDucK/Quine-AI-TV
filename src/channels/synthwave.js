@@ -425,6 +425,94 @@ export function createChannel({ seed, audio }) {
     return { amt, flip, strobe, sweep };
   }
 
+  function getSilhouetteState(horizon) {
+    // Occasional deterministic foreground passes to break up the empty grid.
+    // Keep OSD clear (title/HUD live in the left/top-left + bottom-left).
+
+    const bucketDur = 42;
+    const bucket = (t / bucketDur) | 0;
+    const key = (Math.imul(seedInt ^ 0x3b2f6a1d, 1664525) + bucket) | 0;
+
+    // ~12% of buckets spawn a pass (~once every ~6 minutes on average).
+    if (hashUnit32(key) > 0.12) return null;
+
+    const phase = (t - bucket * bucketDur) / bucketDur;
+    if (phase < 0 || phase > 1) return null;
+
+    // Ease in/out so it doesn't pop in, and avoid deep foreground where the HUD sits.
+    const edge = Math.min(phase / 0.12, (1 - phase) / 0.18);
+    const amt = clamp01(edge);
+
+    const kind = (hashUnit32(key ^ 0x9e3779b9) * 3) | 0; // 0..2
+
+    const xBase = 0.52 + hashUnit32(key ^ 0x7f4a7c15) * 0.42; // keep to right-ish side
+    const drift = (hashUnit32(key ^ 0x2b992ddf) - 0.5) * 0.08;
+
+    // Perspective motion: start near horizon, move down a bit then fade before HUD zone.
+    const z = phase * phase;
+    const y = horizon + h * (0.05 + 0.20 * z);
+    const x = w * (xBase + drift * (0.3 + 0.7 * z));
+
+    // Scale ramps with z but stays modest.
+    const scale = 0.35 + z * 1.05;
+
+    return { amt, kind, x, y, scale };
+  }
+
+  function drawForegroundSilhouette(ctx, horizon, beatAmt) {
+    const s = getSilhouetteState(horizon);
+    if (!s || s.amt <= 0) return;
+
+    // Dark silhouette with a subtle neon rim that pulses slightly on beats.
+    const a = 0.75 * s.amt;
+    const rimA = (0.08 + 0.12 * beatAmt) * s.amt;
+
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.scale(s.scale, s.scale);
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(0,0,0,${a.toFixed(3)})`;
+
+    // Keep it visually present but not a full-screen occluder.
+    // All dimensions are in a pseudo world-space that gets scaled by perspective above.
+    if (s.kind === 0) {
+      // Road sign
+      ctx.fillRect(-6, -70, 12, 92);
+      ctx.fillRect(6, -66, 64, 34);
+      ctx.fillRect(6, -66, 64, 7);
+    } else if (s.kind === 1) {
+      // Billboard
+      ctx.fillRect(-6, -82, 12, 104);
+      ctx.fillRect(58, -82, 12, 104);
+      ctx.fillRect(-22, -114, 114, 44);
+      ctx.fillRect(-22, -114, 114, 8);
+    } else {
+      // Gantry / bridge segment (high enough to avoid the HUD area)
+      ctx.fillRect(-90, -118, 180, 16);
+      ctx.fillRect(-76, -118, 12, 70);
+      ctx.fillRect(64, -118, 12, 70);
+    }
+
+    // Rim light (screen blend)
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = rimA;
+    ctx.strokeStyle = 'rgba(108,242,255,1)';
+    ctx.lineWidth = 3;
+
+    ctx.beginPath();
+    if (s.kind === 0) {
+      ctx.rect(6, -66, 64, 34);
+    } else if (s.kind === 1) {
+      ctx.rect(-22, -114, 114, 44);
+    } else {
+      ctx.rect(-90, -118, 180, 16);
+    }
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
   function drawSky(ctx, horizon, beatAmt) {
     ctx.drawImage(layerCache.sky, 0, 0);
 
@@ -854,6 +942,8 @@ export function createChannel({ seed, audio }) {
 
     drawGrid(ctx, horizon, beatAmt, police);
     drawCar(ctx, horizon, beatAmt, police);
+
+    drawForegroundSilhouette(ctx, horizon, beatAmt);
 
     // Keep HUD readable: apply police sweep before UI text.
     drawPoliceSweep(ctx, horizon, police);
