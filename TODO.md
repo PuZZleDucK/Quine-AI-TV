@@ -3,7 +3,7 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): layout — remove countdown to destination time and use space to make other elements bigger
+- [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): high priority layout — remove countdown to destination time and use space to make other elements bigger
 
 - [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): long-run interest — add 6–10 more real-world destinations (with palette + vibe/food/fact + HUMOR_BY_CITY line) so repeats are rarer.
 
