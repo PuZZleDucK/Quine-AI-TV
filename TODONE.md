@@ -1,6 +1,8 @@
 # Done
 
 
+- [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): audio hygiene — fixed stacked hum/noise/drone by capturing per-handle nodes in `stop()` and making `onAudioOn()` idempotent; `onAudioOff()`/`destroy()` now stop+clear and only clear `AudioManager.current` when owned. Commit: 1635171
+
 - [x] [project:quine-tv] Review channel `neonlaundromat` (src/channels/neonlaundromat.js): captured screenshots (0–300s) to `screenshots/review-neonlaundromat-2026-02-15-pre` + completion shots to `screenshots/review-neonlaundromat-2026-02-15-post` (errors/warnings: 0), did code+audio review, added `// REVIEWED: 2026-02-15`, and queued concrete follow-ups in `TODO.md`. Commit: ddb13d8
 
 - [x] [project:quine-tv] `retroboot` add alien os - rare. Screenshots: screenshots/autopilot-retroboot-alien-before + screenshots/autopilot-retroboot-alien-after. Commit: 2844e15

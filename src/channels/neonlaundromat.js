@@ -319,44 +319,58 @@ export function createChannel({ seed, audio }){
     init({ width, height, dpr: dprIn });
   }
 
-  function onAudioOn(){
-    if (!audio.enabled) return;
-
+  function makeAmbienceHandle(){
     const ctx = audio.ensure();
 
     // soft room hum + a little sudsy noise
-    humOsc = ctx.createOscillator();
-    humOsc.type = 'triangle';
-    humOsc.frequency.value = 58 + audioRand() * 8;
+    const humOscLocal = ctx.createOscillator();
+    humOscLocal.type = 'triangle';
+    humOscLocal.frequency.value = 58 + audioRand() * 8;
 
-    humGain = ctx.createGain();
-    humGain.gain.value = 0.0;
-    humOsc.connect(humGain);
-    humGain.connect(audio.master);
+    const humGainLocal = ctx.createGain();
+    humGainLocal.gain.value = 0.0;
+    humOscLocal.connect(humGainLocal);
+    humGainLocal.connect(audio.master);
 
-    noise = audio.noiseSource({ type: 'pink', gain: 0.0 });
+    const noiseLocal = audio.noiseSource({ type: 'pink', gain: 0.0 });
 
-    humOsc.start();
-    noise.start();
+    humOscLocal.start();
+    noiseLocal.start();
 
-    drone = simpleDrone(audio, { root: 46 + audioRand() * 10, detune: 0.6, gain: 0.010 });
+    const droneLocal = simpleDrone(audio, { root: 46 + audioRand() * 10, detune: 0.6, gain: 0.010 });
 
-    ambience = {
+    // Publish current nodes for `update()`.
+    humOsc = humOscLocal;
+    humGain = humGainLocal;
+    noise = noiseLocal;
+    drone = droneLocal;
+
+    // IMPORTANT: capture locals so stop() always tears down the correct nodes,
+    // even if onAudioOn() is called again and the globals are reassigned.
+    return {
       stop(){
-        try { noise?.stop?.(); } catch {}
+        try { noiseLocal?.stop?.(); } catch {}
         try {
-          humGain?.gain?.setTargetAtTime?.(0.0001, ctx.currentTime, 0.06);
-          humOsc?.stop?.(ctx.currentTime + 0.2);
+          humGainLocal?.gain?.setTargetAtTime?.(0.0001, ctx.currentTime, 0.06);
+          humOscLocal?.stop?.(ctx.currentTime + 0.2);
         } catch {}
-        try { drone?.stop?.(); } catch {}
+        try { droneLocal?.stop?.(); } catch {}
       }
     };
-
-    audio.setCurrent(ambience);
   }
 
-  function onAudioOff(){
-    try { ambience?.stop?.(); } catch {}
+  function stopAmbience({ clearCurrent = false } = {}){
+    const handle = ambience;
+    if (!handle) return;
+
+    const isCurrent = audio.current === handle;
+    if (clearCurrent && isCurrent){
+      // Clears audio.current and stops via handle.stop().
+      audio.stopCurrent();
+    } else {
+      try { handle?.stop?.(); } catch {}
+    }
+
     ambience = null;
     humOsc = null;
     humGain = null;
@@ -364,9 +378,21 @@ export function createChannel({ seed, audio }){
     drone = null;
   }
 
-  function destroy(){
-    onAudioOff();
+  function onAudioOn(){
+    if (!audio.enabled) return;
+
+    // Defensive: avoid stacking our own ambience if onAudioOn gets called repeatedly.
+    stopAmbience({ clearCurrent: true });
+
+    ambience = makeAmbienceHandle();
+    audio.setCurrent(ambience);
   }
+
+  function onAudioOff(){
+    stopAmbience({ clearCurrent: true });
+  }
+
+  function destroy(){ onAudioOff(); }
 
   function currentPhase(){
     const p = ((t / PHASE_DUR) | 0) % PHASES.length;
