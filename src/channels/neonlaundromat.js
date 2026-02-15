@@ -108,6 +108,93 @@ export function createChannel({ seed, audio }){
   let alert = { a: 0, machine: 0, msg: '' };
   let nextAlertAt = 0;
 
+  // LOST SOCK alert message variety (seeded shuffle-bag, separate RNG).
+  // Keep strings short since we append " • CHECK LINT TRAP" in the HUD.
+  const SOCK_VARIANTS = [
+    'LEFT SOCK',
+    'RIGHT SOCK',
+    'MISMATCHED SOCK',
+    'TINY SOCK',
+    'GIANT SOCK',
+    'NO-SHOW SOCK',
+    'ANKLE SOCK',
+    'KNEE SOCK',
+    'DRESS SOCK',
+    'SPORT SOCK',
+    'WOOL SOCK',
+    'FUZZY SOCK',
+    'STRIPED SOCK',
+    'POLKA SOCK',
+    'ARGYLE SOCK',
+    'NEON SOCK',
+    'BLACK SOCK',
+    'WHITE SOCK',
+    'RED SOCK',
+    'BLUE SOCK',
+    'GREEN SOCK',
+    'PURPLE SOCK',
+    'GOLD SOCK',
+    'SILVER SOCK',
+    'INSIDE-OUT SOCK',
+    'HOLE-Y SOCK',
+    'SOGGY SOCK',
+    'STATIC SOCK',
+    'GLITCH SOCK',
+    'CYBER SOCK',
+    'MAGNETIC SOCK',
+    'SINGLE SOCK',
+    'SPARE SOCK',
+    'MYSTERY SOCK',
+    'GHOST SOCK',
+    'PHANTOM SOCK',
+    'ESCAPED SOCK',
+    'SOCK VANISHED',
+    'SOCK INCIDENT',
+    'SOCK CRISIS',
+    'SOCK MELTDOWN',
+    'SOCK RANSOM',
+    'IN THE LINT',
+    'UNDER MACHINE',
+    'BEHIND COUNTER',
+    'IN THE VENT',
+    'IN THE DRUM',
+    'IN SOCK VOID',
+    'IN NARNIA',
+    'ALIEN SOCK',
+    'TIMEWARP SOCK',
+    'DIMENSIONAL SOCK',
+    'SOCK OF DOOM',
+  ];
+
+  let sockRand = mulberry32((seed ^ 0x3b79a20f) >>> 0);
+  let sockBag = [];
+  let sockBagIndex = 0;
+  let lastSockMsg = '';
+
+  function refillSockBag(){
+    sockBag = SOCK_VARIANTS.slice();
+    for (let i = sockBag.length - 1; i > 0; i--){
+      const j = (sockRand() * (i + 1)) | 0;
+      const tmp = sockBag[i];
+      sockBag[i] = sockBag[j];
+      sockBag[j] = tmp;
+    }
+    sockBagIndex = 0;
+    // avoid immediate repeat across refills
+    if (lastSockMsg && sockBag.length > 1 && sockBag[0] === lastSockMsg){
+      const tmp = sockBag[0];
+      sockBag[0] = sockBag[1];
+      sockBag[1] = tmp;
+    }
+  }
+
+  function nextSockMsg(){
+    if (!sockBag.length || sockBagIndex >= sockBag.length) refillSockBag();
+    const msg = sockBag[sockBagIndex++];
+    lastSockMsg = msg;
+    return msg;
+  }
+
   // audio
   let ambience = null;
   let humOsc = null;
@@ -298,6 +385,11 @@ export function createChannel({ seed, audio }){
     alert = { a: 0, machine: 0, msg: '' };
     nextAlertAt = 12 + rand() * 18;
 
+    sockRand = mulberry32((seed ^ 0x3b79a20f) >>> 0);
+    sockBag = [];
+    sockBagIndex = 0;
+    lastSockMsg = '';
+
     for (const m of machines) m.rot = rand() * Math.PI * 2;
   }
 
@@ -461,7 +553,11 @@ export function createChannel({ seed, audio }){
     alert.a = Math.max(0, alert.a - dt * 0.42);
     if (t >= nextAlertAt){
       const m = (rand() * machines.length) | 0;
-      const sock = pick(rand, ['LEFT SOCK', 'RIGHT SOCK', 'MISMATCHED SOCK', 'TINY SOCK']);
+
+      // Preserve the main RNG sequence: we used to call rand() here via pick().
+      rand();
+
+      const sock = nextSockMsg();
       alert = { a: 1, machine: m + 1, msg: sock };
       safeBeep({ freq: 880, dur: 0.06, gain: 0.014, type: 'square' });
       safeBeep({ freq: 440, dur: 0.08, gain: 0.010, type: 'triangle' });
