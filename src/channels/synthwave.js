@@ -722,8 +722,13 @@ export function createChannel({ seed, audio }) {
     const msgA = 'CH 01';
     const msgB = 'SYNTHWAVE DRIVE';
 
-    const jitterX = titleGlitch > 0 ? (rand() - 0.5) * 9 : 0;
-    const jitterY = titleGlitch > 0 ? (rand() - 0.5) * 5 : 0;
+    const glitchOn = titleGlitch > 0;
+    const timeBucket = glitchOn ? ((t * 60) | 0) : 0;
+
+    // Deterministic jitter (don’t advance the channel RNG each frame).
+    // Bucketed by time so captures at different FPS match for the same t.
+    const jitterX = glitchOn ? (hashUnit32(seedInt ^ timeBucket) - 0.5) * 9 : 0;
+    const jitterY = glitchOn ? (hashUnit32(seedInt ^ (timeBucket + 1)) - 0.5) * 5 : 0;
 
     ctx.save();
     ctx.textBaseline = 'middle';
