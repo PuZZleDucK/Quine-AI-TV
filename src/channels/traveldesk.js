@@ -924,13 +924,20 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = 'rgba(52, 86, 158, 0.85)';
     ctx.fillRect(ix, groundY - 1, iw, 1);
 
-    // scanlines
+    // scanlines (alternate dark + light so it reads on both sky and buildings)
     ctx.save();
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = 'rgba(0,0,0,1)';
     const sl = Math.max(2, Math.floor(ih / 80));
-    for (let y = 0; y < ih; y += sl){
-      if ((y / sl) % 2 === 0) ctx.fillRect(ix, iy + y, iw, 1);
+
+    ctx.globalAlpha = 0.10;
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    for (let y = 0; y < ih; y += sl * 2){
+      ctx.fillRect(ix, iy + y, iw, 1);
+    }
+
+    ctx.globalAlpha = 0.05;
+    ctx.fillStyle = 'rgba(255,255,255,1)';
+    for (let y = sl; y < ih; y += sl * 2){
+      ctx.fillRect(ix, iy + y, iw, 1);
     }
     // moving tape-glitch bar: keep it in upper sky so it never intersects skyline contact
     const glitchBand = Math.max(18, Math.floor((groundY - iy) * 0.45));
