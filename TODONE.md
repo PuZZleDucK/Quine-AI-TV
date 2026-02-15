@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — flip starts at 30s (same 15s duration) and front stays shown after flip. Commit: 3291a26
+
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — flip to the front for the last 15s (parody location image). Commit: 64f98bb
 
 - [x] [project:quine-tv] `oceanpostcards` (src/channels/archive/oceanpostcards.js): special moment — rare deterministic “SUBMERSIBLE LIGHT SWEEP” / bioluminescent bloom across the window (~2–5 min cadence), signature look + clean reset (OSD-safe). Commit: 63600ad
