@@ -78,8 +78,9 @@ export function createChannel({ seed, audio }){
     return {
       ocean0: `hsla(${(baseHue+10)%360}, 72%, 12%, 1)`,
       ocean1: `hsla(${(baseHue+30)%360}, 78%, 6%, 1)`,
-      ink: `hsla(${inkHue}, 82%, 70%, 0.95)`,
-      inkDim: `hsla(${inkHue}, 65%, 78%, 0.70)`,
+      // Slightly darker + higher alpha for better legibility on paper gradients.
+      ink: `hsla(${inkHue}, 82%, 66%, 0.98)`,
+      inkDim: `hsla(${inkHue}, 65%, 72%, 0.84)`,
       stamp: `hsla(${(baseHue+55)%360}, 85%, 62%, 0.92)`,
       paper0: `hsla(${(baseHue+35)%360}, 28%, 95%, 0.985)`,
       paper1: `hsla(${(baseHue+15)%360}, 20%, 89%, 0.985)`,
@@ -630,7 +631,13 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = pal.ink;
     ctx.font = `${Math.floor(font*1.05)}px ui-sans-serif, system-ui`;
     ctx.textBaseline = 'top';
+    // Subtle shadow so pinks stay readable over paper grain.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.40)';
+    ctx.shadowBlur = Math.max(2, Math.floor(font*0.18));
+    ctx.shadowOffsetY = Math.max(1, Math.floor(font*0.06));
     ctx.fillText('OCEAN FLOOR POSTCARDS', -cardW/2 + pad, -cardH/2 + Math.floor(font*0.55));
+    ctx.restore();
 
     // stamp
     const stampS = Math.floor(font * 2.2);
@@ -788,11 +795,24 @@ export function createChannel({ seed, audio }){
     // label
     ctx.fillStyle = pal.ink;
     ctx.font = `${Math.floor(font*1.45)}px ui-sans-serif, system-ui`;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = Math.max(2, Math.floor(font*0.22));
+    ctx.shadowOffsetY = Math.max(1, Math.floor(font*0.07));
     ctx.fillText(c.name, -cardW/2 + pad, imgY + imgH + Math.floor(font*0.75));
+    ctx.restore();
 
     ctx.fillStyle = pal.inkDim;
     ctx.font = `${Math.floor(small*0.95)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.fillText(`${c.zone} ZONE`, -cardW/2 + pad, imgY + imgH + Math.floor(font*2.25));
+    const oz = `${c.zone} ZONE`;
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.lineWidth = Math.max(2, Math.floor(small*0.18));
+    ctx.strokeStyle = 'rgba(0,0,0,0.34)';
+    ctx.strokeText(oz, -cardW/2 + pad, imgY + imgH + Math.floor(font*2.25));
+    ctx.fillText(oz, -cardW/2 + pad, imgY + imgH + Math.floor(font*2.25));
+    ctx.restore();
 
     // divider
     const divY = imgY + imgH + Math.floor(font*3.1);
@@ -812,7 +832,14 @@ export function createChannel({ seed, audio }){
 
     ctx.fillStyle = pal.ink;
     ctx.font = `${Math.floor(small*0.95)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.lineWidth = Math.max(2, Math.floor(small*0.18));
+    ctx.strokeStyle = 'rgba(0,0,0,0.30)';
+    ctx.strokeText('CREATURE FACT:', factX + Math.floor(font*0.6), factY + Math.floor(font*0.45));
     ctx.fillText('CREATURE FACT:', factX + Math.floor(font*0.6), factY + Math.floor(font*0.45));
+    ctx.restore();
 
     ctx.fillStyle = 'rgba(10,12,18,0.82)';
     ctx.font = `${Math.floor(small*1.05)}px ui-sans-serif, system-ui`;
@@ -842,13 +869,20 @@ export function createChannel({ seed, audio }){
     const tw = Math.ceil(ctx.measureText(chip).width);
     const cx2 = cardW/2 - pad - (tw + font*0.9);
     const cy2 = cardH/2 - Math.floor(font*1.35);
-    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.fillStyle = 'rgba(0,0,0,0.14)';
     roundRect(ctx, cx2, cy2, tw + font*0.9, Math.floor(small*1.65), 12);
     ctx.fill();
-    ctx.globalAlpha = 0.86;
+    ctx.globalAlpha = 0.90;
     ctx.fillStyle = pal.inkDim;
     ctx.textBaseline = 'middle';
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.lineWidth = Math.max(2, Math.floor(small*0.18));
+    ctx.strokeStyle = 'rgba(0,0,0,0.32)';
+    ctx.strokeText(chip, cx2 + Math.floor(font*0.45), cy2 + Math.floor(small*0.83));
     ctx.fillText(chip, cx2 + Math.floor(font*0.45), cy2 + Math.floor(small*0.83));
+    ctx.restore();
     ctx.restore();
 
     ctx.restore(); // card transform
