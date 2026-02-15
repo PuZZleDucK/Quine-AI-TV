@@ -318,9 +318,18 @@ export function createChannel({ seed, audio }){
   let powerSurge = { a: 0, startAt: 0, dur: 0 };
   let nextSurgeAt = 0;
 
+  // second special moment stream: COIN JAM (separate seeded RNG; cadence-stable).
+  let jamRand = mulberry32((seed ^ 0x1c83f2a9) >>> 0);
+  let coinJam = { a: 0, startAt: 0, machine: 0 };
+  let nextJamAt = 0;
+
   const ALERT_FADE_IN = 0.18;
   const ALERT_HOLD = 3.6;
   const ALERT_FADE_OUT = 1.1;
+
+  const JAM_FADE_IN = 0.14;
+  const JAM_HOLD = 2.6;
+  const JAM_FADE_OUT = 0.9;
 
   let alert = { a: 0, machine: 0, msg: '', startAt: 0 };
   let nextAlertAt = 0;
@@ -599,6 +608,10 @@ export function createChannel({ seed, audio }){
     powerSurge = { a: 0, startAt: 0, dur: 0 };
     nextSurgeAt = 45 + surgeRand() * 75;
 
+    jamRand = mulberry32((seed ^ 0x1c83f2a9) >>> 0);
+    coinJam = { a: 0, startAt: 0, machine: 0 };
+    nextJamAt = 90 + jamRand() * 150;
+
     alert = { a: 0, machine: 0, msg: '' };
     nextAlertAt = 12 + rand() * 18;
 
@@ -757,6 +770,35 @@ export function createChannel({ seed, audio }){
       }
     } else {
       powerSurge.a = 0;
+    }
+
+    // rare deterministic COIN JAM moment (special moment)
+    if (t >= nextJamAt){
+      while (t >= nextJamAt){
+        const startAt = nextJamAt;
+        const machine = (jamRand() * machines.length) | 0;
+        coinJam = { a: 0, startAt, machine };
+        nextJamAt += 90 + jamRand() * 150;
+      }
+      safeBeep({ freq: 660, dur: 0.05, gain: 0.012, type: 'square' });
+      safeBeep({ freq: 330, dur: 0.09, gain: 0.010, type: 'sawtooth' });
+    }
+
+    if (coinJam.startAt > 0){
+      const u = t - coinJam.startAt;
+      if (u < 0){
+        coinJam.a = 0;
+      } else if (u < JAM_FADE_IN){
+        coinJam.a = u / JAM_FADE_IN;
+      } else if (u < JAM_FADE_IN + JAM_HOLD){
+        coinJam.a = 1;
+      } else if (u < JAM_FADE_IN + JAM_HOLD + JAM_FADE_OUT){
+        coinJam.a = 1 - (u - JAM_FADE_IN - JAM_HOLD) / JAM_FADE_OUT;
+      } else {
+        coinJam = { a: 0, startAt: 0, machine: 0 };
+      }
+    } else {
+      coinJam.a = 0;
     }
 
     // neon flicker moments
@@ -1296,6 +1338,9 @@ export function createChannel({ seed, audio }){
     const bodyH = m.h;
     const r = Math.max(16, Math.floor(Math.min(bodyW, bodyH) * 0.08));
 
+    const jam = (coinJam.a > 0 && coinJam.machine === idx) ? ease(coinJam.a) : 0;
+    const jamStrobe = jam > 0 ? (0.5 + 0.5 * Math.sin(t * 38 + idx * 2.1)) : 0;
+
     // shadow
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.40)';
@@ -1335,6 +1380,28 @@ export function createChannel({ seed, audio }){
     ctx.fillStyle = m.tint;
     ctx.fillRect(px + pw * 0.02, py + ph * 0.78, pw * (0.20 + 0.18 * P.glow), Math.max(2, Math.floor(dpr)));
     ctx.restore();
+
+    // COIN JAM signature: control-panel strobe.
+    if (jam > 0){
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = jam * (0.12 + 0.58 * jamStrobe);
+      ctx.fillStyle = pal.warn;
+      roundedRect(ctx, px + 2, py + 2, pw - 4, ph - 4, r * 0.7);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.strokeStyle = pal.warn;
+      ctx.lineWidth = Math.max(2, Math.floor(dpr * 1.6));
+      ctx.shadowColor = pal.warn;
+      ctx.shadowBlur = 18;
+      ctx.globalAlpha = jam * (0.25 + 0.55 * jamStrobe);
+      roundedRect(ctx, px + 1, py + 1, pw - 2, ph - 2, r * 0.7);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // panel UI (display + dial + buttons) so the machines read a bit more “real”
     const dispX = px + pw * 0.06;
@@ -1409,6 +1476,15 @@ export function createChannel({ seed, audio }){
     const fitR = Math.max(10, ((bottomBound - topBound) * 0.5) / 1.18);
     const R = Math.min(m.doorR, fitR);
     const cy = clamp(y + bodyH * 0.60, topBound + R * 1.18, bottomBound - R * 1.18);
+
+    // COIN JAM signature: door shake.
+    ctx.save();
+    if (jam > 0){
+      const shake = jam * (0.45 + 0.55 * jamStrobe);
+      const shx = Math.sin(t * 55 + idx * 1.7) * shake * 3.4;
+      const shy = Math.cos(t * 61 + idx * 1.1) * shake * 2.6;
+      ctx.translate(shx, shy);
+    }
 
     // bezel
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -1535,6 +1611,8 @@ export function createChannel({ seed, audio }){
     ctx.arc(cx, cy, R * 1.05, 0, Math.PI * 2);
     ctx.fill();
 
+    ctx.restore(); // coinJam door shake
+
     // tiny machine label
     ctx.save();
     ctx.font = `${Math.floor(small * 0.9)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
@@ -1604,6 +1682,40 @@ export function createChannel({ seed, audio }){
       ctx.fillText('POWER SURGE', bx + 16, by + bh * 0.5);
 
       ctx.restore();
+    }
+
+    // COIN JAM banner (special moment)
+    if (coinJam.a > 0){
+      const a = ease(coinJam.a);
+      const bw = Math.min(w * 0.28, 320);
+      const bh = Math.min(h * 0.06, 56);
+      const bx = w * 0.05;
+      const by = h - bh - h * 0.26;
+      const blink = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(t * 22));
+
+      ctx.save();
+      ctx.globalAlpha = 0.92 * a;
+      ctx.fillStyle = `rgba(10,12,14,${0.78 * blink})`;
+      roundedRect(ctx, bx, by, bw, bh, 12);
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = `rgba(255,78,82,${0.88 * blink})`;
+      ctx.lineWidth = Math.max(2, Math.floor(dpr * 1.2));
+      roundedRect(ctx, bx, by, bw, bh, 12);
+      ctx.stroke();
+
+      ctx.font = `${Math.floor(small * 0.95)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = `rgba(255,78,82,${0.95 * blink})`;
+      ctx.fillText('COIN JAM', bx + 16, by + bh * 0.5);
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = `rgba(235,245,255,${0.78 + 0.22 * blink})`;
+      ctx.fillText(`M${coinJam.machine + 1}`, bx + bw - 16, by + bh * 0.5);
+
+      ctx.restore();
+      ctx.textAlign = 'left';
     }
 
     // alert card
