@@ -1057,12 +1057,31 @@ export function createChannel({ seed, audio }){
         }
       }
       if (line) lines.push(line);
+      if (!lines.length) lines.push('');
 
       const lineH = Math.floor(layout.font * 0.98);
       const maxLines = 2;
-      const usedLines = Math.max(1, Math.min(maxLines, lines.length));
+      const hasOverflow = lines.length > maxLines;
+      const renderLines = lines.slice(0, maxLines);
+
+      if (hasOverflow){
+        const ell = '…';
+        const base = renderLines[maxLines - 1] || '';
+
+        if (ctx.measureText(base + ell).width <= maxW){
+          renderLines[maxLines - 1] = base + ell;
+        } else {
+          const wds = base.split(' ');
+          while (wds.length && ctx.measureText(wds.join(' ') + ell).width > maxW){
+            wds.pop();
+          }
+          renderLines[maxLines - 1] = wds.length ? (wds.join(' ') + ell) : ell;
+        }
+      }
+
+      const usedLines = Math.max(1, renderLines.length);
       for (let li = 0; li < usedLines; li++){
-        ctx.fillText(lines[li], tx, y + li * lineH);
+        ctx.fillText(renderLines[li], tx, y + li * lineH);
       }
       y += usedLines * lineH;
     }
