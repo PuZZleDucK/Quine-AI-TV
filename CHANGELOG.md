@@ -1,3 +1,5 @@
+- 2026-02-15 17:53 (Australia/Melbourne) [project:quine-tv] Review channel `synthwave` (src/channels/synthwave.js): screenshots 0–300s `screenshots/review-synthwave-2026-02-15` (errors/warnings: 0); did code+audio review; confirmed `// REVIEWED: 2026-02-15`; queued concrete follow-ups in `TODO.md`. Commit: TBD
+
 - 2026-02-15 16:36 (Australia/Melbourne) [project:quine-tv] `synthwave` (src/channels/synthwave.js): HUD polish — added an OSD-safe bottom-left HUD (SPEED/GEAR/RPM) with seeded rotating flavor text (no per-frame RNG). Commit: 74fe1f4
 
 - 2026-02-15 16:03 (Australia/Melbourne) [project:quine-tv] `synthwave` (src/channels/synthwave.js): perf — cached sky + sun halo/disk + reflection + grid glow gradients into offscreen layers (rebuild on init/resize/ctx swap) so steady-state render creates 0 gradients/frame. Commit: 0801f56
