@@ -7,7 +7,7 @@ if `TODO.md` has no ready items:
 
 - [project:quine-tv] Review channel `city` (src/channels/city.js): capture screenshots (0–300s) pre/post; do visual+code review; update REVIEWED date; queue concrete follow-ups.
 
-<!-- done: [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — front text mirroring -->
+- [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): map — add markers and (sarcastic/funny) labels to each node along the path
 - [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — add funny and/or sarcastic to addresses
 - [project:quine-tv] `nightmarket`  - looks terrible - start from scratch and re-imagine the channel
 - [project:quine-tv] `microfilm`  - looks terrible - start from scratch and re-imagine the channel - should show microfilm and enlargemnet
