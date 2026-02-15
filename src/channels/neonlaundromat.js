@@ -318,7 +318,11 @@ export function createChannel({ seed, audio }){
   let powerSurge = { a: 0, startAt: 0, dur: 0 };
   let nextSurgeAt = 0;
 
-  let alert = { a: 0, machine: 0, msg: '' };
+  const ALERT_FADE_IN = 0.18;
+  const ALERT_HOLD = 3.6;
+  const ALERT_FADE_OUT = 1.1;
+
+  let alert = { a: 0, machine: 0, msg: '', startAt: 0 };
   let nextAlertAt = 0;
 
   // LOST SOCK alert message variety (seeded shuffle-bag, separate RNG).
@@ -763,8 +767,24 @@ export function createChannel({ seed, audio }){
       if (audio.enabled && audioRand() < 0.25) safeBeep({ freq: 780 + audioRand() * 120, dur: 0.03, gain: 0.006, type: 'square' });
     }
 
-    // lost sock alert card
-    alert.a = Math.max(0, alert.a - dt * 0.42);
+    // lost sock alert card (popup)
+    if (alert.startAt > 0){
+      const u = t - alert.startAt;
+      if (u < 0){
+        alert.a = 0;
+      } else if (u < ALERT_FADE_IN){
+        alert.a = u / ALERT_FADE_IN;
+      } else if (u < ALERT_FADE_IN + ALERT_HOLD){
+        alert.a = 1;
+      } else if (u < ALERT_FADE_IN + ALERT_HOLD + ALERT_FADE_OUT){
+        alert.a = 1 - (u - ALERT_FADE_IN - ALERT_HOLD) / ALERT_FADE_OUT;
+      } else {
+        alert = { a: 0, machine: 0, msg: '', startAt: 0 };
+      }
+    } else {
+      alert.a = 0;
+    }
+
     if (t >= nextAlertAt){
       const m = (rand() * machines.length) | 0;
 
@@ -772,7 +792,7 @@ export function createChannel({ seed, audio }){
       rand();
 
       const sock = nextSockMsg();
-      alert = { a: 1, machine: m + 1, msg: sock };
+      alert = { a: 0, machine: m + 1, msg: sock, startAt: t };
       safeBeep({ freq: 880, dur: 0.06, gain: 0.014, type: 'square' });
       safeBeep({ freq: 440, dur: 0.08, gain: 0.010, type: 'triangle' });
       nextAlertAt = t + 22 + rand() * 26;
