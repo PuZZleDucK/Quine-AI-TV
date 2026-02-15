@@ -629,6 +629,11 @@ export function createChannel({ seed, audio }){
   let route = { stops: [], pausePerStop: SEG_DUR, legDurations: [], cycleSeconds: SEG_DUR };
   let street = null;
 
+  // special desk moments (rare, deterministic; separate RNG so core visuals stay stable)
+  let momentRand = null;
+  let nextMomentSeg = 0;
+  let activeMoment = null;
+
   let bed = null;
   let lastDestKey = '';
   const normalCycleCache = new Map();
@@ -700,12 +705,24 @@ export function createChannel({ seed, audio }){
     street = makeStreet(r, w * 0.36, h * 0.26);
   }
 
+  function startMoment(){
+    if (!momentRand) momentRand = mulberry32((seed ^ 0x7f4a7c15) >>> 0);
+    const type = momentRand() < 0.52 ? 'PASSPORT_STAMP' : 'ROUTE_UPDATE';
+    const dur = type === 'PASSPORT_STAMP' ? (6.6 + momentRand() * 2.2) : (7.2 + momentRand() * 2.6);
+    activeMoment = { type, t: 0, dur };
+    const gap = 2 + ((momentRand() * 4) | 0); // 2..5 segments (~minutes)
+    nextMomentSeg = segIx + gap;
+  }
+
   function init({ width, height }){
     w = width; h = height; t = 0;
     segIx = 0;
     segT = 0;
     lastDestKey = '';
     normalCycleCache.clear();
+    momentRand = mulberry32((seed ^ 0x7f4a7c15) >>> 0);
+    nextMomentSeg = 2 + ((momentRand() * 4) | 0); // 2..5 minutes
+    activeMoment = null;
     setSegment(0);
   }
 
@@ -737,6 +754,12 @@ export function createChannel({ seed, audio }){
     while (segT >= SEG_DUR){
       segT -= SEG_DUR;
       setSegment(segIx + 1);
+      if (segIx === nextMomentSeg) startMoment();
+    }
+
+    if (activeMoment){
+      activeMoment.t += dt;
+      if (activeMoment.t >= activeMoment.dur) activeMoment = null;
     }
 
     if (!street) return;
@@ -860,13 +883,40 @@ export function createChannel({ seed, audio }){
     ctx.restore();
 
     // Route: dotted links between in-country stops + moving highlight that pauses at stops.
+    const momentType = activeMoment?.type || '';
+    const momentAlpha = activeMoment
+      ? Math.max(0, Math.min(1, (activeMoment.t / 0.7)) * Math.min(1, ((activeMoment.dur - activeMoment.t) / 1.0)))
+      : 0;
     if (route.stops.length > 0){
       ctx.save();
       ctx.globalAlpha = 0.85;
-      ctx.strokeStyle = 'rgba(196, 65, 42, 0.65)';
-      ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) / 240));
-      ctx.setLineDash([8, 10]);
-      ctx.lineDashOffset = -t * 18;
+
+      let routeStroke = 'rgba(196, 65, 42, 0.65)';
+      let stopFill = 'rgba(196, 65, 42, 0.52)';
+      let dash = [8, 10];
+      let dashSpeed = 18;
+      let widthMul = 1;
+
+      if (momentAlpha > 0 && momentType){
+        if (momentType === 'ROUTE_UPDATE'){
+          routeStroke = `rgba(90, 230, 255, ${0.55 + 0.35 * momentAlpha})`;
+          stopFill = `rgba(90, 230, 255, ${0.32 + 0.30 * momentAlpha})`;
+          dash = [4, 8];
+          dashSpeed = 34;
+          widthMul = 1.35;
+        } else if (momentType === 'PASSPORT_STAMP'){
+          routeStroke = `rgba(90, 210, 120, ${0.48 + 0.28 * momentAlpha})`;
+          stopFill = `rgba(90, 210, 120, ${0.28 + 0.25 * momentAlpha})`;
+          dash = [10, 8];
+          dashSpeed = 22;
+          widthMul = 1.15;
+        }
+      }
+
+      ctx.strokeStyle = routeStroke;
+      ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) / 240)) * widthMul;
+      ctx.setLineDash(dash);
+      ctx.lineDashOffset = -t * dashSpeed;
       for (let i = 0; i < route.stops.length - 1; i++){
         const a = route.stops[i];
         const b = route.stops[i + 1];
@@ -878,7 +928,7 @@ export function createChannel({ seed, audio }){
 
       ctx.setLineDash([]);
       const stopR = Math.max(3, Math.floor(Math.min(w, h) * 0.007));
-      ctx.fillStyle = 'rgba(196, 65, 42, 0.52)';
+      ctx.fillStyle = stopFill;
       for (const p of route.stops){
         ctx.beginPath();
         ctx.arc(p.x, p.y, stopR, 0, Math.PI * 2);
@@ -898,6 +948,60 @@ export function createChannel({ seed, audio }){
         ctx.beginPath();
         ctx.arc(p.x, p.y, pr * 2.15 * pulse, 0, Math.PI * 2);
         ctx.fill();
+      }
+
+      if (momentAlpha > 0 && momentType === 'ROUTE_UPDATE'){
+        const tagW = Math.floor(mw * 0.30);
+        const tagH = Math.floor(mh * 0.08);
+        const tx = mx + Math.floor(mw * 0.06);
+        const ty = my + Math.floor(mh * 0.06);
+        ctx.save();
+        ctx.globalAlpha = 0.85 * momentAlpha;
+        ctx.fillStyle = 'rgba(10, 12, 18, 0.62)';
+        roundedRect(ctx, tx, ty, tagW, tagH, Math.floor(tagH * 0.45));
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(90, 230, 255, 0.85)';
+        ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) / 520));
+        ctx.stroke();
+        const f = Math.max(12, Math.floor(Math.min(w, h) / 46));
+        ctx.font = `bold ${f}px ui-sans-serif, system-ui`;
+        ctx.fillStyle = 'rgba(90, 230, 255, 0.96)';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('ROUTE UPDATE', tx + Math.floor(tagW * 0.10), ty + Math.floor(tagH * 0.53));
+        ctx.restore();
+      }
+
+      if (momentAlpha > 0 && momentType === 'PASSPORT_STAMP'){
+        const sw = mw * 0.32;
+        const sh = mh * 0.16;
+        const sx = mx + mw * 0.60;
+        const sy = my + mh * 0.08;
+        ctx.save();
+        ctx.translate(sx + sw * 0.5, sy + sh * 0.5);
+        ctx.rotate(-0.18);
+        ctx.globalAlpha = 0.80 * momentAlpha;
+        const rr = Math.min(sw, sh) * 0.22;
+        ctx.strokeStyle = 'rgba(140, 50, 40, 0.95)';
+        ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) / 280));
+        ctx.setLineDash([7, 7]);
+        roundedRect(ctx, -sw * 0.5, -sh * 0.5, sw, sh, rr);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.10 * momentAlpha;
+        ctx.fillStyle = 'rgba(140, 50, 40, 1)';
+        roundedRect(ctx, -sw * 0.5, -sh * 0.5, sw, sh, rr);
+        ctx.fill();
+
+        const f = Math.max(12, Math.floor(Math.min(w, h) / 46));
+        ctx.globalAlpha = 0.88 * momentAlpha;
+        ctx.fillStyle = 'rgba(140, 50, 40, 0.95)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `bold ${Math.floor(f * 1.12)}px ui-sans-serif, system-ui`;
+        ctx.fillText('PASSPORT STAMP', 0, -f * 0.20);
+        ctx.font = `bold ${Math.floor(f * 0.92)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+        ctx.fillText(String(dest.country || '').toUpperCase(), 0, f * 0.70);
+        ctx.restore();
       }
       ctx.restore();
     }
