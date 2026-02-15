@@ -661,9 +661,9 @@ export function createChannel({ seed, audio }){
     // Map geometry: scale to the map panel so outlines fill most of the paper.
     const pad = Math.floor(Math.min(w, h) * 0.05);
     const mw = Math.floor(w * 0.54);
-    const mh = Math.floor(h * 0.68);
+    const mh = Math.floor(h * 0.72);
     const mx = pad;
-    const my = Math.floor(h * 0.16);
+    const my = Math.floor(h * 0.12);
     const rr = Math.min(mw, mh) * 0.44;
     const ccx = mx + mw * (0.53 + (r() - 0.5) * 0.05);
     const ccy = my + mh * (0.53 + (r() - 0.5) * 0.05);
@@ -697,7 +697,7 @@ export function createChannel({ seed, audio }){
     }
 
     // street footage in a small "screen"
-    street = makeStreet(r, w * 0.34, h * 0.24);
+    street = makeStreet(r, w * 0.36, h * 0.26);
   }
 
   function init({ width, height }){
@@ -778,9 +778,9 @@ export function createChannel({ seed, audio }){
   function drawMap(ctx){
     const pad = Math.floor(Math.min(w, h) * 0.05);
     const mw = Math.floor(w * 0.54);
-    const mh = Math.floor(h * 0.68);
+    const mh = Math.floor(h * 0.72);
     const mx = pad;
-    const my = Math.floor(h * 0.16);
+    const my = Math.floor(h * 0.12);
     const r = Math.floor(Math.min(w, h) * 0.02);
 
     // shadow
@@ -916,10 +916,10 @@ export function createChannel({ seed, audio }){
   }
 
   function drawStreetScreen(ctx, layout){
-    const sw = Math.floor(w * 0.38);
-    const sh = Math.floor(h * 0.28);
-    const sx = Math.floor(w * 0.58);
-    const sy = Math.floor(h * 0.18);
+    const sw = Math.floor(w * 0.40);
+    const sh = Math.floor(h * 0.30);
+    const sx = Math.floor(w * 0.57);
+    const sy = Math.floor(h * 0.16);
     const r = Math.floor(Math.min(w, h) * 0.02);
 
     // frame shadow
@@ -1047,10 +1047,10 @@ export function createChannel({ seed, audio }){
   }
 
   function drawPostcard(ctx, layout){
-    const pw = Math.floor(w * 0.38);
-    const ph = Math.floor(h * 0.30);
-    const px = Math.floor(w * 0.58);
-    const py = Math.floor(h * 0.53);
+    const pw = Math.floor(w * 0.40);
+    const ph = Math.floor(h * 0.32);
+    const px = Math.floor(w * 0.57);
+    const py = Math.floor(h * 0.50);
     const r = Math.floor(Math.min(w, h) * 0.02);
 
     // shadow
@@ -1216,15 +1216,7 @@ export function createChannel({ seed, audio }){
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
-    // small status strip
-    ctx.save();
-    const font = layout.font;
-    ctx.font = `${Math.floor(font * 0.78)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    ctx.fillStyle = 'rgba(245, 240, 230, 0.45)';
-    ctx.textBaseline = 'bottom';
-    const eta = Math.max(0, Math.ceil(SEG_DUR - segT));
-    ctx.fillText(`DESTINATION ROTATES IN ${eta}s`, Math.floor(w * 0.05), Math.floor(h * 0.95));
-    ctx.restore();
+    // (Countdown removed; reclaim the space for layout.)
   }
 
   return { init, update, render, onResize, onAudioOn, onAudioOff, destroy };

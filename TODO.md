@@ -3,8 +3,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): high priority layout — remove countdown to destination time and use space to make other elements bigger
-
 - [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): special moments — add 1–2 rare deterministic desk moments (~2–5 min) (e.g. “PASSPORT STAMP”, “ROUTE UPDATE”) that clearly change the map/route styling.
 
 - [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed — street feed should look slightly different for each location. 

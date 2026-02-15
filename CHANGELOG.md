@@ -1,3 +1,5 @@
+- 2026-02-15 14:30 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): high priority layout — removed destination countdown strip and expanded map/street/postcard layout to reclaim space. Commit: TBD
+
 - 2026-02-15 14:21 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): long-run interest — added 8 more real-world destinations (Prague, Seoul, Cape Town, Buenos Aires, Mumbai, Auckland, Cairo, Vancouver) with palettes + HUMOR_BY_CITY lines to reduce repeats. Commit: 95605e7
 
 - 2026-02-15 14:03 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed bug — confined the CRT scan bar to the top third so it can’t sweep through the skyline. Commit: 6202ba6
