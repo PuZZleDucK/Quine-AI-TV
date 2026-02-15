@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `synthwave` (src/channels/synthwave.js): perf — cached sky + sun halo/disk + reflection + grid glow gradients into offscreen layers (rebuild on init/resize/ctx swap) so steady-state render creates 0 gradients/frame. Commit: 0801f56
+
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed variety — added occasional foreground pass sprites (streetlight pole / bus silhouette / neon sign / moon) with faster parallax so the inset feels less static over minutes. Commit: 8f05e65
 
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed — street feed should look slightly different for each location. Commit: a6e2c02
