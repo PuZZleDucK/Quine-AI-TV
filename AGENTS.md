@@ -83,6 +83,7 @@ A *good channel review* must produce concrete, trackable follow-ups. Do **all** 
   - Do elements look like they should and convey the intended effect/intent?
   - Is it visually pleasing/interesting over time (not just the first 10 seconds)?
   - Is the dialog or text funny or entertaining?
+  - Use your design skill and judgment to demand excelence.
 
 ### 2) Identify improvements (be specific)
 Look for opportunities in these buckets:
