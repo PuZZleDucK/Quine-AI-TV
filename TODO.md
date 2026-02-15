@@ -3,8 +3,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [ ] [project:quine-tv] `aquarium` (src/channels/aquarium.js): caustics — replace the straight-line caustics bands with a cached moving caustics texture (offscreen tile) so the surface light reads organic, not like scanlines.
-
 - [ ] [project:quine-tv] `aquarium` (src/channels/aquarium.js): depth — add a subtle midground layer (faint silhouettes/rocks or fog band) and push fish into 2 depth planes (slight blur/alpha/scale) to reduce the “everything is on one flat plane” feeling.
 
 # pending - do not do
