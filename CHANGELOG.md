@@ -1,4 +1,4 @@
-- 2026-02-15 13:17 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard text — allow up to 2 wrapped lines for the value text (not just 1) for STREET/FOOD/HISTORY/HUMOR; adjust y-step so the block can’t overlap the coffee steam / divider. Commit: TBD
+- 2026-02-15 13:17 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard text — allow up to 2 wrapped lines for the value text (not just 1) for STREET/FOOD/HISTORY/HUMOR; adjust y-step so the block can’t overlap the coffee steam / divider. Commit: 774675d
 
 - 2026-02-15 12:50 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): determinism — fixed-timestep sim loop (`SIM_DT=1/60` accumulator) so 30fps/60fps screenshot captures match for the same seed (special-moment schedules + drum rotation cadence-stable). Commit: bf283cc
 
