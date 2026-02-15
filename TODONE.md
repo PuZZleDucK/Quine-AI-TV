@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment — added rare deterministic “COIN JAM” event (~90–240s cadence; separate seeded RNG) with control-panel strobe + door shake + OSD-safe banner; clean reset. Commit: 682d9ab
+
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment bug — popup does not stay on screen long enough (now uses fade-in + hold + fade-out timing). Commit: 5e2f4ea
 
 

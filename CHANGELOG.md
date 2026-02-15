@@ -1,3 +1,5 @@
+- 2026-02-15 12:15 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment — added rare deterministic “COIN JAM” event (~90–240s cadence; separate seeded RNG) with control-panel strobe + door shake + OSD-safe banner; clean reset. Commit: 682d9ab
+
 - 2026-02-15 12:00 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment bug — LOST SOCK alert popup now stays on-screen longer (fade-in + hold + fade-out timing). Commit: 5e2f4ea
 
 - 2026-02-15 11:49 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): perf — cached static background/window/placard gradients into offscreen layers (rebuilt on init/resize) so steady-state background/window/placard render avoids per-frame gradient creation. Commit: a8e03b7
