@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `aquarium` (src/channels/aquarium.js): special moments — added rare deterministic “FLASHLIGHT SWEEP” event (warm cone + drifting sparkles) scheduled on the existing `randEvents` cadence and kept behind fish. Commit: 441738f
+
 - [x] [project:quine-tv] `aquarium` (src/channels/aquarium.js): title polish — improved “Midnight Aquarium” legibility with a soft plate + brighter stroke (OSD-safe). Screenshots: screenshots/task-aquarium-title-polish-before + screenshots/task-aquarium-title-polish-after. Commit: c32b65a
 
 - [x] [project:quine-tv] `synthwave` (src/channels/synthwave.js): visuals — added occasional deterministic foreground silhouette passes (road sign / billboard / gantry) to break up the empty grid over long runs (OSD-safe). Commit: f3d8692
