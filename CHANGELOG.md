@@ -1,3 +1,5 @@
+- 2026-02-15 16:36 (Australia/Melbourne) [project:quine-tv] `synthwave` (src/channels/synthwave.js): HUD polish — added an OSD-safe bottom-left HUD (SPEED/GEAR/RPM) with seeded rotating flavor text (no per-frame RNG). Commit: 74fe1f4
+
 - 2026-02-15 16:03 (Australia/Melbourne) [project:quine-tv] `synthwave` (src/channels/synthwave.js): perf — cached sky + sun halo/disk + reflection + grid glow gradients into offscreen layers (rebuild on init/resize/ctx swap) so steady-state render creates 0 gradients/frame. Commit: 0801f56
 
 - 2026-02-15 15:19 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed variety — added occasional foreground pass sprites (streetlight pole / bus silhouette / neon sign / moon) with faster parallax so the inset feels less static over minutes. Commit: 8f05e65
