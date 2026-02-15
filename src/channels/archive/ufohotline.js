@@ -1,4 +1,4 @@
-import { mulberry32 } from '../util/prng.js';
+import { mulberry32 } from '../../util/prng.js';
 
 // Small Town UFO Hotline
 // Call-in style faux radio drama: odd sightings, skeptical hosts, escalating lore, and periodic “commercials.”

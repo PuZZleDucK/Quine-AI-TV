@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 // "Slime Lab": little agents that follow/avoid each other and leave trails.
 

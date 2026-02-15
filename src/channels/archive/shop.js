@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 const PRODUCTS = [
   {name:'Pocket Nebula', tagline:'Genuine-ish cosmic vibes'},

@@ -1,6 +1,6 @@
 // REVIEWED: 2026-02-15
-import { mulberry32 } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32 } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 const pick = (rand, a) => a[(rand() * a.length) | 0];
 

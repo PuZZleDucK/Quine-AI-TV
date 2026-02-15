@@ -1,5 +1,5 @@
-import { mulberry32, clamp } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32, clamp } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 function lerp(a, b, t){ return a + (b - a) * t; }
 function easeInOut(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }

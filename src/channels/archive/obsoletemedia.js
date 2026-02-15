@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 // Museum of Obsolete Media
 // Rotating VHS/floppy/minidisc/cassette/etc exhibits with quick history + UI-style metadata.

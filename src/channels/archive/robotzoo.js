@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 // Robot Petting Zoo
 // Cute micro-robots exhibit simple behaviors (curious/shy/playful) in a stylized enclosure UI.

@@ -1,5 +1,5 @@
-import { mulberry32, clamp } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32, clamp } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 // Paper Marbling Studio
 // Ink drops swirl on water, comb patterns form, and a paper pull reveals the print.

@@ -1,4 +1,4 @@
-import { mulberry32 } from '../util/prng.js';
+import { mulberry32 } from '../../util/prng.js';
 
 // REVIEWED: 2026-02-10
 // Bonsai Time Machine

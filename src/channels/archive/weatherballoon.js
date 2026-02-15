@@ -1,5 +1,5 @@
-import { mulberry32, clamp } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32, clamp } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 // Weather Balloon Ascent
 // Balloon climbs through atmosphere layers with a live sensor HUD;

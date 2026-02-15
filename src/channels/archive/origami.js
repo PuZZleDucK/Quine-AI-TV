@@ -1,4 +1,4 @@
-import { mulberry32 } from '../util/prng.js';
+import { mulberry32 } from '../../util/prng.js';
 
 // Origami After Hours
 // Slow, relaxing paper-fold sessions with step highlights and satisfying crease sounds (optional).

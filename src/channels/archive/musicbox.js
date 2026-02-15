@@ -1,6 +1,6 @@
 // REVIEWED: 2026-02-11
-import { mulberry32, clamp } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32, clamp } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 function pick(rand, arr){ return arr[(rand() * arr.length) | 0]; }
 function lerp(a,b,t){ return a + (b-a)*t; }

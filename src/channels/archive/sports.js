@@ -1,4 +1,4 @@
-import { mulberry32 } from '../util/prng.js';
+import { mulberry32 } from '../../util/prng.js';
 
 const TEAMS = ['Kookaburras','Wombats','Sea Dragons','Pixel FC','Thunder Ducks','Orbital Roos','Laser Koalas','Night Owls'];
 

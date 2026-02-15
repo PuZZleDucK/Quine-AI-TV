@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 

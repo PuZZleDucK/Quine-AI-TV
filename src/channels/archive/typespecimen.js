@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 // Type Specimen Theatre
 // Fonts as characters: each act performs a mood with kerning jokes and glyph close-ups.

@@ -1,4 +1,4 @@
-import { mulberry32 } from '../util/prng.js';
+import { mulberry32 } from '../../util/prng.js';
 
 // Rainy Window Radio
 // Lo-fi rain-on-glass visuals + a tiny “radio dial” that flips between mellow micro-genres.

@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 // Marble Run Dispatch
 // Marble-run routing network: SORT → EXPRESS → JAM CLEAR phases

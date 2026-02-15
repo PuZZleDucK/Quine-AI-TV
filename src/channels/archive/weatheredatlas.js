@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 // Mapmaker's Weathered Atlas
 // Hand-drawn map pages with animated routes, marginalia, and little historical footnotes.

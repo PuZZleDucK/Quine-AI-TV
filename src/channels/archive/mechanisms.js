@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 // Satisfying Mechanisms
 // Slow cams of linkages, gears, cams, and escapements with labeled motion paths.

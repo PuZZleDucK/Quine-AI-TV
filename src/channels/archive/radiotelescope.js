@@ -1,5 +1,5 @@
-import { mulberry32 } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32 } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 export function createChannel({ seed, audio }) {
   const rand = mulberry32(seed);

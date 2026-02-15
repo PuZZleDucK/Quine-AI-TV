@@ -1,5 +1,5 @@
-import { mulberry32, clamp } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32, clamp } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 function pick(rand, a){ return a[(rand() * a.length) | 0]; }
 

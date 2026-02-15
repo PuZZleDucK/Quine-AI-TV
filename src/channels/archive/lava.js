@@ -1,5 +1,5 @@
 // REVIEWED: 2026-02-12
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 const CAPTIONS = [
   'slow heat • soft glow • no rush',

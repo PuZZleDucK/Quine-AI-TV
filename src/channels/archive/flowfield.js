@@ -1,5 +1,5 @@
 // REVIEWED: 2026-02-12
-import { mulberry32 } from '../util/prng.js';
+import { mulberry32 } from '../../util/prng.js';
 
 export function createChannel({ seed, audio }){
   const rand = mulberry32(seed);

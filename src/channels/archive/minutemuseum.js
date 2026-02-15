@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 // Minute Museum
 // One artwork/object per minute: quick context, one detail zoom, one takeaway.

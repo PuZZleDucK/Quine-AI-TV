@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 
 // Planetarium Postcards
 // Rotating “postcards” from planets/moons with a single wow-fact and slow starfield parallax.

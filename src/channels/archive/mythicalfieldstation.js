@@ -1,5 +1,5 @@
-import { mulberry32, clamp } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32, clamp } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 // Mythical Creature Field Station
 // A ranger desk logs cryptid evidence (casts, sketches, maps) with occasional camera glitches

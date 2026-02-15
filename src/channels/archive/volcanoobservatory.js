@@ -1,4 +1,4 @@
-import { mulberry32, clamp } from '../util/prng.js';
+import { mulberry32, clamp } from '../../util/prng.js';
 // REVIEWED: 2026-02-11
 
 function lerp(a, b, t){ return a + (b - a) * t; }

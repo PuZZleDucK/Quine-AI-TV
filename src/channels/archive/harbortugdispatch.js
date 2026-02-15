@@ -1,5 +1,5 @@
-import { mulberry32 } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32 } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 // Harbor Tug Dispatch
 // Port map dispatch: tug lines guide ship silhouettes; tide gauge + squall pulses,

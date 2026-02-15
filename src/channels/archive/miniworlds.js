@@ -1,4 +1,4 @@
-import { mulberry32 } from '../util/prng.js';
+import { mulberry32 } from '../../util/prng.js';
 
 // Found Footage: Miniature Worlds
 // Diorama scenes shot like a documentary: labels, scale bars, gentle pans.

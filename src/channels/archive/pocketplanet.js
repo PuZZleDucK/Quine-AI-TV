@@ -1,5 +1,5 @@
-import { mulberry32, clamp } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32, clamp } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 // Pocket Planet Weather
 // Tiny rotating planet with playful fronts, pressure rings, and one rotating “wow” fact.

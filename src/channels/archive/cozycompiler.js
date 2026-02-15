@@ -1,5 +1,5 @@
-import { mulberry32 } from '../util/prng.js';
-import { simpleDrone } from '../util/audio.js';
+import { mulberry32 } from '../../util/prng.js';
+import { simpleDrone } from '../../util/audio.js';
 
 // REVIEWED: 2026-02-11
 
