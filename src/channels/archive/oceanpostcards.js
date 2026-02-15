@@ -1,4 +1,5 @@
-import { mulberry32 } from '../util/prng.js';
+// REVIEWED: 2026-02-15
+import { mulberry32 } from '../../util/prng.js';
 
 // Ocean Floor Postcards
 // Gentle parallax seafloor scenes + one creature fact per card; slow drifting silt.

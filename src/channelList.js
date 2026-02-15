@@ -29,4 +29,5 @@ export const CHANNELS = [
   { id: 'cavetorch', name: 'Cave Torch Storyboard', file: 'cavetorch.js' },
   { id: 'retroboot', name: 'Retro Boot Sequence', file: 'retroboot.js' },
   { id: 'duckdebug', name: 'Rubber Duck Debugging', file: 'rubberduck.js' },
+  { id: 'oceanpostcards', name: 'Ocean Floor Postcards', file: 'archive/oceanpostcards.js' },
 ];

@@ -2,7 +2,7 @@ import { CHANNELS } from './channelList.js';
 import { hashStringToSeed, clamp } from './util/prng.js';
 import { AudioManager } from './util/audio.js';
 
-const CHANNEL_MODULES = import.meta.glob('./channels/*.js');
+const CHANNEL_MODULES = import.meta.glob('./channels/**/*.js');
 
 const screen = document.getElementById('screen');
 const noise = document.getElementById('noise');
