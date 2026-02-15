@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): long-run interest — added 8 more real-world destinations (Prague, Seoul, Cape Town, Buenos Aires, Mumbai, Auckland, Cairo, Vancouver) incl. palettes + HUMOR_BY_CITY lines. Commit: 95605e7
+
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed bug — slow crt vertical scan effect only on top third of street feed. Commit: 6202ba6
 
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard layout — ensure the postcard bullet section never truncates mid-word (add ellipsis on the last line when wrapping exceeds the max lines). Commit: 2d40a89
