@@ -3,8 +3,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard layout — ensure the postcard bullet section never truncates mid-word (add ellipsis on the last line when wrapping exceeds the max lines).
-
 - [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): long-run interest — add 6–10 more real-world destinations (with palette + vibe/food/fact + HUMOR_BY_CITY line) so repeats are rarer.
 
 - [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): special moments — add 1–2 rare deterministic desk moments (~2–5 min) (e.g. “PASSPORT STAMP”, “ROUTE UPDATE”) that clearly change the map/route styling.

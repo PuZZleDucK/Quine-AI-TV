@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard layout — ensure the postcard bullet section never truncates mid-word (add ellipsis on the last line when wrapping exceeds the max lines). Commit: 2d40a89
+
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard text — allow up to 2 wrapped lines for the value text (not just 1) for STREET/FOOD/HISTORY/HUMOR; adjust y-step so the block can’t overlap the coffee steam / divider. Commit: 774675d
 
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): determinism — fixed-timestep sim loop (`SIM_DT=1/60` accumulator) so 30fps/60fps captures match for the same seed (special-moment schedules + drum rotation cadence-stable). Commit: bf283cc
