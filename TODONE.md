@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — fix front text mirroring so it ends the right way around. Commit: b92f6ce
+
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — flip starts at 30s (same 15s duration) and front stays shown after flip. Commit: 3291a26
 
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — flip to the front for the last 15s (parody location image). Commit: 64f98bb
