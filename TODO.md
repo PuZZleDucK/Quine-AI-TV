@@ -11,8 +11,6 @@ if `TODO.md` has no ready items:
 
 - [ ] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment — add a second rare deterministic event (e.g. “COIN JAM”) with a clearly-visible signature (control-panel strobe + door shake + OSD-safe banner), scheduled via a separate seeded RNG (~90–240s cadence), with clean reset.
 
-- [ ] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): perf — cache static background/window gradients into offscreen layers rebuilt on init/resize so steady-state `render()` allocates 0 gradients/frame (verify).
-
 <!-- done: moved to TODONE.md -->
 <!-- done: moved retroboot unixes task to TODONE.md -->
 <!-- done: moved to TODONE.md -->

@@ -1,6 +1,8 @@
 # Done
 
 
+- [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): perf — cached static background/window/placard gradients into offscreen layers (rebuilt on init/resize) so steady-state `drawBackground()` blits layers (no per-frame gradients for those elements). Commit: a8e03b7
+
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): text variety — expanded LOST SOCK alert pool (~50 variants) and switched selection to a seeded shuffle-bag (separate RNG) while preserving the main RNG sequence. Commit: 7b89614
 
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): audio hygiene — fixed stacked hum/noise/drone by capturing per-handle nodes in `stop()` and making `onAudioOn()` idempotent; `onAudioOff()`/`destroy()` now stop+clear and only clear `AudioManager.current` when owned. Commit: 2b38844
