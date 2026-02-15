@@ -1360,7 +1360,7 @@ export function createChannel({ seed, audio }){
   }
 
 
-  function drawPostcard(ctx, layout){
+  function drawPostcardBack(ctx, layout){
     const pw = Math.floor(w * 0.40);
     const ph = Math.floor(h * 0.32);
     const px = Math.floor(w * 0.57);
@@ -1577,6 +1577,227 @@ export function createChannel({ seed, audio }){
   }
 
 
+  const POSTCARD_FLIP_SECONDS = 15;
+
+  function postcardRect(){
+    const pw = Math.floor(w * 0.40);
+    const ph = Math.floor(h * 0.32);
+    const px = Math.floor(w * 0.57);
+    const py = Math.floor(h * 0.50);
+    const r = Math.floor(Math.min(w, h) * 0.02);
+    return { px, py, pw, ph, r };
+  }
+
+  function drawPostcardFront(ctx, layout){
+    const { px, py, pw, ph, r } = postcardRect();
+
+    // shadow
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    roundedRect(ctx, px + 10, py + 14, pw, ph, r);
+    ctx.fill();
+    ctx.restore();
+
+    // card base
+    ctx.save();
+    ctx.globalAlpha = 0.985;
+    ctx.fillStyle = 'rgba(248, 244, 234, 0.98)';
+    roundedRect(ctx, px, py, pw, ph, r);
+    ctx.fill();
+
+    // subtle paper speckle
+    ctx.save();
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    for (let i = 0; i < 72; i++){
+      const xx = px + (i * 997) % Math.max(1, pw - 10);
+      const yy = py + (i * 613) % Math.max(1, ph - 10);
+      ctx.fillRect(xx, yy, 1, 1);
+    }
+    ctx.restore();
+
+    // airmail stripe (bottom edge)
+    ctx.save();
+    const stripeH = Math.max(6, Math.floor(ph * 0.08));
+    ctx.globalAlpha = 0.10;
+    for (let x = px - pw; x < px + pw * 2; x += Math.max(16, Math.floor(pw * 0.06))){
+      ctx.fillStyle = 'rgba(220, 60, 70, 1)';
+      ctx.fillRect(x, py + ph - Math.floor(stripeH * 0.78), Math.floor(pw * 0.03), Math.floor(stripeH * 0.55));
+      ctx.fillStyle = 'rgba(30, 90, 200, 1)';
+      ctx.fillRect(x + Math.floor(pw * 0.03), py + ph - Math.floor(stripeH * 0.78), Math.floor(pw * 0.03), Math.floor(stripeH * 0.55));
+    }
+    ctx.restore();
+
+    // photo frame
+    const fx = px + Math.floor(pw * 0.07);
+    const fy = py + Math.floor(ph * 0.12);
+    const fw = Math.floor(pw * 0.86);
+    const fh = Math.floor(ph * 0.60);
+    const fr = Math.floor(r * 0.75);
+
+    ctx.save();
+    ctx.globalAlpha = 0.98;
+    ctx.fillStyle = 'rgba(255,255,255,0.78)';
+    roundedRect(ctx, fx - 2, fy - 2, fw + 4, fh + 4, fr);
+    ctx.fill();
+
+    // photo
+    ctx.save();
+    roundedRect(ctx, fx, fy, fw, fh, fr);
+    ctx.clip();
+
+    const gg = ctx.createLinearGradient(fx, fy, fx, fy + fh);
+    gg.addColorStop(0, dest.palette.sky1);
+    gg.addColorStop(1, dest.palette.sky0);
+    ctx.fillStyle = gg;
+    ctx.fillRect(fx, fy, fw, fh);
+
+    const pr = mulberry32((seed ^ hashStr(`postcardfront|${destinationKey(dest)}`) ^ (segIx * 0x51e17acb)) >>> 0);
+    const accent = hexToRgb(dest?.palette?.accent);
+
+    // sun / moon
+    const sunX = fx + fw * (0.18 + pr() * 0.64);
+    const sunY = fy + fh * (0.18 + pr() * 0.22);
+    const sunR = fh * (0.08 + pr() * 0.10);
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = `rgba(${accent.r}, ${accent.g}, ${accent.b}, 1)`;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR * 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.46;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // distant silhouette skyline (parody “photo”)
+    const baseY = fy + fh * (0.78 + pr() * 0.06);
+    const ink = hexToRgb(dest?.palette?.ink);
+    const skyDark = mixRgb(ink, hexToRgb(dest?.palette?.sky0), 0.45);
+    ctx.fillStyle = `rgba(${skyDark.r}, ${skyDark.g}, ${skyDark.b}, 0.92)`;
+    let x = fx - fw * 0.06;
+    while (x < fx + fw * 1.06){
+      const bw = fw * (0.06 + pr() * 0.10);
+      const bh = fh * (0.12 + pr() * 0.34);
+      const top = baseY - bh;
+      ctx.fillRect(Math.floor(x), Math.floor(top), Math.ceil(bw), Math.ceil(bh));
+      if (pr() < 0.35){
+        const sp = pr() < 0.5 ? 2 : 3;
+        ctx.fillRect(Math.floor(x + bw * 0.35), Math.floor(top - bh * 0.12), Math.max(2, Math.floor(bw * 0.12)), Math.floor(bh * sp * 0.08));
+      }
+      x += bw * (0.62 + pr() * 0.55);
+    }
+
+    // watermark outline (country-ish) for “location” vibe
+    const profile = COUNTRY_SHAPES[dest.country];
+    const raw = profile
+      ? makeCoastFromProfile(profile, 0, 0, 1, (pr() - 0.5) * (Math.PI / 8))
+      : makeCoast(pr, 0, 0, 1);
+    const wm = fitPointsToBox(raw, fx + fw * 0.78, fy + fh * 0.45, fw * 0.58, fh * 0.66);
+    ctx.save();
+    ctx.globalAlpha = 0.10;
+    ctx.strokeStyle = `rgba(${accent.r}, ${accent.g}, ${accent.b}, 1)`;
+    ctx.lineWidth = Math.max(2, Math.floor(Math.min(w, h) / 480));
+    ctx.beginPath();
+    ctx.moveTo(wm[0].x, wm[0].y);
+    for (let i = 1; i < wm.length; i++) ctx.lineTo(wm[i].x, wm[i].y);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+
+    // light grain / halftone hint
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    const step = Math.max(6, Math.floor(fw / 42));
+    for (let yy = fy; yy < fy + fh; yy += step){
+      for (let xx = fx; xx < fx + fw; xx += step){
+        if (pr() < 0.18) ctx.fillRect(xx, yy, 1, 1);
+      }
+    }
+    ctx.restore();
+
+    ctx.restore(); // clip
+
+    // frame edge
+    ctx.globalAlpha = 0.26;
+    ctx.strokeStyle = 'rgba(0,0,0,1)';
+    ctx.lineWidth = Math.max(1, Math.floor(layout.font * 0.08));
+    roundedRect(ctx, fx - 2, fy - 2, fw + 4, fh + 4, fr);
+    ctx.stroke();
+    ctx.restore();
+
+    // greetings banner
+    const tx = px + Math.floor(pw * 0.08);
+    const ty = py + Math.floor(ph * 0.77);
+    ctx.save();
+    ctx.globalAlpha = 0.82;
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
+    ctx.font = `bold ${Math.floor(layout.font * 0.74)}px ui-sans-serif, system-ui`;
+    ctx.textBaseline = 'top';
+    ctx.fillText('GREETINGS FROM', tx, ty);
+    ctx.globalAlpha = 0.90;
+    ctx.font = `900 ${Math.floor(layout.font * 1.10)}px ui-sans-serif, system-ui`;
+    ctx.fillText(String(dest.city || '').toUpperCase(), tx, ty + Math.floor(layout.font * 0.90));
+
+    // tiny corner caption
+    ctx.globalAlpha = 0.45;
+    ctx.font = `${Math.floor(layout.font * 0.62)}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.fillText(`THE TINY TRAVEL DESK • ${String(dest.country || '').toUpperCase()}`, tx, py + Math.floor(ph * 0.07));
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  function drawPostcardFlip(ctx, layout){
+    const flipStart = SEG_DUR - POSTCARD_FLIP_SECONDS;
+    if (segT < flipStart){
+      drawPostcardBack(ctx, layout);
+      return;
+    }
+
+    const u = clamp((segT - flipStart) / POSTCARD_FLIP_SECONDS, 0, 1);
+    const angle = u * Math.PI;
+    const c = Math.cos(angle);
+    const scaleX = Math.max(0.02, Math.abs(c));
+
+    const { px, py, pw, ph, r } = postcardRect();
+    const cx = px + pw * 0.5;
+    const cy = py + ph * 0.5;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(scaleX, 1 + (1 - scaleX) * 0.02);
+    ctx.translate(-cx, -cy);
+
+    if (c < 0){
+      // counter-mirror so text reads correctly on the "front"
+      ctx.translate(cx, cy);
+      ctx.scale(-1, 1);
+      ctx.translate(-cx, -cy);
+      drawPostcardFront(ctx, layout);
+    } else {
+      drawPostcardBack(ctx, layout);
+    }
+
+    // edge darkening during flip (keeps it from looking like a pure squash)
+    const edge = 1 - scaleX;
+    if (edge > 0.001){
+      ctx.save();
+      roundedRect(ctx, px, py, pw, ph, r);
+      ctx.clip();
+      ctx.globalAlpha = 0.25 * edge;
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.fillRect(px, py, pw, ph);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+
   function render(ctx){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -1584,7 +1805,7 @@ export function createChannel({ seed, audio }){
     drawDesk(ctx);
     const layout = drawMap(ctx);
     drawStreetScreen(ctx, layout);
-    drawPostcard(ctx, layout);
+    drawPostcardFlip(ctx, layout);
 
     // gentle vignette
     ctx.save();
