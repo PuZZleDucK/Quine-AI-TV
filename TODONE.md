@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — redesigned postcard layout + parody message/address/cancellation mark; screenshots: screenshots/autopilot-traveldesk-postcard-pre + screenshots/autopilot-traveldesk-postcard-post. Commit: 8a822e5
+
 - [x] [project:quine-tv] `synthwave` (src/channels/synthwave.js): determinism — removed per-frame `rand()` usage from `drawTitle()` glitch jitter; now derives jitter from `hashUnit32(seed ^ timeBucket)` (FPS-stable captures). Commit: aadcd88
 
 - [x] [project:quine-tv] Review channel `synthwave` (src/channels/synthwave.js): captured screenshots (0–300s) to `screenshots/review-synthwave-2026-02-15` (errors/warnings: 0), did code+audio review, confirmed `// REVIEWED: 2026-02-15`, and queued concrete follow-ups in `TODO.md`. Commit: 7159b7e
