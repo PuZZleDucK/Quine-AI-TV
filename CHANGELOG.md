@@ -1,3 +1,5 @@
+- 2026-02-15 12:36 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual bug — clipped + ellipsized LOST SOCK alert card text so it can’t overflow the rounded popup (and min card height for legibility). Screenshots: screenshots/autopilot-neonlaundromat-before + screenshots/autopilot-neonlaundromat-after2. Commit: 0d00632
+
 - 2026-02-15 12:15 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment — added rare deterministic “COIN JAM” event (~90–240s cadence; separate seeded RNG) with control-panel strobe + door shake + OSD-safe banner; clean reset. Commit: 682d9ab
 
 - 2026-02-15 12:00 (Australia/Melbourne) [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment bug — LOST SOCK alert popup now stays on-screen longer (fade-in + hold + fade-out timing). Commit: 5e2f4ea
