@@ -3,7 +3,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [ ] [project:quine-tv] `synthwave` (src/channels/synthwave.js): visuals — add an occasional deterministic foreground silhouette pass (road sign / billboard / bridge segment) to break up the large empty grid over minutes (keep OSD clear).
 
 # pending - do not do
 
