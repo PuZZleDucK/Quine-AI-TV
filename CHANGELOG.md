@@ -1,3 +1,5 @@
+- 2026-02-15 20:16 (Australia/Melbourne) [project:quine-tv] `aquarium` (src/channels/aquarium.js): depth — added a subtle midground haze+silhouette layer and split fish into back/front planes (back plane: slower + blur/alpha/scale) to reduce the “flat plane” feel. Commit: eb5c3df
+
 - 2026-02-15 20:06 (Australia/Melbourne) [project:quine-tv] `aquarium` (src/channels/aquarium.js): caustics — replaced scanline bands with a cached scrolling caustics texture (offscreen tile + layered pattern drift) so the surface light reads organic. Commit: 4133545
 
 - 2026-02-15 19:33 (Australia/Melbourne) [project:quine-tv] `aquarium` (src/channels/aquarium.js): special moments — added rare deterministic “FLASHLIGHT SWEEP” (warm cone + drifting sparkles) scheduled on existing `randEvents` cadence; kept behind fish. Commit: 441738f

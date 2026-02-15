@@ -3,8 +3,6 @@ if `TODO.md` has no ready items:
 
 # TODO Queue
 
-- [ ] [project:quine-tv] `aquarium` (src/channels/aquarium.js): depth — add a subtle midground layer (faint silhouettes/rocks or fog band) and push fish into 2 depth planes (slight blur/alpha/scale) to reduce the “everything is on one flat plane” feeling.
-
 # pending - do not do
 
 - [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — flip the postcard for the last 15 seconds showing parody postcard image for location on the other side
