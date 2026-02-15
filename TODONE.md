@@ -1,6 +1,6 @@
 # Done
 
-- [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): high priority layout — removed the destination countdown strip and expanded the map/street/postcard layout to reclaim space. Commit: TBD
+- [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): high priority layout — removed the destination countdown strip and expanded the map/street/postcard layout to reclaim space. Commit: b8ae0cc
 
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): long-run interest — added 8 more real-world destinations (Prague, Seoul, Cape Town, Buenos Aires, Mumbai, Auckland, Cairo, Vancouver) incl. palettes + HUMOR_BY_CITY lines. Commit: 95605e7
 
