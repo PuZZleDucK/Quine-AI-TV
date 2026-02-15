@@ -1,6 +1,6 @@
 # Done
 
-- [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed variety — added occasional foreground pass sprites (streetlight pole / bus silhouette / neon sign / moon) with faster parallax so the inset feels less static over minutes. Commit: TBD
+- [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed variety — added occasional foreground pass sprites (streetlight pole / bus silhouette / neon sign / moon) with faster parallax so the inset feels less static over minutes. Commit: 8f05e65
 
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed — street feed should look slightly different for each location. Commit: a6e2c02
 
