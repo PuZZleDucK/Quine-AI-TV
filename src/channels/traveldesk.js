@@ -1577,6 +1577,8 @@ export function createChannel({ seed, audio }){
   }
 
 
+  // Flip starts at 30s and takes the same duration as before; after the flip completes we keep showing the front.
+  const POSTCARD_FLIP_AT_SECONDS = 30;
   const POSTCARD_FLIP_SECONDS = 15;
 
   function postcardRect(){
@@ -1752,7 +1754,7 @@ export function createChannel({ seed, audio }){
   }
 
   function drawPostcardFlip(ctx, layout){
-    const flipStart = SEG_DUR - POSTCARD_FLIP_SECONDS;
+    const flipStart = POSTCARD_FLIP_AT_SECONDS;
     if (segT < flipStart){
       drawPostcardBack(ctx, layout);
       return;
