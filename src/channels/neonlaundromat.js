@@ -69,6 +69,219 @@ export function createChannel({ seed, audio }){
   // midground window details
   let windowFx = { x: 0, y: 0, w: 0, h: 0, lights: [] };
 
+
+  // perf: cache static background/window/placard gradients into offscreen layers (rebuild on init/resize)
+  const cache = {
+    bg: null, bgW: 0, bgH: 0,
+    window: null, winW: 0, winH: 0,
+    placard: null, placW: 0, placH: 0,
+  };
+
+  function makeCanvas(W, H){
+    try {
+      if (typeof document === 'undefined') return null;
+      const c = document.createElement('canvas');
+      c.width = W;
+      c.height = H;
+      return c;
+    } catch {
+      return null;
+    }
+  }
+
+  function ensureBGCache(){
+    const W = Math.max(1, Math.floor(w));
+    const H = Math.max(1, Math.floor(h));
+    if (cache.bg !== null && cache.bgW === W && cache.bgH === H) return;
+
+    cache.bgW = W;
+    cache.bgH = H;
+
+    const c = makeCanvas(W, H);
+    if (!c) {
+      cache.bg = false;
+      return;
+    }
+
+    const gctx = c.getContext('2d');
+    gctx.setTransform(1, 0, 0, 1, 0, 0);
+    gctx.clearRect(0, 0, W, H);
+
+    const g = gctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, pal.bg0);
+    g.addColorStop(0.55, pal.bg1);
+    g.addColorStop(1, '#030407');
+    gctx.fillStyle = g;
+    gctx.fillRect(0, 0, W, H);
+
+    // pale interior wall panel between window band and floor
+    const wallTop = H * 0.29;
+    const wallBottom = floorY || (H * 0.55);
+    if (wallBottom > wallTop){
+      const wg = gctx.createLinearGradient(0, wallTop, 0, wallBottom);
+      wg.addColorStop(0, 'rgba(233,239,247,0.26)');
+      wg.addColorStop(1, 'rgba(214,225,236,0.34)');
+      gctx.fillStyle = wg;
+      gctx.fillRect(0, wallTop, W, wallBottom - wallTop);
+
+      const mid = wallTop + (wallBottom - wallTop) * 0.52;
+      const topLift = gctx.createLinearGradient(0, wallTop, 0, mid);
+      topLift.addColorStop(0, 'rgba(242,246,252,0.26)');
+      topLift.addColorStop(1, 'rgba(242,246,252,0.06)');
+      gctx.fillStyle = topLift;
+      gctx.fillRect(0, wallTop, W, mid - wallTop);
+
+      gctx.strokeStyle = 'rgba(32,48,68,0.28)';
+      gctx.lineWidth = Math.max(1, Math.floor(dpr));
+      gctx.beginPath();
+      gctx.moveTo(0, wallBottom - 1);
+      gctx.lineTo(W, wallBottom - 1);
+      gctx.stroke();
+    }
+
+    cache.bg = c;
+  }
+
+  function ensureWindowCache(){
+    const W = Math.max(1, Math.floor(w));
+    const H = Math.max(1, Math.floor(h));
+    if (cache.window !== null && cache.winW === W && cache.winH === H) return;
+
+    cache.winW = W;
+    cache.winH = H;
+
+    const c = makeCanvas(W, H);
+    if (!c) {
+      cache.window = false;
+      return;
+    }
+
+    const gctx = c.getContext('2d');
+    gctx.setTransform(1, 0, 0, 1, 0, 0);
+    gctx.clearRect(0, 0, W, H);
+
+    const wx = windowFx.x;
+    const wy = windowFx.y;
+    const ww = windowFx.w;
+    const wh = windowFx.h;
+
+    const frame = Math.max(8, Math.floor(Math.min(W, H) * 0.012));
+    const rad = Math.max(16, Math.floor(Math.min(ww, wh) * 0.08));
+
+    // frame
+    gctx.fillStyle = 'rgba(0,0,0,0.52)';
+    roundedRect(gctx, wx - frame, wy - frame, ww + frame * 2, wh + frame * 2, rad + frame);
+    gctx.fill();
+
+    gctx.strokeStyle = 'rgba(220,240,255,0.10)';
+    gctx.lineWidth = Math.max(1, Math.floor(dpr));
+    roundedRect(gctx, wx - frame + 1, wy - frame + 1, ww + frame * 2 - 2, wh + frame * 2 - 2, rad + frame - 1);
+    gctx.stroke();
+
+    // glass
+    const gg = gctx.createLinearGradient(0, wy, 0, wy + wh);
+    gg.addColorStop(0, 'rgba(24,34,48,0.65)');
+    gg.addColorStop(0.55, 'rgba(12,18,26,0.56)');
+    gg.addColorStop(1, 'rgba(6,10,16,0.72)');
+    gctx.fillStyle = gg;
+    roundedRect(gctx, wx, wy, ww, wh, rad);
+    gctx.fill();
+
+    // clip to glass area for static interior details (reflection band + mullions)
+    gctx.save();
+    gctx.beginPath();
+    roundedRect(gctx, wx, wy, ww, wh, rad);
+    gctx.clip();
+
+    // soft reflection band
+    const rg = gctx.createLinearGradient(wx, wy, wx + ww, wy + wh);
+    rg.addColorStop(0, 'rgba(255,255,255,0.00)');
+    rg.addColorStop(0.35, 'rgba(255,255,255,0.06)');
+    rg.addColorStop(0.7, 'rgba(255,255,255,0.00)');
+    gctx.fillStyle = rg;
+    gctx.fillRect(wx, wy, ww, wh);
+
+    // mullions
+    gctx.strokeStyle = 'rgba(235,245,255,0.08)';
+    gctx.lineWidth = Math.max(1, Math.floor(dpr));
+    for (const f of [1/3, 2/3]){
+      const x = wx + ww * f;
+      gctx.beginPath();
+      gctx.moveTo(x, wy);
+      gctx.lineTo(x, wy + wh);
+      gctx.stroke();
+    }
+    const hy = wy + wh * 0.58;
+    gctx.beginPath();
+    gctx.moveTo(wx, hy);
+    gctx.lineTo(wx + ww, hy);
+    gctx.stroke();
+
+    gctx.restore();
+
+    // sill
+    gctx.fillStyle = 'rgba(0,0,0,0.28)';
+    gctx.fillRect(wx - frame, wy + wh + frame * 0.25, ww + frame * 2, Math.max(4, Math.floor(frame * 0.35)));
+
+    cache.window = c;
+  }
+
+  function ensurePlacardCache(){
+    const W = Math.max(1, Math.floor(w));
+    const H = Math.max(1, Math.floor(h));
+    if (cache.placard !== null && cache.placW === W && cache.placH === H) return;
+
+    cache.placW = W;
+    cache.placH = H;
+
+    const c = makeCanvas(W, H);
+    if (!c) {
+      cache.placard = false;
+      return;
+    }
+
+    const gctx = c.getContext('2d');
+    gctx.setTransform(1, 0, 0, 1, 0, 0);
+    gctx.clearRect(0, 0, W, H);
+
+    const wx = windowFx.x;
+    const wy = windowFx.y;
+    const ww = windowFx.w;
+    const wh = windowFx.h;
+
+    const sx = wx + ww * 0.08;
+    const sy = wy + wh * 0.18;
+    const sw = ww * 0.50;
+    const sh = wh * 0.42;
+    const sr = Math.max(10, sh * 0.24);
+
+    // mounts
+    gctx.fillStyle = 'rgba(48,58,78,0.88)';
+    gctx.fillRect(sx + sw * 0.16, sy - sh * 0.22, Math.max(2, sw * 0.01), sh * 0.22);
+    gctx.fillRect(sx + sw * 0.84, sy - sh * 0.22, Math.max(2, sw * 0.01), sh * 0.22);
+
+    // sign plate
+    const sg = gctx.createLinearGradient(0, sy, 0, sy + sh);
+    sg.addColorStop(0, 'rgba(16,22,34,0.88)');
+    sg.addColorStop(1, 'rgba(8,12,20,0.90)');
+    gctx.fillStyle = sg;
+    roundedRect(gctx, sx, sy, sw, sh, sr);
+    gctx.fill();
+
+    gctx.strokeStyle = 'rgba(220,240,255,0.24)';
+    gctx.lineWidth = Math.max(1.2, Math.floor(dpr * 1.1));
+    roundedRect(gctx, sx + 1, sy + 1, sw - 2, sh - 2, sr - 1);
+    gctx.stroke();
+
+    cache.placard = c;
+  }
+
+  function ensureStaticLayers(){
+    ensureBGCache();
+    ensureWindowCache();
+    ensurePlacardCache();
+  }
+
   function regenWindow(){
     const wx = w * 0.06;
     const wy = h * 0.09;
@@ -404,6 +617,7 @@ export function createChannel({ seed, audio }){
 
     regenLayout();
     regenWindow();
+    ensureStaticLayers();
     reset();
   }
 
@@ -581,12 +795,43 @@ export function createChannel({ seed, audio }){
   }
 
   function drawBackground(ctx, P){
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, pal.bg0);
-    g.addColorStop(0.55, pal.bg1);
-    g.addColorStop(1, '#030407');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
+    ensureStaticLayers();
+
+    if (cache.bg && cache.bg !== false){
+      ctx.drawImage(cache.bg, 0, 0);
+    } else {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, pal.bg0);
+      g.addColorStop(0.55, pal.bg1);
+      g.addColorStop(1, '#030407');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+
+      // pale interior wall panel between window band and floor
+      const wallTop = h * 0.29;
+      const wallBottom = floorY || (h * 0.55);
+      if (wallBottom > wallTop){
+        const wg = ctx.createLinearGradient(0, wallTop, 0, wallBottom);
+        wg.addColorStop(0, 'rgba(233,239,247,0.26)');
+        wg.addColorStop(1, 'rgba(214,225,236,0.34)');
+        ctx.fillStyle = wg;
+        ctx.fillRect(0, wallTop, w, wallBottom - wallTop);
+
+        const mid = wallTop + (wallBottom - wallTop) * 0.52;
+        const topLift = ctx.createLinearGradient(0, wallTop, 0, mid);
+        topLift.addColorStop(0, 'rgba(242,246,252,0.26)');
+        topLift.addColorStop(1, 'rgba(242,246,252,0.06)');
+        ctx.fillStyle = topLift;
+        ctx.fillRect(0, wallTop, w, mid - wallTop);
+
+        ctx.strokeStyle = 'rgba(32,48,68,0.28)';
+        ctx.lineWidth = Math.max(1, Math.floor(dpr));
+        ctx.beginPath();
+        ctx.moveTo(0, wallBottom - 1);
+        ctx.lineTo(w, wallBottom - 1);
+        ctx.stroke();
+      }
+    }
 
     const drift = Math.sin(t * 0.08) * w * 0.01;
 
@@ -602,24 +847,64 @@ export function createChannel({ seed, audio }){
     const frame = Math.max(8, Math.floor(Math.min(w, h) * 0.012));
     const rad = Math.max(16, Math.floor(Math.min(ww, wh) * 0.08));
 
-    // frame
-    ctx.fillStyle = 'rgba(0,0,0,0.52)';
-    roundedRect(ctx, wx - frame, wy - frame, ww + frame * 2, wh + frame * 2, rad + frame);
-    ctx.fill();
+    if (cache.window && cache.window !== false){
+      ctx.drawImage(cache.window, 0, 0);
+    } else {
+      // frame
+      ctx.fillStyle = 'rgba(0,0,0,0.52)';
+      roundedRect(ctx, wx - frame, wy - frame, ww + frame * 2, wh + frame * 2, rad + frame);
+      ctx.fill();
 
-    ctx.strokeStyle = 'rgba(220,240,255,0.10)';
-    ctx.lineWidth = Math.max(1, Math.floor(dpr));
-    roundedRect(ctx, wx - frame + 1, wy - frame + 1, ww + frame * 2 - 2, wh + frame * 2 - 2, rad + frame - 1);
-    ctx.stroke();
+      ctx.strokeStyle = 'rgba(220,240,255,0.10)';
+      ctx.lineWidth = Math.max(1, Math.floor(dpr));
+      roundedRect(ctx, wx - frame + 1, wy - frame + 1, ww + frame * 2 - 2, wh + frame * 2 - 2, rad + frame - 1);
+      ctx.stroke();
 
-    // glass
-    const gg = ctx.createLinearGradient(0, wy, 0, wy + wh);
-    gg.addColorStop(0, 'rgba(24,34,48,0.65)');
-    gg.addColorStop(0.55, 'rgba(12,18,26,0.56)');
-    gg.addColorStop(1, 'rgba(6,10,16,0.72)');
-    ctx.fillStyle = gg;
-    roundedRect(ctx, wx, wy, ww, wh, rad);
-    ctx.fill();
+      // glass
+      const gg = ctx.createLinearGradient(0, wy, 0, wy + wh);
+      gg.addColorStop(0, 'rgba(24,34,48,0.65)');
+      gg.addColorStop(0.55, 'rgba(12,18,26,0.56)');
+      gg.addColorStop(1, 'rgba(6,10,16,0.72)');
+      ctx.fillStyle = gg;
+      roundedRect(ctx, wx, wy, ww, wh, rad);
+      ctx.fill();
+
+      // clip to glass area for static interior details
+      ctx.save();
+      ctx.beginPath();
+      roundedRect(ctx, wx, wy, ww, wh, rad);
+      ctx.clip();
+
+      // soft reflection band
+      const rg = ctx.createLinearGradient(wx, wy, wx + ww, wy + wh);
+      rg.addColorStop(0, 'rgba(255,255,255,0.00)');
+      rg.addColorStop(0.35, 'rgba(255,255,255,0.06)');
+      rg.addColorStop(0.7, 'rgba(255,255,255,0.00)');
+      ctx.fillStyle = rg;
+      ctx.fillRect(wx, wy, ww, wh);
+
+      // mullions
+      ctx.strokeStyle = 'rgba(235,245,255,0.08)';
+      ctx.lineWidth = Math.max(1, Math.floor(dpr));
+      for (const f of [1/3, 2/3]){
+        const x = wx + ww * f;
+        ctx.beginPath();
+        ctx.moveTo(x, wy);
+        ctx.lineTo(x, wy + wh);
+        ctx.stroke();
+      }
+      const hy = wy + wh * 0.58;
+      ctx.beginPath();
+      ctx.moveTo(wx, hy);
+      ctx.lineTo(wx + ww, hy);
+      ctx.stroke();
+
+      ctx.restore();
+
+      // sill
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.fillRect(wx - frame, wy + wh + frame * 0.25, ww + frame * 2, Math.max(4, Math.floor(frame * 0.35)));
+    }
 
     // clip to glass area for exterior details
     ctx.save();
@@ -656,63 +941,37 @@ export function createChannel({ seed, audio }){
       ctx.lineTo(x - ww * 0.015, y0 + wh * 0.22);
       ctx.stroke();
     }
-
-    // soft reflection band
-    const rg = ctx.createLinearGradient(wx, wy, wx + ww, wy + wh);
-    rg.addColorStop(0, 'rgba(255,255,255,0.00)');
-    rg.addColorStop(0.35, 'rgba(255,255,255,0.06)');
-    rg.addColorStop(0.7, 'rgba(255,255,255,0.00)');
-    ctx.fillStyle = rg;
-    ctx.fillRect(wx, wy, ww, wh);
-
     ctx.globalCompositeOperation = 'source-over';
 
-    // mullions
-    ctx.strokeStyle = 'rgba(235,245,255,0.08)';
-    ctx.lineWidth = Math.max(1, Math.floor(dpr));
-    for (const f of [1/3, 2/3]){
-      const x = wx + ww * f;
-      ctx.beginPath();
-      ctx.moveTo(x, wy);
-      ctx.lineTo(x, wy + wh);
-      ctx.stroke();
-    }
-    const hy = wy + wh * 0.58;
-    ctx.beginPath();
-    ctx.moveTo(wx, hy);
-    ctx.lineTo(wx + ww, hy);
-    ctx.stroke();
-
     ctx.restore(); // clip
+    ctx.restore(); // drift translate
 
-    // sill
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.fillRect(wx - frame, wy + wh + frame * 0.25, ww + frame * 2, Math.max(4, Math.floor(frame * 0.35)));
+    // placard base (kept un-drifted for legacy composition/legibility)
+    if (cache.placard && cache.placard !== false){
+      ctx.drawImage(cache.placard, 0, 0);
+    } else {
+      const sx = wx + ww * 0.08;
+      const sy = wy + wh * 0.18;
+      const sw = ww * 0.50;
+      const sh = wh * 0.42;
+      const sr = Math.max(10, sh * 0.24);
 
-    ctx.restore();
+      // mounts
+      ctx.fillStyle = 'rgba(48,58,78,0.88)';
+      ctx.fillRect(sx + sw * 0.16, sy - sh * 0.22, Math.max(2, sw * 0.01), sh * 0.22);
+      ctx.fillRect(sx + sw * 0.84, sy - sh * 0.22, Math.max(2, sw * 0.01), sh * 0.22);
 
-    // pale interior wall panel between window band and floor
-    const wallTop = h * 0.29;
-    const wallBottom = floorY || (h * 0.55);
-    if (wallBottom > wallTop){
-      const wg = ctx.createLinearGradient(0, wallTop, 0, wallBottom);
-      wg.addColorStop(0, 'rgba(233,239,247,0.26)');
-      wg.addColorStop(1, 'rgba(214,225,236,0.34)');
-      ctx.fillStyle = wg;
-      ctx.fillRect(0, wallTop, w, wallBottom - wallTop);
+      // sign plate
+      const sg = ctx.createLinearGradient(0, sy, 0, sy + sh);
+      sg.addColorStop(0, 'rgba(16,22,34,0.88)');
+      sg.addColorStop(1, 'rgba(8,12,20,0.90)');
+      ctx.fillStyle = sg;
+      roundedRect(ctx, sx, sy, sw, sh, sr);
+      ctx.fill();
 
-      const mid = wallTop + (wallBottom - wallTop) * 0.52;
-      const topLift = ctx.createLinearGradient(0, wallTop, 0, mid);
-      topLift.addColorStop(0, 'rgba(242,246,252,0.26)');
-      topLift.addColorStop(1, 'rgba(242,246,252,0.06)');
-      ctx.fillStyle = topLift;
-      ctx.fillRect(0, wallTop, w, mid - wallTop);
-
-      ctx.strokeStyle = 'rgba(32,48,68,0.28)';
-      ctx.lineWidth = Math.max(1, Math.floor(dpr));
-      ctx.beginPath();
-      ctx.moveTo(0, wallBottom - 1);
-      ctx.lineTo(w, wallBottom - 1);
+      ctx.strokeStyle = 'rgba(220,240,255,0.24)';
+      ctx.lineWidth = Math.max(1.2, Math.floor(dpr * 1.1));
+      roundedRect(ctx, sx + 1, sy + 1, sw - 2, sh - 2, sr - 1);
       ctx.stroke();
     }
 
@@ -730,24 +989,6 @@ export function createChannel({ seed, audio }){
     const sw = ww * 0.50;
     const sh = wh * 0.42;
     const sr = Math.max(10, sh * 0.24);
-
-    // mounts
-    ctx.fillStyle = 'rgba(48,58,78,0.88)';
-    ctx.fillRect(sx + sw * 0.16, sy - sh * 0.22, Math.max(2, sw * 0.01), sh * 0.22);
-    ctx.fillRect(sx + sw * 0.84, sy - sh * 0.22, Math.max(2, sw * 0.01), sh * 0.22);
-
-    // sign plate
-    const sg = ctx.createLinearGradient(0, sy, 0, sy + sh);
-    sg.addColorStop(0, 'rgba(16,22,34,0.88)');
-    sg.addColorStop(1, 'rgba(8,12,20,0.90)');
-    ctx.fillStyle = sg;
-    roundedRect(ctx, sx, sy, sw, sh, sr);
-    ctx.fill();
-
-    ctx.strokeStyle = 'rgba(220,240,255,0.24)';
-    ctx.lineWidth = Math.max(1.2, Math.floor(dpr * 1.1));
-    roundedRect(ctx, sx + 1, sy + 1, sw - 2, sh - 2, sr - 1);
-    ctx.stroke();
 
     // neon tube edge
     const sf = 0.75 + 0.25 * Math.sin(t * 4.5);
@@ -776,7 +1017,6 @@ export function createChannel({ seed, audio }){
     ctx.fillText('NEON LAUNDROMAT  •  24H', 0, 0);
     ctx.restore();
   }
-
   function drawFloor(ctx, P){
     const yH = floorY || (h * 0.48);
 
