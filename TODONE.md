@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed — street feed should look slightly different for each location. Commit: a6e2c02
+
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): special moments — add 1–2 rare deterministic desk moments (~2–5 min) (e.g. “PASSPORT STAMP”, “ROUTE UPDATE”) that clearly change the map/route styling. Commit: 161f524
 
 - [x] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): high priority layout — removed the destination countdown strip and expanded the map/street/postcard layout to reclaim space. Commit: b8ae0cc

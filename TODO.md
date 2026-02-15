@@ -4,8 +4,6 @@ if `TODO.md` has no ready items:
 # TODO Queue
 
 
-- [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed — street feed should look slightly different for each location. 
-
 - [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed variety — add occasional foreground pass (streetlight pole / bus silhouette / neon sign / moon) with parallax so the inset feels less static over minutes.
 
 # pending - do not do

@@ -1,3 +1,5 @@
+- 2026-02-15 15:04 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): street feed — per-destination tint/lighting shifts so each location’s STREET FEED reads distinct (building tint/window hue/ground tone). Commit: a6e2c02
+
 - 2026-02-15 14:48 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): special moments — added rare deterministic “PASSPORT STAMP” + “ROUTE UPDATE” desk moments (~2–5 min cadence) that visibly restyle the map route. Commit: 161f524
 
 - 2026-02-15 14:30 (Australia/Melbourne) [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): high priority layout — removed destination countdown strip and expanded map/street/postcard layout to reclaim space. Commit: b8ae0cc
