@@ -1,6 +1,6 @@
 # Done
 
-- [x] [project:quine-tv] Review channel `synthwave` (src/channels/synthwave.js): captured screenshots (0–300s) to `screenshots/review-synthwave-2026-02-15` (errors/warnings: 0), did code+audio review, confirmed `// REVIEWED: 2026-02-15`, and queued concrete follow-ups in `TODO.md`. Commit: TBD
+- [x] [project:quine-tv] Review channel `synthwave` (src/channels/synthwave.js): captured screenshots (0–300s) to `screenshots/review-synthwave-2026-02-15` (errors/warnings: 0), did code+audio review, confirmed `// REVIEWED: 2026-02-15`, and queued concrete follow-ups in `TODO.md`. Commit: 7159b7e
 
 - [x] [project:quine-tv] `synthwave` (src/channels/synthwave.js): HUD polish — added an OSD-safe bottom-left HUD (SPEED/GEAR/RPM) with seeded rotating flavor text (no per-frame RNG). Commit: 74fe1f4
 
