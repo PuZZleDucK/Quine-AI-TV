@@ -1,6 +1,8 @@
 # Done
 
 
+- [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): text variety — expanded LOST SOCK alert pool (~50 variants) and switched selection to a seeded shuffle-bag (separate RNG) while preserving the main RNG sequence. Commit: 7b89614
+
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): audio hygiene — fixed stacked hum/noise/drone by capturing per-handle nodes in `stop()` and making `onAudioOn()` idempotent; `onAudioOff()`/`destroy()` now stop+clear and only clear `AudioManager.current` when owned. Commit: 2b38844
 
 - [x] [project:quine-tv] Review channel `neonlaundromat` (src/channels/neonlaundromat.js): captured screenshots (0–300s) to `screenshots/review-neonlaundromat-2026-02-15-pre` + completion shots to `screenshots/review-neonlaundromat-2026-02-15-post` (errors/warnings: 0), did code+audio review, added `// REVIEWED: 2026-02-15`, and queued concrete follow-ups in `TODO.md`. Commit: ddb13d8
