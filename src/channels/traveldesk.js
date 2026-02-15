@@ -932,12 +932,14 @@ export function createChannel({ seed, audio }){
     for (let y = 0; y < ih; y += sl){
       if ((y / sl) % 2 === 0) ctx.fillRect(ix, iy + y, iw, 1);
     }
-    // moving tape-glitch bar: keep it in upper sky so it never intersects skyline contact
-    const glitchBand = Math.max(18, Math.floor((groundY - iy) * 0.45));
-    const gy = iy + ((t * 48) % glitchBand) - 8;
+    // moving tape-glitch bar: keep it in the top third so it never intersects the skyline
+    const scanAreaH = Math.max(18, Math.floor(ih * 0.33));
+    const bandH = 14;
+    const maxBandTop = iy + scanAreaH - bandH;
+    const gy = iy + ((t * 22) % Math.max(1, (maxBandTop - iy) + 1));
     ctx.globalAlpha = 0.08;
     ctx.fillStyle = 'rgba(255,255,255,1)';
-    ctx.fillRect(ix, gy, iw, 14);
+    ctx.fillRect(ix, gy, iw, bandH);
     ctx.restore();
     ctx.restore();
 
