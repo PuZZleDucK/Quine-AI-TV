@@ -295,6 +295,10 @@ export function createChannel({ seed, audio }){
     vignette: null,
     deepGlow: null,
     bubbleSprites: new Map(),
+    causticsTile: null,
+    causticsTileW: 0,
+    causticsTileH: 0,
+    causticsPattern: null,
   };
 
   function resetGradCache(){
@@ -305,6 +309,10 @@ export function createChannel({ seed, audio }){
     gradCache.vignette = null;
     gradCache.deepGlow = null;
     gradCache.bubbleSprites.clear();
+    gradCache.causticsTile = null;
+    gradCache.causticsTileW = 0;
+    gradCache.causticsTileH = 0;
+    gradCache.causticsPattern = null;
   }
 
   function ensureGradCache(ctx){
@@ -317,6 +325,11 @@ export function createChannel({ seed, audio }){
       gradCache.deepGlow = null;
       // Bubble sprites don't depend on dimensions, but clearing here keeps the cache logic simple.
       gradCache.bubbleSprites.clear();
+      // Caustics texture is sized to the current canvas; regenerate on any ctx/size change.
+      gradCache.causticsTile = null;
+      gradCache.causticsTileW = 0;
+      gradCache.causticsTileH = 0;
+      gradCache.causticsPattern = null;
     }
   }
 
@@ -356,6 +369,131 @@ export function createChannel({ seed, audio }){
       gradCache.deepGlow = gg;
     }
     return gradCache.deepGlow;
+  }
+
+  function makeCausticsTile(){
+    // Fixed-size (but resolution-aware) tile for caustics so we can scroll a repeating
+    // texture instead of drawing straight scanline bands.
+    const base = Math.round(clamp(Math.min(w, h) * 0.42, 180, 340));
+    const tw = base;
+    const th = Math.max(96, Math.round(base * 0.58));
+
+    const c = (typeof OffscreenCanvas !== 'undefined')
+      ? new OffscreenCanvas(tw, th)
+      : document.createElement('canvas');
+    c.width = tw;
+    c.height = th;
+    const cctx = c.getContext('2d');
+
+    const rnd = mulberry32((staticSeed ^ 0x51ed270b) >>> 0);
+    cctx.clearRect(0, 0, tw, th);
+
+    // Soft glows (blobby refraction fields) — keep this subtle so we don't get a big
+    // milky overlay when the pattern is tiled over a large area.
+    cctx.save();
+    cctx.globalCompositeOperation = 'lighter';
+    cctx.filter = 'blur(7px)';
+    for (let i = 0; i < 80; i++){
+      const x = rnd() * tw;
+      const y = rnd() * th;
+      const r = (0.10 + rnd() * 0.22) * tw;
+      const hue = 165 + rnd() * 26;
+      const light = 62 + rnd() * 14;
+      const a = 0.02 + rnd() * 0.04;
+      cctx.fillStyle = `hsla(${hue}, 95%, ${light}%, ${a})`;
+
+      const rx = r * (0.65 + rnd() * 0.9);
+      const ry = r * (0.35 + rnd() * 0.7);
+      const rot = rnd() * Math.PI;
+
+      // Wrap across edges so the repeating pattern doesn't seam.
+      for (const ox of [-tw, 0, tw]){
+        for (const oy of [-th, 0, th]){
+          cctx.beginPath();
+          cctx.ellipse(x + ox, y + oy, rx, ry, rot, 0, Math.PI * 2);
+          cctx.fill();
+        }
+      }
+    }
+    cctx.restore();
+
+    // Filament lines (gives the “caustic streak” signature)
+    cctx.save();
+    cctx.globalCompositeOperation = 'lighter';
+    cctx.filter = 'blur(1.2px)';
+    cctx.lineCap = 'round';
+    cctx.lineJoin = 'round';
+
+    const strokes = 34;
+    const cx = tw * 0.5;
+    const cy = th * 0.5;
+    for (let i = 0; i < strokes; i++){
+      const y0 = (0.10 + rnd() * 0.80) * th;
+      const amp = (0.04 + rnd() * 0.11) * th;
+      const freq = (0.010 + rnd() * 0.020);
+      const ph = rnd() * Math.PI * 2;
+      const hue = 162 + rnd() * 32;
+      const a = 0.12 + rnd() * 0.18;
+      cctx.strokeStyle = `hsla(${hue}, 95%, 72%, ${a})`;
+      cctx.lineWidth = 1.0 + rnd() * 1.6;
+
+      // Rotate each filament slightly so the caustics don't read as straight scanlines.
+      const ang = (rnd() * 0.70 - 0.35);
+      const ca = Math.cos(ang);
+      const sa = Math.sin(ang);
+
+      cctx.beginPath();
+      const xStart = -tw * 0.25;
+      const xEnd = tw * 1.25;
+      const step = tw / 14;
+      let first = true;
+      for (let x = xStart; x <= xEnd + 0.001; x += step){
+        const u = x * freq;
+        const yRaw = y0 + Math.sin(u + ph) * amp + Math.sin(u * 1.9 + ph * 0.7) * amp * 0.35;
+
+        const dx = x - cx;
+        const dy = yRaw - cy;
+        const xr = cx + dx*ca - dy*sa;
+        const yr = cy + dx*sa + dy*ca;
+
+        if (first){ cctx.moveTo(xr, yr); first = false; }
+        else cctx.lineTo(xr, yr);
+      }
+      cctx.stroke();
+    }
+    cctx.restore();
+
+    // Tiny hotspots (very subtle) so it reads as moving light, not just faint streaks.
+    cctx.save();
+    cctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < 30; i++){
+      const x = rnd() * tw;
+      const y = rnd() * th;
+      const r = 0.8 + rnd() * 2.0;
+      const hue = 168 + rnd() * 22;
+      const a = 0.03 + rnd() * 0.07;
+      cctx.fillStyle = `hsla(${hue}, 95%, 82%, ${a})`;
+      cctx.beginPath();
+      cctx.arc(x, y, r, 0, Math.PI * 2);
+      cctx.fill();
+    }
+    cctx.restore();
+
+    gradCache.causticsTileW = tw;
+    gradCache.causticsTileH = th;
+    return c;
+  }
+
+  function getCausticsPattern(ctx){
+    ensureGradCache(ctx);
+    if (!gradCache.causticsTile){
+      gradCache.causticsTile = makeCausticsTile();
+      gradCache.causticsPattern = null;
+    }
+    if (!gradCache.causticsPattern && gradCache.causticsTile){
+      gradCache.causticsPattern = ctx.createPattern(gradCache.causticsTile, 'repeat');
+    }
+    return gradCache.causticsPattern;
   }
 
   function getBubbleSprite(r){
@@ -686,18 +824,71 @@ export function createChannel({ seed, audio }){
       ctx.restore();
     }
 
-    // caustics
-    const causticsA = 0.12 * (calmW*1.25 + schoolW*1.0 + deepW*deepPlan.caustics);
+    // caustics (cached scrolling texture)
+    const causticsA = 0.06 * (calmW*1.25 + schoolW*1.0 + deepW*deepPlan.caustics);
     const causticsT = t * (calmW*1.0 + schoolW*1.25 + deepW*0.85);
-    ctx.save();
-    ctx.globalAlpha = causticsA;
-    ctx.fillStyle = 'rgba(120,255,230,0.8)';
-    for (let i=0;i<60;i++){
-      const x = (i/60)*w;
-      const y = h*0.15 + Math.sin(causticsT*0.8 + i)*h*0.03;
-      ctx.fillRect(x, y, w/60, h*0.008);
+    if (causticsA > 0.001){
+      const pat = getCausticsPattern(ctx);
+      if (pat){
+        const bandY = h * 0.06;
+        const bandH = h * (0.22 + 0.03*Math.sin(causticsT*0.22));
+        const tw = gradCache.causticsTileW || 256;
+        const th = gradCache.causticsTileH || 128;
+        const modPos = (n, m) => ((n % m) + m) % m;
+
+        // Wavy clip + vertical fade so this reads like surface light, not a flat rectangle.
+        const edgeAmp = h * 0.010;
+        const topY = (x) => bandY + Math.sin(causticsT*0.28 + x*0.012) * edgeAmp;
+        const botY = (x) => (bandY + bandH) + Math.sin(causticsT*0.22 + 1.7 + x*0.010) * edgeAmp;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(0, topY(0));
+        for (let x = 0; x <= w; x += Math.max(18, w/28)) ctx.lineTo(x, topY(x));
+        ctx.lineTo(w, botY(w));
+        for (let x = w; x >= 0; x -= Math.max(18, w/28)) ctx.lineTo(x, botY(x));
+        ctx.closePath();
+        ctx.clip();
+
+        const fadeG = ctx.createLinearGradient(0, bandY, 0, bandY + bandH);
+        fadeG.addColorStop(0, 'rgba(255,255,255,0.20)');
+        fadeG.addColorStop(0.25, 'rgba(255,255,255,1.00)');
+        fadeG.addColorStop(1, 'rgba(255,255,255,0.0)');
+
+        // Layer 1: faster, smaller-scale refraction
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = causticsA * 0.70;
+        ctx.fillStyle = pat;
+        const sx1 = modPos(causticsT * 18, tw);
+        const sy1 = modPos(causticsT * 7, th);
+        ctx.translate(-sx1, bandY - sy1);
+        ctx.fillRect(0, 0, w + tw*2, bandH + th*2);
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.fillStyle = fadeG;
+        ctx.fillRect(0, bandY, w, bandH);
+        ctx.restore();
+
+        // Layer 2: slower, larger-scale drift (adds depth + breaks up repetition)
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = causticsA * 0.42;
+        ctx.fillStyle = pat;
+        const sx2 = modPos(causticsT * -10, tw);
+        const sy2 = modPos(causticsT * 4, th);
+        ctx.translate(-sx2 + tw*0.20, bandY - sy2 - th*0.25);
+        ctx.scale(1.35, 1.10);
+        ctx.fillRect(0, 0, w/1.35 + tw*2, bandH/1.10 + th*2);
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.fillStyle = fadeG;
+        ctx.fillRect(0, bandY, w, bandH);
+        ctx.restore();
+
+        ctx.restore();
+      }
     }
-    ctx.restore();
 
     // seabed
     ctx.fillStyle = `rgba(0,0,0,${0.25 + 0.08*deepW})`;
