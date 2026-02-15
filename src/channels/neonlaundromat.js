@@ -43,6 +43,10 @@ export function createChannel({ seed, audio }){
   let w = 0;
   let h = 0;
   let dpr = 1;
+
+  // Simulation runs at a fixed timestep so 30fps/60fps captures match for a given seed.
+  const SIM_DT = 1 / 60;
+  let simAcc = 0;
   let t = 0;
 
   let font = 16;
@@ -614,6 +618,7 @@ export function createChannel({ seed, audio }){
   }
 
   function reset(){
+    simAcc = 0;
     t = 0;
     phaseIndex = -1;
     beatPulse = 0;
@@ -742,7 +747,7 @@ export function createChannel({ seed, audio }){
     return { idx: p, within, frac: within / PHASE_DUR };
   }
 
-  function update(dt){
+  function simStep(dt){
     t += dt;
     beatPulse = Math.max(0, beatPulse - dt * 1.8);
 
@@ -873,6 +878,28 @@ export function createChannel({ seed, audio }){
         humOsc.frequency.value = base + bend;
       } catch {}
     }
+  }
+
+  function update(dt){
+    dt = Math.max(0, dt || 0);
+
+    // Clamp so we don't spiral if the tab was backgrounded (doesn't affect normal captures).
+    dt = Math.min(dt, 0.25);
+
+    simAcc += dt;
+
+    // Step at fixed increments; epsilon avoids float drift around boundaries.
+    const eps = 1e-9;
+    let steps = 0;
+    const maxSteps = 30;
+    while (simAcc + eps >= SIM_DT && steps < maxSteps){
+      simStep(SIM_DT);
+      simAcc -= SIM_DT;
+      steps++;
+    }
+
+    if (steps === maxSteps) simAcc = 0;
+    if (simAcc < 0) simAcc = 0;
   }
 
   function drawBackground(ctx, P){

@@ -1,5 +1,7 @@
 # Done
 
+- [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): determinism — fixed-timestep sim loop (`SIM_DT=1/60` accumulator) so 30fps/60fps captures match for the same seed (special-moment schedules + drum rotation cadence-stable). Commit: 37beecf
+
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): visual bug — event text overflows from container - previous attempt to fix failed. Commit: 0d00632
 
 - [x] [project:quine-tv] `neonlaundromat` (src/channels/neonlaundromat.js): special moment — added rare deterministic “COIN JAM” event (~90–240s cadence; separate seeded RNG) with control-panel strobe + door shake + OSD-safe banner; clean reset. Commit: 682d9ab
