@@ -3,6 +3,7 @@ import { simpleDrone } from '../util/audio.js';
 
 export function createChannel({ seed, audio }) {
   const rand = mulberry32(seed);
+  const seedInt = seed | 0;
 
   let w = 0;
   let h = 0;
@@ -168,6 +169,17 @@ export function createChannel({ seed, audio }) {
 
   function pick(arr) {
     return arr[(rand() * arr.length) | 0];
+  }
+
+  // Deterministic hash → [0, 1) (no per-frame RNG)
+  function hashUnit32(x) {
+    x |= 0;
+    x ^= x >>> 16;
+    x = Math.imul(x, 0x7feb352d);
+    x ^= x >>> 15;
+    x = Math.imul(x, 0x846ca68b);
+    x ^= x >>> 16;
+    return (x >>> 0) / 4294967296;
   }
 
   function sceneInit(width, height) {
@@ -514,6 +526,68 @@ export function createChannel({ seed, audio }) {
     ctx.restore();
   }
 
+  function drawHUD(ctx, beatAmt) {
+    const size = Math.max(10, Math.floor(h / 42));
+    const lineH = Math.floor(size * 1.25);
+    const x = w * 0.055;
+    const y = h * 0.84;
+    const pad = Math.floor(size * 0.8);
+    const boxW = Math.min(w * 0.24, pad * 2 + size * 15);
+    const boxH = pad * 2 + lineH * 4;
+
+    const drive = 0.5 + 0.5 * Math.sin(t * 0.35);
+    const speed = Math.max(0, Math.round(72 + drive * 88 + beatAmt * 16));
+    const gear = Math.max(1, Math.min(6, 1 + ((speed / 34) | 0)));
+    const rpm = Math.max(900, Math.min(8200, Math.round(1300 + speed * 42 + 220 * Math.sin(t * 1.15) + beatAmt * 420)));
+
+    const FLAVOR = [
+      'NIGHT CRUISE',
+      'SYNTH DRIVE',
+      'AUTOPILOT',
+      'NEON RUN',
+      'GRID LOCK',
+      'TURBO READY',
+      'AUX LINK OK',
+      'RADAR CLEAR',
+      'BASSLINE +',
+      'SIGNAL STABLE',
+    ];
+
+    const bucket = (t / 12) | 0;
+    const key = (Math.imul(seedInt ^ 0x51d7348d, 1664525) + bucket) | 0;
+    const flavor = FLAVOR[(hashUnit32(key) * FLAVOR.length) | 0];
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.fillStyle = 'rgba(5, 6, 18, 0.55)';
+    ctx.strokeStyle = `rgba(108,242,255,${0.22 + beatAmt * 0.25})`;
+    ctx.lineWidth = Math.max(1, Math.floor(h / 720));
+    ctx.shadowColor = `rgba(108,242,255,${0.18 + beatAmt * 0.22})`;
+    ctx.shadowBlur = 10 + beatAmt * 8;
+
+    ctx.fillRect(x, y, boxW, boxH);
+    ctx.shadowBlur = 0;
+    ctx.strokeRect(x + 0.5, y + 0.5, boxW - 1, boxH - 1);
+
+    ctx.font = `${size}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    ctx.textBaseline = 'top';
+
+    ctx.fillStyle = 'rgba(90,245,255,0.9)';
+    ctx.fillText(`SPEED ${String(speed).padStart(3, '0')}`, x + pad, y + pad + 0 * lineH);
+
+    ctx.fillStyle = 'rgba(255,120,210,0.9)';
+    ctx.fillText(`GEAR  ${gear}`, x + pad, y + pad + 1 * lineH);
+
+    ctx.fillStyle = 'rgba(255,220,140,0.9)';
+    ctx.fillText(`RPM   ${String(rpm).padStart(4, '0')}`, x + pad, y + pad + 2 * lineH);
+
+    ctx.fillStyle = 'rgba(255,86,221,0.85)';
+    ctx.fillText(flavor, x + pad, y + pad + 3 * lineH);
+
+    ctx.restore();
+  }
+
   function drawTitle(ctx, beatAmt) {
     const size = Math.floor(h / 20);
     const baseX = w * 0.055;
@@ -570,6 +644,7 @@ export function createChannel({ seed, audio }) {
 
     drawGrid(ctx, horizon, beatAmt);
     drawCar(ctx, horizon, beatAmt);
+    drawHUD(ctx, beatAmt);
     drawTitle(ctx, beatAmt);
 
     if (flash > 0) {

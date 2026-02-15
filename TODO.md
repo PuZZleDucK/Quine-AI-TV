@@ -7,8 +7,6 @@ if `TODO.md` has no ready items:
 
 - [ ] [project:quine-tv] `synthwave` (src/channels/synthwave.js): long-run interest — add a rare deterministic “POLICE LIGHTS” special moment (~2–5 min) with unmistakable color sweep on grid + car + skyline, OSD-safe EVENT label, and clean reset.
 
-- [ ] [project:quine-tv] `synthwave` (src/channels/synthwave.js): HUD polish — add a small OSD-safe bottom-left HUD (SPEED / GEAR / RPM) with seeded rotating flavor text (no per-frame RNG).
-
 # pending - do not do
 
 - [ ] [project:quine-tv] `traveldesk` (src/channels/traveldesk.js): postcard — postcard looks meh and text is not postcard like - redesign and add better parody postcard text and layout
